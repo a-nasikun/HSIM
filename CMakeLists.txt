@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.10 FATAL_ERROR)
-project(FastSpectrum LANGUAGES CXX CUDA)
+project(MultiGridSolver LANGUAGES CXX CUDA)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
 cmake_policy(SET CMP0076 NEW)
@@ -45,7 +45,7 @@ target_include_directories(libigl INTERFACE libigl/include)
 
 # Fast spectrum
 # #################################################################################################
-add_executable(FastSpectrum
+add_executable(MultiGridSolver
 	"Fast Spectrum/Main.cpp"
 	"Fast Spectrum/FastSpectrum.h"
 	"Fast Spectrum/FastSpectrum.cpp"
@@ -60,7 +60,7 @@ add_executable(FastSpectrum
 	"Fast Spectrum/Utility.cpp"
 	"Fast Spectrum/Visualization.h"
 	"Fast Spectrum/Visualization.cpp")
-target_link_libraries(FastSpectrum
+target_link_libraries(MultiGridSolver
 	PUBLIC libigl
 	PUBLIC eigen
 	PUBLIC glad
@@ -72,10 +72,10 @@ target_link_libraries(FastSpectrum
 	PUBLIC cublas
 	PUBLIC cusolver
 	PUBLIC cusparse)
-set_target_properties(FastSpectrum PROPERTIES
+set_target_properties(MultiGridSolver PROPERTIES
 	VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin
 	RUNTIME_OUTPUT_DIRECTORY $<1:${CMAKE_CURRENT_LIST_DIR}/bin>)
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT FastSpectrum)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT MultiGridSolver)
 if(MSVC)
-	target_compile_definitions(FastSpectrum PUBLIC _USE_MATH_DEFINES)
+	target_compile_definitions(MultiGridSolver PUBLIC _USE_MATH_DEFINES)
 endif()
