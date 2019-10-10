@@ -1,14 +1,63 @@
 #include "Visualization.h"
 
+using namespace std;
+
 /* Visualize the samples */
 void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample)
 {
-	viewer.data().clear();
-	viewer.data().set_mesh(V, F);
+	//viewer.data().clear();
+	//viewer.data().set_mesh(V, F);
+	int lastID = viewer.data().points.rows();
+	viewer.data().points.conservativeResize(lastID + Sample.size(), Eigen::NoChange_t());
 
 	for (int i = 0; i < Sample.size(); i++)
 	{
+		//viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0));
+		viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0);
+	}
+}
+
+void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize)
+{
+	cout << "Visualizing the samples \n";
+
+	const int totLevel = sampleSize.size();
+	printf("Total sample: %d \n", Sample.size());
+	for (int i = 0; i < totLevel; i++) printf("__level %d = %d \n", i, sampleSize[i]);
+
+	int lastID = viewer.data().points.rows();
+	//viewer.data().points.conservativeResize(lastID + Sample.size(), Eigen::NoChange_t());
+
+	cout << "coarse level \n";
+	// level 4: Coarsest level
+	for (int i = 0; i < sampleSize[totLevel - 1]; i++)
+	{
+		//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0);
 		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0));
+	}
+
+	cout << "coarse level 3\n";
+	// level 3
+	for (int i = sampleSize[totLevel - 1]; i < sampleSize[totLevel - 2]; i++)
+	{
+		//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(0.0, 1.0, 0.1);
+		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.0, 1.1, 0.0));
+	}
+
+	cout << "coarse level 2\n";
+	// level 2
+	for (int i = sampleSize[totLevel - 2]; i < sampleSize[totLevel - 3]; i++)
+	{
+		//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(0.0, 0.1, 1.0);
+		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.0, 0.1, 1.0));
+	}
+
+	cout << "coarse level 1\n";
+	// level 1 (just a bit below the total vertex size)
+	for (int i = sampleSize[totLevel - 3]; i < sampleSize[totLevel - 4]; i++)
+	{
+		//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 1.0);
+		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 1.0));
 	}
 }
 

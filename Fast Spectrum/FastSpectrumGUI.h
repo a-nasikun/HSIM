@@ -20,7 +20,7 @@ int					basisToShow		= 0;
 int					eigToShow		= 0;
 bool				boolShowSamples = false;
 static int			numOfSample		= 1000;
-static int			sampleType		= Sample_Poisson_Disk; 
+static int			sampleType		= Sample_Farthest_Point; 
 static int			dataToShow		= 0;
 
 void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum) {
@@ -118,7 +118,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					fastSpectrum.setSample(numOfSample, (SamplingType)sampleType);
 					fastSpectrum.constructSample();
 				}
-				ImGui::RadioButton("Poisson Disk", &sampleType, Sample_Poisson_Disk); ImGui::SameLine();
+				//ImGui::RadioButton("Poisson Disk", &sampleType, Sample_Poisson_Disk); ImGui::SameLine();
 				ImGui::RadioButton("Farthest Point", &sampleType, Sample_Farthest_Point);
 				//ImGui::RadioButton("Random", &sampleType, Sample_Random);
 
@@ -199,9 +199,16 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				}
 
 				if (boolShowSamples) {	
-					for (int i = 0; i < Sample.size(); i++) {
-						viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.7, 0.1, 0.1));
-					}
+					//for (int i = 0; i < Sample.size(); i++) {
+					//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.7, 0.1, 0.1));
+					//}
+					const int NUM_LEVEL = 4; 
+					vector<int> sampleSize; sampleSize.reserve(NUM_LEVEL);
+					sampleSize.push_back(Sample.size());
+					sampleSize.push_back(max(500, (int) Sample.size()/4));
+					sampleSize.push_back(max(250, (int)Sample.size()/16));
+					sampleSize.push_back(max(100, (int)Sample.size()/64));
+					visualizeSampleMulti(viewer, V, F, Sample, sampleSize);
 				}
 				else {
 					viewer.data().clear();
