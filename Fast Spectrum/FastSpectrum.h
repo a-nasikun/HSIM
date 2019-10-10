@@ -75,9 +75,16 @@ public:
 	void setSampleNumber(const int &sampleSize);
 	void setSampleType(SamplingType sampleType);
 
+	/* Heat Method*/
+	void solveHeatMethod(igl::opengl::glfw::Viewer &viewer);
+	void solveHeatEquation(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
+	void normalizeGradient(Eigen::VectorXd& grad);
+	void solvePoissonEquation(const Eigen::VectorXd& input, Eigen::VectorXd& output);
+	void visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
+
 protected:
 	/* [CLASS VARIABLES] */
-	Eigen::SparseMatrix<double>		S, M, S_, M_, Basis, DistanceTableSpM;
+	Eigen::SparseMatrix<double>		S, M, Mf, MfInv, G, S_, M_, Basis, DistanceTableSpM;
 	Eigen::MatrixXd					V, reducedEigVects;
 	Eigen::MatrixXi					F;
 	Eigen::VectorXd					reducedEigVals;
@@ -86,6 +93,10 @@ protected:
 	double							maxNeighDist, avgEdgeLength;
 	int								sampleSize;
 	SamplingType					sampleType;
+
+	/* [MULTI-GRID STUFF]*/
+	int								level;
+	vector<int>						SubspaceSize;
 
 	/* [SUPPLEMENTARY FUNCTIONS] */
 	void readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F);

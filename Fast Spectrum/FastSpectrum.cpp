@@ -1,4 +1,6 @@
 #include "FastSpectrum.h"
+#include <Eigen/PardisoSupport>
+#include <igl/grad.h>
 
 /* [MAIN FUNCTIONS IN FAST APPROXIMATIONG ALGORITHM] */
 
@@ -113,6 +115,29 @@ void FastSpectrum::constructLaplacianMatrix(){
 	/* Constructing table of edge-length using sparse Matrix (faster than vector-of-map and vector-of-unordered map) */
 	initiateDistTableSpM(V, AdM, DistanceTableSpM);
 
+	/* Construct face-based mass matrix*/
+	Eigen::VectorXd doublArea;
+	igl::doublearea(V, F, doublArea);
+	vector<Eigen::Triplet<double>> M1Triplet; M1Triplet.reserve(3*F.rows());
+	vector<Eigen::Triplet<double>> M2Triplet; M2Triplet.reserve(3*F.rows());
+	for (int i = 0; i < F.rows(); i++) {
+		double area = doublArea(i) / 2.0;
+		for (int j = 0; j < 3; j++) {
+			M1Triplet.push_back(Eigen::Triplet<double>(3 * i + j, 3 * i + j, area));
+			M2Triplet.push_back(Eigen::Triplet<double>(3 * i + j, 3 * i + j, 1.0/area));
+		}
+	}
+
+	Mf.resize(3 * F.rows(), 3 * F.rows());
+	MfInv.resize(3 * F.rows(), 3 * F.rows());
+	Mf.setFromTriplets(M1Triplet.begin(), M1Triplet.end());
+	MfInv.setFromTriplets(M2Triplet.begin(), M2Triplet.end());
+
+	/* Get the Gradient Matrix */
+	Eigen::SparseMatrix<double> GTemp;
+	igl::grad(V, F, GTemp);
+
+
 	printf("A Stiffness matrix S(%dx%d) and Mass matrix M(%dx%d) are constructed.\n", S.rows(), S.cols(), M.rows(), M.cols());
 }
 
@@ -162,7 +187,14 @@ void FastSpectrum::constructSample(){
 	}	
 	this->sampleSize = Sample.size();
 
+	/* Setting up hierarchy*/
+	level = 3;
+	SubspaceSize.push_back(Sample.size());
+	SubspaceSize.push_back(max(250, (int)Sample.size() / 4));
+	SubspaceSize.push_back(max(100, (int)Sample.size() / 16));
 	printf("A set of %d samples are constructed.\n", sampleSize);
+	for (int i = 0; i < level; i++)
+		printf("__level %d: %d samples \n", i, SubspaceSize[i]);
 }
 
 void FastSpectrum::constructBasis() {
@@ -300,6 +332,49 @@ void FastSpectrum::setSampleNumber(const int &sampleSize)
 void FastSpectrum::setSampleType(SamplingType sampleType)
 {
 	this->sampleType = sampleType; 
+}
+
+/* Heat Method*/
+void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
+{
+	double tau = 1000.0* avgEdgeLength;
+	Eigen::VectorXd inputHeat(V.rows()); inputHeat.setZero(); inputHeat(0) = 1.0; 
+	Eigen::VectorXd outputHeat;
+	Eigen::VectorXd grad;
+	Eigen::VectorXd heatDistance;
+
+	solveHeatEquation(tau, inputHeat, outputHeat);
+	visualizeHeatGeodesics(viewer, outputHeat);
+
+}
+
+void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+{
+	Eigen::SparseMatrix<double> LHS = M + tau*S;
+	Eigen::VectorXd rhs = M*input; 
+
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+	sparseSolver.analyzePattern(LHS);
+	sparseSolver.factorize(LHS);
+
+	output = sparseSolver.solve(rhs);
+}
+
+void FastSpectrum::normalizeGradient(Eigen::VectorXd& grad)
+{
+	
+}
+
+void FastSpectrum::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::VectorXd& output)
+{
+
+}
+
+void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
+{
+	Eigen::MatrixXd VColor;
+	igl::jet(functions, true, VColor);
+	viewer.data().set_colors(VColor);
 }
 
 /* [Read mesh model from file] */

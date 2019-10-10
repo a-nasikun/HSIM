@@ -23,49 +23,49 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 
 	const int totLevel = sampleSize.size();
 	printf("Total sample: %d \n", Sample.size());
-	for (int i = 0; i < totLevel; i++) printf("__level %d = %d \n", i, sampleSize[i]);
+	for (int i = 0; i < totLevel; i++) printf("__level %d = %d \n", i, sampleSize[i]);	
+
 
 	int lastID = viewer.data().points.rows();
-	//viewer.data().points.conservativeResize(lastID + Sample.size(), Eigen::NoChange_t());
+	//printf("Row: %d \n", lastID);
+	//viewer.data().points.conservativeResize(lastID + Sample.size(), 6);
+	//printf("Data points size: %dx%d \n", viewer.data().points.rows(), viewer.data().points.cols());
 
-	cout << "coarse level \n";
-	// level 4: Coarsest level
+		// level 4: Coarsest level
 	for (int i = 0; i < sampleSize[totLevel - 1]; i++)
 	{
 		//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0);
-		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0));
+		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(228.0, 26.0, 28.0)/255.0);
 	}
 
-	cout << "coarse level 3\n";
 	// level 3
 	for (int i = sampleSize[totLevel - 1]; i < sampleSize[totLevel - 2]; i++)
 	{
 		//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(0.0, 1.0, 0.1);
-		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.0, 1.1, 0.0));
+		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(77.0, 175.0, 74.0)/255.0);
 	}
 
-	cout << "coarse level 2\n";
 	// level 2
 	for (int i = sampleSize[totLevel - 2]; i < sampleSize[totLevel - 3]; i++)
 	{
 		//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(0.0, 0.1, 1.0);
-		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.0, 0.1, 1.0));
+		//viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(224.0 / 255.0, 254.0 / 255.0, 254.0 / 255.0));
+		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(55.0, 126.0, 184.0) / 255.0);
 	}
 
-	cout << "coarse level 1\n";
-	// level 1 (just a bit below the total vertex size)
-	for (int i = sampleSize[totLevel - 3]; i < sampleSize[totLevel - 4]; i++)
-	{
-		//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 1.0);
-		viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 1.0));
-	}
+	//// level 1 (just a bit below the total vertex size)
+	//for (int i = sampleSize[totLevel - 3]; i < sampleSize[totLevel - 4]; i++)
+	//{
+	//	//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 1.0);
+	//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 1.0));
+	//}
 }
 
 /* Visualize basis */
 void visualizeBasis(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::SparseMatrix<double> &U, const int &basisID)
 {
-	viewer.data().clear();
-	viewer.data().set_mesh(V, F);
+	//viewer.data().clear();
+	//viewer.data().set_mesh(V, F);
 
 	// Map the basis value at particular index to the jet coloring scheme
 	Eigen::MatrixXd		vColor;
@@ -78,8 +78,8 @@ void visualizeBasis(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V,
 /* Visualize Approximated Eigenvector */
 void visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::SparseMatrix<double> &U, const Eigen::MatrixXd &LDEigVec, const int &eigenID)
 {
-	viewer.data().clear();
-	viewer.data().set_mesh(V, F);
+	//viewer.data().clear();
+	//viewer.data().set_mesh(V, F);
 
 	// Some validation, ensuring no out-of-bound indices
 	if(eigenID<0 || eigenID>LDEigVec.cols()-1) { 

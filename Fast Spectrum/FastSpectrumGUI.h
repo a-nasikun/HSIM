@@ -63,12 +63,16 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				F = viewer.data().F;	
 				fastSpectrum.setV(V);
 				fastSpectrum.setF(F);
+				
 
 				viewer.core.align_camera_center(V, F);
 
 				viewer.data().show_lines = false;
 				printf("A new mesh with %d vertices (%d faces).\n", V.rows(), F.rows());
 				viewer.data().set_mesh(V, F);
+				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+
+				boolShowSamples = false; 
 				//for (int i = 0; i < viewer.data_list.size(); i++) {
 				//	printf("Data %d: %d (%d) \n", i, viewer.data_list.at(i).V.rows(), dataToShow);
 				//}
@@ -117,6 +121,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 					fastSpectrum.setSample(numOfSample, (SamplingType)sampleType);
 					fastSpectrum.constructSample();
+
 				}
 				//ImGui::RadioButton("Poisson Disk", &sampleType, Sample_Poisson_Disk); ImGui::SameLine();
 				ImGui::RadioButton("Farthest Point", &sampleType, Sample_Farthest_Point);
@@ -185,6 +190,13 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
+		/* HEAT METHOD */
+		if (ImGui::CollapsingHeader("Heat$##Method", ImGuiTreeNodeFlags_DefaultOpen)) {
+			if (ImGui::Button("Solve Heat Method", ImVec2(w, 0))) {
+				fastSpectrum.solveHeatMethod(viewer);
+			}			
+		}
+
 		/* VISUALIZATION WINDOW */
 		if (ImGui::CollapsingHeader("Visualization##FastSpectrum", ImGuiTreeNodeFlags_DefaultOpen)){
 			/* For Sampling */
@@ -202,22 +214,22 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					//for (int i = 0; i < Sample.size(); i++) {
 					//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.7, 0.1, 0.1));
 					//}
-					const int NUM_LEVEL = 4; 
+					const int NUM_LEVEL = 3; 
 					vector<int> sampleSize; sampleSize.reserve(NUM_LEVEL);
 					sampleSize.push_back(Sample.size());
-					sampleSize.push_back(max(500, (int) Sample.size()/4));
-					sampleSize.push_back(max(250, (int)Sample.size()/16));
-					sampleSize.push_back(max(100, (int)Sample.size()/64));
+					sampleSize.push_back(max(250, (int)Sample.size()/4));
+					sampleSize.push_back(max(100, (int)Sample.size()/16));
 					visualizeSampleMulti(viewer, V, F, Sample, sampleSize);
 				}
 				else {
-					viewer.data().clear();
-					fastSpectrum.getV(V);
-					fastSpectrum.getF(F);
-					viewer.data().set_mesh(V, F);
+					//viewer.data().clear();
+					//fastSpectrum.getV(V);
+					//fastSpectrum.getF(F);
+					//viewer.data().set_mesh(V, F);
+					viewer.data().points.resize(0, 6);
 				}
 
-				viewer.data().point_size = 5.0f;
+				viewer.data().point_size = 10.0f;
 			}
 
 			/* For Basis */			
@@ -237,8 +249,9 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 				if (boolShowSamples) {
 					boolShowSamples = false;
-					viewer.data().clear();
-					viewer.data().set_mesh(V, F);
+					viewer.data().points.resize(0, 6);
+					//viewer.data().clear();
+					//viewer.data().set_mesh(V, F);
 				}
 
 				Z = U.col(basisToShow);
@@ -263,8 +276,9 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 				if (boolShowSamples) {
 					boolShowSamples = false;
-					viewer.data().clear();
-					viewer.data().set_mesh(V, F);
+					viewer.data().points.resize(0, 6);
+					//viewer.data().clear();
+					//viewer.data().set_mesh(V, F);
 				}
 
 				Z = U.col(basisToShow);
@@ -285,8 +299,9 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 				if (boolShowSamples) {
 					boolShowSamples = false;
-					viewer.data().clear();
-					viewer.data().set_mesh(V, F);
+					viewer.data().points.resize(0, 6);
+					//viewer.data().clear();
+					//viewer.data().set_mesh(V, F);
 				}
 
 				Z = U.col(basisToShow);

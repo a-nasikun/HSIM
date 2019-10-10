@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 	igl::opengl::glfw::Viewer			viewer;			// Set up main viewer
 	FastSpectrum						fastSpectrum;
 	igl::opengl::glfw::imgui::ImGuiMenu menu;			// Attach a menu plugin
-	viewer.plugins.push_back(&menu);									
+	viewer.plugins.push_back(&menu);	
 	//IMGUI_CHECKVERSION();								// Setup Dear ImGui binding
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();							// Set style
@@ -50,8 +50,9 @@ int main(int argc, char *argv[])
 
 	Eigen::Vector4f					bgCol(0.5f, 0.4f, 0.9f, 0.2f);
 	//Eigen::Vector4f				bgCol(0.95f, 0.95f, 0.95f, 1.0f);
-	viewer.core.background_color	= bgCol;
-	viewer.data().point_size		= 5.0f;
+	viewer.core.background_color	= bgCol;	
+	viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+	viewer.data().point_size		= 10.0f;
 	viewer.data().line_width		= 0.5f; 	
 	return viewer.launch();
 }
