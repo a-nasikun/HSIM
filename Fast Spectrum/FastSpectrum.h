@@ -82,6 +82,8 @@ public:
 	void solvePoissonEquation(const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
 
+	void testGaussSeidel();
+
 protected:
 	/* [CLASS VARIABLES] */
 	Eigen::SparseMatrix<double>		S, M, Mf, MfInv, G, S_, M_, Basis, DistanceTableSpM;

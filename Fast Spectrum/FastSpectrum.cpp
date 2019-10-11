@@ -357,6 +357,8 @@ void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 	normalizeGradient(grad);
 	solvePoissonEquation(grad, heatDistance);
 	visualizeHeatGeodesics(viewer, heatDistance);
+
+	//testGaussSeidel();
 }
 
 void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
@@ -375,7 +377,8 @@ void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, E
 	sparseSolver.analyzePattern(LHS);
 	sparseSolver.factorize(LHS);
 
-	output = sparseSolver.solve(rhs);
+	//output = sparseSolver.solve(rhs);
+	GaussSeidelSparseSolver(LHS, rhs, output, 1000, 0.0003);
 
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
@@ -430,6 +433,36 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 	Eigen::MatrixXd VColor;
 	igl::jet(functions, true, VColor);
 	viewer.data().set_colors(VColor);
+}
+
+void FastSpectrum::testGaussSeidel()
+{	
+	Eigen::SparseMatrix<double> A(4, 4);
+	A.coeffRef(0, 0) = 10;
+	A.coeffRef(1, 0) = -1;
+	A.coeffRef(2, 0) = 2;
+	A.coeffRef(3, 0) = 0;
+	A.coeffRef(0, 1) = -1;
+	A.coeffRef(1, 1) = 11;
+	A.coeffRef(2, 1) = -1;
+	A.coeffRef(3, 1) = 3;
+	A.coeffRef(0, 2) = 2;
+	A.coeffRef(1, 2) = -1;
+	A.coeffRef(2, 2) = 10;
+	A.coeffRef(3, 2) = -1;
+	A.coeffRef(0, 3) = 0;
+	A.coeffRef(1, 3) = 3;
+	A.coeffRef(2, 3) = -1;
+	A.coeffRef(3, 3) = 8;
+
+	Eigen::VectorXd b(4);
+	b << 6, 25, -11, 15;
+
+	Eigen::VectorXd x0,x;
+	x0.setZero(4);
+
+	//GaussSeidel1Iter(A, b, x0, x);
+	GaussSeidelSparseSolver(A, b, x, 100, 0.0001);
 }
 
 /* [Read mesh model from file] */

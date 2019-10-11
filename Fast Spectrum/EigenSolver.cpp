@@ -1,5 +1,5 @@
 #include "EigenSolver.h"
-
+#include <chrono>
 
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
@@ -105,4 +105,76 @@ void computeEigenGPU(Eigen::SparseMatrix<double> &S_, Eigen::SparseMatrix<double
 	if (d_work) cudaFree(d_work);
 	if (cusolverH) cusolverDnDestroy(cusolverH);
 	cudaDeviceReset();
+}
+
+/* Iterative Gauss-Seidel Solver */
+void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x, int maxIter, double tol)
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "Iterative Gauss-Seidel solver...";
+	t1 = chrono::high_resolution_clock::now();
+
+	Eigen::VectorXd x0(rhs.rows()); x0.setZero();
+
+	Eigen::VectorXd xk1 = x0;
+	Eigen::VectorXd xk2;
+	double diffIter;
+	double maxDiffNum, minDiffNum;
+	double maxCurNum, minCurNum;
+	int iterUsed = 0;
+
+
+	for (int i = 0; i < maxIter; i++) {
+		GaussSeidel1Iter(LHS, rhs, xk1, xk2);
+
+		maxDiffNum = (xk2 - xk1).maxCoeff();
+		minDiffNum = (xk2 - xk1).minCoeff();
+		maxCurNum = xk2.maxCoeff();
+		minCurNum = xk2.minCoeff();
+		diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
+		//printf("Cur iter, the convergence: %.5f \n", diffIter);
+		//cout << "x: " << xk2.transpose() << endl;
+
+		xk1 = xk2; 
+
+		if (diffIter < tol)
+		{
+			iterUsed = i + 1;
+			break;
+		}
+	}
+	x = xk2;
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+
+	printf("It takes %d iter, with %.10f tolerance \n", iterUsed, diffIter);
+}
+
+void GaussSeidel1Iter(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x)
+{
+	x = x0; 
+
+
+	/* Getting the sum of every non-zero elements in a row */
+	for (int k = 0; k < LHS.outerSize(); ++k) {
+		double l = 0.0;
+		double u = 0.0;
+
+		for (Eigen::SparseMatrix<double>::InnerIterator it(LHS, k); it; ++it) {
+			if (it.row() < k)
+			{
+				l += it.value()*x(it.row());
+			}
+			else if (it.row() > k)
+			{
+				u += it.value()*x(it.row());
+			}			
+		}
+
+		x(k) = (rhs(k)-l-u) / LHS.coeff(k, k);
+	}
 }
