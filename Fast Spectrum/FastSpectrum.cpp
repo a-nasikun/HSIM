@@ -133,9 +133,18 @@ void FastSpectrum::constructLaplacianMatrix(){
 	Mf.setFromTriplets(M1Triplet.begin(), M1Triplet.end());
 	MfInv.setFromTriplets(M2Triplet.begin(), M2Triplet.end());
 
-	/* Get the Gradient Matrix */
+	/* Get the Gradient Matrix + Re-arrange*/
 	Eigen::SparseMatrix<double> GTemp;
 	igl::grad(V, F, GTemp);
+	vector<Eigen::Triplet<double>> GTriplet; GTriplet.reserve(GTemp.nonZeros());
+	for (int k = 0; k < GTemp.outerSize(); ++k) {
+		for (Eigen::SparseMatrix<double>::InnerIterator it(GTemp, k); it; ++it) {
+			GTriplet.push_back(Eigen::Triplet<double>(it.row() % F.rows() + (int)(it.row()/F.rows()), it.col(), it.value()));
+		}
+	}
+	G.resize(GTemp.rows(), GTemp.cols());
+	G.setFromTriplets(GTriplet.begin(), GTriplet.end());
+	
 
 
 	printf("A Stiffness matrix S(%dx%d) and Mass matrix M(%dx%d) are constructed.\n", S.rows(), S.cols(), M.rows(), M.cols());
@@ -337,19 +346,28 @@ void FastSpectrum::setSampleType(SamplingType sampleType)
 /* Heat Method*/
 void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 {
-	double tau = 1000.0* avgEdgeLength;
+	double tau = avgEdgeLength*avgEdgeLength;
 	Eigen::VectorXd inputHeat(V.rows()); inputHeat.setZero(); inputHeat(0) = 1.0; 
 	Eigen::VectorXd outputHeat;
 	Eigen::VectorXd grad;
 	Eigen::VectorXd heatDistance;
 
 	solveHeatEquation(tau, inputHeat, outputHeat);
-	visualizeHeatGeodesics(viewer, outputHeat);
-
+	grad = G*outputHeat;
+	normalizeGradient(grad);
+	solvePoissonEquation(grad, heatDistance);
+	visualizeHeatGeodesics(viewer, heatDistance);
 }
 
 void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Solving heat equation (smoothing)... ";
+	t1 = chrono::high_resolution_clock::now();
+	
+
 	Eigen::SparseMatrix<double> LHS = M + tau*S;
 	Eigen::VectorXd rhs = M*input; 
 
@@ -358,16 +376,53 @@ void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, E
 	sparseSolver.factorize(LHS);
 
 	output = sparseSolver.solve(rhs);
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 
 void FastSpectrum::normalizeGradient(Eigen::VectorXd& grad)
 {
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Normalize gradient... ";
+	t1 = chrono::high_resolution_clock::now();
 	
+	Eigen::Vector3d localGrad;
+	for (int i = 0; i < F.rows(); i++)
+	{
+		localGrad = grad.block(3 * i, 0, 3, 1);
+		localGrad.normalize();
+		grad.block(3 * i, 0, 3, 1) = localGrad;
+	}
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 
 void FastSpectrum::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Solve poission equation... ";
+	t1 = chrono::high_resolution_clock::now();
 
+
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SparseSolver;
+	SparseSolver.analyzePattern(S);
+	SparseSolver.factorize(S);
+
+	Eigen::VectorXd rhs = G.transpose()*Mf*input; 
+
+	output = SparseSolver.solve(rhs);
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 
 void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)

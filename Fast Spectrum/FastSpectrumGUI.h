@@ -191,7 +191,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
 		/* HEAT METHOD */
-		if (ImGui::CollapsingHeader("Heat$##Method", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if (ImGui::CollapsingHeader("Heat##Method", ImGuiTreeNodeFlags_DefaultOpen)) {
 			if (ImGui::Button("Solve Heat Method", ImVec2(w, 0))) {
 				fastSpectrum.solveHeatMethod(viewer);
 			}			
