@@ -1,4 +1,3 @@
-#pragma once
 #ifndef BASIS_H
 #define BASIS_H
 

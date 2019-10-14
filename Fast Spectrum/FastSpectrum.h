@@ -1,4 +1,3 @@
-#pragma once
 #ifndef FAST_SPECTRUM_H
 #define FAST_SPECTRUM_H
 

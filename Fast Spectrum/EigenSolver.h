@@ -1,4 +1,3 @@
-#pragma once
 #ifndef EIGEN_SOLVER_H
 #define EIGEN_SOLVER_H
 

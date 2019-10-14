@@ -9,7 +9,7 @@
 // INPUT: String of mesh-location & number of samples/subpsace, OUTPUT: approximated lifted eigenvectors & eigenvalues)
 void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSamples, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
 {
-	computeEigenPairs(meshFile, numOfSamples, Sample_Poisson_Disk, Basis, reducedEigVects, reducedEigVals);
+	computeEigenPairs(meshFile, numOfSamples, Sample_Farthest_Point, Basis, reducedEigVects, reducedEigVals);
 	approxEigVects = this->Basis * this->reducedEigVects;
 	approxEigVals = this->reducedEigVals;
 }
@@ -18,7 +18,7 @@ void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSam
 // INPUT: String of mesh-location & number of samples/subpsace, OUTPUT: Basis & reduced eigenvectors & eigenvalues )
 void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSamples, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
 {
-	computeEigenPairs(meshFile, numOfSamples, Sample_Poisson_Disk, Basis, reducedEigVects, reducedEigVals);
+	computeEigenPairs(meshFile, numOfSamples, Sample_Farthest_Point, Basis, reducedEigVects, reducedEigVals);
 }
 
 // Constructor: String mesh name + With predefined sample type + No Basis call + reduced eigenbasis
@@ -44,7 +44,7 @@ void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSam
 // INPUT: V and F matrices & number of samples/subpsace, OUTPUT: approximated lifted eigenvectors & eigenvalues)
 void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
 {
-	computeEigenPairs(V, F, numOfSamples, Sample_Poisson_Disk, Basis, reducedEigVects, reducedEigVals);
+	computeEigenPairs(V, F, numOfSamples, Sample_Farthest_Point, Basis, reducedEigVects, reducedEigVals);
 	approxEigVects	= this->Basis * this->reducedEigVects;
 	approxEigVals	= this->reducedEigVals;
 }
@@ -53,7 +53,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 // INPUT: V and F matrices & number of samples/subpsace, OUTPUT: OUTPUT: Basis & reduced eigenvectors & eigenvalues )
 void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
 {
-	computeEigenPairs(V, F, numOfSamples, Sample_Poisson_Disk, Basis, reducedEigVects, reducedEigVals);
+	computeEigenPairs(V, F, numOfSamples, Sample_Farthest_Point, Basis, reducedEigVects, reducedEigVals);
 }
  
 // Constructor: Vertices & Faces + With predefined sample type + No Basis call + reduced eigenbasis
@@ -144,8 +144,6 @@ void FastSpectrum::constructLaplacianMatrix(){
 	}
 	G.resize(GTemp.rows(), GTemp.cols());
 	G.setFromTriplets(GTriplet.begin(), GTriplet.end());
-	
-
 
 	printf("A Stiffness matrix S(%dx%d) and Mass matrix M(%dx%d) are constructed.\n", S.rows(), S.cols(), M.rows(), M.cols());
 }
@@ -373,12 +371,14 @@ void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, E
 	Eigen::SparseMatrix<double> LHS = M + tau*S;
 	Eigen::VectorXd rhs = M*input; 
 
-	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
-	sparseSolver.analyzePattern(LHS);
-	sparseSolver.factorize(LHS);
-
+	/// PARDISO (Direct Solver)
+	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+	//sparseSolver.analyzePattern(LHS);
+	//sparseSolver.factorize(LHS);
 	//output = sparseSolver.solve(rhs);
-	GaussSeidelSparseSolver(LHS, rhs, output, 1000, 0.0003);
+
+	/// Iterative Solver
+	GaussSeidelSparseSolver(LHS, rhs, output, 1000, 1e-5);
 
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
@@ -414,14 +414,14 @@ void FastSpectrum::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::Vec
 	cout << "> Solve poission equation... ";
 	t1 = chrono::high_resolution_clock::now();
 
+	Eigen::VectorXd rhs = G.transpose()*Mf*input; 
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SparseSolver;
 	SparseSolver.analyzePattern(S);
 	SparseSolver.factorize(S);
-
-	Eigen::VectorXd rhs = G.transpose()*Mf*input; 
-
 	output = SparseSolver.solve(rhs);
+
+	///GaussSeidelSparseSolver(S, rhs, output, 1000, 0.0003);
 
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;

@@ -1,4 +1,3 @@
-#pragma once
 #ifndef FAST_SPECTRUM_GUI
 #define FAST_SPECTRUM_GUI
 
