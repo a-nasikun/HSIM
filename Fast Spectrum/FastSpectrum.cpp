@@ -372,13 +372,13 @@ void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, E
 	Eigen::VectorXd rhs = M*input; 
 
 	/// PARDISO (Direct Solver)
-	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
-	//sparseSolver.analyzePattern(LHS);
-	//sparseSolver.factorize(LHS);
-	//output = sparseSolver.solve(rhs);
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+	sparseSolver.analyzePattern(LHS);
+	sparseSolver.factorize(LHS);
+	output = sparseSolver.solve(rhs);
 
 	/// Iterative Solver
-	GaussSeidelSparseSolver(LHS, rhs, output, 1000, 1e-5);
+	//GaussSeidelSparseSolver(LHS, rhs, output, 1000, 1e-5);
 
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
@@ -438,14 +438,15 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 /* Reduced (1-level) Heat Method */
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
-	double tau = avgEdgeLength*avgEdgeLength;
+	double tau = 1000.0*avgEdgeLength;
+	//double tau = avgEdgeLength*avgEdgeLength;
 	Eigen::VectorXd inputHeat(V.rows()); inputHeat.setZero(); inputHeat(0) = 1.0;
 	Eigen::VectorXd outputHeat;
 	Eigen::VectorXd grad;
 	Eigen::VectorXd heatDistance;
 
 	prepareRedMatrix();
-	inputHeat = Basis.transpose()*(inputHeat);
+	inputHeat = Basis.transpose()*(M*inputHeat);
 	solveHeatEquationRed(tau, inputHeat, outputHeat);
 	outputHeat = Basis*outputHeat;
 	grad = G*outputHeat;
@@ -458,21 +459,42 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 
 void FastSpectrum::prepareRedMatrix()
 {
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Prepare reduced matrices (M, S, GTMf)... ";
+	t1 = chrono::high_resolution_clock::now();
+
 	M_ = Basis.transpose()*M*Basis;
 	S_ = Basis.transpose()*S*Basis;
 	GTMf_ = Basis.transpose()*G.transpose()*Mf;
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 
 /* Both input and output are in reduced space */
 void FastSpectrum::solveHeatEquationRed(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Solve heat equation... ";
+	t1 = chrono::high_resolution_clock::now();
+
 	Eigen::SparseMatrix<double> MS_ = M_ + tau*S_;
-	Eigen::VectorXd rhs = M_*input;
+	//Eigen::VectorXd rhs = M_*input;
+	Eigen::VectorXd rhs = input;
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
 	sparseSolver.analyzePattern(MS_);
 	sparseSolver.factorize(MS_);
 	output = sparseSolver.solve(rhs);	
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 void FastSpectrum::normalizeGradientRed(Eigen::VectorXd& grad)
 {
@@ -482,12 +504,22 @@ void FastSpectrum::normalizeGradientRed(Eigen::VectorXd& grad)
 /* Input: full resolution, output: reduced */
 void FastSpectrum::solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Solve poission equation... ";
+	t1 = chrono::high_resolution_clock::now();
+
 	Eigen::VectorXd rhs = GTMf_ * input;
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
 	sparseSolver.analyzePattern(S_);
 	sparseSolver.factorize(S_);
 	output = sparseSolver.solve(rhs);
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
 {
