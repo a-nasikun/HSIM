@@ -435,6 +435,69 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 	viewer.data().set_colors(VColor);
 }
 
+/* Reduced (1-level) Heat Method */
+void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
+{
+	double tau = avgEdgeLength*avgEdgeLength;
+	Eigen::VectorXd inputHeat(V.rows()); inputHeat.setZero(); inputHeat(0) = 1.0;
+	Eigen::VectorXd outputHeat;
+	Eigen::VectorXd grad;
+	Eigen::VectorXd heatDistance;
+
+	prepareRedMatrix();
+	inputHeat = Basis.transpose()*(inputHeat);
+	solveHeatEquationRed(tau, inputHeat, outputHeat);
+	outputHeat = Basis*outputHeat;
+	grad = G*outputHeat;
+	normalizeGradientRed(grad);
+	solvePoissonEquationRed(grad, heatDistance);
+	//heatDistance = Basis*heatDistance;
+	visualizeHeatGeodesicsRed(viewer, heatDistance);
+
+}
+
+void FastSpectrum::prepareRedMatrix()
+{
+	M_ = Basis.transpose()*M*Basis;
+	S_ = Basis.transpose()*S*Basis;
+	GTMf_ = Basis.transpose()*G.transpose()*Mf;
+}
+
+/* Both input and output are in reduced space */
+void FastSpectrum::solveHeatEquationRed(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+{
+	Eigen::SparseMatrix<double> MS_ = M_ + tau*S_;
+	Eigen::VectorXd rhs = M_*input;
+
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+	sparseSolver.analyzePattern(MS_);
+	sparseSolver.factorize(MS_);
+	output = sparseSolver.solve(rhs);	
+}
+void FastSpectrum::normalizeGradientRed(Eigen::VectorXd& grad)
+{
+	normalizeGradient(grad);
+}
+
+/* Input: full resolution, output: reduced */
+void FastSpectrum::solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output)
+{
+	Eigen::VectorXd rhs = GTMf_ * input;
+
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+	sparseSolver.analyzePattern(S_);
+	sparseSolver.factorize(S_);
+	output = sparseSolver.solve(rhs);
+}
+void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
+{
+	Eigen::VectorXd funcLifted = Basis*functions;
+
+	Eigen::MatrixXd VColor;
+	igl::jet(funcLifted, true, VColor);
+	viewer.data().set_colors(VColor);
+}
+
 void FastSpectrum::testGaussSeidel()
 {	
 	Eigen::SparseMatrix<double> A(4, 4);

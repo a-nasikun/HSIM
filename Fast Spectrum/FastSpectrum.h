@@ -81,11 +81,21 @@ public:
 	void solvePoissonEquation(const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
 
+	/* Reduced (1-level) Heat Method */	
+	void solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer);
+	void prepareRedMatrix();
+	void solveHeatEquationRed(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
+	void normalizeGradientRed(Eigen::VectorXd& grad);
+	void solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output);
+	void visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
+
+
 	void testGaussSeidel();
 
 protected:
 	/* [CLASS VARIABLES] */
-	Eigen::SparseMatrix<double>		S, M, Mf, MfInv, G, S_, M_, Basis, DistanceTableSpM;
+	Eigen::SparseMatrix<double>		S, M, Mf, MfInv, G,  Basis, DistanceTableSpM;
+	Eigen::SparseMatrix<double>		S_, M_, GTMf_;
 	Eigen::MatrixXd					V, reducedEigVects;
 	Eigen::MatrixXi					F;
 	Eigen::VectorXd					reducedEigVals;
@@ -96,8 +106,9 @@ protected:
 	SamplingType					sampleType;
 
 	/* [MULTI-GRID STUFF]*/
-	int								level;
-	vector<int>						SubspaceSize;
+	int									level;
+	vector<int>							SubspaceSize;
+	vector<Eigen::SparseMatrix<double>> U;
 
 	/* [SUPPLEMENTARY FUNCTIONS] */
 	void readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F);
