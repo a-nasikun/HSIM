@@ -20,6 +20,9 @@ using namespace std;
 void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector<set<int>> &AdM,
 	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, const int sampleSize,
 	vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);	
+void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector<set<int>> &AdM,
+	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, int level, Eigen::VectorXi Sample, const vector<int>& SubspaceSize,
+	vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);
 
 #endif // !BASIS_H
 

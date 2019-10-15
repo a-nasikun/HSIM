@@ -191,8 +191,16 @@ void FastSpectrum::constructBasis() {
 		printf("Radius %d is %.4f \n", i, maxNeighDist[i]);
 	}
 	
-	constructBasisFunctions();
-	formPartitionOfUnity();
+	constructBasisFunctionsLevel0();
+	for (int i = 1; i < level; i++)	{
+		constructBasisFunctionsLevelK(i);
+		printf("Construction of basis level %d is done \n", i);
+	}
+
+	Basis = U[0] * U[1] * U[2];
+
+	//formPartitionOfUnity();
+	//formPartitionOfUnityMultiLevel();
 }
 
 void FastSpectrum::constructRestrictedProblem() {
@@ -573,10 +581,16 @@ void FastSpectrum::readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::M
 }
 
 /* [Construct Basis Matrix] */
-void FastSpectrum::constructBasisFunctions()
+void FastSpectrum::constructBasisFunctionsLevel0()
 {
-	Basis.resize(V.rows(), Sample.size());
-	Basis.reserve(20 * V.rows());
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Basis construction (level 0)... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	//Basis.resize(V.rows(), Sample.size());
+	//Basis.reserve(20 * V.rows());
 
 	vector<vector<Eigen::Triplet<double>>>	UTriplet;
 	vector<Eigen::Triplet<double>>			AllTriplet;
@@ -584,25 +598,20 @@ void FastSpectrum::constructBasisFunctions()
 	double			aCoef = 2.0 / (maxNeighDist[0]*maxNeighDist[0]*maxNeighDist[0]);
 	double			bCoef = -3.0 / (maxNeighDist[0]*maxNeighDist[0]);
 	int				i = 0;
-	Eigen::VectorXi	Si(1);
-
-	vector<Eigen::Triplet<double>>	emptyTriplet;
+	
 	const int						NUM_OF_THREADS = omp_get_num_procs();
 	omp_set_num_threads(NUM_OF_THREADS);
 	UTriplet.resize(NUM_OF_THREADS);
 
 	int tid, ntids, ipts, istart, iproc;
-	chrono::high_resolution_clock::time_point	t4, t5;
-	chrono::duration<double>					time_span4;
 
 	vector<int> elementCounter;
 	elementCounter.resize(NUM_OF_THREADS);
 	int totalElementInsertions = 0;
 
 	/* Manually break the chunck for parallelization */
-#pragma omp parallel private(tid,ntids,ipts,istart,i, t4,t5,time_span4)
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
 	{
-		t4		= chrono::high_resolution_clock::now();
 		iproc	= omp_get_num_procs();
 		tid		= omp_get_thread_num();
 		ntids	= omp_get_num_threads();
@@ -613,9 +622,10 @@ void FastSpectrum::constructBasisFunctions()
 
 		// Instantiate D once, used for all Dijkstra
 		Eigen::VectorXd				D(V.rows());
-		for (int i = 0; i < V.rows(); i++) {
-			D(i) = numeric_limits<double>::infinity();
-		}
+		D.setConstant(numeric_limits<double>::infinity());
+		//for (int i = 0; i < V.rows(); i++) {
+		//	D(i) = numeric_limits<double>::infinity();
+		//}
 		
 		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)sampleSize) * 20.0 * V.rows());
 
@@ -642,9 +652,94 @@ void FastSpectrum::constructBasisFunctions()
 		}
 		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
 	}
-	Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+	//Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	U[0].resize(V.rows(), SubspaceSize[0]);
+	U[0].setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double) (Basis.nonZeros()/ (double) Basis.rows()));
+}
+
+void FastSpectrum::constructBasisFunctionsLevelK(int k)
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Basis construction (level 0)... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	vector<vector<Eigen::Triplet<double>>>	UTriplet;
+	vector<Eigen::Triplet<double>>			AllTriplet;
+	int				eCounter = 0;
+	double			aCoef = 2.0 / (maxNeighDist[k] * maxNeighDist[k] * maxNeighDist[k]);
+	double			bCoef = -3.0 / (maxNeighDist[k] * maxNeighDist[k]);
+	int				i = 0;
+
+	const int		NUM_OF_THREADS = omp_get_num_procs();
+	omp_set_num_threads(NUM_OF_THREADS);
+	UTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc;
+
+	vector<int> elementCounter;
+	elementCounter.resize(NUM_OF_THREADS);
+	int totalElementInsertions = 0;
+
+	/* Manually break the chunck for parallelization */
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
+	{
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)SubspaceSize[k] / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = SubspaceSize[k] - istart;
+		if (ipts <= 0) ipts = 0;
+
+		// Instantiate D once, used for all Dijkstra
+		Eigen::VectorXd				D(V.rows());
+		D.setConstant(numeric_limits<double>::infinity());
+
+		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)SubspaceSize[k]) * 20.0 * SubspaceSize[k-1]);
+
+		for (i = istart; i < (istart + ipts); i++) {
+			if (i >= SubspaceSize[k]) break;
+			/* Dijkstra basis function */
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
+		}
+	} /* End of OpenMP parallelization */
+
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += UTriplet[j].size();
+		totalElementInsertions += elementCounter[j];
+	}
+
+	/* Combining the Triplet */
+	AllTriplet.resize(totalElements);
+#pragma omp parallel for
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		int tripSize = 0;
+		for (int k = 0; k < j; k++) {
+			tripSize += UTriplet[k].size();
+		}
+		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
+	} /* End of OpenMP parallelization for combining triplet */
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+
+	U[k].resize(SubspaceSize[k-1], SubspaceSize[k]);
+	U[k].setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
 }
 
 /* [Form partition of unity for the basis matrix Basis] */
@@ -655,6 +750,7 @@ void FastSpectrum::formPartitionOfUnity()
 	Eigen::SparseMatrix<double>			DiagNormMatrix;
 	Eigen::VectorXd						rowSum = Eigen::VectorXd::Zero(Basis.rows());
 	DiagNormMatrix.resize(Basis.rows(), Basis.rows());
+	diagTrip.reserve(Basis.nonZeros());
 
 	/* Getting the sum of every non-zero elements in a row */
 	for (int k = 0; k < Basis.outerSize(); ++k) {
@@ -671,6 +767,44 @@ void FastSpectrum::formPartitionOfUnity()
 
 	/* Form partition of unity */
 	Basis = DiagNormMatrix * Basis;
+}
+
+void FastSpectrum::formPartitionOfUnityMultiLevel()
+{
+	cout << "Partition of unity \n";
+	/* Temporary variables */
+	vector<Eigen::Triplet<double>>		diagTrip;
+	Eigen::SparseMatrix<double>			DiagNormMatrix;
+	Eigen::VectorXd						rowSum; 
+
+	for (int i = 0; i < level; i++)
+	{
+		printf("level: %d \n", i);
+		rowSum.resize(U[i].rows());
+		rowSum.setZero();
+		DiagNormMatrix.resize(U[i].rows(), U[i].cols());
+		diagTrip.reserve(U[i].nonZeros());
+
+		/* Getting the sum of every non-zero elements in a row */
+		for (int k = 0; k < U[i].outerSize(); ++k) {
+			//cout << "Reading col " << k << endl; 
+			for (Eigen::SparseMatrix<double>::InnerIterator it(U[i], k); it; ++it) {
+				rowSum(it.row()) += it.value();
+			}
+		}
+
+		/* Get the diagonal matrix, reciprocal of the total sum per row */
+		for (int k = 0; k < rowSum.size(); k++) {
+			diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+		}
+		DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
+
+		/* Form partition of unity */
+		U[i] = DiagNormMatrix * U[i];
+
+		diagTrip.clear();
+		diagTrip.shrink_to_fit();
+	}	
 }
 
 /* [Compute the eigenpairs of Low-Dim Problem ] */

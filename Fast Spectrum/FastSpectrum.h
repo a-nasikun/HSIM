@@ -51,6 +51,16 @@ public:
 	void constructRestrictedProblem();
 	void solveRestrictedProblem();
 
+	/* [SUPPLEMENTARY FUNCTIONS] */
+	void readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F);
+	void constructBasisFunctionsLevel0();
+	void constructBasisFunctionsLevelK(int k);
+	void formPartitionOfUnity();
+	void formPartitionOfUnityMultiLevel();
+	void computeEigenPair();
+	void normalizeReducedEigVects();
+
+	/* [GETTER AND SETTER]*/
 	void getV(Eigen::MatrixXd &V);
 	void getF(Eigen::MatrixXi &F);
 	void getVF(Eigen::MatrixXd &V, Eigen::MatrixXi &F);
@@ -114,12 +124,7 @@ public:
 	vector<Eigen::SparseMatrix<double>> U;
 	vector<Eigen::SparseMatrix<double>> Sbar, Mbar;
 
-	/* [SUPPLEMENTARY FUNCTIONS] */
-	void readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F);
-	void constructBasisFunctions();
-	void formPartitionOfUnity();
-	void computeEigenPair();
-	void normalizeReducedEigVects();
+	
 };
 
 #endif // !FAST_SPECTRUM_H
