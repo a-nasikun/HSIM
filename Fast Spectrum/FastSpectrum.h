@@ -104,7 +104,7 @@ public:
 	Eigen::VectorXi					Sample;
 	vector<set<int>>				AdM;
 	vector<double>					maxNeighDist;
-	double							avgEdgeLength;
+	double							avgEdgeLength, surfaceArea;
 	int								sampleSize;
 	SamplingType					sampleType = Sample_Farthest_Point;
 

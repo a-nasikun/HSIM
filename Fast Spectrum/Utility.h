@@ -33,6 +33,8 @@ void VtoVDist(const Eigen::VectorXd &V1, const Eigen::VectorXd &V2, double &dist
 void rotateVector2D(const Eigen::RowVector2d &e, const double &angle, Eigen::RowVector2d &e2);
 /* Get the angle between two edges */
 double VtoVangle(const Eigen::Vector3d &V1, const Eigen::Vector3d &V2, const Eigen::Vector3d &P);
+/* Compute Areas of surface*/
+double computeSurfaceArea(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F);
 
 #endif // !UTILITY_H
 

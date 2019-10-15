@@ -125,6 +125,9 @@ void FastSpectrum::constructLaplacianMatrix(){
 	/* Constructing Adjacency Matrix (neighborhood) */
 	initiateAdM(V, F, AdM);
 
+	/* Compute Surface area of the triangle meshes */
+	surfaceArea = computeSurfaceArea(V, F);
+
 	/* Constructing table of edge-length using sparse Matrix (faster than vector-of-map and vector-of-unordered map) */
 	initiateDistTableSpM(V, AdM, DistanceTableSpM);
 
@@ -180,8 +183,14 @@ void FastSpectrum::constructSample()
 }
 
 void FastSpectrum::constructBasis() {
-	double	distRatio = sqrt(pow(1.1, 2) + pow(0.7, 2));			// A heuristic to make the support around 10.00 (i.e. number of non-zeros per row)
-	maxNeighDist[0] = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
+	//double	distRatio = sqrt(pow(1.1, 2) + pow(0.7, 2));			// A heuristic to make the support around 10.00 (i.e. number of non-zeros per row)
+	//maxNeighDist[0] = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
+	const double NUM_SUPPORT = 10.0;
+	for (int i = 0; i < level; i++) {
+		maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
+		printf("Radius %d is %.4f \n", i, maxNeighDist[i]);
+	}
+	
 	constructBasisFunctions();
 	formPartitionOfUnity();
 }
@@ -635,7 +644,7 @@ void FastSpectrum::constructBasisFunctions()
 	}
 	Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
 
-	printf("A basis matrix (%dx%d) is constructed.\n", Basis.rows(), Basis.cols());
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double) (Basis.nonZeros()/ (double) Basis.rows()));
 }
 
 /* [Form partition of unity for the basis matrix Basis] */

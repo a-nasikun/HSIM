@@ -1,4 +1,5 @@
 #include "Utility.h"
+#include <igl/doublearea.h>
 
 /* Create a list of neighbors of every vertex *
 ** Input:
@@ -70,4 +71,19 @@ double VtoVangle(const Eigen::Vector3d &V1, const Eigen::Vector3d &V2, const Eig
 	Eigen::Vector3d v2 = V2 - P;
 	double angle_ = acos((v1.dot(v2)) / (v1.norm()*v2.norm()));
 	return angle_;
+}
+
+/* Compute Areas of surface*/
+double computeSurfaceArea(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F)
+{
+	Eigen::VectorXd dArea;
+	igl::doublearea(V, F, dArea);
+
+	double totalArea = 0.0;
+	for (int i = 0; i < F.rows(); i++)
+	{
+		totalArea += dArea(i) / 2.0;
+	}
+
+	return totalArea;
 }
