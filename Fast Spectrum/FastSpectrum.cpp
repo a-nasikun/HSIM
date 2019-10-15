@@ -77,11 +77,14 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 
 	// [2]	SAMPLING
 	this->setSample(numOfSamples, sampleType);
-	constructSample();
+	Eigen::VectorXd sampSize(level); 
+	for (int i = 0; i < level; i++) sampSize(i) = (int) (numOfSamples / (double) (pow(2, 2*i)));
+	constructSampleHierarchy(sampSize);
+	//constructSample();
 
 	// [3]	BASIS CONSTRUCTION
 	double	distRatio = sqrt(pow(0.7, 2) + pow(0.7, 2));
-	maxNeighDist = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
+	maxNeighDist[0] = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
 	constructBasis();
 
 	// [4]	LOW-DIM PROBLEM
@@ -94,6 +97,16 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	Basis = this->Basis;
 	reducedEigVects = this->reducedEigVects;
 	reducedEigVals = this->reducedEigVals;
+}
+
+void FastSpectrum::setInitialSystem(int n)
+{
+	level = n;
+	maxNeighDist.resize(level);
+	U.resize(level);
+	Sbar.resize(level);
+	Mbar.resize(level);
+	SubspaceSize.resize(level);
 }
 
 /* [ENCAPSULATION]*/
@@ -148,65 +161,27 @@ void FastSpectrum::constructLaplacianMatrix(){
 	printf("A Stiffness matrix S(%dx%d) and Mass matrix M(%dx%d) are constructed.\n", S.rows(), S.cols(), M.rows(), M.cols());
 }
 
-/* [Construct samples for the subspace] */
-void FastSpectrum::constructSample(){
-	int nBox;
-	if (sampleSize < 1 || sampleSize>V.rows()) {
-		cout << "Error! Sample cannot be 0 or larger than the number of vertices." << endl;
-		return;
-	}else if (sampleSize <= 300) {
-		nBox = 8;
-	}
-	else if (sampleSize > 300 && sampleSize <= 500) {
-		nBox = 10;
-	}
-	else if (sampleSize > 500 && sampleSize <= 2000) {
-		nBox = 13;
-	}
-	else if (sampleSize > 2000 && sampleSize <= 3000) {
-		nBox = 15;
-	}
-	else if (sampleSize > 3000 && sampleSize <= 6000) {
-		nBox = 18;
-	}
-	else if (sampleSize > 6000 && sampleSize <= 10000) {
-		nBox = 23;
-	}
-	else {
-		cout << "Warning! Are you sure to have this huge amount of sampling?." << endl;
-		cout << "Our approach won't have much benefit with this large sampling, though." << endl;
-	}
-
-	/* Different type of sampling */
-	switch (sampleType)
-	{
-	case Sample_Poisson_Disk:
-		constructPoissonDiskSample(V, sampleSize, nBox, avgEdgeLength, Sample);
-		break;
-	case Sample_Farthest_Point:
-		constructFarthestPointSample(V, AdM, sampleSize, Sample);
-		break;
-	case Sample_Random:
-		constructRandomSample(Sample, V, sampleSize);
-		break;
-	default:
-		break;
-	}	
-	this->sampleSize = Sample.size();
-
-	/* Setting up hierarchy*/
-	level = 3;
-	SubspaceSize.push_back(Sample.size());
-	SubspaceSize.push_back(max(250, (int)Sample.size() / 4));
-	SubspaceSize.push_back(max(100, (int)Sample.size() / 16));
-	printf("A set of %d samples are constructed.\n", sampleSize);
+void FastSpectrum::constructSampleHierarchy(Eigen::VectorXd& n)
+{
 	for (int i = 0; i < level; i++)
-		printf("__level %d: %d samples \n", i, SubspaceSize[i]);
+	{
+		SubspaceSize[i] = n(i);
+		printf("Level %d -> sample size: %d\n", i, SubspaceSize[i]);
+	}
+
+	constructSample();
+}
+
+/* [Construct samples for the subspace] */
+void FastSpectrum::constructSample()
+{
+	constructFarthestPointSample(V, AdM, sampleSize, Sample);
+	this->sampleSize = Sample.size();
 }
 
 void FastSpectrum::constructBasis() {
 	double	distRatio = sqrt(pow(1.1, 2) + pow(0.7, 2));			// A heuristic to make the support around 10.00 (i.e. number of non-zeros per row)
-	maxNeighDist = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
+	maxNeighDist[0] = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
 	constructBasisFunctions();
 	formPartitionOfUnity();
 }
@@ -597,8 +572,8 @@ void FastSpectrum::constructBasisFunctions()
 	vector<vector<Eigen::Triplet<double>>>	UTriplet;
 	vector<Eigen::Triplet<double>>			AllTriplet;
 	int				eCounter = 0;
-	double			aCoef = 2.0 / (maxNeighDist*maxNeighDist*maxNeighDist);
-	double			bCoef = -3.0 / (maxNeighDist*maxNeighDist);
+	double			aCoef = 2.0 / (maxNeighDist[0]*maxNeighDist[0]*maxNeighDist[0]);
+	double			bCoef = -3.0 / (maxNeighDist[0]*maxNeighDist[0]);
 	int				i = 0;
 	Eigen::VectorXi	Si(1);
 
@@ -638,7 +613,7 @@ void FastSpectrum::constructBasisFunctions()
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= sampleSize) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist, i, sampleSize, UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, sampleSize, UTriplet[tid], elementCounter[tid]);
 		}
 	} /* End of OpenMP parallelization */
 

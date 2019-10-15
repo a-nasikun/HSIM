@@ -119,7 +119,13 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					}
 
 					fastSpectrum.setSample(numOfSample, (SamplingType)sampleType);
-					fastSpectrum.constructSample();
+					Eigen::VectorXd sampSize(fastSpectrum.level);
+					for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 2 * i)));
+					//sampSize << numOfSample, (int)round(numOfSample/4.0), (int)round(numOfSample/16.0);
+					fastSpectrum.constructSampleHierarchy(sampSize);
+					viewer.data().points.resize(0, 6);
+					visualizeSampleMulti(viewer, V, F, fastSpectrum.Sample, fastSpectrum.SubspaceSize);
+					//fastSpectrum.constructSample();
 
 				}
 				//ImGui::RadioButton("Poisson Disk", &sampleType, Sample_Poisson_Disk); ImGui::SameLine();
@@ -204,11 +210,11 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 		if (ImGui::CollapsingHeader("Visualization##FastSpectrum", ImGuiTreeNodeFlags_DefaultOpen)){
 			/* For Sampling */
 			if (ImGui::Button("Show Samples", ImVec2((w), 0))) {
-				Eigen::VectorXi Sample;
-				fastSpectrum.getSamples(Sample);
+				//Eigen::VectorXi Sample;
+				//fastSpectrum.getSamples(Sample);
 				boolShowSamples = !boolShowSamples;
 
-				if (Sample.maxCoeff() > V.rows()) {
+				if (fastSpectrum.Sample.maxCoeff() > V.rows()) {
 					cout << "Error! Make sure you compute new samples before viewing them." << endl;
 					return;
 				}
@@ -217,12 +223,8 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					//for (int i = 0; i < Sample.size(); i++) {
 					//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.7, 0.1, 0.1));
 					//}
-					const int NUM_LEVEL = 3; 
-					vector<int> sampleSize; sampleSize.reserve(NUM_LEVEL);
-					sampleSize.push_back(Sample.size());
-					sampleSize.push_back(max(250, (int)Sample.size()/4));
-					sampleSize.push_back(max(100, (int)Sample.size()/16));
-					visualizeSampleMulti(viewer, V, F, Sample, sampleSize);
+					
+					visualizeSampleMulti(viewer, V, F, fastSpectrum.Sample, fastSpectrum.SubspaceSize);
 				}
 				else {
 					//viewer.data().clear();

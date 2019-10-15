@@ -43,7 +43,9 @@ public:
 	// <Constructor> INPUT: V and F matrices & number of samples / subpsace & type of sampling, OUTPUT : Basis & reduced eigenvectors & eigenvalues)
 	void computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals);
 	
+	void setInitialSystem(int n);
 	void constructLaplacianMatrix();
+	void constructSampleHierarchy(Eigen::VectorXd& n);
 	void constructSample();
 	void constructBasis();
 	void constructRestrictedProblem();
@@ -92,7 +94,7 @@ public:
 
 	void testGaussSeidel();
 
-protected:
+public:
 	/* [CLASS VARIABLES] */
 	Eigen::SparseMatrix<double>		S, M, Mf, MfInv, G,  Basis, DistanceTableSpM;
 	Eigen::SparseMatrix<double>		S_, M_, GTMf_;
@@ -101,14 +103,16 @@ protected:
 	Eigen::VectorXd					reducedEigVals;
 	Eigen::VectorXi					Sample;
 	vector<set<int>>				AdM;
-	double							maxNeighDist, avgEdgeLength;
+	vector<double>					maxNeighDist;
+	double							avgEdgeLength;
 	int								sampleSize;
-	SamplingType					sampleType;
+	SamplingType					sampleType = Sample_Farthest_Point;
 
 	/* [MULTI-GRID STUFF]*/
 	int									level;
 	vector<int>							SubspaceSize;
 	vector<Eigen::SparseMatrix<double>> U;
+	vector<Eigen::SparseMatrix<double>> Sbar, Mbar;
 
 	/* [SUPPLEMENTARY FUNCTIONS] */
 	void readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F);

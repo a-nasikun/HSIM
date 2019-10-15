@@ -20,7 +20,7 @@ void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V
 void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize)
 {
 	cout << "Visualizing the samples \n";
-
+	
 	const int totLevel = sampleSize.size();
 	printf("Total sample: %d \n", Sample.size());
 	for (int i = 0; i < totLevel; i++) printf("__level %d = %d \n", i, sampleSize[i]);	
