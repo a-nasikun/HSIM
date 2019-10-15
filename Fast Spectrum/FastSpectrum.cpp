@@ -197,10 +197,22 @@ void FastSpectrum::constructBasis() {
 		printf("Construction of basis level %d is done \n", i);
 	}
 
-	Basis = U[0] * U[1] * U[2];
+	formPartitionOfUnityMultiLevel();
 
+	Basis = U[0] * U[1] * U[2];
+	//Basis = U[0];
 	//formPartitionOfUnity();
-	//formPartitionOfUnityMultiLevel();
+
+	printf("Basis sparsity:  %.4f (%d/%d) \n", (double) Basis.nonZeros() / (double) Basis.rows(), Basis.nonZeros(), Basis.rows());
+}
+
+void FastSpectrum::constructBasisCoarseOnly()
+{
+	constructBasisFunctionsCoarseOnly();
+
+	formPartitionOfUnity();
+
+	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
 }
 
 void FastSpectrum::constructRestrictedProblem() {
@@ -208,6 +220,8 @@ void FastSpectrum::constructRestrictedProblem() {
 	M_ = Basis.transpose() * M  * Basis;
 
 	printf("A set of reduced stiffness and mass matrix (each %dx%d) is constructed.\n", S_.rows(), M_.cols());
+	printf("__S red %.4f (%d nnz)\n", (double)S_.nonZeros() / (double)S_.rows(), S_.nonZeros());
+	printf("__M red %.4f (%d nnz)\n", (double)M_.nonZeros() / (double)M_.rows(), M_.nonZeros());
 }
 
 void FastSpectrum::solveRestrictedProblem() {
@@ -580,6 +594,93 @@ void FastSpectrum::readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::M
 	}	
 }
 
+void FastSpectrum::constructBasisFunctionsCoarseOnly()
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Basis construction (level 0)... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	//Basis.resize(V.rows(), Sample.size());
+	//Basis.reserve(20 * V.rows());
+	int coarseSample = SubspaceSize[SubspaceSize.size() - 1];
+
+	double NUM_SUPPORT = 10.0;
+	double maxDist = sqrt((NUM_SUPPORT*surfaceArea) / (M_PI*coarseSample));
+
+	vector<vector<Eigen::Triplet<double>>>	UTriplet;
+	vector<Eigen::Triplet<double>>			AllTriplet;
+	int				eCounter = 0;
+	double			aCoef = 2.0 / (maxDist * maxDist * maxDist);
+	double			bCoef = -3.0 / (maxDist * maxDist);
+	int				i = 0;
+
+	const int						NUM_OF_THREADS = omp_get_num_procs();
+	omp_set_num_threads(NUM_OF_THREADS);
+	UTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc;
+
+	vector<int> elementCounter;
+	elementCounter.resize(NUM_OF_THREADS);
+	int totalElementInsertions = 0;
+
+	/* Manually break the chunck for parallelization */
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
+	{
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)coarseSample / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = coarseSample - istart;
+		if (ipts <= 0) ipts = 0;
+
+		// Instantiate D once, used for all Dijkstra
+		Eigen::VectorXd				D(V.rows());
+		D.setConstant(numeric_limits<double>::infinity());
+		//for (int i = 0; i < V.rows(); i++) {
+		//	D(i) = numeric_limits<double>::infinity();
+		//}
+
+		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)coarseSample) * 20.0 * V.rows());
+
+		for (i = istart; i < (istart + ipts); i++) {
+			if (i >= coarseSample) break;
+			/* Dijkstra basis function */
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, UTriplet[tid], elementCounter[tid]);
+		}
+	} /* End of OpenMP parallelization */
+
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += UTriplet[j].size();
+		totalElementInsertions += elementCounter[j];
+	}
+
+	/* Combining the Triplet */
+	AllTriplet.resize(totalElements);
+#pragma omp parallel for
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		int tripSize = 0;
+		for (int k = 0; k < j; k++) {
+			tripSize += UTriplet[k].size();
+		}
+		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
+	}
+	Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double) (Basis.nonZeros()/ (double) Basis.rows()));
+	//printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[0].rows(), U[0].cols(), (double)(U[0].nonZeros() / (double)U[0].rows()));
+
+}
+
 /* [Construct Basis Matrix] */
 void FastSpectrum::constructBasisFunctionsLevel0()
 {
@@ -662,7 +763,8 @@ void FastSpectrum::constructBasisFunctionsLevel0()
 	duration = t2 - t1;
 	cout << "in " << duration.count() << " seconds" << endl;
 
-	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double) (Basis.nonZeros()/ (double) Basis.rows()));
+	//printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double) (Basis.nonZeros()/ (double) Basis.rows()));
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[0].rows(), U[0].cols(), (double)(U[0].nonZeros() / (double)U[0].rows()));
 }
 
 void FastSpectrum::constructBasisFunctionsLevelK(int k)
@@ -782,7 +884,7 @@ void FastSpectrum::formPartitionOfUnityMultiLevel()
 		printf("level: %d \n", i);
 		rowSum.resize(U[i].rows());
 		rowSum.setZero();
-		DiagNormMatrix.resize(U[i].rows(), U[i].cols());
+		DiagNormMatrix.resize(U[i].rows(), U[i].rows());
 		diagTrip.reserve(U[i].nonZeros());
 
 		/* Getting the sum of every non-zero elements in a row */

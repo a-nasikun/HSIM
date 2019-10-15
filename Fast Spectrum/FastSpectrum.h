@@ -48,13 +48,15 @@ public:
 	void constructSampleHierarchy(Eigen::VectorXd& n);
 	void constructSample();
 	void constructBasis();
+	void constructBasisCoarseOnly();
 	void constructRestrictedProblem();
 	void solveRestrictedProblem();
 
 	/* [SUPPLEMENTARY FUNCTIONS] */
 	void readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F);
 	void constructBasisFunctionsLevel0();
-	void constructBasisFunctionsLevelK(int k);
+	void constructBasisFunctionsLevelK(int k);	
+	void constructBasisFunctionsCoarseOnly();
 	void formPartitionOfUnity();
 	void formPartitionOfUnityMultiLevel();
 	void computeEigenPair();

@@ -125,6 +125,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					fastSpectrum.constructSampleHierarchy(sampSize);
 					viewer.data().points.resize(0, 6);
 					visualizeSampleMulti(viewer, V, F, fastSpectrum.Sample, fastSpectrum.SubspaceSize);
+					boolShowSamples = true; 
 					//fastSpectrum.constructSample();
 
 				}
@@ -155,13 +156,30 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 					fastSpectrum.constructBasis();
 				}
+
+				if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {
+					Eigen::SparseMatrix<double> M;
+					Eigen::VectorXi samples;
+					int numSample;
+					double avgEdgeLen;
+					fastSpectrum.getMassMatrix(M);
+					fastSpectrum.getSamples(samples);
+					fastSpectrum.getSampleSize(numSample);
+					fastSpectrum.getAvgEdgeLength(avgEdgeLen);
+					if (numSample < 1 || V.rows() != M.rows() || samples.maxCoeff() >= V.rows() || !(avgEdgeLen > 0.0)) {
+						cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
+						return;
+					}
+
+					fastSpectrum.constructBasisCoarseOnly();
+				}
 				/* For Low-Dim Problem */
 				if (ImGui::Button("[4] Construct Low-Dim Eigenproblem", ImVec2(w, 0))) {
 					Eigen::SparseMatrix<double> Basis;
 					int numSample;
 					fastSpectrum.getFunctionBasis(Basis);
 					fastSpectrum.getSampleSize(numSample);
-					if (Basis.cols() != numSample || Basis.rows()!=V.rows() || !(Basis.cols()>0)) {
+					if (Basis.rows()!=V.rows() || !(Basis.cols()>0)) {
 						cout << "Error! Make sure you execute previous steps before constructing Low-Dim Eigenproblem." << endl;
 						return;
 					}
