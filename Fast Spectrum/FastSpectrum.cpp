@@ -107,6 +107,9 @@ void FastSpectrum::setInitialSystem(int n)
 	Sbar.resize(level);
 	Mbar.resize(level);
 	SubspaceSize.resize(level);
+	geoDist.resize(level);
+	clusters.resize(level);
+	//sampleLevel.resize()
 }
 
 /* [ENCAPSULATION]*/
@@ -166,13 +169,46 @@ void FastSpectrum::constructLaplacianMatrix(){
 
 void FastSpectrum::constructSampleHierarchy(Eigen::VectorXd& n)
 {
+
 	for (int i = 0; i < level; i++)
 	{
 		SubspaceSize[i] = n(i);
 		printf("Level %d -> sample size: %d\n", i, SubspaceSize[i]);
 	}
 
-	constructSample();
+	//constructSample();
+	constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
+
+	cout << "Assigning level \n";
+	sampleLevel.resize(V.rows());
+	// for level n-1
+	for (int i = 0; i < SubspaceSize[level - 1]; i++)
+	{
+		sampleLevel(Sample(i)) = level - 1;
+	}
+
+	for (int i = level - 2; i >= 0; i--) 
+	{
+		for (int j = SubspaceSize[i+1]; j < SubspaceSize[i]; j++)
+		{
+			sampleLevel(Sample(j)) = i; 
+		}
+	}
+
+	/* TEsting in which level (lowest one) a sample belongs */
+	//for (int j = level-2; j >= 0; j--)
+	//{
+	//	for (int i = 0; i < 10; i++)
+	//	{
+	//		printf("sample(%d)=%d => level %d \n", SubspaceSize[j+1] + i, Sample(SubspaceSize[j+1] + i), sampleLevel(Sample(SubspaceSize[j+1]+i)));
+	//	}
+	//}
+	//
+	//for (int i = 0; i < 10; i++)
+	//{
+	//	printf("sample(%d)=%d => level %d \n", i, Sample(i), sampleLevel(Sample(i)));
+	//}
+
 }
 
 /* [Construct samples for the subspace] */

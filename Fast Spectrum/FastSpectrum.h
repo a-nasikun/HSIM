@@ -109,22 +109,25 @@ public:
 public:
 	/* [CLASS VARIABLES] */
 	Eigen::SparseMatrix<double>		S, M, Mf, MfInv, G,  Basis, DistanceTableSpM;
-	Eigen::SparseMatrix<double>		S_, M_, GTMf_;
-	Eigen::MatrixXd					V, reducedEigVects;
-	Eigen::MatrixXi					F;
-	Eigen::VectorXd					reducedEigVals;
-	Eigen::VectorXi					Sample;
-	vector<set<int>>				AdM;
-	vector<double>					maxNeighDist;
-	double							avgEdgeLength, surfaceArea;
-	int								sampleSize;
-	SamplingType					sampleType = Sample_Farthest_Point;
+	Eigen::SparseMatrix<double>		S_, M_, GTMf_;									// reduced stiffness, mass, and divergent matrix, respectively
+	Eigen::MatrixXd					V, reducedEigVects;								
+	Eigen::MatrixXi					F;												// face matrix
+	Eigen::VectorXd					reducedEigVals;			
+	Eigen::VectorXi					Sample;											// id of the samples
+	vector<set<int>>				AdM;											// adjacency matrix, vertex to neighboring vertices
+	vector<double>					maxNeighDist;									// geodesic distance for sampling, to control the sparsity
+	double							avgEdgeLength, surfaceArea;						// average edge length and total surface area (from the mesh)
+	int								sampleSize;										// sample of the finest level sample, i.e. level 0
+	SamplingType					sampleType = Sample_Farthest_Point;				// we only use Farthest point sampling on this scenario
 
 	/* [MULTI-GRID STUFF]*/
-	int									level;
-	vector<int>							SubspaceSize;
-	vector<Eigen::SparseMatrix<double>> U;
-	vector<Eigen::SparseMatrix<double>> Sbar, Mbar;
+	int									level;										// the total number of hierarchy/levels on multigrid
+	vector<int>							SubspaceSize;								// subspace/sample size on each level, from level 0 to level n-1
+	vector<Eigen::SparseMatrix<double>> U;											// basis matrix on each level
+	vector<Eigen::SparseMatrix<double>> Sbar, Mbar;									// reduced system matrices (stiffness + mass matrix) on each level
+	vector<Eigen::VectorXd>				geoDist;									// resulting geodesic distance on each level, stored at the last index on each level
+	vector<Eigen::VectorXi>				clusters;									// the index of sample point [level k] closest to a certain vertex/sample [level k-1]
+	Eigen::VectorXi						sampleLevel;								// to indicate if a vertex is picked as a sample; if yes, at which highest level k
 
 	
 };

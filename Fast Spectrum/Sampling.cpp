@@ -348,3 +348,51 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 		Samples(i) = maxIndex;
 	}
 }
+
+void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<std::set<int>> &AdM, Eigen::VectorXi &Samples, vector<int>& SubspaceSize, vector<Eigen::VectorXd>& geoDist)
+{
+	const int level = SubspaceSize.size();
+	Samples.resize(SubspaceSize[0]);
+	Eigen::VectorXd D;
+	//Eigen::VectorXi Si;
+	D.resize(V.rows());
+
+	// Initialize the value of D
+	for (int i = 0; i < V.rows(); i++) {
+		D(i) = numeric_limits<double>::infinity();
+	}
+
+	srand(time(NULL));
+	Samples(0) = rand() % V.rows();
+	//Si = Samples.head(1);
+
+	ComputeDijkstra(V, Samples(0), AdM, D);
+	Eigen::VectorXi::Index maxIndex1;
+	D.maxCoeff(&maxIndex1);
+	Samples(0) = maxIndex1;
+	
+	Eigen::VectorXi::Index maxIndex;
+
+	// For level 0
+	printf("Sample 0: %d \n", SubspaceSize[level - 1]);
+	for (int i = 1; i < SubspaceSize[level-1]; i++) {
+		ComputeDijkstra(V, Samples(i - 1), AdM, D);
+		D.maxCoeff(&maxIndex);
+		Samples(i) = maxIndex;
+	}
+	geoDist[level - 1] = D; 
+
+	// For level 1 and higher
+	for (int j = 1; j < level; j++)
+	{
+		printf("Sample %d: %d \n", j, SubspaceSize[level-(j+1)]);
+		for (int i = SubspaceSize[level-j]; i < SubspaceSize[level-(j+1)]; i++) {
+			ComputeDijkstra(V, Samples(i-1), AdM, D);
+			D.maxCoeff(&maxIndex);
+			Samples(i) = maxIndex;
+		}
+		geoDist[level - (j+1)] = D;
+	}
+
+
+}

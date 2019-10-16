@@ -36,6 +36,7 @@ void constructVoxelSample(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 void constructPoissonDiskSample(const Eigen::MatrixXd &V, const int &numSamples, const int &n, const double &avgEdgeLength, Eigen::VectorXi &Sample);
 void ComputeDijkstra(const Eigen::MatrixXd &V, const int Si, const vector<set<int>> &AdM, Eigen::VectorXd &D);
 void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<std::set<int>> &AdM, const int &numSamples, Eigen::VectorXi &Samples);
+void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<std::set<int>> &AdM, Eigen::VectorXi &Samples, vector<int>& SubspaceSize, vector<Eigen::VectorXd>& geoDist);
 
 
 #endif // !SAMPLING_H
