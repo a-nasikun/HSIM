@@ -263,8 +263,8 @@ void FastSpectrum::constructNonSmoothBasis()
 	for (int i = 1; i < level; i++) clusters[i].resize(SubspaceSize[i-1]);
 
 	BuildLocalClusterLevel0();
-	///for (int i = 1; i < level; i++)
-	///	BuildLocalClusterLevelK(i);
+	for (int i = 1; i < level; i++)
+		BuildLocalClusterLevelK(i);
 }
 
 void FastSpectrum::constructRestrictedProblem() {
@@ -648,7 +648,7 @@ void FastSpectrum::BuildLocalClusterLevelK(int l)
 			VertexPair vp{ s1, geoDist[l](s1) };
 			DistPQueue.push(vp);
 			visited(s1) = 1;
-			clusters[l](s1) = k;
+			clusters[l](SampleMap(s1)) = k;
 
 			while (DistPQueue.size() > 0)
 			{
@@ -668,7 +668,8 @@ void FastSpectrum::BuildLocalClusterLevelK(int l)
 						visited(*it) = 1;
 
 						// Only set values for selected sample
-						if (sampleLevel(*it) <= l && sampleLevel(*it) >= 0)
+						//if (sampleLevel(*it) >= l && sampleLevel(*it) >= 0)
+						if (sampleLevel(*it) >= l)
 						{
 							printf("Need to write sample: %d (id=%d) to cluster %d \n", SampleMap(*it), *it, k);
 							clusters[l](SampleMap(*it)) = k;
