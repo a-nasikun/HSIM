@@ -49,6 +49,7 @@ public:
 	void constructSample();
 	void constructBasis();
 	void constructBasisCoarseOnly();
+	void constructNonSmoothBasis();
 	void constructRestrictedProblem();
 	void solveRestrictedProblem();
 
@@ -103,6 +104,10 @@ public:
 	void solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
 
+	/* Supporting functions for non-smooth basis */
+	void BuildLocalClusterLevel0();
+	void BuildLocalClusterLevelK(int k);
+	void visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewe);
 
 	void testGaussSeidel();
 

@@ -251,6 +251,18 @@ void FastSpectrum::constructBasisCoarseOnly()
 	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
 }
 
+void FastSpectrum::constructNonSmoothBasis()
+{
+	/* Resizing the cluster */
+	cout << "Resizing the clusters \n";
+	clusters[0].resize(V.rows());
+	for (int i = 1; i < level; i++) clusters[i].resize(SubspaceSize[i-1]);
+
+	BuildLocalClusterLevel0();
+	for (int i = 1; i < level; i++)
+		BuildLocalClusterLevelK(i);
+}
+
 void FastSpectrum::constructRestrictedProblem() {
 	S_ = Basis.transpose() * S  * Basis;
 	M_ = Basis.transpose() * M  * Basis;
@@ -569,6 +581,69 @@ void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, 
 
 	Eigen::MatrixXd VColor;
 	igl::jet(funcLifted, true, VColor);
+	viewer.data().set_colors(VColor);
+}
+
+/* Supporting functions for non-smooth basis */
+void FastSpectrum::BuildLocalClusterLevel0()
+{
+	printf("Buildign clusters \n");
+	Eigen::VectorXi visited(V.rows());
+	visited.setConstant(-1);
+	for (int k = 0; k < SubspaceSize[0]; k++)
+	{
+		
+		{	// Dijkstra-like system
+			//printf("On sample %d \n", k);
+			priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
+			
+
+			// data on sample point k
+			int s1 = Sample(k);
+			geoDist[0](s1) = 0.0f;
+			VertexPair vp{ s1, geoDist[0](s1) };
+			DistPQueue.push(vp);
+			visited(s1) = 1;
+			clusters[0](s1) = k;
+
+			while (DistPQueue.size()>0)
+			{
+				VertexPair vp1 = DistPQueue.top();
+				double distCtr = geoDist[0](vp1.vId);
+				visited(vp1.vId) = 1;
+				DistPQueue.pop();
+
+
+				for (set<int>::iterator it = AdM[vp1.vId].begin(); it != AdM[vp1.vId].end(); ++it) 
+				{
+					double distCur = geoDist[0](*it);
+
+					if (distCur > distCtr && visited(*it)<1) {
+						VertexPair vp2{ *it,distCur};
+						DistPQueue.push(vp2);
+						clusters[0](*it) = k;
+						visited(*it) = 1;
+					}
+				}
+			}
+		}
+	}
+}
+void FastSpectrum::BuildLocalClusterLevelK(int k)
+{
+
+}
+
+void FastSpectrum::visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewer)
+{
+	Eigen::MatrixXd VColor;
+	Eigen::VectorXd vcolor(V.rows());
+	for (int i = 0; i < V.rows(); i++)
+	{
+		vcolor(i) = (double)clusters[0](i) / (double)V.rows();
+	}
+
+	igl::jet(vcolor, true, VColor);
 	viewer.data().set_colors(VColor);
 }
 

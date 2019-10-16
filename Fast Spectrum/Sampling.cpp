@@ -324,7 +324,7 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 {
 	Samples.resize(numSamples);
 	Eigen::VectorXd D;
-	Eigen::VectorXi Si;
+	//Eigen::VectorXi Si;
 	D.resize(V.rows());
 
 	// Initialize the value of D
@@ -334,7 +334,7 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 
 	srand(time(NULL));
 	Samples(0) = rand() % V.rows();
-	Si = Samples.head(1);
+	//Si = Samples.head(1);
 
 	ComputeDijkstra(V, Samples(0), AdM, D);
 	Eigen::VectorXi::Index maxIndex1;

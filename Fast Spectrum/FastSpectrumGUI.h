@@ -173,6 +173,13 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 					fastSpectrum.constructBasisCoarseOnly();
 				}
+
+				// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
+				if (ImGui::Button("[3] Non Smooth Basis", ImVec2(w, 0))) {
+					fastSpectrum.constructNonSmoothBasis();
+					fastSpectrum.visualizeClusterOfSamples(viewer);
+				}
+
 				/* For Low-Dim Problem */
 				if (ImGui::Button("[4] Construct Low-Dim Eigenproblem", ImVec2(w, 0))) {
 					Eigen::SparseMatrix<double> Basis;
