@@ -177,14 +177,17 @@ void FastSpectrum::constructSampleHierarchy(Eigen::VectorXd& n)
 	}
 
 	//constructSample();
+	SampleMap.resize(V.rows()); SampleMap.setConstant(-1);
 	constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
 
 	cout << "Assigning level \n";
 	sampleLevel.resize(V.rows());
+	sampleLevel.setConstant(-1);
 	// for level n-1
 	for (int i = 0; i < SubspaceSize[level - 1]; i++)
 	{
 		sampleLevel(Sample(i)) = level - 1;
+		SampleMap(Sample(i)) = i;
 	}
 
 	for (int i = level - 2; i >= 0; i--) 
@@ -192,6 +195,7 @@ void FastSpectrum::constructSampleHierarchy(Eigen::VectorXd& n)
 		for (int j = SubspaceSize[i+1]; j < SubspaceSize[i]; j++)
 		{
 			sampleLevel(Sample(j)) = i; 
+			SampleMap(Sample(j)) = j;
 		}
 	}
 
@@ -259,8 +263,8 @@ void FastSpectrum::constructNonSmoothBasis()
 	for (int i = 1; i < level; i++) clusters[i].resize(SubspaceSize[i-1]);
 
 	BuildLocalClusterLevel0();
-	for (int i = 1; i < level; i++)
-		BuildLocalClusterLevelK(i);
+	///for (int i = 1; i < level; i++)
+	///	BuildLocalClusterLevelK(i);
 }
 
 void FastSpectrum::constructRestrictedProblem() {
@@ -587,16 +591,14 @@ void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, 
 /* Supporting functions for non-smooth basis */
 void FastSpectrum::BuildLocalClusterLevel0()
 {
-	printf("Buildign clusters \n");
+	printf("Buildign clusters level 0 \n");
 	Eigen::VectorXi visited(V.rows());
 	visited.setConstant(-1);
 	for (int k = 0; k < SubspaceSize[0]; k++)
 	{
 		
-		{	// Dijkstra-like system
-			//printf("On sample %d \n", k);
-			priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
-			
+		{	// Dijkstra-like system			
+			priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;			
 
 			// data on sample point k
 			int s1 = Sample(k);
@@ -629,9 +631,54 @@ void FastSpectrum::BuildLocalClusterLevel0()
 		}
 	}
 }
-void FastSpectrum::BuildLocalClusterLevelK(int k)
+void FastSpectrum::BuildLocalClusterLevelK(int l)
 {
+	printf("Buildign clusters level %d", l);
+	Eigen::VectorXi visited(V.rows());
+	visited.setConstant(-1);
 
+	for (int k = 0; k < SubspaceSize[l]; k++)
+	{
+		{
+			priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
+
+			// data on sample point k
+			int s1 = Sample(k);
+			geoDist[l](s1) = 0.0f;
+			VertexPair vp{ s1, geoDist[l](s1) };
+			DistPQueue.push(vp);
+			visited(s1) = 1;
+			clusters[l](s1) = k;
+
+			while (DistPQueue.size() > 0)
+			{
+				VertexPair vp1 = DistPQueue.top();
+				double distCtr = geoDist[l](vp1.vId);
+				visited(vp1.vId) = 1;
+				DistPQueue.pop();
+
+				for (set<int>::iterator it = AdM[vp1.vId].begin(); it != AdM[vp1.vId].end(); ++it)
+				{
+					double distCur = geoDist[l](*it);
+
+					if (distCur > distCtr && visited(*it)<1) {
+						VertexPair vp2{ *it,distCur };
+						DistPQueue.push(vp2);
+						
+						visited(*it) = 1;
+
+						// Only set values for selected sample
+						if (sampleLevel(*it) <= l && sampleLevel(*it) >= 0)
+						{
+							printf("Need to write sample: %d (id=%d) to cluster %d \n", SampleMap(*it), *it, k);
+							clusters[l](SampleMap(*it)) = k;
+						}
+					}
+				}
+			}	// END of WHILE loop
+		}		// END of useless bracket
+	}			// END of FOR loop
+	cout << " is over \n";
 }
 
 void FastSpectrum::visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewer)
@@ -644,6 +691,13 @@ void FastSpectrum::visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewer)
 	}
 
 	igl::jet(vcolor, true, VColor);
+	viewer.data().set_colors(VColor);
+}
+
+void FastSpectrum::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k)
+{
+	Eigen::MatrixXd VColor;
+	igl::jet(geoDist[k], true, VColor);
 	viewer.data().set_colors(VColor);
 }
 

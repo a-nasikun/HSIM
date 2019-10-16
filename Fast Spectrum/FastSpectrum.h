@@ -107,7 +107,8 @@ public:
 	/* Supporting functions for non-smooth basis */
 	void BuildLocalClusterLevel0();
 	void BuildLocalClusterLevelK(int k);
-	void visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewe);
+	void visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewer);
+	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k);
 
 	void testGaussSeidel();
 
@@ -118,7 +119,7 @@ public:
 	Eigen::MatrixXd					V, reducedEigVects;								
 	Eigen::MatrixXi					F;												// face matrix
 	Eigen::VectorXd					reducedEigVals;			
-	Eigen::VectorXi					Sample;											// id of the samples
+	Eigen::VectorXi					Sample, SampleMap;								// id of the samples | for a certain vertex sample, get the id of the sample
 	vector<set<int>>				AdM;											// adjacency matrix, vertex to neighboring vertices
 	vector<double>					maxNeighDist;									// geodesic distance for sampling, to control the sparsity
 	double							avgEdgeLength, surfaceArea;						// average edge length and total surface area (from the mesh)

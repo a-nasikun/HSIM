@@ -137,6 +137,22 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				static char numSample[6] = "1000"; ImGui::InputText("", numSample, 6);
 				numOfSample = atoi(numSample);
 
+				ImGui::Text("Show sample distance");
+
+				
+				for (int i = 0; i < fastSpectrum.level; i++)
+				{
+					string disp = "Dist ";
+					disp += to_string(i);
+
+					char const* ca = disp.c_str();
+					
+					if (ImGui::Button(ca, ImVec2(w/(double)fastSpectrum.level-p, 0))) {
+						fastSpectrum.visualizeGeodesicDistanceMultLevel(viewer, i);
+					} ImGui::SameLine(0, p);
+				}
+
+				
 				ImGui::Spacing(); ImGui::Spacing();
 
 				/* For Basis */
