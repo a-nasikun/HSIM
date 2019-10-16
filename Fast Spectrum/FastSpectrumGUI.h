@@ -120,7 +120,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 					fastSpectrum.setSample(numOfSample, (SamplingType)sampleType);
 					Eigen::VectorXd sampSize(fastSpectrum.level);
-					for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 2 * i)));
+					for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 4 * i)));
 					//sampSize << numOfSample, (int)round(numOfSample/4.0), (int)round(numOfSample/16.0);
 					fastSpectrum.constructSampleHierarchy(sampSize);
 					viewer.data().points.resize(0, 6);
@@ -193,7 +193,19 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
 				if (ImGui::Button("[3] Non Smooth Basis", ImVec2(w, 0))) {
 					fastSpectrum.constructNonSmoothBasis();
-					fastSpectrum.visualizeClusterOfSamples(viewer);
+					fastSpectrum.visualizeClusterOfSamplesLevel0(viewer);
+				}
+
+				for (int i = 0; i < fastSpectrum.level; i++)
+				{
+					string disp = "Cluster "; disp += to_string(i);
+					char const* ca = disp.c_str();
+					if (ImGui::Button(ca, ImVec2(w / (double)fastSpectrum.level - p, 0))) {
+						if(i==0)
+							fastSpectrum.visualizeClusterOfSamplesLevel0(viewer);
+						else 
+							fastSpectrum.visualizeClusterOfSamplesLevelK(viewer, i);
+					} ImGui::SameLine(0, p);
 				}
 
 				/* For Low-Dim Problem */

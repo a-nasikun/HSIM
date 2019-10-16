@@ -682,7 +682,7 @@ void FastSpectrum::BuildLocalClusterLevelK(int l)
 	cout << " is over \n";
 }
 
-void FastSpectrum::visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewer)
+void FastSpectrum::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer)
 {
 	Eigen::MatrixXd VColor;
 	Eigen::VectorXd vcolor(V.rows());
@@ -693,6 +693,25 @@ void FastSpectrum::visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewer)
 
 	igl::jet(vcolor, true, VColor);
 	viewer.data().set_colors(VColor);
+}
+
+void FastSpectrum::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k)
+{
+	viewer.data().points.resize(0,6);
+	Eigen::MatrixXd VColor;
+	Eigen::VectorXd fcolor(SubspaceSize[k]);
+
+
+	cout << "Set color for level " << k << endl;
+	for (int i = 0; i < SubspaceSize[k]; i++) fcolor(i) = (double)i; // / (double)clusters[k].size();
+
+	igl::jet(fcolor, true, VColor);
+
+	cout << "Iterate to set color for each sample vertex \n";
+	for (int i = 0; i < SubspaceSize[k - 1]; i++)
+	{
+		viewer.data().add_points(V.row(Sample(i)), VColor.row(clusters[k-1](i)));
+	}
 }
 
 void FastSpectrum::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k)

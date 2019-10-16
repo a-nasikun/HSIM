@@ -107,7 +107,8 @@ public:
 	/* Supporting functions for non-smooth basis */
 	void BuildLocalClusterLevel0();
 	void BuildLocalClusterLevelK(int k);
-	void visualizeClusterOfSamples(igl::opengl::glfw::Viewer &viewer);
+	void visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer);
+	void visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k);
 	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k);
 
 	void testGaussSeidel();
