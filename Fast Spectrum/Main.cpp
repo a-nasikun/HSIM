@@ -27,7 +27,8 @@ int main(int argc, char *argv[])
 			
 	menu.callback_draw_viewer_window = [&]()
 	{
-		showMenu(viewer, menu, fastSpectrum);		
+		showMenu(viewer, menu, fastSpectrum);
+		applicationMenu(viewer, menu, fastSpectrum);
 	};
 	/* END OF GUI FUNCTIONALITY */
 

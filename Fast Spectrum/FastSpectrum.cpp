@@ -444,8 +444,8 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 /* Reduced (1-level) Heat Method */
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
-	double tau = 1000.0*avgEdgeLength;
-	//double tau = avgEdgeLength*avgEdgeLength;
+	//double tau = 1000.0*avgEdgeLength;
+	double tau = avgEdgeLength*avgEdgeLength;
 	Eigen::VectorXd inputHeat(V.rows()); inputHeat.setZero(); inputHeat(0) = 1.0;
 	Eigen::VectorXd outputHeat;
 	Eigen::VectorXd grad;
@@ -599,12 +599,14 @@ void FastSpectrum::constructBasisFunctionsCoarseOnly()
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
 	chrono::duration<double>					duration;
-	cout << "> Basis construction (level 0)... ";
+	cout << "> Basis construction (Coarse only)... ";
 	t1 = chrono::high_resolution_clock::now();
 
 	//Basis.resize(V.rows(), Sample.size());
 	//Basis.reserve(20 * V.rows());
 	int coarseSample = SubspaceSize[SubspaceSize.size() - 1];
+	
+	cout << "__Getting the correct size\n";
 
 	double NUM_SUPPORT = 10.0;
 	double maxDist = sqrt((NUM_SUPPORT*surfaceArea) / (M_PI*coarseSample));
@@ -625,7 +627,7 @@ void FastSpectrum::constructBasisFunctionsCoarseOnly()
 	vector<int> elementCounter;
 	elementCounter.resize(NUM_OF_THREADS);
 	int totalElementInsertions = 0;
-
+	
 	/* Manually break the chunck for parallelization */
 #pragma omp parallel private(tid,ntids,ipts,istart,i)
 	{
@@ -652,7 +654,7 @@ void FastSpectrum::constructBasisFunctionsCoarseOnly()
 			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, UTriplet[tid], elementCounter[tid]);
 		}
 	} /* End of OpenMP parallelization */
-
+	
 	int totalElements = 0;
 	for (int j = 0; j < NUM_OF_THREADS; j++) {
 		totalElements += UTriplet[j].size();
@@ -669,7 +671,13 @@ void FastSpectrum::constructBasisFunctionsCoarseOnly()
 		}
 		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
 	}
+
+	Basis.resize(V.rows(), coarseSample);
 	Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	// Clearing up stuff
+	AllTriplet.clear(); AllTriplet.shrink_to_fit();
+	for (int j = 0; j < NUM_OF_THREADS; j++) { UTriplet[j].clear(); UTriplet[j].shrink_to_fit(); }
 
 	// timing
 	t2 = chrono::high_resolution_clock::now();
@@ -847,6 +855,7 @@ void FastSpectrum::constructBasisFunctionsLevelK(int k)
 /* [Form partition of unity for the basis matrix Basis] */
 void FastSpectrum::formPartitionOfUnity()
 {
+	cout << "> Partition of unity \n";
 	/* Temporary variables */
 	vector<Eigen::Triplet<double>>		diagTrip;
 	Eigen::SparseMatrix<double>			DiagNormMatrix;
@@ -880,8 +889,7 @@ void FastSpectrum::formPartitionOfUnityMultiLevel()
 	Eigen::VectorXd						rowSum; 
 
 	for (int i = 0; i < level; i++)
-	{
-		printf("level: %d \n", i);
+	{		
 		rowSum.resize(U[i].rows());
 		rowSum.setZero();
 		DiagNormMatrix.resize(U[i].rows(), U[i].rows());

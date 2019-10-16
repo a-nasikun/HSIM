@@ -213,17 +213,6 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
-		/* HEAT METHOD */
-		if (ImGui::CollapsingHeader("Heat Method", ImGuiTreeNodeFlags_DefaultOpen)) {
-			if (ImGui::Button("Solve Heat Method", ImVec2(w, 0))) {
-				fastSpectrum.solveHeatMethod(viewer);
-			}
-
-			if (ImGui::Button("Reduced Heat Method", ImVec2(w, 0))) {
-				fastSpectrum.solveHeatMethodRed(viewer);
-			}
-		}
-
 		/* VISUALIZATION WINDOW */
 		if (ImGui::CollapsingHeader("Visualization##FastSpectrum", ImGuiTreeNodeFlags_DefaultOpen)){
 			/* For Sampling */
@@ -379,6 +368,40 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			/* Overlays */
 			ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));
 			ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
+		}
+
+		ImGui::End();
+	}
+}
+
+void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum)
+{
+	{
+		// Variable for Processing
+		Eigen::MatrixXd V = viewer.data().V;
+		Eigen::MatrixXi F = viewer.data().F;
+
+		// Variables For Viewer visualization
+		float	menuWindowLeft = 175.f,
+			menuWindowWidth = 200.f,
+			menuWindowHeight = 475.f;
+
+		ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+		ImGui::Begin("Application##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
+
+		float w = ImGui::GetContentRegionAvailWidth();
+		float p = ImGui::GetStyle().FramePadding.x;
+
+		/* HEAT METHOD */
+		if (ImGui::CollapsingHeader("Heat Method", ImGuiTreeNodeFlags_DefaultOpen)) {
+			if (ImGui::Button("Solve Heat Method", ImVec2(w, 0))) {
+				fastSpectrum.solveHeatMethod(viewer);
+			}
+
+			if (ImGui::Button("Reduced Heat Method", ImVec2(w, 0))) {
+				fastSpectrum.solveHeatMethodRed(viewer);
+			}
 		}
 
 		ImGui::End();
