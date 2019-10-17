@@ -75,6 +75,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	this->F = F;
 	constructLaplacianMatrix();
 
+	/*
 	// [2]	SAMPLING
 	this->setSample(numOfSamples, sampleType);
 	Eigen::VectorXd sampSize(level); 
@@ -97,6 +98,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	Basis = this->Basis;
 	reducedEigVects = this->reducedEigVects;
 	reducedEigVals = this->reducedEigVals;
+	*/
 }
 
 void FastSpectrum::setInitialSystem(int n)
@@ -224,8 +226,10 @@ void FastSpectrum::constructSample()
 void FastSpectrum::constructBasis() {
 	//double	distRatio = sqrt(pow(1.1, 2) + pow(0.7, 2));			// A heuristic to make the support around 10.00 (i.e. number of non-zeros per row)
 	//maxNeighDist[0] = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
-	const double NUM_SUPPORT = 10.0;
-	for (int i = 0; i < level; i++) {
+	const double NUM_SUPPORT = 5.0;
+	maxNeighDist[0] = 1.0*sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[0]));
+	printf("Radius %d is %.4f \n", 0, maxNeighDist[0]);
+	for (int i = 1; i < level; i++) {
 		maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
 		printf("Radius %d is %.4f \n", i, maxNeighDist[i]);
 	}
@@ -239,6 +243,7 @@ void FastSpectrum::constructBasis() {
 	formPartitionOfUnityMultiLevel();
 
 	Basis = U[0] * U[1] * U[2];
+	//Basis = U[0] * U[1];
 	//Basis = U[0];
 	//formPartitionOfUnity();
 
