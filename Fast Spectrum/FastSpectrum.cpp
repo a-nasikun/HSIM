@@ -78,7 +78,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	// [2]	SAMPLING
 	this->setSample(numOfSamples, sampleType);
 	Eigen::VectorXd sampSize(level); 
-	for (int i = 0; i < level; i++) sampSize(i) = (int) (numOfSamples / (double) (pow(2, 4*i)));
+	for (int i = 0; i < level; i++) sampSize(i) = (int) (numOfSamples / (double) (pow(2, 2*i)));
 	constructSampleHierarchy(sampSize);
 	//constructSample();
 
@@ -259,12 +259,90 @@ void FastSpectrum::constructNonSmoothBasis()
 	/* Resizing the cluster */
 	cout << "Resizing the clusters \n";
 	clusters[0].resize(V.rows());
-	for (int i = 1; i < level; i++) clusters[i].resize(SubspaceSize[i-1]);
+	for (int i = 1; i < level; i++) clusters[i].resize(SubspaceSize[i - 1]);
 
-	BuildLocalClusterLevel0();
-	for (int i = 1; i < level; i++)
-		BuildLocalClusterLevelK(i);
+	/* Setting up the radius on each level */
+	const double NUM_SUPPORT = 4.0;
+	for (int i = 0; i < level; i++) {
+		maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
+		printf("Radius %d is %.4f \n", i, maxNeighDist[i]);
+	}
+
+	/* Construct geodesic disks on each level */
+	constructBasisFunctionsLevel0();
+	for (int i = 1; i < level; i++) {
+		constructBasisFunctionsLevelK(i);
+		printf("Construction of basis level %d is done \n", i);
+	}
+
+	/* Construct clusters on each level 
+	** then create basis out of it */
+	/* 1. For level 0 */
+	cout << "Clustering level 0\n";
+	Eigen::SparseMatrix<double, Eigen::RowMajor> UTemp = U[0];
+	for (int k = 0; k < UTemp.outerSize(); ++k) {
+		double maxVal = std::numeric_limits<double>::lowest();
+		for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {			
+			if (it.value() > maxVal)
+			{
+				maxVal = it.value();
+				clusters[0](it.row()) = it.col();
+			}
+		}
+	}
+	/* New basis */
+	cout << "Set up new basis \n";
+	vector<Eigen::Triplet<double>> UTriplet; UTriplet.reserve(V.rows());
+	for (int i = 0; i < V.rows(); i++)
+	{
+		UTriplet.push_back(Eigen::Triplet<double>(i, clusters[0](i), 1.0));
+	}
+	U[0].resize(0, 0); U[0].resize(V.rows(), SubspaceSize[0]);
+	U[0].setFromTriplets(UTriplet.begin(), UTriplet.end());
+	UTriplet.clear(); UTriplet.shrink_to_fit();
+
+	/* 1. For level k */
+	for (int l = 1; l < level; l++)
+	{
+		printf("Clustering level %d \n", l);
+		UTemp = U[l];
+		for (int k = 0; k < UTemp.outerSize(); ++k) {
+			double maxVal = std::numeric_limits<double>::lowest();
+			for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {
+				if (it.value() > maxVal)
+				{
+					maxVal = it.value();
+					clusters[l](it.row()) = it.col();
+				}
+			}
+		}
+
+		cout << "Set up new basis \n";
+		UTriplet.reserve(SubspaceSize[l-1]);
+		for (int i = 0; i < SubspaceSize[l - 1]; i++)
+		{
+			UTriplet.push_back(Eigen::Triplet<double>(i, clusters[l](i), 1.0));
+		}
+		U[l].resize(0, 0); U[l].resize(SubspaceSize[l-1], SubspaceSize[l]);
+		U[l].setFromTriplets(UTriplet.begin(), UTriplet.end());
+		UTriplet.clear(); UTriplet.shrink_to_fit();
+	} //  End of clustering
+
+	Basis = U[0];
+
 }
+
+//void FastSpectrum::constructNonSmoothBasis()
+//{
+//	/* Resizing the cluster */
+//	cout << "Resizing the clusters \n";
+//	clusters[0].resize(V.rows());
+//	for (int i = 1; i < level; i++) clusters[i].resize(SubspaceSize[i-1]);
+//
+//	BuildLocalClusterLevel0();
+//	for (int i = 1; i < level; i++)
+//		BuildLocalClusterLevelK(i);
+//}
 
 void FastSpectrum::constructRestrictedProblem() {
 	S_ = Basis.transpose() * S  * Basis;
@@ -704,15 +782,15 @@ void FastSpectrum::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &vi
 	Eigen::VectorXd fcolor(SubspaceSize[k]);
 
 
-	cout << "Set color for level " << k << endl;
+	//cout << "Set color for level " << k << endl;
 	for (int i = 0; i < SubspaceSize[k]; i++) fcolor(i) = (double)i; // / (double)clusters[k].size();
 
 	igl::jet(fcolor, true, VColor);
 
-	cout << "Iterate to set color for each sample vertex \n";
+	//cout << "Iterate to set color for each sample vertex \n";
 	for (int i = 0; i < SubspaceSize[k - 1]; i++)
 	{
-		printf("Point %d (Sample %d) belongs to cluster %d \n", Sample(i), i, clusters[k](i));
+		//printf("Point %d (Sample %d) belongs to cluster %d \n", Sample(i), i, clusters[k](i));
 		viewer.data().add_points(V.row(Sample(i)), VColor.row(clusters[k](i)));
 	}
 }

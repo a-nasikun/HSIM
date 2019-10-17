@@ -18,6 +18,7 @@
 int					basisToShow		= 0;
 int					eigToShow		= 0;
 bool				boolShowSamples = false;
+bool				useNonSmoothBasis = false; 
 static int			numOfSample		= 1000;
 static int			sampleType		= Sample_Farthest_Point; 
 static int			dataToShow		= 0;
@@ -120,7 +121,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 					fastSpectrum.setSample(numOfSample, (SamplingType)sampleType);
 					Eigen::VectorXd sampSize(fastSpectrum.level);
-					for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 4 * i)));
+					for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 2 * i)));
 					//sampSize << numOfSample, (int)round(numOfSample/4.0), (int)round(numOfSample/16.0);
 					fastSpectrum.constructSampleHierarchy(sampSize);
 					viewer.data().points.resize(0, 6);
@@ -171,6 +172,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					}
 
 					fastSpectrum.constructBasis();
+					useNonSmoothBasis = false; 
 				}
 
 				if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {
@@ -188,12 +190,14 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					}
 
 					fastSpectrum.constructBasisCoarseOnly();
+					useNonSmoothBasis = false;
 				}
 
 				// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
 				if (ImGui::Button("[3] Non Smooth Basis", ImVec2(w, 0))) {
 					fastSpectrum.constructNonSmoothBasis();
 					fastSpectrum.visualizeClusterOfSamplesLevel0(viewer);
+					useNonSmoothBasis = true; 
 				}
 
 				for (int i = 0; i < fastSpectrum.level; i++)
@@ -207,6 +211,8 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 							fastSpectrum.visualizeClusterOfSamplesLevelK(viewer, i);
 					} ImGui::SameLine(0, p);
 				}
+
+				ImGui::Spacing(); ImGui::Spacing();
 
 				/* For Low-Dim Problem */
 				if (ImGui::Button("[4] Construct Low-Dim Eigenproblem", ImVec2(w, 0))) {
