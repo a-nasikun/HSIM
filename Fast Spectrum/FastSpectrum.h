@@ -98,8 +98,10 @@ public:
 
 	/* Reduced (1-level) Heat Method */	
 	void solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer);
+	void solveHeatMethodRedMultiGridNonSmooth(igl::opengl::glfw::Viewer &viewer);
 	void prepareRedMatrix();
 	void solveHeatEquationRed(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
+	void solveHeatEquationRedMultiGridNonSmooth(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void normalizeGradientRed(Eigen::VectorXd& grad);
 	void solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
@@ -111,15 +113,19 @@ public:
 	void visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k);
 	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k);
 
+	/* Reference eigenproblem */
+	void computeRefEigenProblem(int numEig, const string& filename);
+
 	void testGaussSeidel();
 
 public:
 	/* [CLASS VARIABLES] */
 	Eigen::SparseMatrix<double>		S, M, Mf, MfInv, G,  Basis, DistanceTableSpM;
 	Eigen::SparseMatrix<double>		S_, M_, GTMf_;									// reduced stiffness, mass, and divergent matrix, respectively
-	Eigen::MatrixXd					V, reducedEigVects;								
+	Eigen::MatrixXd					V;
+	Eigen::MatrixXd					reducedEigVects, refEigVects;
 	Eigen::MatrixXi					F;												// face matrix
-	Eigen::VectorXd					reducedEigVals;			
+	Eigen::VectorXd					reducedEigVals, refEigVals;			
 	Eigen::VectorXi					Sample, SampleMap;								// id of the samples | for a certain vertex sample, get the id of the sample
 	vector<set<int>>				AdM;											// adjacency matrix, vertex to neighboring vertices
 	vector<double>					maxNeighDist;									// geodesic distance for sampling, to control the sparsity

@@ -9,6 +9,12 @@ cmake_policy(SET CMP0076 NEW)
 find_package(OpenMP)
 find_package(OpenGL)
 
+# Matlab
+set (MATLAB_LIBRARY_DIR "" CACHE PATH "Matlab static library dirs (e.g. R2018a/extern/lib/win64/microsoft)")
+set (MATLAB_INCLUDE_DIR "" CACHE PATH "Matlab include dir ((e.g. R2018a/extern/include)")
+include_directories(${MATLAB_INCLUDE_DIR})
+link_directories(${MATLAB_LIBRARY_DIR})
+					
 # EIGEN
 # #################################################################################################
 add_library(eigen INTERFACE)
@@ -71,7 +77,14 @@ target_link_libraries(MultiGridSolver
 	PUBLIC cudart
 	PUBLIC cublas
 	PUBLIC cusolver
-	PUBLIC cusparse)
+	PUBLIC cusparse
+	libMatlabEngine.lib			# for Matlab stuff
+	libMatlabDataArray.lib      # 
+	libeng.lib                  # 
+	libut.lib                   # 
+	libmex.lib                  # 
+	libmx.lib                   # for matlab stuff
+	)
 set_target_properties(MultiGridSolver PROPERTIES
 	VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin
 	RUNTIME_OUTPUT_DIRECTORY $<1:${CMAKE_CURRENT_LIST_DIR}/bin>)

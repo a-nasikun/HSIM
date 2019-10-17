@@ -17,6 +17,7 @@
 
 int					basisToShow		= 0;
 int					eigToShow		= 0;
+int					eigToCompute    = 500;
 bool				boolShowSamples = false;
 bool				useNonSmoothBasis = false; 
 static int			numOfSample		= 1000;
@@ -62,8 +63,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				V = viewer.data().V;
 				F = viewer.data().F;	
 				fastSpectrum.setV(V);
-				fastSpectrum.setF(F);
-				
+				fastSpectrum.setF(F);				
 
 				viewer.core.align_camera_center(V, F);
 
@@ -121,8 +121,15 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 					fastSpectrum.setSample(numOfSample, (SamplingType)sampleType);
 					Eigen::VectorXd sampSize(fastSpectrum.level);
-					for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 2 * i)));
-					//sampSize << numOfSample, (int)round(numOfSample/4.0), (int)round(numOfSample/16.0);
+					/* User defined*/
+					//for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 2 * i)));
+
+					/* hierarchy sampling, on linear increase */
+					int lowestSample = 1000;
+					double scale = pow((double)V.rows() / (double)lowestSample, 1.0 / 3.0);
+					for (int i = 0; i < fastSpectrum.level-1; i++) sampSize(i) = (int)floor((double)V.rows()/pow(scale,i+1));
+					sampSize(fastSpectrum.level - 1) = lowestSample;
+
 					fastSpectrum.constructSampleHierarchy(sampSize);
 					viewer.data().points.resize(0, 6);
 					visualizeSampleMulti(viewer, V, F, fastSpectrum.Sample, fastSpectrum.SubspaceSize);
@@ -137,23 +144,16 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				ImGui::Text("Number of sample"); ImGui::SameLine();
 				static char numSample[6] = "1000"; ImGui::InputText("", numSample, 6);
 				numOfSample = atoi(numSample);
-
-				ImGui::Text("Show sample distance");
-
-				
+				ImGui::Text("Show sample distance");				
 				for (int i = 0; i < fastSpectrum.level; i++)
 				{
 					string disp = "Dist ";
 					disp += to_string(i);
-
-					char const* ca = disp.c_str();
-					
+					char const* ca = disp.c_str();					
 					if (ImGui::Button(ca, ImVec2(w/(double)fastSpectrum.level-p, 0))) {
 						fastSpectrum.visualizeGeodesicDistanceMultLevel(viewer, i);
 					} ImGui::SameLine(0, p);
-				}
-
-				
+				}				
 				ImGui::Spacing(); ImGui::Spacing();
 
 				/* For Basis */
@@ -238,6 +238,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					}
 
 					fastSpectrum.solveRestrictedProblem();
+					cout << "(approx) Eigenvector: \n " << fastSpectrum.reducedEigVals << endl << endl; 
 
 					// Show the first non-zero eigenvectors
 					Eigen::SparseMatrix<double>	U;
@@ -361,10 +362,10 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				igl::jet(Z, true, vColor);
 				viewer.data().set_colors(vColor);
 			}
-			/* For Eigenvectors */
+			/* For Approx. Eigenvectors */
 			ImGui::Text("Show EigVec");
 			ImGui::SameLine(0, p);
-			if (ImGui::Button("- 1##EigVec1", ImVec2((w-90.0f-3*p)/2.f, 0))) {
+			if (ImGui::Button("- 1##EigVec1", ImVec2((w-120.0f-3*p)/2.f, 0))) {
 				fastSpectrum.getReducedEigVects(redEigVects);
 				Eigen::SparseMatrix<double> U;
 				fastSpectrum.getFunctionBasis(U);
@@ -388,7 +389,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			ImGui::Text("[%d]", eigToShow);
 			ImGui::SameLine(0, p);
 
-			if (ImGui::Button("+ 1##EigVec1", ImVec2((w-90.0f-3*p)/2.f, 0))) {
+			if (ImGui::Button("+ 1##EigVec1", ImVec2((w-120.0f-3*p)/2.f, 0))) {
 				fastSpectrum.getReducedEigVects(redEigVects);
 				Eigen::SparseMatrix<double> U;
 				fastSpectrum.getFunctionBasis(U);
@@ -402,6 +403,57 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					eigToShow++;
 
 				Z = U * redEigVects.col(eigToShow);
+				igl::jet(Z, true, vColor);
+				viewer.data().set_colors(vColor);
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Red##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
+				Z = fastSpectrum.Basis * fastSpectrum.reducedEigVects.col(eigToShow);
+				igl::jet(Z, true, vColor);
+				viewer.data().set_colors(vColor);
+			}
+
+			/* For Reference Eigenvectors */
+			ImGui::Text("Show Refer.");
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("- 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
+				
+
+				if (fastSpectrum.refEigVects.rows() != V.rows()) {
+					cout << "Error! Make sure you have computed the reference eigenfunctions on the current model." << endl;
+					return;
+				}
+
+				if (eigToShow > 0)
+					eigToShow--;
+
+				Z = fastSpectrum.refEigVects.col(eigToShow);
+				if (eigToShow>0)
+					igl::jet(Z, true, vColor);
+				else
+					igl::jet(Z, false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
+				viewer.data().set_colors(vColor);
+			}
+			ImGui::SameLine(0, p);
+			ImGui::Text("[%d]", eigToShow);
+			ImGui::SameLine(0, p);
+
+			if (ImGui::Button("+ 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
+				if (fastSpectrum.refEigVects.rows() != V.rows()) {
+					cout << "Error! Make sure you have computed the reference eigenfunctions on the current model." << endl;
+					return;
+				}
+
+				if (eigToShow < fastSpectrum.refEigVects.cols())
+					eigToShow++;
+
+				Z = fastSpectrum.refEigVects.col(eigToShow);
+				igl::jet(Z, true, vColor);
+				viewer.data().set_colors(vColor);
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Ref##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
+				Z = fastSpectrum.refEigVects.col(eigToShow);
 				igl::jet(Z, true, vColor);
 				viewer.data().set_colors(vColor);
 			}
@@ -441,9 +493,29 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 			}
 
 			if (ImGui::Button("Reduced Heat Method", ImVec2(w, 0))) {
-				fastSpectrum.solveHeatMethodRed(viewer);
+				if (useNonSmoothBasis) {
+					cout << "Solving heat method using NON-smooth basis approach \n";
+					fastSpectrum.solveHeatMethodRedMultiGridNonSmooth(viewer);
+				}
+				else
+				{
+					cout << "Solving heat method using SMOOTH basis approach \n";
+					fastSpectrum.solveHeatMethodRed(viewer);
+				}
+			}
+		} // End of HEAT METHOD
+
+		/* [REFERENCE] Eigenvectors */
+
+		if (ImGui::CollapsingHeader("Compute Ref. Eigenproblem", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::Text("EigVal to Comp."); ImGui::SameLine();
+			static char numEig[6] = "100"; ImGui::InputText("", numEig, 6);
+			eigToCompute = atoi(numEig);
+			if (ImGui::Button("Compute Ref. eigproblem", ImVec2(w, 0))) {
+				fastSpectrum.computeRefEigenProblem(eigToCompute, "hello");
 			}
 		}
+
 
 		ImGui::End();
 	}

@@ -581,8 +581,9 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	Eigen::VectorXd heatDistance;
 
 	prepareRedMatrix();
-	inputHeat = Basis.transpose()*(M*inputHeat);
+	inputHeat = Basis.transpose()*M*inputHeat;
 	solveHeatEquationRed(tau, inputHeat, outputHeat);
+	//solveHeatEquationRedMultiGridNonSmooth(tau, inputHeat, outputHeat);
 	outputHeat = Basis*outputHeat;
 	grad = G*outputHeat;
 	normalizeGradientRed(grad);
@@ -590,6 +591,25 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	//heatDistance = Basis*heatDistance;
 	visualizeHeatGeodesicsRed(viewer, heatDistance);
 
+}
+
+void FastSpectrum::solveHeatMethodRedMultiGridNonSmooth(igl::opengl::glfw::Viewer &viewer)
+{
+	//double tau = 1000.0*avgEdgeLength;
+	double tau = avgEdgeLength*avgEdgeLength;
+	Eigen::VectorXd inputHeat(V.rows()); inputHeat.setZero(); inputHeat(0) = 1.0;
+	Eigen::VectorXd outputHeat;
+	Eigen::VectorXd grad;
+	Eigen::VectorXd heatDistance;
+
+	prepareRedMatrix();
+	inputHeat = M*inputHeat;
+	solveHeatEquationRedMultiGridNonSmooth(tau, inputHeat, outputHeat);	
+	grad = G*outputHeat;
+	normalizeGradientRed(grad);
+	solvePoissonEquation(grad, heatDistance);
+	//heatDistance = Basis*heatDistance;
+	visualizeHeatGeodesicsRed(viewer, heatDistance);
 }
 
 void FastSpectrum::prepareRedMatrix()
@@ -631,6 +651,35 @@ void FastSpectrum::solveHeatEquationRed(double tau, const Eigen::VectorXd& input
 	duration = t2 - t1;
 	cout << "in " << duration.count() << " seconds" << endl;
 }
+
+void FastSpectrum::solveHeatEquationRedMultiGridNonSmooth(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+{
+	Eigen::SparseMatrix<double> SM = M + tau*S;
+	Eigen::VectorXd rhs = input;
+
+	Eigen::VectorXd x0(M.rows()); x0.setZero();
+	Eigen::VectorXd x1;
+	GaussSeidelSparseSolver(SM, rhs, x0, x1, 30, 1e-15);
+	Eigen::VectorXd r1 = rhs - SM*x1;
+	Eigen::VectorXd r2 = U[0].transpose()*r1;
+
+	Eigen::SparseMatrix<double> SM1 = U[0].transpose()*SM*U[0];
+
+	// solve using some solver (1 level only for now);
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+	sparseSolver.analyzePattern(SM1);
+	sparseSolver.factorize(SM1);
+	Eigen::VectorXd e2 = sparseSolver.solve(r2);
+
+	Eigen::VectorXd e1 = U[0] * e2;
+
+	x1 = x1 + e1; 
+
+	output = x1; 
+
+	//GaussSeidelSparseSolver(SM, rhs, x1, output, 30, 1e-15);
+}
+
 void FastSpectrum::normalizeGradientRed(Eigen::VectorXd& grad)
 {
 	normalizeGradient(grad);
@@ -802,6 +851,13 @@ void FastSpectrum::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer 
 	viewer.data().set_colors(VColor);
 }
 
+/* Reference eigenproblem */
+void FastSpectrum::computeRefEigenProblem(int numEig, const string& filename)
+{
+	string fileLoc = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_" + to_string(numEig);
+	computeEigenMatlab(S, M, numEig, refEigVects, refEigVals, fileLoc);
+}
+
 void FastSpectrum::testGaussSeidel()
 {	
 	Eigen::SparseMatrix<double> A(4, 4);
@@ -829,7 +885,7 @@ void FastSpectrum::testGaussSeidel()
 	x0.setZero(4);
 
 	//GaussSeidel1Iter(A, b, x0, x);
-	GaussSeidelSparseSolver(A, b, x, 100, 0.0001);
+	GaussSeidelSparseSolver(A, b, x0, x, 100, 0.0001);
 }
 
 /* [Read mesh model from file] */
