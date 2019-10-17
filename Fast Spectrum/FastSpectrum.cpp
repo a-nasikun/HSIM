@@ -78,7 +78,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	// [2]	SAMPLING
 	this->setSample(numOfSamples, sampleType);
 	Eigen::VectorXd sampSize(level); 
-	for (int i = 0; i < level; i++) sampSize(i) = (int) (numOfSamples / (double) (pow(2, 2*i)));
+	for (int i = 0; i < level; i++) sampSize(i) = (int) (numOfSamples / (double) (pow(2, 4*i)));
 	constructSampleHierarchy(sampSize);
 	//constructSample();
 
@@ -181,8 +181,7 @@ void FastSpectrum::constructSampleHierarchy(Eigen::VectorXd& n)
 	constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
 
 	cout << "Assigning level \n";
-	sampleLevel.resize(V.rows());
-	sampleLevel.setConstant(-1);
+	sampleLevel.resize(V.rows());	sampleLevel.setConstant(-1);
 	// for level n-1
 	for (int i = 0; i < SubspaceSize[level - 1]; i++)
 	{
@@ -602,7 +601,7 @@ void FastSpectrum::BuildLocalClusterLevel0()
 
 			// data on sample point k
 			int s1 = Sample(k);
-			geoDist[0](s1) = 0.0f;
+			//geoDist[0](s1) = 0.0f;
 			VertexPair vp{ s1, geoDist[0](s1) };
 			DistPQueue.push(vp);
 			visited(s1) = 1;
@@ -633,18 +632,21 @@ void FastSpectrum::BuildLocalClusterLevel0()
 }
 void FastSpectrum::BuildLocalClusterLevelK(int l)
 {
-	printf("Buildign clusters level %d", l);
+	printf("Buildign clusters level %d \n", l);
+	printf("__Entries: %d => %d \n", SubspaceSize[l - 1], SubspaceSize[l]);
 	Eigen::VectorXi visited(V.rows());
-	visited.setConstant(-1);
+	int counter = 0;
+
 
 	for (int k = 0; k < SubspaceSize[l]; k++)
 	{
+		visited.setConstant(-1);
 		{
 			priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
 
 			// data on sample point k
 			int s1 = Sample(k);
-			geoDist[l](s1) = 0.0f;
+			//geoDist[l](s1) = 0.0f;
 			VertexPair vp{ s1, geoDist[l](s1) };
 			DistPQueue.push(vp);
 			visited(s1) = 1;
@@ -669,9 +671,9 @@ void FastSpectrum::BuildLocalClusterLevelK(int l)
 
 						// Only set values for selected sample
 						//if (sampleLevel(*it) >= l && sampleLevel(*it) >= 0)
-						if (sampleLevel(*it) >= l)
+						if (sampleLevel(*it) >= (l-1))
 						{
-							printf("Need to write sample: %d (id=%d) to cluster %d \n", SampleMap(*it), *it, k);
+							printf("%d Sample: %d (id=%d, level: %d) to cluster %d \n", counter++, SampleMap(*it), *it, sampleLevel(*it), k);
 							clusters[l](SampleMap(*it)) = k;
 						}
 					}
@@ -710,7 +712,8 @@ void FastSpectrum::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &vi
 	cout << "Iterate to set color for each sample vertex \n";
 	for (int i = 0; i < SubspaceSize[k - 1]; i++)
 	{
-		viewer.data().add_points(V.row(Sample(i)), VColor.row(clusters[k-1](i)));
+		printf("Point %d (Sample %d) belongs to cluster %d \n", Sample(i), i, clusters[k](i));
+		viewer.data().add_points(V.row(Sample(i)), VColor.row(clusters[k](i)));
 	}
 }
 
