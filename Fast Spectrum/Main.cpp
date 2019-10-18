@@ -33,10 +33,17 @@ int main(int argc, char *argv[])
 	/* END OF GUI FUNCTIONALITY */
 
 	/* User interaction via keyboard */
-	const auto &key_down = [](igl::opengl::glfw::Viewer &viewer, unsigned char key, int mod)->bool
+	const auto &key_down = [&](igl::opengl::glfw::Viewer &viewer, unsigned char key, int mod)->bool
 	{
 		switch (key)
 		{
+		case '0':
+			viewer.data().clear();
+			fastSpectrum.getV(V);
+			fastSpectrum.getF(F);
+			viewer.data().set_mesh(V, F);
+			viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+			break;
 		default:
 			return false;
 		}

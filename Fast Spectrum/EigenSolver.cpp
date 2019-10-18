@@ -255,6 +255,8 @@ void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<doub
 /* Iterative Gauss-Seidel Solver */
 void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol)
 {
+	printf("Dimensionality check: \n");
+	printf("__LHS: %dx%d | rhs: %d | init guess: %d \n", LHS.rows(), LHS.cols(), rhs.rows(), x0.rows());
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
 	chrono::duration<double>					duration;
@@ -276,6 +278,7 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 		minDiffNum = (xk2 - xk1).minCoeff();
 		maxCurNum = xk2.maxCoeff();
 		minCurNum = xk2.minCoeff();
+		printf("MaxDiff: %.4f | minDiff: %.4f | maxCur: %.4f | minCur: %.4f \n", maxDiffNum, minDiffNum, maxCurNum, minCurNum);
 		diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
 		printf("%d iter, the convergence: %.5f \n", i, diffIter);
 		//cout << "x: " << xk2.transpose() << endl;
@@ -307,7 +310,8 @@ void GaussSeidel1Iter(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Ei
 		double l = 0.0;
 		double u = 0.0;
 
-		for (Eigen::SparseMatrix<double>::InnerIterator it(LHS, k); it; ++it) {
+		for (Eigen::SparseMatrix<double>::InnerIterator it(LHS, k); it; ++it) 
+		{
 			if (it.row() < k)
 			{
 				l += it.value()*x(it.row());

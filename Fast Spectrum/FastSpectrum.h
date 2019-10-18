@@ -106,6 +106,8 @@ public:
 	void solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
 
+	void multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
+
 	/* Supporting functions for non-smooth basis */
 	void BuildLocalClusterLevel0();
 	void BuildLocalClusterLevelK(int k);
@@ -141,6 +143,14 @@ public:
 	vector<Eigen::VectorXd>				geoDist;									// resulting geodesic distance on each level, stored at the last index on each level
 	vector<Eigen::VectorXi>				clusters;									// the index of sample point [level k] closest to a certain vertex/sample [level k-1]
 	Eigen::VectorXi						sampleLevel;								// to indicate if a vertex is picked as a sample; if yes, at which highest level k
+
+	/* HEAT METHOD */
+	Eigen::VectorXd						inputHeat, outputHeat;						// input and output on heat method
+	Eigen::VectorXd						grad;										// gradient direction on heat method
+	Eigen::VectorXd						heatDistance;								// the resulting geodesic distance based on heat method
+	Eigen::VectorXd						inputHeatRed, outputHeatRed;
+	Eigen::VectorXd						gradRed;
+	Eigen::VectorXd						heatDistanceRed;
 
 	
 };

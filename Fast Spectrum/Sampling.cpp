@@ -307,8 +307,9 @@ void ComputeDijkstra(const Eigen::MatrixXd &V, const int Si, const vector<set<in
 		for (set<int>::iterator it = AdM[vp1.vId].begin(); it != AdM[vp1.vId].end(); ++it) {
 			double dist;
 			Eigen::VectorXd vRow2 = V.block<1, 3>(*it, 0);
-			VtoVDist(vRow1, vRow2, dist);
-			double tempDist = vp1.distance + dist;
+			//VtoVDist(vRow1, vRow2, dist);
+			//double tempDist = vp1.distance + dist;
+			double tempDist = (V.row(Si) - V.row(*it)).norm();
 			if (tempDist < D(*it)) {
 				D(*it) = tempDist;
 				distFromCenter = tempDist;
