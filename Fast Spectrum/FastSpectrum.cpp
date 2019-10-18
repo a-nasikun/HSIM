@@ -246,9 +246,12 @@ void FastSpectrum::constructBasis()
 
 	formPartitionOfUnityMultiLevel();
 
-	Basis = U[0] * U[1] * U[2];
-	//Basis = U[0] * U[1];
-	//Basis = U[0];
+	if(level==3)	
+		Basis = U[0] * U[1] * U[2];
+	else if(level==2)
+		Basis = U[0] * U[1];
+	else 
+	Basis = U[0];
 	//formPartitionOfUnity();
 
 	printf("Basis sparsity:  %.4f (%d/%d) \n", (double) Basis.nonZeros() / (double) Basis.rows(), Basis.nonZeros(), Basis.rows());
@@ -580,10 +583,9 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 /* Reduced (1-level) Heat Method */
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
-	//double tau = 1000.0*avgEdgeLength;
+	double tau = 1000.0*avgEdgeLength;
 
-
-	double tau = avgEdgeLength*avgEdgeLength;
+	//double tau = avgEdgeLength*avgEdgeLength;
 
 	inputHeatRed.setZero(V.rows());
 	inputHeatRed(0) = 1.0;
@@ -742,11 +744,13 @@ void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, 
 /* Multi-grid solver */
 void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
 {
+	const int MAX_ITER = 10;
+	const double TOL = 1e-5;
 	/* Default, work in 2 level first */
 	cout << "Level 1 processing \n";
 	/// LEVEL 1
 	Eigen::VectorXd x1(b.rows()); x1.setZero();
-	GaussSeidelSparseSolver(A, b, x1, x1, 3, 1e-10);
+	GaussSeidelSparseSolver(A, b, x1, x1, MAX_ITER, TOL);
 	Eigen::VectorXd r1 = b - A*x1;
 	Eigen::VectorXd r2 = U[0].transpose()*r1;
 	Eigen::SparseMatrix<double> A2 = U[0].transpose()*A*U[0];
@@ -758,7 +762,7 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	/// LEVEL 2
 	cout << "Level 2 processing \n";
 	Eigen::VectorXd e21(r2.rows());e21.setZero();
-	GaussSeidelSparseSolver(A2, r2, e21, e21, 3, 1e-10);
+	GaussSeidelSparseSolver(A2, r2, e21, e21, MAX_ITER, TOL);
 	Eigen::VectorXd l1 = r2 - A2*e21;
 	Eigen::VectorXd l2 = U[1].transpose()*l1;
 	Eigen::SparseMatrix<double> A3 = U[1].transpose()*A2*U[1];
@@ -770,13 +774,13 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 
 	Eigen::VectorXd g1 = U[1]*g2;			// lift it up (interpolation)
 	l1 = l1 + g1;
-	GaussSeidelSparseSolver(A2, r2, l1, e2, 3, 1e-10);
+	GaussSeidelSparseSolver(A2, r2, l1, e2, MAX_ITER, TOL);
 
 	/// back to LEVEL 1
 	cout << "back to Level 1 processing \n";
 	e1 = U[0] * e2;
 	x1 = x1 + e1;
-	GaussSeidelSparseSolver(A, b, x1, x, 3, 1e-10);
+	GaussSeidelSparseSolver(A, b, x1, x, MAX_ITER, TOL);
 }
 
 /* Supporting functions for non-smooth basis */
