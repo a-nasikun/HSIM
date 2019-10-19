@@ -105,6 +105,7 @@ public:
 	void normalizeGradientRed(Eigen::VectorXd& grad);
 	void solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
+	
 
 	void multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 

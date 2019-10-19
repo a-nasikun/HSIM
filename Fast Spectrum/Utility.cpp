@@ -87,3 +87,13 @@ double computeSurfaceArea(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F)
 
 	return totalArea;
 }
+/* Check accuracy*/
+double checkAccuracy(const Eigen::SparseMatrix<double>& M, const Eigen::VectorXd& ref, const Eigen::VectorXd& approx)
+{
+	Eigen::VectorXd diff = ref - approx;
+	double energy1 = diff.transpose()*M*diff;
+	double energy2 = ref.transpose()*M*ref;
+	double energyApp = approx.transpose()*M*approx;
+	printf("diff en: %.6f | ref en: %.6f | red en: %.6f (%.6f) \n", energy1, energy2, energyApp, sqrt(energy1/energy2));
+	return sqrt(energy1 / energy2);
+}

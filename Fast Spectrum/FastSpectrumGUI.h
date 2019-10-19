@@ -131,7 +131,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					//sampSize(fastSpectrum.level - 1) = lowestSample;
 
 					/* Manual input */
-					sampSize << 4000, 1000; 
+					sampSize << 16000, 1000; 
 
 					fastSpectrum.constructSampleHierarchy(sampSize);
 					viewer.data().points.resize(0, 6);

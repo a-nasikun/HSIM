@@ -35,6 +35,8 @@ void rotateVector2D(const Eigen::RowVector2d &e, const double &angle, Eigen::Row
 double VtoVangle(const Eigen::Vector3d &V1, const Eigen::Vector3d &V2, const Eigen::Vector3d &P);
 /* Compute Areas of surface*/
 double computeSurfaceArea(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F);
+/* Check accuracy*/
+double checkAccuracy(const Eigen::SparseMatrix<double>& M, const Eigen::VectorXd& ref, const Eigen::VectorXd& approx);
 
 #endif // !UTILITY_H
 

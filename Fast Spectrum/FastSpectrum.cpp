@@ -228,7 +228,8 @@ void FastSpectrum::constructBasis()
 	//const double NUM_SUPPORT = 5.0;
 	//const double NUM_SUPPORT = 3.75;			// Dragon model, result in 8 nnz per row (total basis)
 	//const double SCALE = 5.0;					// Dragon model, result in 8 nnz per row (total basis),3 levels
-	const double SCALE = 4.25;
+	//const double SCALE = 4.25;
+	const double SCALE = 5.0;
 
 	const double NUM_SUPPORT = 10.0;
 	maxNeighDist[0] = SCALE*sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[0]));
@@ -583,9 +584,9 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 /* Reduced (1-level) Heat Method */
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
-	double tau = 1000.0*avgEdgeLength;
+	//double tau = 1000.0*avgEdgeLength;
 
-	//double tau = avgEdgeLength*avgEdgeLength;
+	double tau = 100.0*avgEdgeLength*avgEdgeLength;
 
 	inputHeatRed.setZero(V.rows());
 	inputHeatRed(0) = 1.0;
@@ -593,10 +594,19 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	solveHeatEquationRed(tau, inputHeatRed, outputHeatRed);
 
 	gradRed = G*outputHeatRed;
-	normalizeGradientRed(gradRed);
+	normalizeGradient(gradRed);
 	solvePoissonEquation(gradRed, heatDistanceRed);
 	//solvePoissonEquationRed(grad, heatDistance);
 	visualizeHeatGeodesics(viewer, heatDistanceRed);
+
+	if (heatDistance.size() > 0 && heatDistanceRed.rows() > 0)
+	{
+		double accu = checkAccuracy(M+tau*S, outputHeat, outputHeatRed);
+		cout << "Heat Diffusion: Relatie L2-norm accuracy: " << accu << endl;
+
+		accu = checkAccuracy(S, heatDistance, heatDistanceRed);
+		cout << "Total: Relatie L2-norm accuracy: " << accu << endl;
+	}
 
 	///Eigen::VectorXd inputHeat(V.rows()); inputHeat.setZero(); inputHeat(0) = 1.0;
 	///Eigen::VectorXd outputHeat;
@@ -664,7 +674,7 @@ void FastSpectrum::solveHeatEquationRed(double tau, const Eigen::VectorXd& input
 	//Eigen::SparseMatrix<double> MS_ = M_ + tau*S_;
 	//Eigen::VectorXd rhs = M_*input;
 	Eigen::SparseMatrix<double> MS = M + tau*S;
-	Eigen::VectorXd rhs = input;
+	Eigen::VectorXd rhs = M*input;
 
 	///Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
 	///sparseSolver.analyzePattern(MS_);
