@@ -279,8 +279,9 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 		maxCurNum = xk2.maxCoeff();
 		minCurNum = xk2.minCoeff();
 		printf("MaxDiff: %.4f | minDiff: %.4f | maxCur: %.4f | minCur: %.4f \n", maxDiffNum, minDiffNum, maxCurNum, minCurNum);
-		diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
-		printf("%d iter, the convergence: %.5f \n", i, diffIter);
+		//diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
+		diffIter = maxDiffNum / maxCurNum;
+		printf("%d iter, the convergence: %.32f \n", i, diffIter);
 		//cout << "x: " << xk2.transpose() << endl;
 
 		xk1 = xk2; 

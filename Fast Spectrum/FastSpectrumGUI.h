@@ -15,6 +15,8 @@
 
 #include "FastSpectrum.h"
 
+enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
+
 int					basisToShow		= 0;
 int					eigToShow		= 0;
 int					eigToCompute    = 500;
@@ -22,6 +24,7 @@ bool				boolShowSamples = false;
 bool				useNonSmoothBasis = false; 
 static int			numOfSample		= 1000;
 static int			sampleType		= Sample_Farthest_Point; 
+static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 
 void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum) {
@@ -495,6 +498,11 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 				fastSpectrum.solveHeatMethod(viewer);
 			}
 
+			ImGui::RadioButton("Coarse##1-level_Basis_Only", &basisType, Coarse_1Level_Basis); ImGui::SameLine();
+			ImGui::RadioButton("MG_Geom##Multigrid_smooth", &basisType, MultiGrid_Geom_Basis); ImGui::SameLine();
+			ImGui::RadioButton("NotSmooth##consnt_basis", &basisType, MultiGrid_NonSmooth_Basis);
+
+			
 			if (ImGui::Button("Reduced Heat Method", ImVec2(w, 0))) {
 				if (useNonSmoothBasis) {
 					cout << "Solving heat method using NON-smooth basis approach \n";
@@ -506,6 +514,49 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 					fastSpectrum.solveHeatMethodRed(viewer);
 				}
 			}
+			
+			if (ImGui::Button("Diffuse##Heat Diffusion", ImVec2((w) / 3.f, 0))) {
+				fastSpectrum.inputHeatRed.setZero(V.rows());
+				fastSpectrum.inputHeatRed(0) = 1.0;
+				switch (basisType)
+				{
+				case Coarse_1Level_Basis:
+					fastSpectrum.solveHeatEquationRed_CoarseOnly(pow(fastSpectrum.avgEdgeLength, 2), fastSpectrum.inputHeatRed, fastSpectrum.outputHeatRed);
+					break;
+				case MultiGrid_Geom_Basis:
+					fastSpectrum.solveHeatEquationRed(pow(fastSpectrum.avgEdgeLength, 2), fastSpectrum.inputHeatRed, fastSpectrum.outputHeatRed);
+					break;
+				case MultiGrid_NonSmooth_Basis:
+
+					break;
+				default:
+					break;
+				}
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Norm.##Normalize Gradient", ImVec2((w) / 3.f, 0))) {
+				fastSpectrum.gradRed = fastSpectrum.G * fastSpectrum.outputHeatRed;
+				fastSpectrum.normalizeGradientRed(fastSpectrum.gradRed);
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Poisson##Solving Poisson system", ImVec2((w) / 3.f, 0))) {
+				switch (basisType)
+				{
+				case Coarse_1Level_Basis:
+					fastSpectrum.solvePoissonEquationRed_CoarseOnly(fastSpectrum.gradRed, fastSpectrum.heatDistanceRed);
+					break;
+				case MultiGrid_Geom_Basis:
+					fastSpectrum.solvePoissonEquationRed(fastSpectrum.gradRed, fastSpectrum.heatDistanceRed);
+					break;
+				case MultiGrid_NonSmooth_Basis:
+
+					break;
+				default:
+					break;
+				}
+			}
+
+		
 		} // End of HEAT METHOD
 
 		/* [REFERENCE] Eigenvectors */

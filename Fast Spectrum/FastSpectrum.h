@@ -101,9 +101,11 @@ public:
 	void solveHeatMethodRedMultiGridNonSmooth(igl::opengl::glfw::Viewer &viewer);
 	void prepareRedMatrix();
 	void solveHeatEquationRed(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
+	void solveHeatEquationRed_CoarseOnly(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void solveHeatEquationRedMultiGridNonSmooth(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void normalizeGradientRed(Eigen::VectorXd& grad);
 	void solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output);
+	void solvePoissonEquationRed_CoarseOnly(const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
 	
 
