@@ -308,10 +308,99 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 	printf("It takes %d iter, with %.10f tolerance \n", iterUsed, diffIter);
 }
 
+void GaussSeidelSparseSolverMatrixForm(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol)
+{
+	cout << "Setting up the L, D, and U matrices \n";
+	/* Defining holder for upper, diagonal, and lower matrices of the LHS*/
+	Eigen::SparseMatrix<double> U, D, L;
+	U.resize(LHS.rows(), LHS.cols());
+	D.resize(LHS.rows(), LHS.cols());
+	L.resize(LHS.rows(), LHS.cols());
+	vector<Eigen::Triplet<double>> UTriplet, DTriplet, LTriplet;
+	UTriplet.reserve(4*LHS.rows());
+	DTriplet.reserve(LHS.rows());
+	LTriplet.reserve(4*LHS.rows());
+
+	/* Getting the sum of every non-zero elements in a row */
+	for (int k = 0; k < LHS.outerSize(); ++k) {
+		for (Eigen::SparseMatrix<double>::InnerIterator it(LHS, k); it; ++it) {
+			if (it.row() > it.col())		LTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+			else if (it.row() < it.col())	UTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+			else if (it.row() == it.col())	DTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+		}
+	}
+	U.setFromTriplets(UTriplet.begin(), UTriplet.end());
+	D.setFromTriplets(DTriplet.begin(), DTriplet.end());
+	L.setFromTriplets(LTriplet.begin(), LTriplet.end());
+	UTriplet.clear(); UTriplet.shrink_to_fit();
+	DTriplet.clear(); DTriplet.shrink_to_fit();
+	LTriplet.clear(); LTriplet.shrink_to_fit();
+
+	printf("L: %dx%d (%d nnz) | D:%dx%d (%d nnz) | U:%dx%d (%d nnz) \n", L.rows(), L.cols(), L.nonZeros(), D.rows(), D.cols(), D.nonZeros(), U.rows(), U.cols(), U.nonZeros());
+
+	Eigen::SparseMatrix<double> DL = D + L;
+	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+	Eigen::SparseLU<Eigen::SparseMatrix<double>> sparseSolver; 
+	sparseSolver.analyzePattern(DL);
+	sparseSolver.factorize(DL);
+
+	printf("Dimensionality check: \n");
+	printf("__LHS: %dx%d | rhs: %d | init guess: %d \n", LHS.rows(), LHS.cols(), rhs.rows(), x0.rows());
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "Iterative Gauss-Seidel solver...";
+	t1 = chrono::high_resolution_clock::now();
+
+	Eigen::VectorXd xk1 = x0;
+	Eigen::VectorXd xk2;
+	double diffIter;
+	double maxDiffNum, minDiffNum;
+	double maxCurNum, minCurNum;
+	int iterUsed = maxIter;
+
+	cout << "Iterating for solution \n";
+	for (int i = 0; i < maxIter; i++) {
+		GaussSeidel1IterMatrixForm(sparseSolver, U, rhs, xk1, xk2);
+		//GaussSeidel1Iter(LHS, rhs, xk1, xk2);
+
+		maxDiffNum = (xk2 - xk1).maxCoeff();
+		minDiffNum = (xk2 - xk1).minCoeff();
+		maxCurNum = xk2.maxCoeff();
+		minCurNum = xk2.minCoeff();
+		//printf("MaxDiff: %.4f | minDiff: %.4f | maxCur: %.4f | minCur: %.4f \n", maxDiffNum, minDiffNum, maxCurNum, minCurNum);
+		//diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
+		diffIter = maxDiffNum / maxCurNum;
+
+		//cout << "x: " << xk2.transpose() << endl;
+
+		if (i % 10 == 0)
+		{
+			printf("%d iter, the convergence: %.16f |", i, diffIter);
+			Eigen::VectorXd residu = rhs - LHS*xk2;
+			double res = residu.transpose()*LHS*residu;
+			printf(" reside: %.16f \n", res);
+		}
+
+		xk1 = xk2;
+
+		if (diffIter < tol)
+		{
+			iterUsed = i + 1;
+			break;
+		}
+	}
+	x = xk2;
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+	printf("It takes %d iter, with %.10f tolerance \n", iterUsed, diffIter);
+}
+
 void GaussSeidel1Iter(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x)
 {
 	x = x0; 
-
 
 	/* Getting the sum of every non-zero elements in a row */
 	for (int k = 0; k < LHS.outerSize(); ++k) {
@@ -320,16 +409,23 @@ void GaussSeidel1Iter(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Ei
 
 		for (Eigen::SparseMatrix<double>::InnerIterator it(LHS, k); it; ++it) 
 		{
-			if (it.row() < k)
-			{
+			if (it.row() < k){
 				l += it.value()*x(it.row());
-			}
-			else if (it.row() > k)
-			{
+			} else if (it.row() > k){
 				u += it.value()*x(it.row());
 			}			
 		}
-
 		x(k) = (rhs(k)-l-u) / LHS.coeff(k, k);
 	}
+}
+
+void GaussSeidel1IterMatrixForm(const Eigen::SparseLU<Eigen::SparseMatrix<double>>& factor, const Eigen::SparseMatrix<double>& U, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x)
+{
+	Eigen::VectorXd xk = rhs - (U*x0) ;
+	x = factor.solve(xk);
+
+
+	//Eigen::VectorXd comp1 = factor.solve(xk);
+	//Eigen::VectorXd comp2 = factor.solve(rhs);
+	//x = comp1 + comp2;	
 }

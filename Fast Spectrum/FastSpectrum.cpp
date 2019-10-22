@@ -860,6 +860,7 @@ void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
 	Eigen::VectorXd rhs = G.transpose() * Mf * gradRed;
 	Eigen::VectorXd x0; x0.setZero(S.rows());
 	GaussSeidelSparseSolver(S, rhs, x0, heatDistanceRed, 100000, 1e-10);
+	//GaussSeidelSparseSolverMatrixForm(S, rhs, x0, heatDistanceRed, 100000, 1e-10);
 	
 	visualizeHeatGeodesics(viewer, heatDistanceRed);
 
