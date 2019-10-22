@@ -111,6 +111,8 @@ public:
 
 	void multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 
+	void testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer);
+
 	/* Supporting functions for non-smooth basis */
 	void BuildLocalClusterLevel0();
 	void BuildLocalClusterLevelK(int k);

@@ -270,7 +270,6 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 	double maxCurNum, minCurNum;
 	int iterUsed = maxIter;
 
-
 	for (int i = 0; i < maxIter; i++) {
 		GaussSeidel1Iter(LHS, rhs, xk1, xk2);
 
@@ -278,11 +277,19 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 		minDiffNum = (xk2 - xk1).minCoeff();
 		maxCurNum = xk2.maxCoeff();
 		minCurNum = xk2.minCoeff();
-		printf("MaxDiff: %.4f | minDiff: %.4f | maxCur: %.4f | minCur: %.4f \n", maxDiffNum, minDiffNum, maxCurNum, minCurNum);
+		//printf("MaxDiff: %.4f | minDiff: %.4f | maxCur: %.4f | minCur: %.4f \n", maxDiffNum, minDiffNum, maxCurNum, minCurNum);
 		//diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
 		diffIter = maxDiffNum / maxCurNum;
-		printf("%d iter, the convergence: %.32f \n", i, diffIter);
+		
 		//cout << "x: " << xk2.transpose() << endl;
+
+		if (i % 10 == 0)
+		{
+			printf("%d iter, the convergence: %.16f |", i, diffIter);
+			Eigen::VectorXd residu = rhs - LHS*xk2;
+			double res = residu.transpose()*LHS*residu;
+			printf(" reside: %.16f \n", res);
+		}
 
 		xk1 = xk2; 
 

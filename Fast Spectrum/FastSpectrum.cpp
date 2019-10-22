@@ -492,8 +492,8 @@ void FastSpectrum::setSampleType(SamplingType sampleType)
 /* Heat Method*/
 void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 {
-	//double tau = avgEdgeLength*avgEdgeLength;
-	double tau = 10000.0*avgEdgeLength;
+	double tau = avgEdgeLength*avgEdgeLength;
+	//double tau = 10000.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
 	inputHeat(0) = 1.0; 
 
@@ -501,9 +501,9 @@ void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 	grad = G*outputHeat;
 	normalizeGradient(grad);
 	solvePoissonEquation(grad, heatDistance);
-	//visualizeHeatGeodesics(viewer, heatDistance);
-	visualizeHeatGeodesics(viewer, outputHeat);
-
+	//visualizeHeatGeodesics(viewer, outputHeat);
+	visualizeHeatGeodesics(viewer, heatDistance);
+	
 	//testGaussSeidel();
 }
 
@@ -844,6 +844,27 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	e1 = U[0] * e2;
 	x1 = x1 + e1;
 	GaussSeidelSparseSolver(A, b, x1, x, MAX_ITER, TOL);
+}
+void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
+{
+	double tau = avgEdgeLength*avgEdgeLength;
+
+	inputHeatRed.setZero(V.rows());
+	inputHeatRed(0) = 1.0;
+
+	solveHeatEquation(tau, inputHeatRed, outputHeatRed);
+	gradRed = G*outputHeatRed;
+	normalizeGradient(gradRed);
+
+	/* Solve via Gauss-Seidel iterative solver */
+	Eigen::VectorXd rhs = G.transpose() * Mf * gradRed;
+	Eigen::VectorXd x0; x0.setZero(S.rows());
+	GaussSeidelSparseSolver(S, rhs, x0, heatDistanceRed, 100000, 1e-10);
+	
+	visualizeHeatGeodesics(viewer, heatDistanceRed);
+
+	checkAccuracy(S, heatDistance, heatDistanceRed);
+	//visualizeHeatGeodesics(viewer, outputHeat);
 }
 
 /* Supporting functions for non-smooth basis */

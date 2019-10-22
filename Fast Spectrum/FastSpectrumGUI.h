@@ -556,7 +556,22 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 				}
 			}
 
+
+			/* Tsting gauss-seidel solver for solving Poisson system */
+			if (ImGui::Button("Gauss-Seidel test", ImVec2((w), 0))) {
+				fastSpectrum.testGaussSeidelSolver(viewer);
+			}
 		
+			/* Visualizing the geodesic distance */
+			if (ImGui::Button("Ref.##Heat_Method", ImVec2((w) / 2.f, 0))) {
+				fastSpectrum.visualizeHeatGeodesics(viewer, fastSpectrum.heatDistance);
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Approx##Heat_Method", ImVec2((w) / 2.f, 0))) 
+			{
+				fastSpectrum.visualizeHeatGeodesics(viewer, fastSpectrum.heatDistanceRed);
+			}
+			
 		} // End of HEAT METHOD
 
 		/* [REFERENCE] Eigenvectors */
