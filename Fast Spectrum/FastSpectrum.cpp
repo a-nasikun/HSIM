@@ -593,16 +593,16 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	inputHeatRed.setZero(V.rows());
 	inputHeatRed(0) = 1.0;
 
-	solveHeatEquationRed(tau, inputHeatRed, outputHeatRed);
-	//solveHeatEquation(tau, inputHeatRed, outputHeatRed);
+	//solveHeatEquationRed(tau, inputHeatRed, outputHeatRed);
+	solveHeatEquation(tau, inputHeatRed, outputHeatRed);
 
 	gradRed = G*outputHeatRed;
 	normalizeGradient(gradRed);
-	solvePoissonEquation(gradRed, heatDistanceRed);
-	//solvePoissonEquationRed(gradRed, heatDistanceRed);
+	//solvePoissonEquation(gradRed, heatDistanceRed);
+	solvePoissonEquationRed(gradRed, heatDistanceRed);
 	
-	//visualizeHeatGeodesics(viewer, heatDistanceRed);
-	visualizeHeatGeodesics(viewer, outputHeatRed);
+	visualizeHeatGeodesics(viewer, heatDistanceRed);
+	//visualizeHeatGeodesics(viewer, outputHeatRed);
 
 	if (heatDistance.size() > 0 && heatDistanceRed.rows() > 0)
 	{
@@ -757,7 +757,7 @@ void FastSpectrum::solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
 	chrono::duration<double>					duration;
-	cout << "> Solve poission equation... ";
+	cout << "> Solve poission equation... \n";
 	t1 = chrono::high_resolution_clock::now();
 
 	///Eigen::VectorXd rhs = GTMf_ * input;
@@ -805,7 +805,7 @@ void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, 
 }
 
 /* Multi-grid solver */
-void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
+void FastSpectrum::multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
 {
 	const int MAX_ITER = 250;
 	const double TOL = 1e-10;
@@ -845,6 +845,53 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	x1 = x1 + e1;
 	GaussSeidelSparseSolver(A, b, x1, x, MAX_ITER, TOL);
 }
+
+void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
+{
+	Eigen::VectorXd x0(U[level - 1].cols()); x0.setZero();
+	for (int i = level-1; i >= 0; i--)
+	{
+		multiGridSolverLevelK(A, i, b, x0, x);
+		x0 = x;
+	}
+}
+
+void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
+{
+	printf("__Creating basis level %d \n", k);
+	Eigen::SparseMatrix<double> UL, UK;
+	UL.resize(U[0].rows(), U[0].rows());
+	UL.setIdentity();
+
+	/* Getting the basis up to a certain level */
+	for (int i = 0; i < k; i++){
+		printf("____UL{%d} ", i);
+		printf("| %dx%d. ", UL.rows(), UL.cols());
+		UL = UL*U[i];
+		printf("| %dx%d \n ", UL.rows(), UL.cols());
+	}
+	printf("U[%d]: %dx%d \n ", k, U[k].rows(), U[k].cols());
+	UK = UL * U[k];
+
+	/* System matrix */
+	Eigen::SparseMatrix<double> AK;
+	AK = UK.transpose()*A*UK;
+	Eigen::VectorXd bK = UK.transpose()*b; 
+	Eigen::VectorXd xK = UL * x0;
+
+	/* For the deepest level : DIRECT SOLVE  */	
+	if (k == level - 1) {
+		printf("__Direct (LDLT) solver \n");
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+		sparseSolver.compute(AK);
+		x = sparseSolver.solve(bK);
+	} else {
+		printf("__Multi-grid solver \n");
+		GaussSeidelSparseSolver(AK, bK, xK, x, 1000000, 1e-5);
+	}
+
+}
+
 void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
 {
 	double tau = avgEdgeLength*avgEdgeLength;
