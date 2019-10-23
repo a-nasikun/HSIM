@@ -856,9 +856,17 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 		x0 = x;
 	}
 
-	cout << "Finest level \n";
+	cout << "__Finest level \n";
 	Eigen::VectorXd x0_0 = U[0] * x0;
-	GaussSeidelSparseSolver(A, b, x0_0, x, 100000, 1e-6);
+
+	cout << "B_ref proj: " << b.block(0, 0, 20, 1).transpose() << endl;
+	cout << "B_app proj: " << x0_0.block(0, 0, 20, 1).transpose() << endl;
+
+	Eigen::VectorXd r1 = b - A*x0_0;
+	double resi = r1.transpose()*A*r1;
+	cout << "Residu (init): " << resi << endl; 
+
+	GaussSeidelSparseSolver(A, b, x0_0, x, 100000, 5e-5);
 
 	/* Hard coded */
 	//cout << "Coarsest level \n";
@@ -916,8 +924,16 @@ void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, 
 		x = sparseSolver.solve(bK);
 	} else {
 		Eigen::VectorXd xK = U[k+1] * x0;
+
+		Eigen::VectorXd rInit = bK - AK*xK;
+		double resIniit = rInit.transpose()*AK*rInit;
+		cout << "Residu init: " << resIniit << endl; 
+		cout << "B_ref proj: " << bK.block(0, 0, 20, 1).transpose() << endl; 
+		cout << "B_app proj: " << xK.block(0, 0, 20, 1).transpose() << endl;
+
 		printf("__Multi-grid solver \n");
-		GaussSeidelSparseSolver(AK, bK, xK, x, 100000, 1e-15);
+		//GaussSeidelSparseSolver(AK, bK, xK, x, 100000, 1e-16);
+		GaussSeidelSparseSolver(AK, bK, xK, x, 100000, std::numeric_limits<double>::epsilon());
 	}
 
 }

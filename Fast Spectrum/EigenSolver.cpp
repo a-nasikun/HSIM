@@ -255,12 +255,14 @@ void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<doub
 /* Iterative Gauss-Seidel Solver */
 void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol)
 {
-	printf("Dimensionality check: \n");
-	printf("__LHS: %dx%d | rhs: %d | init guess: %d \n", LHS.rows(), LHS.cols(), rhs.rows(), x0.rows());
+	//printf("Dimensionality check: \n");
+	printf("____LHS: %dx%d | rhs: %d | init guess: %d | ", LHS.rows(), LHS.cols(), rhs.rows(), x0.rows());
+	cout << tol << endl; 
+
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
 	chrono::duration<double>					duration;
-	cout << "Iterative Gauss-Seidel solver...";
+	cout << "__Iterative Gauss-Seidel solver...\n";
 	t1 = chrono::high_resolution_clock::now();	
 
 	Eigen::VectorXd xk1 = x0;
@@ -269,6 +271,7 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 	double maxDiffNum, minDiffNum;
 	double maxCurNum, minCurNum;
 	int iterUsed = maxIter;
+	double res;
 
 	for (int i = 0; i < maxIter; i++) {
 		GaussSeidel1Iter(LHS, rhs, xk1, xk2);
@@ -283,17 +286,17 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 		
 		//cout << "x: " << xk2.transpose() << endl;
 
-		if (i % 5000 == 0)
-		{
-			printf("%d iter, the convergence: %.16f |", i, diffIter);
-			Eigen::VectorXd residu = rhs - LHS*xk2;
-			double res = residu.transpose()*LHS*residu;
-			printf(" reside: %.16f \n", res);
+		
+		Eigen::VectorXd residu = rhs - LHS*xk2;
+		res = residu.transpose()*LHS*residu;
+		if (i % 1000 == 0){
+			printf("____[%d] iter, the convergence: %.16f |", i, diffIter);			
+			printf(" residu: %.16f \n", res);
 		}
 
 		xk1 = xk2; 
 
-		if (diffIter < tol)
+		if (res < tol)
 		{
 			iterUsed = i + 1;
 			break;
@@ -305,7 +308,7 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 	duration = t2 - t1;
 	cout << "in " << duration.count() << " seconds" << endl;
 
-	printf("It takes %d iter, with %.10f tolerance \n", iterUsed, diffIter);
+	printf("__It takes %d iter, with %.16f tolerance \n", iterUsed, res);
 }
 
 void GaussSeidelSparseSolverMatrixForm(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol)
