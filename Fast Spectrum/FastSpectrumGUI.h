@@ -128,13 +128,13 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					//for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 2 * i)));
 
 					/* hierarchy sampling, on linear increase */
-					int lowestSample = 1000;
-					double scale = pow((double)V.rows() / (double)lowestSample, 1.0 / fastSpectrum.level);
-					for (int i = 0; i < fastSpectrum.level-1; i++) sampSize(i) = (int)round((double)V.rows()/pow(scale,i+1));
-					sampSize(fastSpectrum.level - 1) = lowestSample;
+					//int lowestSample = 1000;
+					//double scale = pow((double)V.rows() / (double)lowestSample, 1.0 / fastSpectrum.level);
+					//for (int i = 0; i < fastSpectrum.level-1; i++) sampSize(i) = (int)round((double)V.rows()/pow(scale,i+1));
+					//sampSize(fastSpectrum.level - 1) = lowestSample;
 
 					/* Manual input */
-					//sampSize << 16000, 4000, 1000; 
+					sampSize << 16000, 1000; 
 
 					fastSpectrum.constructSampleHierarchy(sampSize);
 					viewer.data().points.resize(0, 6);
