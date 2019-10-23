@@ -895,20 +895,19 @@ void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, 
 	UK.setIdentity();
 
 	/* Getting the basis up to a certain level */
-	for (int i = 0; i < k; i++){
-		printf("____UK{%d} ", i);
+	for (int i = 0; i <= k; i++){
+		printf("____UK(%d) ", i);
 		printf("| %dx%d. ", UK.rows(), UK.cols());
 		UK = UK*U[i];
-		printf("| %dx%d \n ", UK.rows(), UK.cols());
-	}
-	printf("U[%d]: %dx%d \n ", k, U[k].rows(), U[k].cols());	
+		printf("| %dx%d \n", UK.rows(), UK.cols());
+	}		
 
 	/* System matrix */
+	cout << "___Reduced system matrices \n";
 	Eigen::SparseMatrix<double> AK;
 	AK = UK.transpose()*A*UK;
 	Eigen::VectorXd bK = UK.transpose()*b; 
-	Eigen::VectorXd xK = U[k] * x0;
-
+	
 	/* For the deepest level : DIRECT SOLVE  */	
 	if (k == level - 1) {
 		printf("__Direct (LDLT) solver \n");
@@ -916,8 +915,9 @@ void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, 
 		sparseSolver.compute(AK);
 		x = sparseSolver.solve(bK);
 	} else {
+		Eigen::VectorXd xK = U[k+1] * x0;
 		printf("__Multi-grid solver \n");
-		GaussSeidelSparseSolver(AK, bK, xK, x, 100000, 1e-9);
+		GaussSeidelSparseSolver(AK, bK, xK, x, 100000, 1e-15);
 	}
 
 }
