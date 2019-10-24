@@ -175,7 +175,7 @@ void FastSpectrum::constructSampleHierarchy(Eigen::VectorXd& n)
 	for (int i = 0; i < level; i++)
 	{
 		SubspaceSize[i] = n(i);
-		printf("Level %d -> sample size: %d\n", i, SubspaceSize[i]);
+		printf("Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
 	}
 
 	//constructSample();
@@ -233,11 +233,11 @@ void FastSpectrum::constructBasis()
 	const double SCALE = 1.0;
 
 	const double NUM_SUPPORT = 10.0;
-	maxNeighDist[0] = SCALE*sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[0]));
-	printf("Radius %d is %.4f \n", 0, maxNeighDist[0]);
-	for (int i = 1; i < level; i++) {
+	//maxNeighDist[0] = SCALE*sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[0]));
+	//printf("Radius %d is %.4f (avg edge: %.4f)\n", 0, maxNeighDist[0], avgEdgeLength);
+	for (int i = 0; i < level; i++) {
 		maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
-		printf("Radius %d is %.4f \n", i, maxNeighDist[i]);
+		printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
 	}
 	
 	constructBasisFunctionsLevel0();
@@ -974,7 +974,8 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	cout << "LEVEL_" << k << endl; 
 	/* 0: Some variables required */
 	int		iterPre = 5, iterPost = 1000000;
-	double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-6;
+	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
+	double	tolPre = 5e-5, tolInner = 5e-7, tolOuter = 5.0e-6;
 
 
 	/* 1: PRE-SMOOTHING */
@@ -1386,7 +1387,7 @@ void FastSpectrum::constructBasisFunctionsLevel0()
 		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)SubspaceSize[0]) * 20.0 * V.rows());
 
 		for (i = istart; i < (istart + ipts); i++) {
-			if (i >= sampleSize) break;
+			if (i >= SubspaceSize[0]) break;
 			/* Dijkstra basis function */
 			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
 		}

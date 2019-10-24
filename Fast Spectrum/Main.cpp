@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 	ImGui::StyleColorsDark();							// Set style
 
 	meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
-	fastSpectrum.setInitialSystem(3);
+	fastSpectrum.setInitialSystem(5);
 	fastSpectrum.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
 	fastSpectrum.getV(V);
 	fastSpectrum.getF(F);

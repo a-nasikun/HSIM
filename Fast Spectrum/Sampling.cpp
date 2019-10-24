@@ -375,7 +375,7 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 	Eigen::VectorXi::Index maxIndex;
 
 	// For level 0
-	printf("Sample 0: %d \n", SubspaceSize[level - 1]);
+	printf("Sample %d, %d \n", level-1, SubspaceSize[level - 1]);
 	for (int i = 1; i < SubspaceSize[level-1]; i++) {
 		ComputeDijkstra(V, Samples(i - 1), AdM, D);
 		D.maxCoeff(&maxIndex);
@@ -386,7 +386,7 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 	// For level 1 and higher
 	for (int j = 1; j < level; j++)
 	{
-		printf("Sample %d: %d \n", j, SubspaceSize[level-(j+1)]);
+		printf("Sample %d: %d \n", level-j-1, SubspaceSize[level-(j+1)]);
 		for (int i = SubspaceSize[level-j]; i < SubspaceSize[level-(j+1)]; i++) {
 			ComputeDijkstra(V, Samples(i-1), AdM, D);
 			D.maxCoeff(&maxIndex);

@@ -296,7 +296,8 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 
 		xk1 = xk2; 
 
-		if (res < tol)
+		//if (res < tol)
+		if (diffIter < tol)
 		{
 			iterUsed = i + 1;
 			break;
