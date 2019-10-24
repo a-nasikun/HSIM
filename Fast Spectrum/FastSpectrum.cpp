@@ -228,8 +228,9 @@ void FastSpectrum::constructBasis()
 	//const double NUM_SUPPORT = 5.0;
 	//const double NUM_SUPPORT = 3.75;			// Dragon model, result in 8 nnz per row (total basis)
 	//const double SCALE = 5.0;					// Dragon model, result in 8 nnz per row (total basis),3 levels
-	const double SCALE = 4.25;
+	//const double SCALE = 4.25;
 	//const double SCALE = 5.0;
+	const double SCALE = 1.0;
 
 	const double NUM_SUPPORT = 10.0;
 	maxNeighDist[0] = SCALE*sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[0]));
@@ -247,12 +248,17 @@ void FastSpectrum::constructBasis()
 
 	formPartitionOfUnityMultiLevel();
 
-	if(level==3)	
-		Basis = U[0] * U[1] * U[2];
-	else if(level==2)
-		Basis = U[0] * U[1];
-	else 
-	Basis = U[0];
+	Basis.resize(V.rows(), V.rows());
+	Basis.setIdentity();
+	for (int i = 0; i < level; i++)
+		Basis = Basis * U[i];
+
+	//if(level==3)	
+	//	Basis = U[0] * U[1] * U[2];
+	//else if(level==2)
+	//	Basis = U[0] * U[1];
+	//else 
+	//Basis = U[0];
 	//formPartitionOfUnity();
 
 	printf("Basis sparsity:  %.4f (%d/%d) \n", (double) Basis.nonZeros() / (double) Basis.rows(), Basis.nonZeros(), Basis.rows());
@@ -869,50 +875,55 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	///GaussSeidelSparseSolver(A, b, x0_0, x, 100000, 5e-5);
 
 	/* Hard coded */
-	cout << "Pre-smooth (fine level) \n";
-	// Pre-smooth (fine level)
-	Eigen::VectorXd x00(b.rows()); x00.setZero();
-	Eigen::VectorXd x0;
-	GaussSeidelSparseSolver(A, b, x00, x0, 1000, 1e-10);
-	Eigen::VectorXd r0 = b - A*x0;
+	//cout << "Pre-smooth (fine level) \n";
+	//// Pre-smooth (fine level)
+	//Eigen::VectorXd x00(b.rows()); x00.setZero();
+	//Eigen::VectorXd x0;
+	//GaussSeidelSparseSolver(A, b, x00, x0, 1000, 1e-10);
+	//Eigen::VectorXd r0 = b - A*x0;
+	//
+	//cout << "Pre-smooth (level 0) \n";
+	//Eigen::VectorXd b1 = U[0].transpose()*r0;
+	//Eigen::VectorXd x1(b1.rows()); x1.setZero();
+	////Eigen::VectorXd				  b1 = U[0].transpose()*b;
+	//Eigen::SparseMatrix<double>   A1 = U[0].transpose()*A*U[0];
+	//GaussSeidelSparseSolver(A1, b1, x1, x1, 1000, 1e-10);
+	//Eigen::VectorXd r1 = b1 - A1*x1;
+	//
+	//cout << "Coarsest level \n";
+	//// coarsest level: (1000 dim)
+	//Eigen::VectorXd b2 = U[1].transpose()*r1;
+	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+	//Eigen::SparseMatrix<double> A2 = U[1].transpose()*U[0].transpose()*A*U[0] * U[1];	
+	//sparseSolver.compute(A2);
+	////Eigen::VectorXd b2 = U[1].transpose()*U[0].transpose()*b;
+	//printf("LHS: %dx%d | rhs: %d ", A2.rows(), A2.cols(), b2.rows());
+	//Eigen::VectorXd x2 = sparseSolver.solve(b2);
+	//printf("sol: %d \n", x2.rows());
+	//Eigen::VectorXd e1 = U[1] * x2;
+	//
+	//
+	//cout << "Level 0 \n";
+	//// level 0: (16.000 dim)
+	//Eigen::VectorXd x10 = x1 + e1;
+	////Eigen::VectorXd				x1_0 = U[1] * x2;
+	////Eigen::VectorXd				  x1;
+	//printf("LHS: %dx%d | rhs: %d | init guess: %d", A1.rows(), A1.cols(), b1.rows(), x1.rows());
+	////GaussSeidelSparseSolver(A1, b1, x1, x1, 100000, 1e-16);
+	//GaussSeidelSparseSolver(A1, b1, x10, x1, 100000, std::numeric_limits<double>::epsilon());
+	//printf("sol: %d \n", x1.rows());
+	//Eigen::VectorXd e0 = U[0] * x1;
+	//
+	//// fine level (resolution of the mesh
+	//cout << "Finest level \n";
+	////Eigen::VectorXd x0_0 = U[0] * x1;
+	//x0 = x0 + e0;
+	//GaussSeidelSparseSolver(A, b, x0, x, 100000, 1e-6);
 
-	cout << "Pre-smooth (level 0) \n";
-	Eigen::VectorXd b1 = U[0].transpose()*r0;
-	Eigen::VectorXd x1(b1.rows()); x1.setZero();
-	//Eigen::VectorXd				  b1 = U[0].transpose()*b;
-	Eigen::SparseMatrix<double>   A1 = U[0].transpose()*A*U[0];
-	GaussSeidelSparseSolver(A1, b1, x1, x1, 1000, 1e-10);
-	Eigen::VectorXd r1 = b1 - A1*x1;
+	/* ======================================= NEW RECURSIVE ====================================== */
+	x.setZero(b.rows());		// initial guest
+	multiGridVCycle(A, b, x, 0);
 
-	cout << "Coarsest level \n";
-	// coarsest level: (1000 dim)
-	Eigen::VectorXd b2 = U[1].transpose()*r1;
-	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
-	Eigen::SparseMatrix<double> A2 = U[1].transpose()*U[0].transpose()*A*U[0] * U[1];	
-	sparseSolver.compute(A2);
-	//Eigen::VectorXd b2 = U[1].transpose()*U[0].transpose()*b;
-	printf("LHS: %dx%d | rhs: %d ", A2.rows(), A2.cols(), b2.rows());
-	Eigen::VectorXd x2 = sparseSolver.solve(b2);
-	printf("sol: %d \n", x2.rows());
-	Eigen::VectorXd e1 = U[1] * x2;
-
-	
-	cout << "Level 0 \n";
-	// level 0: (16.000 dim)
-	Eigen::VectorXd x10 = x1 + e1;
-	//Eigen::VectorXd				x1_0 = U[1] * x2;
-	//Eigen::VectorXd				  x1;
-	printf("LHS: %dx%d | rhs: %d | init guess: %d", A1.rows(), A1.cols(), b1.rows(), x1.rows());
-	//GaussSeidelSparseSolver(A1, b1, x1, x1, 100000, 1e-16);
-	GaussSeidelSparseSolver(A1, b1, x10, x1, 100000, std::numeric_limits<double>::epsilon());
-	printf("sol: %d \n", x1.rows());
-	Eigen::VectorXd e0 = U[0] * x1;
-	
-	// fine level (resolution of the mesh
-	cout << "Finest level \n";
-	//Eigen::VectorXd x0_0 = U[0] * x1;
-	x0 = x0 + e0;
-	GaussSeidelSparseSolver(A, b, x0, x, 100000, 1e-6);
 }
 
 void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
@@ -956,6 +967,53 @@ void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, 
 		GaussSeidelSparseSolver(AK, bK, xK, x, 100000, std::numeric_limits<double>::epsilon());
 	}
 
+}
+
+void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
+{
+	cout << "LEVEL_" << k << endl; 
+	/* 0: Some variables required */
+	int		iterPre = 5, iterPost = 1000000;
+	double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-6;
+
+
+	/* 1: PRE-SMOOTHING */
+	GaussSeidelSparseSolver(A, b, x, x, iterPre, tolPre);
+
+	/* 2: COMPUTE RESIDUAL ERROR */
+	Eigen::VectorXd r = b - A*x;
+	double res = r.transpose()*A*r; 
+	cout << "____[" << k << "] Residu (after pre-smoothing): " << res << endl; 
+
+	/* 3: RESTRICTION */
+	Eigen::VectorXd r1 = U[k].transpose()*r;
+	Eigen::VectorXd eps; eps.setZero(r1.rows());
+	Eigen::SparseMatrix<double> A1 = U[k].transpose()*A*U[k];
+
+	/* 4: RECURSION */
+	if (k == level - 1)			// DIRECT SOLVE for the last level (level k)
+	{
+		printf("__Direct (LDLT) solver \n");
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+		sparseSolver.compute(A1);
+		eps = sparseSolver.solve(r1);
+	}
+	else						// RECURSIVE for level k < max_level
+	{
+		multiGridVCycle(A1, r1, eps, k+1);
+	}
+
+	/* 5: PROLONGATION + CORRECTION */
+	x = x + U[k]*eps;
+	r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+
+	/* 6: POST-SMOOTHING */
+	if(k==0)
+		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolOuter);
+	else 
+		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolInner);
+
+	r = b - A*x;res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after post-smoothing): " << res << endl;
 }
 
 void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
@@ -1313,9 +1371,9 @@ void FastSpectrum::constructBasisFunctionsLevel0()
 		iproc	= omp_get_num_procs();
 		tid		= omp_get_thread_num();
 		ntids	= omp_get_num_threads();
-		ipts	= (int)ceil(1.00*(double)sampleSize / (double)ntids);
+		ipts	= (int)ceil(1.00*(double)SubspaceSize[0] / (double)ntids);
 		istart	= tid * ipts;
-		if (tid == ntids - 1) ipts = sampleSize - istart;
+		if (tid == ntids - 1) ipts = SubspaceSize[0] - istart;
 		if (ipts <= 0) ipts = 0;
 
 		// Instantiate D once, used for all Dijkstra
@@ -1325,12 +1383,12 @@ void FastSpectrum::constructBasisFunctionsLevel0()
 		//	D(i) = numeric_limits<double>::infinity();
 		//}
 		
-		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)sampleSize) * 20.0 * V.rows());
+		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)SubspaceSize[0]) * 20.0 * V.rows());
 
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= sampleSize) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, sampleSize, UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
 		}
 	} /* End of OpenMP parallelization */
 
@@ -1527,4 +1585,22 @@ void FastSpectrum::normalizeReducedEigVects()
 		reducedEigVects.col(i) = mNorm * reducedEigVects.col(i);
 	}
 	printf("A set of %d eigenpairs is computed.\n", reducedEigVects.cols());
+}
+
+void FastSpectrum::computeTempBasis(int k)
+{
+	Basis.resize(V.rows(), V.rows());
+	Basis.setIdentity();
+
+	for (int i = 0; i <= k; i++) {
+		Basis = Basis*U[i];
+	}
+}
+
+void  FastSpectrum::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int k)
+{
+	Eigen::MatrixXd VColor;
+	Eigen::VectorXd funcCols = Basis.col(k);
+	igl::jet(funcCols, true, VColor);
+	viewer.data().set_colors(VColor);
 }

@@ -262,7 +262,7 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
 	chrono::duration<double>					duration;
-	cout << "__Iterative Gauss-Seidel solver...\n";
+	cout << "____Iterative Gauss-Seidel solver...\n";
 	t1 = chrono::high_resolution_clock::now();	
 
 	Eigen::VectorXd xk1 = x0;
@@ -281,8 +281,8 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 		maxCurNum = xk2.maxCoeff();
 		minCurNum = xk2.minCoeff();
 		//printf("MaxDiff: %.4f | minDiff: %.4f | maxCur: %.4f | minCur: %.4f \n", maxDiffNum, minDiffNum, maxCurNum, minCurNum);
-		//diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
-		diffIter = maxDiffNum / maxCurNum;
+		diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
+		//diffIter = maxDiffNum / maxCurNum;
 		
 		//cout << "x: " << xk2.transpose() << endl;
 
@@ -290,7 +290,7 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 		Eigen::VectorXd residu = rhs - LHS*xk2;
 		res = residu.transpose()*LHS*residu;
 		if (i % 1000 == 0){
-			printf("____[%d] iter, the convergence: %.16f |", i, diffIter);			
+			printf("______<%d> iter, the convergence: %.16f |", i, diffIter);			
 			printf(" residu: %.16f \n", res);
 		}
 
@@ -306,9 +306,8 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
-	cout << "in " << duration.count() << " seconds" << endl;
-
-	printf("__It takes %d iter, with %.16f tolerance \n", iterUsed, res);
+	///cout << "in " << duration.count() << " seconds" << endl;
+	printf("____It takes %d iter, with %.16f tolerance \n", iterUsed, res);
 }
 
 void GaussSeidelSparseSolverMatrixForm(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol)

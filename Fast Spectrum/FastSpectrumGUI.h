@@ -128,13 +128,13 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					//for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 2 * i)));
 
 					/* hierarchy sampling, on linear increase */
-					//int lowestSample = 1000;
-					//double scale = pow((double)V.rows() / (double)lowestSample, 1.0 / fastSpectrum.level);
-					//for (int i = 0; i < fastSpectrum.level-1; i++) sampSize(i) = (int)round((double)V.rows()/pow(scale,i+1));
-					//sampSize(fastSpectrum.level - 1) = lowestSample;
+					///int lowestSample = 1000;
+					///double scale = pow((double)V.rows() / (double)lowestSample, 1.0 / fastSpectrum.level);
+					///for (int i = 0; i < fastSpectrum.level-1; i++) sampSize(i) = (int)round((double)V.rows()/pow(scale,i+1));
+					///sampSize(fastSpectrum.level - 1) = lowestSample;
 
 					/* Manual input */
-					sampSize << 16000, 1000; 
+					sampSize << 16000, 4000, 1000; 
 
 					fastSpectrum.constructSampleHierarchy(sampSize);
 					viewer.data().points.resize(0, 6);
@@ -180,6 +180,19 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					fastSpectrum.constructBasis();
 					useNonSmoothBasis = false; 
 				}
+
+				// Showing basis in different levels
+				for (int i = 0; i < fastSpectrum.level; i++)
+				{
+					string disp = "Lvl. "; disp += to_string(i);
+					char const* ca = disp.c_str();
+					if (ImGui::Button(ca, ImVec2(w / (double)fastSpectrum.level - p, 0))) {
+						fastSpectrum.computeTempBasis(i);
+						fastSpectrum.visualizeBasis(viewer, basisToShow);
+					} 
+					if(i<(fastSpectrum.level-1)) ImGui::SameLine(0, p);
+				}
+
 
 				if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {
 					Eigen::SparseMatrix<double> M;
@@ -296,42 +309,12 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			ImGui::Text("Show Basis ");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##Basis", ImVec2((w - 85.0f - 5.0*p) /4.f, 0))) {
-				Eigen::SparseMatrix<double> U;
-				fastSpectrum.getFunctionBasis(U);
-
-				if (U.rows() != V.rows()) {
+				if (fastSpectrum.Basis.rows() != V.rows()) {
 					cout << "Error! Make sure you have computed basis function on the current model." << endl;
 					return;
 				}
 
 				if (basisToShow > 0)
-					basisToShow--;
-
-				if (boolShowSamples) {
-					boolShowSamples = false;
-					viewer.data().points.resize(0, 6);
-					//viewer.data().clear();
-					//viewer.data().set_mesh(V, F);
-				}
-
-				Z = U.col(basisToShow);
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
-			}
-			ImGui::SameLine(0, p);	
-			ImGui::Text("[%d]", basisToShow);
-			ImGui::SameLine(0, p);
-
-			if (ImGui::Button("+ 1##Basis", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
-				Eigen::SparseMatrix<double> U;
-				fastSpectrum.getFunctionBasis(U);
-
-				if (U.rows() != V.rows()) {
-					cout << "Error! Make sure you have computed basis function on the current model." << endl;
-					return;
-				}
-
-				if (basisToShow < U.cols())
 					basisToShow++;
 
 				if (boolShowSamples) {
@@ -341,21 +324,20 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					//viewer.data().set_mesh(V, F);
 				}
 
-				Z = U.col(basisToShow);
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
+				fastSpectrum.visualizeBasis(viewer, basisToShow);
 			}
+			ImGui::SameLine(0, p);	
+			ImGui::Text("[%d]", basisToShow);
 			ImGui::SameLine(0, p);
-			if (ImGui::Button("Rand", ImVec2((w - 85.0f - 5.0*p)*2/4.f, 0))) {
-				Eigen::SparseMatrix<double> U;
-				fastSpectrum.getFunctionBasis(U);
 
-				if (U.rows() != V.rows()) {
+			if (ImGui::Button("+ 1##Basis", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
+				if (fastSpectrum.Basis.rows() != V.rows()) {
 					cout << "Error! Make sure you have computed basis function on the current model." << endl;
 					return;
 				}
-				
-				basisToShow = rand() % U.cols();
+
+				if (basisToShow < fastSpectrum.Basis.cols())
+					basisToShow++;
 
 				if (boolShowSamples) {
 					boolShowSamples = false;
@@ -364,9 +346,25 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					//viewer.data().set_mesh(V, F);
 				}
 
-				Z = U.col(basisToShow);
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
+				fastSpectrum.visualizeBasis(viewer, basisToShow);
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Rand", ImVec2((w - 85.0f - 5.0*p)*2/4.f, 0))) {
+				if (fastSpectrum.Basis.rows() != V.rows()) {
+					cout << "Error! Make sure you have computed basis function on the current model." << endl;
+					return;
+				}
+				
+				basisToShow = rand() % fastSpectrum.Basis.cols();
+
+				if (boolShowSamples) {
+					boolShowSamples = false;
+					viewer.data().points.resize(0, 6);
+					//viewer.data().clear();
+					//viewer.data().set_mesh(V, F);
+				}
+
+				fastSpectrum.visualizeBasis(viewer, basisToShow);
 			}
 			/* For Approx. Eigenvectors */
 			ImGui::Text("Show EigVec");

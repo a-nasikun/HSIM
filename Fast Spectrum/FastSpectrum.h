@@ -62,6 +62,8 @@ public:
 	void formPartitionOfUnityMultiLevel();
 	void computeEigenPair();
 	void normalizeReducedEigVects();
+	void computeTempBasis(int k);
+	void visualizeBasis(igl::opengl::glfw::Viewer &viewer, int k);
 
 	/* [GETTER AND SETTER]*/
 	void getV(Eigen::MatrixXd &V);
@@ -112,6 +114,8 @@ public:
 	void multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 	void multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 	void multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x);
+	void multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k);
+
 
 	void testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer);
 
