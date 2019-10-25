@@ -84,21 +84,21 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0))){
 				viewer.open_dialog_save_mesh();
 			}
-			if (ImGui::Button("Run Algorithm", ImVec2((w), 30))){
-				Eigen::SparseMatrix<double>	U;
-				fastSpectrum.computeEigenPairs( V, F, numOfSample, (SamplingType) sampleType, U, redEigVects, redEigVals);
-				
-				// Show the first non-zero eigenvectors
-				eigToShow					= 1;
-				Z							= U * redEigVects.col(eigToShow);
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
-			}
+			//if (ImGui::Button("Run Algorithm", ImVec2((w), 30))){
+			//	Eigen::SparseMatrix<double>	U;
+			//	fastSpectrum.computeEigenPairs( V, F, numOfSample, (SamplingType) sampleType, U, redEigVects, redEigVals);
+			//	
+			//	// Show the first non-zero eigenvectors
+			//	eigToShow					= 1;
+			//	Z							= U * redEigVects.col(eigToShow);
+			//	igl::jet(Z, true, vColor);
+			//	viewer.data().set_colors(vColor);
+			//}
 			
 			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
 			/* STEP BY STEP CONSTRUCTION */
-			if (ImGui::CollapsingHeader("Program Step by Step")) {
+			if (ImGui::CollapsingHeader("Program Step by Step", ImGuiTreeNodeFlags_DefaultOpen)) {
 				/* Setup Laplace-Beltrami Matrix */
 				if (ImGui::Button("[1] Construct Laplacian Matrix", ImVec2(w, 0))) {
 					fastSpectrum.constructLaplacianMatrix();
@@ -315,7 +315,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				}
 
 				if (basisToShow > 0)
-					basisToShow++;
+					basisToShow--;
 
 				if (boolShowSamples) {
 					boolShowSamples = false;
