@@ -288,7 +288,8 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 
 		
 		Eigen::VectorXd residu = rhs - LHS*xk2;
-		res = residu.transpose()*LHS*residu;
+		//res = residu.transpose()*LHS*residu;
+		res = residu.norm();
 		if (i % 1000 == 0){
 			printf("______<%d> iter, the convergence: %.16f |", i, diffIter);			
 			printf(" residu: %.16f \n", res);
@@ -296,8 +297,8 @@ void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& 
 
 		xk1 = xk2; 
 
-		//if (res < tol)
-		if (diffIter < tol)
+		if (res < tol)
+		//if (diffIter < tol)
 		{
 			iterUsed = i + 1;
 			break;

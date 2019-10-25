@@ -509,6 +509,9 @@ void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 	solvePoissonEquation(grad, heatDistance);
 	//visualizeHeatGeodesics(viewer, outputHeat);
 	visualizeHeatGeodesics(viewer, heatDistance);
+
+	
+
 	
 	//testGaussSeidel();
 }
@@ -581,6 +584,11 @@ void FastSpectrum::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::Vec
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
 	cout << "in " << duration.count() << " seconds" << endl;
+
+	Eigen::VectorXd res = rhs - S*output;
+	double residual = res.transpose()*S*res;
+	//double residual = res.norm();
+	cout << "__Ref. residu: " << residual << endl; 
 }
 
 void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
@@ -975,7 +983,7 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	/* 0: Some variables required */
 	int		iterPre = 5, iterPost = 1000000;
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPre = 5e-5, tolInner = 5e-7, tolOuter = 5.0e-6;
+	double	tolPre = 5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
 
 
 	/* 1: PRE-SMOOTHING */

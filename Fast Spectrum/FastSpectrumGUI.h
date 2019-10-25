@@ -421,8 +421,6 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			ImGui::Text("Show Refer.");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
-				
-
 				if (fastSpectrum.refEigVects.rows() != V.rows()) {
 					cout << "Error! Make sure you have computed the reference eigenfunctions on the current model." << endl;
 					return;
