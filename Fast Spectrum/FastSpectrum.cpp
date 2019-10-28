@@ -926,8 +926,8 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	/* ======================================= NEW RECURSIVE ====================================== */
 	x.setZero(b.rows());		// initial guest
 	//multiGridVCycle(A, b, x, 0);
-	multiGridFCycle(A, b, x, 0);
-	//multiGridWCycle(A, b, x, 0);
+	//multiGridFCycle(A, b, x, 0);
+	multiGridWCycle(A, b, x, 0);
 }
 
 void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
@@ -975,11 +975,12 @@ void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, 
 
 void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
+	cout << "______________________________V-CYCLE______________________________ \n";
 	cout << "LEVEL_" << k << endl; 
 	/* 0: Some variables required */
 	int		iterPre = 5, iterPost = 1000000;
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPre = 5e-5, tolInner = 5e-10, tolOuter = 5.0e-7;
+	double	tolPre = 5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
 
 
 	/* 1: PRE-SMOOTHING */
@@ -1018,16 +1019,17 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	else 
 		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolInner);
 
-	r = b - A*x;res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after post-smoothing): " << res << endl;
+	r = b - A*x;res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
 }
 
 void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
+	cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^ F-CYCLE ^^^^^^^^^^^^^^^^^^^^^^^^^^^ \n";
 	cout << "LEVEL_" << k << endl;
 	/* 0: Some variables required */
 	int		iterPre = 5, iterReInner = 100, iterReOuter = 1000, iterPost = 1000000;
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPre = 5e-5, tolInner = 5e-5, tolOuter = 5.0e-7;
+	double	tolPre = 5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
 
 
 	/* 1: PRE-SMOOTHING */
@@ -1095,16 +1097,17 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	else
 		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolInner);
 
-	r = b - A*x; res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after post-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
 }
 
 void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
+	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> W-CYCLE <<<<<<<<<<<<<<<<<<<<<<<<<<<< \n";
 	cout << "LEVEL_" << k << endl;
 	/* 0: Some variables required */
-	int		iterPre = 5, iterReInner = 100, iterReOuter = 1000, iterPost = 1000000;
+	int		iterPre = 5, iterReInner = 25, iterReOuter = 25, iterPost = 1000000;
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPre = 5e-5, tolInner = 5e-10, tolOuter = 5.0e-7;
+	double	tolPre = 5e-10, tolInner = 5e-10, tolOuter = 5.0e-7;
 
 
 	/* 1: PRE-SMOOTHING */
@@ -1172,7 +1175,7 @@ void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	else
 		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolInner);
 
-	r = b - A*x; res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after post-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
 }
 
 void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
