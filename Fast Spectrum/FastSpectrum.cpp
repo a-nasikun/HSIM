@@ -924,10 +924,11 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	//GaussSeidelSparseSolver(A, b, x0, x, 100000, 1e-6);
 
 	/* ======================================= NEW RECURSIVE ====================================== */
-	x.setZero(b.rows());		// initial guest
+	//x.setZero(b.rows());		// initial guest
+	initiateMultigrid(A, b, x);
 	//multiGridVCycle(A, b, x, 0);
-	//multiGridFCycle(A, b, x, 0);
-	multiGridWCycle(A, b, x, 0);
+	multiGridFCycle(A, b, x, 0);
+	//multiGridWCycle(A, b, x, 0);
 }
 
 void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
@@ -971,6 +972,31 @@ void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, 
 		GaussSeidelSparseSolver(AK, bK, xK, x, 100000, std::numeric_limits<double>::epsilon());
 	}
 
+}
+
+void FastSpectrum::initiateMultigrid(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Warm start of the initial guess... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	Eigen::SparseMatrix<double> Ub(b.rows(), b.rows()); Ub.setIdentity();
+	for (int i = 0; i < level; i++) Ub = Ub*U[i];
+	Eigen::SparseMatrix<double> A1 = Ub.transpose()*A*Ub;
+	Eigen::VectorXd				b1 = Ub.transpose()*b; 
+	Eigen::VectorXd				x1;
+
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+	spSolver.compute(A1);
+	x1 = spSolver.solve(b1);
+	x = Ub*x1;
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 
 void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
