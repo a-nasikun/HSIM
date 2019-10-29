@@ -926,9 +926,9 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	/* ======================================= NEW RECURSIVE ====================================== */
 	//x.setZero(b.rows());		// initial guest
 	initiateMultigrid(A, b, x);
-	//multiGridVCycle(A, b, x, 0);
-	multiGridFCycle(A, b, x, 0);
-	//multiGridWCycle(A, b, x, 0);
+	//multiGridVCycle(A, M, b, x, 0);
+	multiGridFCycle(A, M, b, x, 0);
+	//multiGridWCycle(A, M, b, x, 0);
 }
 
 void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
@@ -999,28 +999,33 @@ void FastSpectrum::initiateMultigrid(Eigen::SparseMatrix<double>& A, Eigen::Vect
 	cout << "in " << duration.count() << " seconds" << endl;
 }
 
-void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
+void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
 	cout << "______________________________V-CYCLE______________________________ \n";
 	cout << "LEVEL_" << k << endl; 
 	/* 0: Some variables required */
-	int		iterPre = 5, iterPost = 1000000;
+	int		iterPre = 100, iterPost = 1000000;
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
 	double	tolPre = 5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
 
+	//tolInner = pow(10, level-k)*tolInner;
+	if (k == 2) tolInner = 5e-10;
+	else if (k == 1) tolInner = 5e-8;
 
 	/* 1: PRE-SMOOTHING */
-	GaussSeidelSparseSolver(A, b, x, x, iterPre, tolPre);
+	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
 
 	/* 2: COMPUTE RESIDUAL ERROR */
 	Eigen::VectorXd r = b - A*x;
-	double res = r.transpose()*A*r; 
+	//double res = r.transpose()*A*r; 
+	double res = r.transpose()*Mv*r; res = sqrt(res);
 	cout << "____[" << k << "] Residu (after pre-smoothing): " << res << endl; 
 
 	/* 3: RESTRICTION */
 	Eigen::VectorXd r1 = U[k].transpose()*r;
 	Eigen::VectorXd eps; eps.setZero(r1.rows());
 	Eigen::SparseMatrix<double> A1 = U[k].transpose()*A*U[k];
+	Eigen::SparseMatrix<double> M1 = U[k].transpose()*Mv * U[k];
 
 	/* 4: RECURSION */
 	if (k == level - 1)			// DIRECT SOLVE for the last level (level k)
@@ -1032,23 +1037,26 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	}
 	else						// RECURSIVE for level k < max_level
 	{
-		multiGridVCycle(A1, r1, eps, k+1);
+		multiGridVCycle(A1, M1, r1, eps, k+1);
 	}
 
 	/* 5: PROLONGATION + CORRECTION */
 	x = x + U[k]*eps;
-	r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	r = b - A*x; 
+	//res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	res = r.transpose()*Mv*r; res = sqrt(res);	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
 
 	/* 6: POST-SMOOTHING */
 	if(k==0)
-		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolOuter);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter);
 	else 
-		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolInner);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner);
 
-	r = b - A*x;res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	//r = b - A*x;res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
 }
 
-void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
+void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
 	cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^ F-CYCLE ^^^^^^^^^^^^^^^^^^^^^^^^^^^ \n";
 	cout << "LEVEL_" << k << endl;
@@ -1057,19 +1065,24 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
 	double	tolPre = 5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
 
+	if (k == 2) tolInner = 5e-10;
+	else if (k == 1) tolInner = 5e-8;
 
 	/* 1: PRE-SMOOTHING */
-	GaussSeidelSparseSolver(A, b, x, x, iterPre, tolPre);
+	//GaussSeidelSparseSolver(A, b, x, x, iterPre, tolPre);
+	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
 
 	/* 2: COMPUTE RESIDUAL ERROR */
 	Eigen::VectorXd r = b - A*x;
-	double res = r.transpose()*A*r;
+	//double res = r.transpose()*A*r;
+	double res = r.transpose()*Mv*r; res = sqrt(res);
 	cout << "____[" << k << "] Residu (after pre-smoothing): " << res << endl;
 
 	/* 3: RESTRICTION */
 	Eigen::VectorXd r1 = U[k].transpose()*r;
 	Eigen::VectorXd eps; eps.setZero(r1.rows());
 	Eigen::SparseMatrix<double> A1 = U[k].transpose()*A*U[k];
+	Eigen::SparseMatrix<double> M1 = U[k].transpose()*Mv * U[k];
 
 	/* 4: RECURSION */
 	if (k == level - 1)			// DIRECT SOLVE for the last level (level k)
@@ -1081,21 +1094,23 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	}
 	else						// RECURSIVE for level k < max_level
 	{
-		multiGridFCycle(A1, r1, eps, k + 1);
+		multiGridFCycle(A1, M1, r1, eps, k + 1);
 	}
 
 	/* 5: PROLONGATION + CORRECTION */
 	x = x + U[k] * eps;
-	r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	//r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r;	res = sqrt(res); cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
 
 	/* 6: RE-SMOOTHING */
 	if (k == 0)
-		GaussSeidelSparseSolver(A, b, x, x, iterReOuter, tolOuter);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterReOuter, tolOuter);
 	else
-		GaussSeidelSparseSolver(A, b, x, x, iterReInner, tolInner);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterReInner, tolInner);
 
 	/* 7: COMPUTE RESIDUAL ERRORS */
-	r = b - A*x; res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
+	//r = b - A*x; res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
 
 	/* 8: RESTRICTION */
 	r1 = U[k].transpose()*r;
@@ -1110,23 +1125,25 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	}
 	else						// RECURSIVE for level k < max_level
 	{
-		multiGridVCycle(A1, r1, eps, k + 1);
+		multiGridVCycle(A1, M1, r1, eps, k + 1);
 	}
 
 	/* 10: PROLONGATION + CORRECTION */
 	x = x + U[k] * eps;
-	r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	//r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res);	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
 
 	/* 11: POST-SMOOTHING */
 	if (k == 0)
-		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolOuter);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter);
 	else
-		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolInner);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner);
 
-	r = b - A*x; res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	//r = b - A*x; res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
 }
 
-void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
+void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
 	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> W-CYCLE <<<<<<<<<<<<<<<<<<<<<<<<<<<< \n";
 	cout << "LEVEL_" << k << endl;
@@ -1137,17 +1154,19 @@ void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 
 
 	/* 1: PRE-SMOOTHING */
-	GaussSeidelSparseSolver(A, b, x, x, iterPre, tolPre);
+	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
 
 	/* 2: COMPUTE RESIDUAL ERROR */
 	Eigen::VectorXd r = b - A*x;
-	double res = r.transpose()*A*r;
+	//double res = r.transpose()*A*r;
+	double res = r.transpose()*Mv*r; res = sqrt(res);
 	cout << "____[" << k << "] Residu (after pre-smoothing): " << res << endl;
 
 	/* 3: RESTRICTION */
 	Eigen::VectorXd r1 = U[k].transpose()*r;
 	Eigen::VectorXd eps; eps.setZero(r1.rows());
 	Eigen::SparseMatrix<double> A1 = U[k].transpose()*A*U[k];
+	Eigen::SparseMatrix<double> M1 = U[k].transpose()*Mv * U[k];
 
 	/* 4: RECURSION */
 	if (k == level - 1)			// DIRECT SOLVE for the last level (level k)
@@ -1159,21 +1178,23 @@ void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	}
 	else						// RECURSIVE for level k < max_level
 	{
-		multiGridWCycle(A1, r1, eps, k + 1);
+		multiGridWCycle(A1, M1, r1, eps, k + 1);
 	}
 
 	/* 5: PROLONGATION + CORRECTION */
 	x = x + U[k] * eps;
-	r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	//r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res);	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
 
 	/* 6: RE-SMOOTHING */
 	if (k == 0)
-		GaussSeidelSparseSolver(A, b, x, x, iterReOuter, tolOuter);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterReOuter, tolOuter);
 	else
-		GaussSeidelSparseSolver(A, b, x, x, iterReInner, tolInner);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterReInner, tolInner);
 
 	/* 7: COMPUTE RESIDUAL ERRORS */
-	r = b - A*x; res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
+	//r = b - A*x; res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
 
 	/* 8: RESTRICTION */
 	r1 = U[k].transpose()*r;
@@ -1188,20 +1209,22 @@ void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	}
 	else						// RECURSIVE for level k < max_level
 	{
-		multiGridWCycle(A1, r1, eps, k + 1);
+		multiGridWCycle(A1, M1, r1, eps, k + 1);
 	}
 
 	/* 10: PROLONGATION + CORRECTION */
 	x = x + U[k] * eps;
-	r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	//r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
 
 	/* 11: POST-SMOOTHING */
 	if (k == 0)
-		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolOuter);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter);
 	else
-		GaussSeidelSparseSolver(A, b, x, x, iterPost, tolInner);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner);
 
-	r = b - A*x; res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	//r = b - A*x; res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res);  cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
 }
 
 void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
