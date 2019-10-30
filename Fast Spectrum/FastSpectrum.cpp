@@ -580,7 +580,8 @@ void FastSpectrum::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::Vec
 	cout << "in " << duration.count() << " seconds" << endl;
 
 	Eigen::VectorXd res = rhs - S*output;
-	double residual = res.transpose()*S*res;
+	double residual = res.transpose()*M*res;
+	residual = sqrt(residual);
 	//double residual = res.norm();
 	cout << "__Ref. residu: " << residual << endl; 
 }
@@ -780,6 +781,12 @@ void FastSpectrum::solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
 	cout << "in " << duration.count() << " seconds" << endl;
+
+	Eigen::VectorXd res = rhs - S*output;
+	double residual = res.transpose()*M*res;
+	residual = sqrt(residual);
+	//double residual = res.norm();
+	cout << "__Approx. residu: " << residual << endl;
 }
 
 void FastSpectrum::solvePoissonEquationRed_CoarseOnly(const Eigen::VectorXd& input, Eigen::VectorXd& output)
@@ -927,8 +934,8 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	//x.setZero(b.rows());		// initial guest
 	initiateMultigrid(A, b, x);
 	//multiGridVCycle(A, M, b, x, 0);
-	multiGridFCycle(A, M, b, x, 0);
-	//multiGridWCycle(A, M, b, x, 0);
+	//multiGridFCycle(A, M, b, x, 0);
+	multiGridWCycle(A, M, b, x, 0);
 }
 
 void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
@@ -1146,15 +1153,21 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
 	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> W-CYCLE <<<<<<<<<<<<<<<<<<<<<<<<<<<< \n";
-	cout << "LEVEL_" << k << endl;
+	cout << "LEVEL_" << k << endl;	
 	/* 0: Some variables required */
-	int		iterPre = 5, iterReInner = 25, iterReOuter = 25, iterPost = 1000000;
+	int		iterPreOuter = 5, iterPreInner=5, iterReInner = 100, iterReOuter = 1000, iterPost = 1000000;
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPre = 5e-10, tolInner = 5e-10, tolOuter = 5.0e-7;
+	double	tolPreInner = 5e-5, tolPreOuter=5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
+
+	//if (k == 2)			tolInner = 5e-12;
+	//else if (k == 1)	tolInner = 5e-8;
 
 
 	/* 1: PRE-SMOOTHING */
-	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
+	if(level==0)
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPreOuter, tolPreOuter);
+	else 
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPreInner, tolPreInner);
 
 	/* 2: COMPUTE RESIDUAL ERROR */
 	Eigen::VectorXd r = b - A*x;
