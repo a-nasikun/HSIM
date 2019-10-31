@@ -933,9 +933,9 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	/* ======================================= NEW RECURSIVE ====================================== */
 	//x.setZero(b.rows());		// initial guest
 	initiateMultigrid(A, b, x);
-	//multiGridVCycle(A, M, b, x, 0);
+	multiGridVCycle(A, M, b, x, 0);
 	//multiGridFCycle(A, M, b, x, 0);
-	multiGridWCycle(A, M, b, x, 0);
+	//multiGridWCycle(A, M, b, x, 0);
 }
 
 void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
@@ -1016,8 +1016,8 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	double	tolPre = 5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
 
 	//tolInner = pow(10, level-k)*tolInner;
-	if (k == 2) tolInner = 5e-10;
-	else if (k == 1) tolInner = 5e-8;
+	//if (k == 2) tolInner = 5e-10;
+	//else if (k == 1) tolInner = 5e-8;
 
 	/* 1: PRE-SMOOTHING */
 	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
@@ -1033,6 +1033,11 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	Eigen::VectorXd eps; eps.setZero(r1.rows());
 	Eigen::SparseMatrix<double> A1 = U[k].transpose()*A*U[k];
 	Eigen::SparseMatrix<double> M1 = U[k].transpose()*Mv * U[k];
+
+	/* Testing the mass matrix */
+	Eigen::VectorXd const1(M1.rows()); const1.setOnes();
+	double const1Norm = const1.transpose()*M1*const1;
+	printf("___%d => energy: %4.f \n", k, const1Norm);
 
 	/* 4: RECURSION */
 	if (k == level - 1)			// DIRECT SOLVE for the last level (level k)
@@ -1435,6 +1440,32 @@ void FastSpectrum::testGaussSeidel()
 
 	//GaussSeidel1Iter(A, b, x0, x);
 	GaussSeidelSparseSolver(A, b, x0, x, 100, 0.0001);
+}
+
+void FastSpectrum::testConstantFuncsProjection()
+{
+	int n = level - 1;
+	Eigen::VectorXd constFunct(U[n].cols()); 
+	
+	/* Constant */
+	//constFunct.setOnes();
+	constFunct.setConstant(5.0);
+
+	/* Linearly increasing */
+	//for (int i = 0; i < U[n].cols(); i++)
+	//	constFunct(i) = i; 
+
+	Eigen::VectorXd projFunc = constFunct;
+	printf("Level: %d | Size: %d | ", level, projFunc.rows());
+	cout << projFunc.block(0, 0, 30, 1).transpose() << endl << endl;
+		
+	for (int i=n; i >= 0; i--)
+	{
+		projFunc = U[i] * projFunc;
+		printf("Level: %d | Size: %d | ", i, projFunc.rows());
+		cout << projFunc.block(0, 0, 30, 1).transpose() << endl << endl;
+	}
+
 }
 
 /* [Read mesh model from file] */

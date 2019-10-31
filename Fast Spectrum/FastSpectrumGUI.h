@@ -179,6 +179,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 					fastSpectrum.constructBasis();
 					useNonSmoothBasis = false; 
+					fastSpectrum.testConstantFuncsProjection();
 				}
 
 				// Showing basis in different levels

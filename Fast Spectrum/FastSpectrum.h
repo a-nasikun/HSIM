@@ -133,6 +133,7 @@ public:
 	void computeRefEigenProblem(int numEig, const string& filename);
 
 	void testGaussSeidel();
+	void testConstantFuncsProjection();
 
 public:
 	/* [CLASS VARIABLES] */
