@@ -32,11 +32,11 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 		for (auto it = elem.begin(); it != elem.end(); ++it) {
 			double dist;
 			/* Regular Dikjstra */
-			VtoVDist(V.row(vp1.vId), V.row(*it), dist);
-			double tempDist = vp1.distance + dist;
+			//VtoVDist(V.row(vp1.vId), V.row(*it), dist);
+			//double tempDist = vp1.distance + dist;
 
 			/* Correct distance using Euclidean Distance */
-			//double tempDist = (V.row(s1) - V.row(*it)).norm();
+			double tempDist = (V.row(s1) - V.row(*it)).norm();
 
 			/* updating the distance */
 			if (tempDist < D(*it)) {
@@ -63,12 +63,12 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 		double aVal = D(i);
 		if (aVal <= nDist) {
 			/* Linear Mapping */
-			double val = 1.0 - aVal/nDist;
-			UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+			//double val = 1.0 - aVal/nDist;
+			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 	
 			/* Polynomial mapping (3rd Order) */
-			//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
-			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+			double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+			UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 	
 			/* Polynomial mapping (5th Order) */
 			//double val = a5*aVal*aVal*aVal*aVal*aVal + b5*aVal*aVal*aVal*aVal + c5*aVal*aVal*aVal + 1.0;
@@ -112,11 +112,11 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 			double dist;
 
 			/* Regular dijkstra */
-			VtoVDist(V.row(vp1.vId), V.row(*it), dist);
-			double tempDist = vp1.distance + dist;
+			//VtoVDist(V.row(vp1.vId), V.row(*it), dist);
+			//double tempDist = vp1.distance + dist;
 
 			/* Correct distance using Euclidean Distance */
-			//double tempDist = (V.row(s1) - V.row(*it)).norm();
+			double tempDist = (V.row(s1) - V.row(*it)).norm();
 
 			/* updating the distance */
 			if (tempDist < D(*it)) {
@@ -131,12 +131,12 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 		double aVal = D(Sample(i));
 		if (aVal <= nDist) {
 			/* Linear Mapping */
-			double val = 1.0 - aVal/nDist;
-			UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+			//double val = 1.0 - aVal/nDist;
+			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 
 			/* Polynomial mapping (3rd Order) */
-			//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
-			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+			double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+			UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 
 			/* Polynomial mapping (5th Order) */
 			//double val = a5*aVal*aVal*aVal*aVal*aVal + b5*aVal*aVal*aVal*aVal + c5*aVal*aVal*aVal + 1.0;

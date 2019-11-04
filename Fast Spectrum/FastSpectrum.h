@@ -60,6 +60,7 @@ public:
 	void constructBasisFunctionsCoarseOnly();
 	void formPartitionOfUnity();
 	void formPartitionOfUnityMultiLevel();
+	void formPartitionOfUnityCombinatorialMultiLevel();
 	void computeEigenPair();
 	void normalizeReducedEigVects();
 	void computeTempBasis(int k);

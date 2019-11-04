@@ -233,7 +233,7 @@ void FastSpectrum::constructBasis()
 	//const double SCALE = 5.0;
 	const double SCALE = 1.0;
 
-	const double NUM_SUPPORT = 10.0;
+	const double NUM_SUPPORT = 4.0;
 	//maxNeighDist[0] = SCALE*sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[0]));
 	//printf("Radius %d is %.4f (avg edge: %.4f)\n", 0, maxNeighDist[0], avgEdgeLength);
 	for (int i = 0; i < level; i++) {
@@ -248,6 +248,7 @@ void FastSpectrum::constructBasis()
 	}
 
 	formPartitionOfUnityMultiLevel();
+	//formPartitionOfUnityCombinatorialMultiLevel();
 
 	Basis.resize(V.rows(), V.rows());
 	Basis.setIdentity();
@@ -1014,14 +1015,14 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	/* 0: Some variables required */
 	int		iterPre = 100, iterPost = 100000;
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-11;
+	double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
 
 	/* Conjugate gradient */
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
 	cg.compute(A);
 	
 
-	tolInner = pow(10, level-k)*tolInner;
+	//tolInner = pow(10, level-k)*tolInner;
 	//if (k == 2) tolInner = 5e-10;
 	//else if (k == 1) tolInner = 5e-8;
 
@@ -1038,6 +1039,7 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	//double res = r.transpose()*A*r; 
 	double res = r.transpose()*r; res = sqrt(res);
 	cout << "____[" << k << "] Residu (after pre-smoothing): " << res << endl; 
+	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 
 	/* 3: RESTRICTION */
 	Eigen::VectorXd r1 = U[k].transpose()*r;
@@ -1849,6 +1851,69 @@ void FastSpectrum::formPartitionOfUnityMultiLevel()
 		diagTrip.clear();
 		diagTrip.shrink_to_fit();
 	}	
+}
+
+void FastSpectrum::formPartitionOfUnityCombinatorialMultiLevel()
+{	
+	cout << "_ Partition of Unity \n";
+	for (int i = 0; i < level; i++)
+	{
+		Eigen::VectorXd					rowSum;
+		vector<bool>					oldGridIdx;
+		const double					eps = std::numeric_limits<double>::epsilon();
+		vector<Eigen::Triplet<double>>	UTriplet;
+
+		cout << "____ level " << i << ": 1st pass (getting the structure) \n";
+		/* Pass 1: compute nnz per row */
+		rowSum.resize(U[i].rows());
+		rowSum.setZero();
+		oldGridIdx.resize(U[i].rows());
+		int countOne = 0;
+
+		/* Getting the sum of every non-zero elements in a row */
+		for (int k = 0; k < U[i].outerSize(); ++k) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(U[i], k); it; ++it) {
+				/* check for 1*/
+				if ((1.0 - it.value()) < 2 * eps) {
+					oldGridIdx[it.row()] = true;
+					countOne++;
+				}
+				else {
+					rowSum(it.row()) += 1.0;
+				}
+			}
+		}
+
+		cout << "We have " << countOne << " entries with value of one (i.e. mere projection) on this level \n";
+
+		cout << "____ level " << i << ": 2nd pass (setting the data) \n";
+		/* Pass 2: Set new values */
+		UTriplet.reserve(U[i].nonZeros());
+		for (int k = 0; k < U[i].outerSize(); ++k) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(U[i], k); it; ++it) {
+				/* check for 1*/
+				if (oldGridIdx[it.row()])
+				{
+					if ((1.0 - it.value()) < 2 * eps) {
+						//if (it.row() < 10) cout << it.value() << ": This happens\n";
+						UTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), 1.0));
+					}
+				}
+				else {
+					UTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), 1.0 / rowSum(it.row())));
+				}
+			}
+		}
+
+		U[i].setZero();
+		U[i].setFromTriplets(UTriplet.begin(), UTriplet.end());
+
+		UTriplet.clear();
+		UTriplet.shrink_to_fit();
+	} /* end of Pass 1*/
+
+	
+	
 }
 
 /* [Compute the eigenpairs of Low-Dim Problem ] */
