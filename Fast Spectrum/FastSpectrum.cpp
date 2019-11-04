@@ -1606,8 +1606,8 @@ void FastSpectrum::constructBasisFunctionsLevel0()
 	vector<vector<Eigen::Triplet<double>>>	UTriplet;
 	vector<Eigen::Triplet<double>>			AllTriplet;
 	int				eCounter = 0;
-	double			aCoef = 2.0 / (maxNeighDist[0]*maxNeighDist[0]*maxNeighDist[0]);
-	double			bCoef = -3.0 / (maxNeighDist[0]*maxNeighDist[0]);
+	double			aCoef = 2.0 / (pow(maxNeighDist[0],3));
+	double			bCoef = -3.0 / (pow(maxNeighDist[0], 2));
 	int				i = 0;
 	
 	const int						NUM_OF_THREADS = omp_get_num_procs();
@@ -1644,6 +1644,9 @@ void FastSpectrum::constructBasisFunctionsLevel0()
 			if (i >= SubspaceSize[0]) break;
 			/* Dijkstra basis function */
 			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
+
+			// Ref level k
+			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, 0, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
 		}
 	} /* End of OpenMP parallelization */
 
@@ -1723,6 +1726,9 @@ void FastSpectrum::constructBasisFunctionsLevelK(int k)
 			if (i >= SubspaceSize[k]) break;
 			/* Dijkstra basis function */
 			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
+			
+			// Ref: Level 0
+			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
 		}
 	} /* End of OpenMP parallelization */
 
