@@ -94,6 +94,10 @@ double checkAccuracy(const Eigen::SparseMatrix<double>& M, const Eigen::VectorXd
 	double energy1 = diff.transpose()*M*diff;
 	double energy2 = ref.transpose()*M*ref;
 	double energyApp = approx.transpose()*M*approx;
-	printf("diff en: %.6f | ref en: %.6f | red en: %.6f (%.6f) \n", energy1, energy2, energyApp, sqrt(energy1/energy2));
-	return sqrt(energy1 / energy2);
+	//printf("diff en: %.6f | ref en: %.6f | red en: %.6f (%.6f) \n", energy1, energy2, energyApp, sqrt(energy1/energy2));
+	cout << "__Diff: " << abs(energy1);
+	cout << " | ref: " << energy2;
+	cout << " | red: " << energyApp;
+	cout << " | rel err.: " << sqrt(abs(energy1 / energy2)) << endl; 
+	return sqrt(abs(energy1 / energy2));
 }
