@@ -1013,9 +1013,9 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cout << "______________________________V-CYCLE______________________________ \n";
 	cout << "LEVEL_" << k << endl; 
 	/* 0: Some variables required */
-	int		iterPre = 100, iterPost = 100000;
-	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
+	int		iterPre = 5, iterPost = 100000;
+	double	tolPre = 5e-6, tolInner = 5e-6, tolOuter = 5.0e-6;
+	//double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
 
 	/* Conjugate gradient */
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
@@ -1101,22 +1101,33 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^ F-CYCLE ^^^^^^^^^^^^^^^^^^^^^^^^^^^ \n";
 	cout << "LEVEL_" << k << endl;
 	/* 0: Some variables required */
-	int		iterPre = 5, iterReInner = 100, iterReOuter = 1000, iterPost = 1000000;
+	int		iterPre = 5, iterReInner = 100, iterReOuter = 100, iterPost = 1000000;
 	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPre = 5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
+	double	tolPre = 5e-6, tolInner = 5e-6, tolOuter = 5.0e-6;	
 
-	if (k == 2) tolInner = 5e-10;
-	else if (k == 1) tolInner = 5e-8;
+	//if (k == 2)			tolInner = 5e-11;
+	//else if (k == 1)	tolInner = 5e-10;
+	//else				tolInner = 5e-9;
 
+	/* Conjugate gradient */
+	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
+	cg.compute(A);
+		
 	/* 1: PRE-SMOOTHING */
+	// Conjugate gradient
+	cg.setMaxIterations(iterPre);
+	cg.setTolerance(tolPre);
+	x = cg.solveWithGuess(b, x);
+	/* Gauss-Seidel iterative solver */
 	//GaussSeidelSparseSolver(A, b, x, x, iterPre, tolPre);
-	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
+	//GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
 
 	/* 2: COMPUTE RESIDUAL ERROR */
 	Eigen::VectorXd r = b - A*x;
 	//double res = r.transpose()*A*r;
 	double res = r.transpose()*Mv*r; res = sqrt(res);
 	cout << "____[" << k << "] Residu (after pre-smoothing): " << res << endl;
+	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 
 	/* 3: RESTRICTION */
 	Eigen::VectorXd r1 = U[k].transpose()*r;
@@ -1140,17 +1151,31 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	/* 5: PROLONGATION + CORRECTION */
 	x = x + U[k] * eps;
 	//r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
-	r = b - A*x; res = r.transpose()*Mv*r;	res = sqrt(res); cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r;	res = sqrt(res); cout << "____[" << k << "] L2-norm Residu (after correction from lower level): " << res << endl;
 
 	/* 6: RE-SMOOTHING */
+	//if (k == 0)
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterReOuter, tolOuter);
+	//else
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterReInner, tolInner);
+
+	// Conjugate gradient	
 	if (k == 0)
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterReOuter, tolOuter);
-	else
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterReInner, tolInner);
+	{
+		cg.setMaxIterations(iterReOuter);
+		cg.setTolerance(tolOuter);
+		x = cg.solveWithGuess(b, x);
+	}
+	else {
+		cg.setMaxIterations(iterReInner);
+		cg.setTolerance(tolInner);
+		x = cg.solveWithGuess(b, x);
+	}
 
 	/* 7: COMPUTE RESIDUAL ERRORS */
 	//r = b - A*x; res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
-	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "____[" << k << "] L2-norm Residu (after Re-smoothing): " << res << endl;
+	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 
 	/* 8: RESTRICTION */
 	r1 = U[k].transpose()*r;
@@ -1171,16 +1196,29 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	/* 10: PROLONGATION + CORRECTION */
 	x = x + U[k] * eps;
 	//r = b - A*x; res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
-	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res);	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res);	cout << "____[" << k << "] L2-norm Residu (after correction from lower level): " << res << endl;
 
 	/* 11: POST-SMOOTHING */
+	//if (k == 0)
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter);
+	//else
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner);
+	// Conjugate gradient	
 	if (k == 0)
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter);
-	else
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner);
+	{
+		cg.setMaxIterations(iterPost);
+		cg.setTolerance(tolOuter);
+		x = cg.solveWithGuess(b, x);
+	}
+	else {
+		cg.setMaxIterations(iterPost);
+		cg.setTolerance(tolInner);
+		x = cg.solveWithGuess(b, x);
+	}
 
 	//r = b - A*x; res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
-	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "++++[" << k << "] L2-norm Residu (after post-smoothing): " << res << endl;
+	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 }
 
 void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
@@ -1188,25 +1226,41 @@ void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> W-CYCLE <<<<<<<<<<<<<<<<<<<<<<<<<<<< \n";
 	cout << "LEVEL_" << k << endl;	
 	/* 0: Some variables required */
-	int		iterPreOuter = 5, iterPreInner=5, iterReInner = 100, iterReOuter = 1000, iterPost = 1000000;
-	//double	tolPre = 1e-10, tolInner = 2.2e-16, tolOuter = 5.0e-5;
-	double	tolPreInner = 5e-5, tolPreOuter=5e-5, tolInner = 5e-5, tolOuter = 5.0e-5;
+	int		iterPreOuter = 5, iterPreInner=5, iterReInner = 100, iterReOuter = 100, iterPost = 1000000;
+	double	tolPreInner = 5e-6, tolPreOuter=5e-6, tolInner = 5e-6, tolOuter = 5.0e-6;
 
-	//if (k == 2)			tolInner = 5e-12;
-	//else if (k == 1)	tolInner = 5e-8;
+	//if (k == 2)			tolInner = 5e-11;
+	//else if (k == 1)	tolInner = 5e-10;
+	//else				tolInner = 5e-9;
 
-
+	/* Conjugate gradient */
+	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
+	cg.compute(A);
+	
 	/* 1: PRE-SMOOTHING */
-	if(level==0)
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPreOuter, tolPreOuter);
-	else 
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPreInner, tolPreInner);
+	//if(level==0)
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPreOuter, tolPreOuter);
+	//else 
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPreInner, tolPreInner);
+
+	// Conjugate gradient
+	if (level == 0) {
+		cg.setMaxIterations(iterPreOuter);
+		cg.setTolerance(tolPreOuter);
+		x = cg.solveWithGuess(b, x);
+	}
+	else {
+		cg.setMaxIterations(iterPreInner);
+		cg.setTolerance(tolPreInner);
+		x = cg.solveWithGuess(b, x);
+	}
 
 	/* 2: COMPUTE RESIDUAL ERROR */
 	Eigen::VectorXd r = b - A*x;
 	//double res = r.transpose()*A*r;
 	double res = r.transpose()*Mv*r; res = sqrt(res);
 	cout << "____[" << k << "] Residu (after pre-smoothing): " << res << endl;
+	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 
 	/* 3: RESTRICTION */
 	Eigen::VectorXd r1 = U[k].transpose()*r;
@@ -1233,14 +1287,28 @@ void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res);	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
 
 	/* 6: RE-SMOOTHING */
+	//if (k == 0)
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterReOuter, tolOuter);
+	//else
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterReInner, tolInner);
+
+	// Conjugate gradient	
 	if (k == 0)
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterReOuter, tolOuter);
-	else
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterReInner, tolInner);
+	{
+		cg.setMaxIterations(iterReOuter);
+		cg.setTolerance(tolOuter);
+		x = cg.solveWithGuess(b, x);
+	}
+	else {
+		cg.setMaxIterations(iterReInner);
+		cg.setTolerance(tolInner);
+		x = cg.solveWithGuess(b, x);
+	}
 
 	/* 7: COMPUTE RESIDUAL ERRORS */
 	//r = b - A*x; res = r.transpose()*A*r; cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
 	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "____[" << k << "] Residu (after Re-smoothing): " << res << endl;
+	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 
 	/* 8: RESTRICTION */
 	r1 = U[k].transpose()*r;
@@ -1264,13 +1332,26 @@ void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	r = b - A*x; res = r.transpose()*Mv*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
 
 	/* 11: POST-SMOOTHING */
+	//if (k == 0)
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter);
+	//else
+	//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner);
+	// Conjugate gradient	
 	if (k == 0)
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter);
-	else
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner);
+	{
+		cg.setMaxIterations(iterPost);
+		cg.setTolerance(tolOuter);
+		x = cg.solveWithGuess(b, x);
+	}
+	else {
+		cg.setMaxIterations(iterPost);
+		cg.setTolerance(tolInner);
+		x = cg.solveWithGuess(b, x);
+	}
 
 	//r = b - A*x; res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
 	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res);  cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 }
 
 void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
