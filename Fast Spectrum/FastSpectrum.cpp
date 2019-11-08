@@ -605,12 +605,15 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	inputHeatRed(0) = 1.0;
 
 	//solveHeatEquationRed(tau, inputHeatRed, outputHeatRed);
-	solveHeatEquation(tau, inputHeatRed, outputHeatRed);
+	//solveHeatEquation(tau, inputHeatRed, outputHeatRed);
+
+	/* Test on new heat diffusion */
+	multiLevelHeatDiffusion(tau, inputHeatRed, outputHeatRed);
 
 	gradRed = G*outputHeatRed;
 	normalizeGradient(gradRed);
-	//solvePoissonEquation(gradRed, heatDistanceRed);
-	solvePoissonEquationRed(gradRed, heatDistanceRed);
+	solvePoissonEquation(gradRed, heatDistanceRed);
+	//solvePoissonEquationRed(gradRed, heatDistanceRed);
 	
 	visualizeHeatGeodesics(viewer, heatDistanceRed);
 	//visualizeHeatGeodesics(viewer, outputHeatRed);
@@ -820,6 +823,92 @@ void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, 
 	Eigen::MatrixXd VColor;
 	igl::jet(funcLifted, true, VColor);
 	viewer.data().set_colors(VColor);
+}
+
+/* Heat Diffusion */
+void FastSpectrum::multiLevelHeatDiffusion(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+{
+	Eigen::VectorXd y0;
+	vector<Eigen::VectorXd> yML, xML;
+	buildMultiLevelRHS(y0, yML);
+	solveHeatDiffusionLevelK(0, yML, xML);
+	output.setZero(V.rows());
+
+	cout << "__Concatenate solutions from multilevels \n";
+	for (int i = 0; i < level; i++) output = output + xML[i];
+}
+
+void FastSpectrum::buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
+{
+	/* Setting up the multi-level basis matrix */
+	vector<Eigen::SparseMatrix<double>> UTemp; UTemp.resize(level);
+	UTemp[0] = U[0];												// the basis matrix for each level
+	for (int i = 1; i < level; i++) UTemp[i] = UTemp[i-1] * U[i];
+	
+	/* Setting up the initial RHS (peak function) */
+	y.resize(level);
+	y0.resize(V.rows());
+	y0.setZero();
+	y0.coeffRef(0) = 1.0;
+	//Eigen::SparseVector<double> yRes = y0;
+
+	/* Temporary, with dense vector */
+	Eigen::VectorXd yRes; 
+	yRes.setZero(V.rows());
+	yRes(0) = 1.0; 
+	//vector<Eigen::VectorXd> yD; yD.resize(level);
+
+	/* Set up the RHS from multi-level */
+	for (int i = level - 1; i >= 0; i--)
+	{
+		printf("RHS for level %d \n", i);
+		Eigen::SparseMatrix<double> Mred = UTemp[i].transpose()*M*UTemp[i];
+		//Eigen::SparseVector<double> bred = UTemp[i].transpose()*M*yRes;
+		Eigen::VectorXd bred = UTemp[i].transpose()*M*yRes;
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+		spSolver.compute(Mred);
+		cout << "____Solving for solution in this level \n";
+		//y[i] = spSolver.solve(bred);
+		y[i] = spSolver.solve(bred);
+		printf("____Dim: %d \n", y[i].rows());
+		cout << "____Computing the residue \n";
+		//yRes = yRes - (UTemp[i]*y[i]);
+		yRes = yRes - (UTemp[i] * y[i]);
+	}
+
+	/* Check the resulting y */
+	cout << "The non-zeros at the residue: " << yRes.nonZeros() << endl;
+	cout << "__max: " << yRes.maxCoeff() << endl; 
+	
+}
+
+void FastSpectrum::solveHeatDiffusionLevelK(int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
+{
+	cout << "__Solving the heat diffusion \n";
+	Eigen::SparseMatrix<double> UTemp;
+	UTemp.resize(V.rows(), V.rows());
+	UTemp.setIdentity();
+	double tau = avgEdgeLength*avgEdgeLength / level;
+	x.resize(level);
+
+	for (int i = 0; i < level; i++)
+	{
+		printf("_____Level %d ", i);
+		UTemp = UTemp*U[i];
+		Eigen::SparseMatrix<double> Mred = UTemp.transpose()*M*UTemp;
+		Eigen::SparseMatrix<double> Sred = UTemp.transpose()*S*UTemp;
+
+		Eigen::SparseMatrix<double> LHS = Mred + tau*Sred;
+		
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+		printf(" | projection ");
+		spSolver.compute(LHS);
+		printf(" | solving \n ");
+		printf("__DIM check: LHS: %dx%d | rhs: %d \n", LHS.rows(), LHS.cols(), rhs[i].rows());
+		cout << "__Solving |";
+		x[i] = UTemp * spSolver.solve(rhs[i]); // Solve and project
+		cout << " done \n";
+	}
 }
 
 /* Multi-grid solver */

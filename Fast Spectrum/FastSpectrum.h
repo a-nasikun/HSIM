@@ -110,6 +110,11 @@ public:
 	void solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output);	
 	void solvePoissonEquationRed_CoarseOnly(const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions);
+
+	/* Heat Diffusion */
+	void multiLevelHeatDiffusion(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
+	void buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y);
+	void solveHeatDiffusionLevelK(int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x);
 	
 
 	void multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
