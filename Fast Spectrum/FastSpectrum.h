@@ -143,7 +143,7 @@ public:
 
 public:
 	/* [CLASS VARIABLES] */
-	Eigen::SparseMatrix<double>		S, M, Mf, MfInv, G,  Basis, DistanceTableSpM;
+	Eigen::SparseMatrix<double>		S, M, Minv, Mf, MfInv, G,  Basis, DistanceTableSpM;
 	Eigen::SparseMatrix<double>		S_, M_, GTMf_;									// reduced stiffness, mass, and divergent matrix, respectively
 	Eigen::MatrixXd					V;
 	Eigen::MatrixXd					reducedEigVects, refEigVects;

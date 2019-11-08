@@ -2,6 +2,7 @@
 #include <Eigen/PardisoSupport>
 #include <Eigen/IterativeLinearSolvers>
 #include <igl/grad.h>
+#include <igl/invert_diag.h>
 
 /* [MAIN FUNCTIONS IN FAST APPROXIMATIONG ALGORITHM] */
 
@@ -124,6 +125,7 @@ void FastSpectrum::constructLaplacianMatrix(){
 
 	/* Construct Mass matrix M*/
 	igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
+	igl::invert_diag(M, Minv);
 
 	/* Constructing Average length of the edges */
 	avgEdgeLength = igl::avg_edge_length(V, F);
@@ -154,7 +156,6 @@ void FastSpectrum::constructLaplacianMatrix(){
 	MfInv.resize(3 * F.rows(), 3 * F.rows());
 	Mf.setFromTriplets(M1Triplet.begin(), M1Triplet.end());
 	MfInv.setFromTriplets(M2Triplet.begin(), M2Triplet.end());
-
 	/* Get the Gradient Matrix + Re-arrange*/
 	Eigen::SparseMatrix<double> GTemp;
 	igl::grad(V, F, GTemp);
@@ -833,9 +834,11 @@ void FastSpectrum::multiLevelHeatDiffusion(double tau, const Eigen::VectorXd& in
 	buildMultiLevelRHS(y0, yML);
 	solveHeatDiffusionLevelK(0, yML, xML);
 	output.setZero(V.rows());
-
+	
 	cout << "__Concatenate solutions from multilevels \n";
 	for (int i = 0; i < level; i++) output = output + xML[i];
+
+	//output = y0;
 }
 
 void FastSpectrum::buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
@@ -850,12 +853,26 @@ void FastSpectrum::buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorX
 	y0.resize(V.rows());
 	y0.setZero();
 	y0.coeffRef(0) = 1.0;
+	cout << "__max: " << y0.maxCoeff() << " | min: " << y0.minCoeff() << endl;
+	//double tau = avgEdgeLength*avgEdgeLength/double(level+1);
+	double tau = 1000*avgEdgeLength / double(level + 1);
+
+	/* Do some iterations on the finest level */
+	cout << "Explicit euler, finest level \n";
+	Eigen::SparseMatrix<double> L = Minv*S;
+	const int iter = 10;
+	for (int i = 0; i < iter; i++) {
+		y0 = y0 - (tau/(double)iter)*L*y0;
+	}
+
 	//Eigen::SparseVector<double> yRes = y0;
 
 	/* Temporary, with dense vector */
 	Eigen::VectorXd yRes; 
-	yRes.setZero(V.rows());
-	yRes(0) = 1.0; 
+	//yRes.setZero(V.rows());
+	//yRes(0) = 1.0; 
+	yRes = y0;
+	cout << "__max: " << yRes.maxCoeff() << " | min: " << yRes.minCoeff() << endl;
 	//vector<Eigen::VectorXd> yD; yD.resize(level);
 
 	/* Set up the RHS from multi-level */
@@ -874,11 +891,12 @@ void FastSpectrum::buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorX
 		cout << "____Computing the residue \n";
 		//yRes = yRes - (UTemp[i]*y[i]);
 		yRes = yRes - (UTemp[i] * y[i]);
+		cout << "__max: " << yRes.maxCoeff() << " | min: " << yRes.minCoeff() << endl;
 	}
 
 	/* Check the resulting y */
 	cout << "The non-zeros at the residue: " << yRes.nonZeros() << endl;
-	cout << "__max: " << yRes.maxCoeff() << endl; 
+	cout << "__max: " << yRes.maxCoeff() << " | min: " << yRes.minCoeff() << endl;
 	
 }
 
@@ -888,7 +906,8 @@ void FastSpectrum::solveHeatDiffusionLevelK(int k, vector<Eigen::VectorXd>& rhs,
 	Eigen::SparseMatrix<double> UTemp;
 	UTemp.resize(V.rows(), V.rows());
 	UTemp.setIdentity();
-	double tau = avgEdgeLength*avgEdgeLength / level;
+	//double tau = avgEdgeLength*avgEdgeLength / (level + 1);
+	double tau = 1000.0*avgEdgeLength / (level + 1);
 	x.resize(level);
 
 	for (int i = 0; i < level; i++)
