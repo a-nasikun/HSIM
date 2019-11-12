@@ -495,8 +495,8 @@ void FastSpectrum::setSampleType(SamplingType sampleType)
 /* Heat Method*/
 void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 {
-	double tau = avgEdgeLength*avgEdgeLength;
-	//double tau = 10000.0*avgEdgeLength;
+	//double tau = avgEdgeLength*avgEdgeLength;
+	double tau = 10000.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
 	inputHeat(0) = 1.0; 
 
@@ -599,8 +599,8 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 /* Reduced (1-level) Heat Method */
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
-	//double tau =avgEdgeLength;
-	double tau = 1.0*avgEdgeLength*avgEdgeLength;
+	double tau =1000*(avgEdgeLength);
+	//double tau = 1.0*avgEdgeLength*avgEdgeLength;
 
 	inputHeatRed.setZero(V.rows());
 	inputHeatRed(0) = 1.0;
@@ -609,7 +609,9 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	//solveHeatEquation(tau, inputHeatRed, outputHeatRed);
 
 	/* Test on new heat diffusion */
-	multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
+	//multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
+	Eigen::SparseMatrix<double>  LHS = M + tau*S;
+	multiGridSolver(LHS, inputHeatRed, outputHeatRed);
 
 	gradRed = G*outputHeatRed;
 	normalizeGradient(gradRed);
@@ -1261,9 +1263,10 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cout << "LEVEL_" << k << endl; 
 	/* 0: Some variables required */
 	int		iterPre = 5, iterPost = 100000;
-	double	tolPre = 5e-6, tolInner = 5e-6, tolOuter = 5.0e-6;
-	//double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
+	//double	tolPre = 5e-6, tolInner = 5e-6, tolOuter = 5.0e-6;
+	double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
 
+	tolOuter = tolInner;
 	/* Conjugate gradient */
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
 	cg.compute(A);
