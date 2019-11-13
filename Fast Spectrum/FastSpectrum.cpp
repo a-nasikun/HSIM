@@ -495,8 +495,8 @@ void FastSpectrum::setSampleType(SamplingType sampleType)
 /* Heat Method*/
 void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 {
-	//double tau = avgEdgeLength*avgEdgeLength;
-	double tau = 10000.0*avgEdgeLength;
+	double tau = avgEdgeLength*avgEdgeLength;
+	//double tau = 10000.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
 	inputHeat(0) = 1.0; 
 
@@ -599,8 +599,8 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 /* Reduced (1-level) Heat Method */
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
-	double tau =1000*(avgEdgeLength);
-	//double tau = 1.0*avgEdgeLength*avgEdgeLength;
+	//double tau =1000*(avgEdgeLength);
+	double tau = 1.0*avgEdgeLength*avgEdgeLength;
 
 	inputHeatRed.setZero(V.rows());
 	inputHeatRed(0) = 1.0;
@@ -609,9 +609,9 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	//solveHeatEquation(tau, inputHeatRed, outputHeatRed);
 
 	/* Test on new heat diffusion */
-	//multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
-	Eigen::SparseMatrix<double>  LHS = M + tau*S;
-	multiGridSolver(LHS, inputHeatRed, outputHeatRed);
+	multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
+	//Eigen::SparseMatrix<double>  LHS = M + tau*S;
+	//multiGridSolver(LHS, inputHeatRed, outputHeatRed);
 
 	gradRed = G*outputHeatRed;
 	normalizeGradient(gradRed);
@@ -931,7 +931,7 @@ void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, do
 
 void FastSpectrum::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
 {
-	bool explicitEuler = false; 
+	bool explicitEuler = true; 
 	/* Setting up the multi-level basis matrix */
 	vector<Eigen::SparseMatrix<double>> UTemp; UTemp.resize(level);
 	UTemp[0] = U[0];												// the basis matrix for each level
@@ -947,7 +947,7 @@ void FastSpectrum::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double 
 	{
 		cout << "Explicit euler, finest level \n";
 		Eigen::SparseMatrix<double> L = Minv*S;
-		const int iter = 10000;
+		const int iter = 1000;
 
 		y1 = y0;
 		for (int i = 0; i < iter; i++) {
@@ -977,7 +977,7 @@ void FastSpectrum::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double 
 	igl::jet(y1, true, VCol);
 	//viewer.data().set_colors(VCol);
 
-	y.resize(level);
+	y.resize(level+1);
 	//y[0] = y1;
 	
 	///* Temporary, with dense vector */
@@ -1019,9 +1019,12 @@ void FastSpectrum::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double 
 		//igl::jet(ccol, true, VCol);
 		//viewer.data().set_colors(VCol);
 	}
+	y[level] = yRes;
 	
 	Eigen::VectorXd vSum; vSum.setZero(V.rows());
 	for (int i = 0; i < level; i++) vSum = vSum + UTemp[i] * y[i];
+	vSum = vSum + y[level];
+
 	//y[0] = vSum;
 	igl::jet(vSum, true, VCol);
 	viewer.data().set_colors(VCol);
@@ -1048,13 +1051,25 @@ void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, d
 	{
 		printf("_____Level %d ", i);
 		UTemp = UTemp*U[i];
-		Eigen::SparseMatrix<double> Mred = UTemp.transpose()*M*UTemp;
-		Eigen::SparseMatrix<double> Sred = UTemp.transpose()*S*UTemp;
+		Eigen::SparseMatrix<double> Mred;
+		Eigen::SparseMatrix<double> Sred;
+		double t_;
 
-		Eigen::SparseMatrix<double> LHS = Mred + tau*Sred;
+		if (i == level) {
+			Mred = M; Sred = S;
+			t_ = tau;
+		} else {
+			Mred = UTemp.transpose()*M*UTemp;
+			Sred = UTemp.transpose()*S*UTemp;
+			//t_ = (double)V.rows() / (double)SubspaceSize[i] * tau;
+			t_ = pow(SubspaceSize[0]/SubspaceSize[1], (i + 1)) * tau;
+			//t_ = tau;
+		}
+
+		Eigen::SparseMatrix<double> LHS = Mred + t_*Sred;
 
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
-		printf(" | projection ");
+		printf(" tau=%.4f | projection ",t_);
 		spSolver.compute(LHS);
 		printf(" | solving \n ");
 		printf("__DIM check: LHS: %dx%d | rhs: %d \n", LHS.rows(), LHS.cols(), rhs[i].rows());
@@ -1068,7 +1083,7 @@ void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, d
 	cout << "Level: " << kk << endl; 
 	Eigen::MatrixXd VCol;
 	igl::jet(x[kk], true, VCol);
-	viewer.data().set_colors(VCol);
+	//viewer.data().set_colors(VCol);
 }
 
 /* Multi-grid solver */
