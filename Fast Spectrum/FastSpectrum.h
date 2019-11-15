@@ -118,7 +118,9 @@ public:
 	void multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
 	void buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y);
 	void solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x);
-	
+	void buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y);
+	void solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x);
+
 	void multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 	void multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 	void multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x);

@@ -600,6 +600,7 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
 	//double tau =1000*(avgEdgeLength);
+	//double tau = 10 * (avgEdgeLength);
 	double tau = 1.0*avgEdgeLength*avgEdgeLength;
 
 	inputHeatRed.setZero(V.rows());
@@ -919,14 +920,17 @@ void FastSpectrum::solveHeatDiffusionLevelK(int k, vector<Eigen::VectorXd>& rhs,
 void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {	
 	vector<Eigen::VectorXd> yML, xML;
-	buildMultiLevelRHS(viewer, 0.5*tau, input, yML);
+	//buildMultiLevelRHS(viewer, 0.5*tau, input, yML);
+	buildMultiLevelRHSFineOnly(viewer, tau, input, yML);
 	//output = yML[0];
 
-	solveHeatDiffusionLevelK(viewer, 0.5*tau, 0, yML, xML);
+	//solveHeatDiffusionLevelK(viewer, 0.5*tau, 0, yML, xML);
+	solveHeatDiffusionLevelKFineOnly(viewer, tau, 0, yML, xML);
+
 	output.setZero(V.rows());
 	
 	cout << "__Concatenate solutions from multilevels \n";
-	for (int i = 0; i < level; i++) output = output + xML[i];
+	for (int i = 0; i <= level; i++) output = output + xML[i];
 }
 
 void FastSpectrum::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
@@ -988,8 +992,7 @@ void FastSpectrum::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double 
 	cout << "__max: " << yRes.maxCoeff() << " | min: " << yRes.minCoeff() << endl;
 	//vector<Eigen::VectorXd> yD; yD.resize(level);
 	
-	/* Set up the RHS from multi-level */
-	
+	/* Set up the RHS from multi-level */	
 	for (int i = level - 1; i >= 0; i--)
 	{
 		printf("RHS for level %d \n", i);
@@ -1084,6 +1087,207 @@ void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, d
 	Eigen::MatrixXd VCol;
 	igl::jet(x[kk], true, VCol);
 	//viewer.data().set_colors(VCol);
+}
+
+void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
+{
+	bool explicitEuler = true; 
+
+	/* Setting up the multi-level basis matrix */
+	vector<Eigen::SparseMatrix<double>> UTemp; UTemp.resize(level);
+	UTemp[0] = U[0];												// the basis matrix for each level
+	for (int i = 1; i < level; i++) UTemp[i] = UTemp[i - 1] * U[i];
+
+	Eigen::VectorXd y1;
+	double fineScale = 1.0;
+	/* Do some iterations on the finest level */
+	if (explicitEuler)
+	{
+		cout << "Explicit euler, finest level \n";
+		Eigen::SparseMatrix<double> L = Minv*S;
+		const int iter = 1000;
+
+		y1 = y0;
+		for (int i = 0; i < iter; i++) {
+			y1 = y1 - (fineScale*tau / (double)iter)*L*y1;
+		}
+	}
+	else {
+		/* IMPLICT EULER (for comparison) */
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+		spSolver.compute(M + fineScale*tau*S);
+		y1 = spSolver.solve(y0);
+	}
+
+	double signalScale = 1.0 / y1.maxCoeff();
+
+	/* The signal after duffision */
+	Eigen::MatrixXd VCol;
+	igl::jet(y1, true, VCol);
+	viewer.data().set_colors(VCol);
+
+	y.resize(level + 1);
+	//y[0] = y1;
+
+	///* Temporary, with dense vector */
+	Eigen::VectorXd yRes;
+	//yRes.setZero(V.rows());
+	//yRes(0) = 1.0; 
+	yRes = y1;
+	cout << "__max: " << yRes.maxCoeff() << " | min: " << yRes.minCoeff() << endl;
+	//vector<Eigen::VectorXd> yD; yD.resize(level);
+
+	/* Set up the RHS from multi-level */
+	for (int i = level - 1; i >= 0; i--)
+	{
+		printf("RHS for level %d \n", i);
+		Eigen::SparseMatrix<double> Mred = UTemp[i].transpose()*M*UTemp[i];
+		//Eigen::SparseVector<double> bred = UTemp[i].transpose()*M*yRes;
+		Eigen::VectorXd bred = UTemp[i].transpose()*M*yRes;
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+		spSolver.compute(Mred);
+		cout << "____Solving for solution in this level \n";
+		//y[i] = spSolver.solve(bred);
+		Eigen::VectorXd vv = spSolver.solve(bred);
+		printf("____Dim: %d \n", vv.rows());
+		cout << "____Computing the residue \n";
+		y[i] = (UTemp[i] * vv);
+		cout << "__max (full res): " << y[i].maxCoeff() << " | min: " << y[i].minCoeff() << endl;
+		cout << "__max (reduced): " << vv.maxCoeff() << " | min: " << vv.minCoeff() << endl;
+
+		/* Check for error */
+		Eigen::VectorXd diff = yRes - y[i];
+		double norm1 = diff.transpose()*M*diff;
+		double norm2 = yRes.transpose()*M*yRes;
+		double err = sqrt(norm1 / norm2);
+		cout << i << "__Error is: " << err << endl;
+
+		yRes = yRes - y[i];
+	}
+	y[level] = yRes;
+
+	/* Simple Division */
+	//for (int i = 0; i <= level; i++)  y[i] = y1 / (double)(level + 1);
+
+	Eigen::VectorXd vSum; vSum.setZero(V.rows());
+	for (int i = 0; i <= level; i++) vSum = vSum + y[i];
+
+	//igl::jet(vSum, true, VCol);
+	//viewer.data().set_colors(VCol);
+
+	/* Show random data */
+	srand(time(NULL));
+	int lvl_to_show = rand() % (level + 3);
+	cout << "_Data to show: " << lvl_to_show << endl; 
+	Eigen::VectorXd functToShow;
+	if (lvl_to_show <= level)
+	{
+		cout << "__Projection in level " << lvl_to_show << endl; 
+		functToShow = y[lvl_to_show];
+	}
+	else if(lvl_to_show == level + 1) {
+		cout << "__The sum of all projection " << lvl_to_show << endl;
+		functToShow = vSum;
+	}
+	else {
+		cout << "__Initial data " << lvl_to_show << endl;
+		functToShow = y1;
+	}
+	igl::jet(functToShow*signalScale, false, VCol);
+	viewer.data().set_colors(VCol);
+
+
+	/* Check for error */
+	Eigen::VectorXd vErr = y1 - vSum;
+	double norm1 = vErr.transpose()*M*vErr;
+	double norm2 = y1.transpose()*M*y1;
+	double diff = sqrt(norm1 / norm2);
+	cout << "The rel error is :: " << diff << endl;
+}
+
+void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
+{
+	bool explicit_Diffusion = true; 
+	cout << "__Solving the heat diffusion \n";	
+	x.resize(level+1);
+	
+
+	/* IMPLICIT */
+	if (!explicit_Diffusion) {
+		for (int i = 0; i <= level; i++)
+		{
+			printf("_____Level %d ", i);
+			double t_;
+
+			if (i == level) {
+				t_ = tau;
+			}
+			else {
+				//t_ = (double)V.rows() / (double)SubspaceSize[i] * tau;
+				//t_ = pow(SubspaceSize[0] / SubspaceSize[1], (i + 1)) * tau;
+				t_ = tau;
+			}
+
+			Eigen::SparseMatrix<double> LHS = M + t_*S;
+
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+			printf(" tau=%.4f | projection ", t_);
+			spSolver.compute(LHS);
+			printf(" | solving \n ");
+			cout << "__Solving |";
+			x[i] = spSolver.solve(rhs[i]); // Solve and project
+			cout << " done \n";
+		}
+	}
+	else {
+		/* EXPLICIT DIFFUSION */
+		for (int i = 0; i <= level; i++)
+		{
+			cout << "__Diffusion on level " << i ; 
+			x[i] = rhs[i];
+			Eigen::SparseMatrix<double> L = Minv*S;
+
+			const int NUM_ITER = 1000;
+			const int LVL_ITER = round( (double)NUM_ITER / pow(2.0, level - i));
+			printf("| with %d iter \n", LVL_ITER);
+			for (int j = 0; j < LVL_ITER ; j++)
+			{
+				x[i] = x[i] - (tau/(double)LVL_ITER) * L * x[i];
+			}
+		}
+	}
+
+	/* Visualization */
+	Eigen::MatrixXd VCol;
+	Eigen::VectorXd maxData(level + 1);
+	Eigen::VectorXd vSum; vSum.setZero(V.rows());
+	for (int i = 0; i <= level; i++) {
+		vSum = vSum + x[i];
+		maxData(i) = max(x[i].maxCoeff(), x[i].minCoeff());
+	}
+	double signalScale = 1.0/maxData.minCoeff();
+
+	/* Show random data */
+	srand(time(NULL));
+	int lvl_to_show = rand() % (level + 2);
+	cout << "_Data to show: " << lvl_to_show << endl;
+	Eigen::VectorXd functToShow;
+	if (lvl_to_show <= level)
+	{
+		cout << "__Projection in level " << lvl_to_show << endl;
+		functToShow = x[lvl_to_show];
+	}
+	else if (lvl_to_show == level + 1) {
+		cout << "__The sum of all projection " << lvl_to_show << endl;
+		functToShow = vSum;
+	}
+	else {
+		
+	}
+
+	igl::jet(functToShow*signalScale, true, VCol);
+	viewer.data().set_colors(VCol);
+
 }
 
 /* Multi-grid solver */
