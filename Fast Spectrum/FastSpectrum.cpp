@@ -499,6 +499,9 @@ void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 	//double tau = 10000.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
 	inputHeat(0) = 1.0; 
+	//inputHeat(V.rows()/2) = -1.0;
+	//inputHeat(1000) = 0.5;
+	//inputHeat(2000) = -0.5;
 
 	solveHeatEquation(tau, inputHeat, outputHeat);
 	grad = G*outputHeat;
@@ -605,6 +608,7 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 
 	inputHeatRed.setZero(V.rows());
 	inputHeatRed(0) = 1.0;
+	inputHeatRed = M*inputHeatRed;
 
 	//solveHeatEquationRed(tau, inputHeatRed, outputHeatRed);
 	//solveHeatEquation(tau, inputHeatRed, outputHeatRed);
@@ -1091,12 +1095,12 @@ void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, d
 
 void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
 {
-	bool explicitEuler = true; 
+	bool explicitEuler = false; 
 
 	/* Setting up the multi-level basis matrix */
 	vector<Eigen::SparseMatrix<double>> UTemp; UTemp.resize(level);
 	UTemp[0] = U[0];												// the basis matrix for each level
-	for (int i = 1; i < level; i++) UTemp[i] = UTemp[i - 1] * U[i];
+	for (int i = 1; i < level; i++) UTemp[i] = UTemp[i-1] * U[i];
 
 	Eigen::VectorXd y1;
 	double fineScale = 1.0;
@@ -1169,6 +1173,18 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 	/* Simple Division */
 	//for (int i = 0; i <= level; i++)  y[i] = y1 / (double)(level + 1);
 
+	/* linear combination */
+	//y[0] = -y1;
+	//y[1] = 2 * y1;
+	//y[2] = -0.5*y1;
+	//y[3] = 0.5*y1;
+
+	/* Oscilating weirdly */
+	y[0] = V.col(0);
+	y[1] = V.col(1);
+	y[2] = V.col(2);
+	y[3] = y1 - y[0] - y[1] - y[2];
+
 	Eigen::VectorXd vSum; vSum.setZero(V.rows());
 	for (int i = 0; i <= level; i++) vSum = vSum + y[i];
 
@@ -1207,7 +1223,7 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 
 void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
 {
-	bool explicit_Diffusion = true; 
+	bool explicit_Diffusion = false; 
 	cout << "__Solving the heat diffusion \n";	
 	x.resize(level+1);
 	
