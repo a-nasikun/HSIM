@@ -364,7 +364,8 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 	}
 
 	srand(time(NULL));
-	Samples(0) = rand() % V.rows();
+	//Samples(0) = rand() % V.rows();
+	Samples(0) = 0;
 	//Si = Samples.head(1);
 
 	ComputeDijkstra(V, Samples(0), AdM, D);

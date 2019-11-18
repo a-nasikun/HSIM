@@ -925,11 +925,11 @@ void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, do
 {	
 	vector<Eigen::VectorXd> yML, xML;
 	//buildMultiLevelRHS(viewer, 0.5*tau, input, yML);
-	buildMultiLevelRHSFineOnly(viewer, tau, input, yML);
+	buildMultiLevelRHSFineOnly(viewer, 0.5*tau, input, yML);
 	//output = yML[0];
 
 	//solveHeatDiffusionLevelK(viewer, 0.5*tau, 0, yML, xML);
-	solveHeatDiffusionLevelKFineOnly(viewer, tau, 0, yML, xML);
+	solveHeatDiffusionLevelKFineOnly(viewer, 0.5*tau, 0, yML, xML);
 
 	output.setZero(V.rows());
 	
@@ -1128,7 +1128,7 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 	/* The signal after duffision */
 	Eigen::MatrixXd VCol;
 	igl::jet(y1, true, VCol);
-	viewer.data().set_colors(VCol);
+	//viewer.data().set_colors(VCol);
 
 	y.resize(level + 1);
 	//y[0] = y1;
@@ -1170,6 +1170,17 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 	}
 	y[level] = yRes;
 
+	int nnzCounter = 0;
+	for (int i = 0; i <= level; i++) {
+		for (int j = 0; j < y1.rows(); j++)
+		{
+			if (abs(y1(j)) > std::numeric_limits<double>::epsilon()) nnzCounter++;
+		}
+		printf("[%d] NNz is : %d \n", i, nnzCounter);
+	}
+
+	//printf("[%d] NNz is : %d \n", i, nnzCounter);
+
 	/* Simple Division */
 	//for (int i = 0; i <= level; i++)  y[i] = y1 / (double)(level + 1);
 
@@ -1180,10 +1191,17 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 	//y[3] = 0.5*y1;
 
 	/* Oscilating weirdly */
-	y[0] = V.col(0);
-	y[1] = V.col(1);
-	y[2] = V.col(2);
-	y[3] = y1 - y[0] - y[1] - y[2];
+	//y[0] = V.col(0);
+	//y[1] = V.col(1);
+	//y[2] = V.col(2);
+	//y[3] = y1 - y[0] - y[1] - y[2];
+
+	/* Some cut off */
+	//for (int i = 0; i < 4; i++) y[i].setZero(y1.rows());
+	//y[0].block(0, 0, 25000, 1) = y1.block(0, 0, 25000, 1);
+	//y[1].block(25000, 0, 25000, 1) = y1.block(25000, 0, 25000, 1);
+	//y[2].block(50000, 0, 25000, 1) = y1.block(50000, 0, 25000, 1);
+	//y[3] = y1 - y[0] - y[1] - y[2];
 
 	Eigen::VectorXd vSum; vSum.setZero(V.rows());
 	for (int i = 0; i <= level; i++) vSum = vSum + y[i];
@@ -1191,7 +1209,23 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 	//igl::jet(vSum, true, VCol);
 	//viewer.data().set_colors(VCol);
 
-	/* Show random data */
+	/* Show the reference and projected data */
+	srand(time(NULL));
+	int choice = rand() % 4;
+	cout << "Level " << choice << endl;
+	igl::jet(y[choice], true, VCol); 
+	//if (choice == 0)
+	//{
+	//	cout << "Level 1\n";
+	//	igl::jet(y[1], true, VCol);
+	//}
+	//else {
+	//	cout << "Level 2 \n";
+	//	igl::jet(y[2], true, VCol);
+	//}
+	viewer.data().set_colors(VCol);
+
+	/* Show randomly selected index of data */
 	srand(time(NULL));
 	int lvl_to_show = rand() % (level + 3);
 	cout << "_Data to show: " << lvl_to_show << endl; 
@@ -1210,7 +1244,7 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 		functToShow = y1;
 	}
 	igl::jet(functToShow*signalScale, false, VCol);
-	viewer.data().set_colors(VCol);
+	//viewer.data().set_colors(VCol);
 
 
 	/* Check for error */
@@ -1283,7 +1317,7 @@ void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &v
 	}
 	double signalScale = 1.0/maxData.minCoeff();
 
-	/* Show random data */
+	/* Show a randomly selected 1 among available (n or levels) data */
 	srand(time(NULL));
 	int lvl_to_show = rand() % (level + 2);
 	cout << "_Data to show: " << lvl_to_show << endl;
@@ -1302,7 +1336,7 @@ void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &v
 	}
 
 	igl::jet(functToShow*signalScale, true, VCol);
-	viewer.data().set_colors(VCol);
+	//viewer.data().set_colors(VCol);
 
 }
 
