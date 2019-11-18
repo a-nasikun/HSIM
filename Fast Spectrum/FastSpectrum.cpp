@@ -495,8 +495,9 @@ void FastSpectrum::setSampleType(SamplingType sampleType)
 /* Heat Method*/
 void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 {
-	double tau = avgEdgeLength*avgEdgeLength;
+	//double tau = avgEdgeLength*avgEdgeLength;
 	//double tau = 10000.0*avgEdgeLength;
+	double tau = 10.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
 	inputHeat(0) = 1.0; 
 	//inputHeat(V.rows()/2) = -1.0;
@@ -603,8 +604,8 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
 	//double tau =1000*(avgEdgeLength);
-	//double tau = 10 * (avgEdgeLength);
-	double tau = 1.0*avgEdgeLength*avgEdgeLength;
+	double tau = 10 * (avgEdgeLength);
+	//double tau = 1.0*avgEdgeLength*avgEdgeLength;
 
 	inputHeatRed.setZero(V.rows());
 	inputHeatRed(0) = 1.0;
