@@ -122,6 +122,7 @@ public:
 	void solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x);
 	void postSmoothing(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, Eigen::VectorXd& y);
 	void diffusionVCycle(igl::opengl::glfw::Viewer &viewer, const Eigen::SparseMatrix<double>& L1, double tau, int lvl_now, int lvl_goal, Eigen::VectorXd& vin, Eigen::VectorXd& vout);
+	void solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, double tau, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x);
 
 	void multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 	void multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);

@@ -930,7 +930,8 @@ void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, do
 	//output = yML[0];
 
 	//solveHeatDiffusionLevelK(viewer, 0.8*tau, 0, yML, xML);
-	solveHeatDiffusionLevelKFineOnly(viewer, 0.8*tau, 0, yML, xML);
+	//solveHeatDiffusionLevelKFineOnly(viewer, 0.8*tau, 0, yML, xML);
+	solveHeatDiffsuionVCycle(viewer, 0.8*tau, yML, xML);
 
 	output.setZero(V.rows());
 	
@@ -1403,10 +1404,13 @@ void FastSpectrum::diffusionVCycle(igl::opengl::glfw::Viewer &viewer,const Eigen
 	// No pre-smoothing, since we are working with data each in its reduced space
 
 	/* [2] RESTRICTION */
+	cout << "__RESTRICTION \n";
 	Eigen::SparseMatrix<double> LInvRed	= U[lvl_now].transpose()*LInv*U[lvl_now];
 	Eigen::VectorXd				vInRed	= U[lvl_now].transpose()*vin;
 	Eigen::VectorXd				vOutRed;
+
 	/* [3] HEAT DIFFUSION OR RE-CURSE */
+	cout << "__DIFFUSION \n";
 	if (lvl_goal == lvl_now) {			// do the smoothing/diffusion
 		vOutRed = vInRed;
 		for (int i = 0; i < iterDiff; i++)
@@ -1419,13 +1423,33 @@ void FastSpectrum::diffusionVCycle(igl::opengl::glfw::Viewer &viewer,const Eigen
 	}
 
 	/* [4] Prolongation */
+	cout << "__PROLONGATION \n";
 	vout = U[lvl_now] * vOutRed;
 
 	/* [5] POST-SMOOTHNG */
+	cout << "__POST-SMOOTHING \n";
 	for (int i = 0; i < iterPost; i++)
 	{
-		vout = vout - (tSmooth*tau / (double)iterPost)*S*vout;
+		vout = vout - (tSmooth*tau / (double)iterPost)*LInv*vout;
 	}
+}
+
+void FastSpectrum::solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, double tau, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
+{
+	// k is currently useless
+	x.resize(level + 1);
+	Eigen::SparseMatrix<double> L = Minv*S;
+
+	for (int i = 0; i <= level; i++)
+	{
+		printf("MG Approach: solving diffusin level %d \n", i);
+		if(i<level)
+			diffusionVCycle(viewer, L, tau, 0, i, rhs[i], x[i]);
+		else 
+			diffusionVCycle(viewer, L, tau, 0, 0, rhs[i], x[i]);
+	}
+
+
 }
 
 /* Multi-grid solver */
