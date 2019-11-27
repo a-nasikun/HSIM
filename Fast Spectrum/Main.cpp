@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
 	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
 
-	fastSpectrum.setInitialSystem(1);
+	fastSpectrum.setInitialSystem(2);
 	fastSpectrum.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
 	fastSpectrum.getV(V);
 	fastSpectrum.getF(F);

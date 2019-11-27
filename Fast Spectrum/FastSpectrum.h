@@ -183,6 +183,7 @@ public:
 	Eigen::VectorXd						inputHeatRed, outputHeatRed;
 	Eigen::VectorXd						gradRed;
 	Eigen::VectorXd						heatDistanceRed;
+	double								tauScale;
 
 	
 };

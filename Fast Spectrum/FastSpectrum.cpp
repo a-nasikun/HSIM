@@ -499,11 +499,12 @@ void FastSpectrum::setSampleType(SamplingType sampleType)
 /* Heat Method*/
 void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 {
-	//double tau = avgEdgeLength*avgEdgeLength;
+	double tau = avgEdgeLength*avgEdgeLength;
 	//double tau = 10000.0*avgEdgeLength;
-	double tau = 100.0*avgEdgeLength;
+	//double tau = 100.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
-	heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	//heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	heatSource = 0;
 	//inputHeat(heatSource) = 1.0 * M.coeff(heatSource, heatSource);  // M*inputHeat;
 	inputHeat(heatSource) = 1.0;
 	//inputHeat(V.rows()/2) = -1.0;
@@ -616,12 +617,17 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 /* Reduced (1-level) Heat Method */
 void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
+	//double tauScale = (double)V.rows() / SubspaceSize[level-1];
+	//double tauScale = 1.0;
 	//double tau =1000*(avgEdgeLength);
 	//double tau = 100.0 * (avgEdgeLength);
-	double tau = 1.0*avgEdgeLength*avgEdgeLength;
+	//double tau = 10.0*avgEdgeLength*avgEdgeLength;
+	double tau = tauScale*avgEdgeLength*avgEdgeLength;
+	cout << "__Scale: " << tauScale << endl; 
 
 	inputHeatRed.setZero(V.rows());
-	heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	//heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	heatSource = 0;
 	inputHeatRed(heatSource) = 1.0;
 	inputHeatRed = M*inputHeatRed;
 
@@ -951,12 +957,12 @@ void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, do
 {	
 	vector<Eigen::VectorXd> yML, xML;
 	//buildMultiLevelRHS(viewer, 0.5*tau, input, yML);
-	buildMultiLevelRHSFineOnly(viewer, 0.05*tau, input, yML);
+	buildMultiLevelRHSFineOnly(viewer, 0.25*tau, input, yML);
 	//output = yML[0];
 
 	//solveHeatDiffusionLevelK(viewer, 0.8*tau, 0, yML, xML);
-	//solveHeatDiffusionLevelKFineOnly(viewer, 0.8*tau, 0, yML, xML);
-	solveHeatDiffsuionVCycle(viewer, 0.95*tau, yML, xML);
+	solveHeatDiffusionLevelKFineOnly(viewer, 0.75*tau, 0, yML, xML);
+	//solveHeatDiffsuionVCycle(viewer, 0.75*tau, yML, xML);
 
 	output.setZero(V.rows());
 	
@@ -1311,10 +1317,11 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 
 void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
 {
+	Eigen::SparseMatrix<double> L = Minv*S;
+
 	bool explicit_Diffusion = true; 
 	cout << "__Solving the heat diffusion \n";	
-	x.resize(level+1);
-	
+	x.resize(level+1);	
 
 	/* IMPLICIT */
 	if (!explicit_Diffusion) {
@@ -1328,8 +1335,8 @@ void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &v
 			}
 			else {
 				//t_ = (double)V.rows() / (double)SubspaceSize[i] * tau;
-				//t_ = pow(SubspaceSize[0] / SubspaceSize[1], (i + 1)) * tau;
-				t_ = tau;
+				t_ = pow(SubspaceSize[0] / SubspaceSize[1], (i + 1)) * tau;
+				//t_ = tau;
 			}
 
 			Eigen::SparseMatrix<double> LHS = M + t_*S;
@@ -1347,17 +1354,27 @@ void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &v
 		/* EXPLICIT DIFFUSION */
 		for (int i = 0; i <= level; i++)
 		{
+			double t_;
+			if (i == level) {
+				t_ = tau;
+			}
+			else {
+				//t_ = (double)V.rows() / (double)SubspaceSize[i] * tau;
+				//t_ = pow(SubspaceSize[0] / SubspaceSize[1], (i + 1)) * tau;
+				t_ = tau;
+			}
+			printf(" tau=%.4f | projection ", t_);
+
 			cout << "__Diffusion on level " << i ; 
-			x[i] = rhs[i];
-			Eigen::SparseMatrix<double> L = Minv*S;
+			x[i] = rhs[i];			
 
 			const int NUM_ITER = 1000;
-			const int LVL_ITER = round( (double)NUM_ITER / pow(2.0, level - i));
-			//const int LVL_ITER = NUM_ITER; 
+			//const int LVL_ITER = round( (double)NUM_ITER / pow(2.0, level - i));
+			const int LVL_ITER = NUM_ITER; 
 			printf("| with %d iter \n", LVL_ITER);
 			for (int j = 0; j < LVL_ITER ; j++)
 			{
-				x[i] = x[i] - (tau/(double)LVL_ITER) * L * x[i];
+				x[i] = x[i] - (t_/(double)LVL_ITER) * L * x[i];
 			}
 		}
 	}
@@ -1465,26 +1482,25 @@ void FastSpectrum::solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, d
 	x.resize(level + 1);
 	Eigen::SparseMatrix<double> L = Minv*S;
 
-	for (int i = 0; i < level; i++)
-	{
-		printf("MG Approach: solving diffusin level %d \n", i);
-		//if(i<level)
-			diffusionVCycle(viewer, L, tau, 0, i, rhs[i], x[i]);
-		//else 
-		//	diffusionVCycle(viewer, L, tau, 0, 0, rhs[i], x[i]);
-	}
-
-	/* [1] SMOOTHING For the finest level */
-	printf("MG Approach: solving diffusion finest level. \n");
+	/* variable for iterations */
 	int iterDiff = 100, iterPost = 100;
 	double tDiff = 0.9, tSmooth = 1.0-tDiff; 
 
+	/* [1] SMOOTHING For the coarse levels */
+	for (int i = 0; i < level; i++)
+	{
+		printf("MG Approach: solving diffusion level %d \n", i);
+			diffusionVCycle(viewer, L, tDiff*tau, 0, i, rhs[i], x[i]);
+	}
+
+	/* [2] SMOOTHING For the finest level */
+	printf("MG Approach: solving diffusion finest level. \n");
 	x[level] = rhs[level];
 	for (int i = 0; i < iterDiff; i++)	{
 		x[level] = x[level] - (tDiff*tau / (double)iterDiff)*L*x[level];
 	}
 
-	/* [2] POST-SMOOTHNG */
+	/* [3] POST-SMOOTHNG */
 	cout << "__POST-SMOOTHING \n";
 	for (int i = 0; i < iterPost; i++)	{
 		x[level] = x[level] - (tSmooth*tau / (double)iterPost)*L*x[level];

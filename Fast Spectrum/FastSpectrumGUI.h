@@ -26,6 +26,8 @@ static int			numOfSample		= 250;
 static int			sampleType		= Sample_Farthest_Point; 
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
+float				tauScale		= 10.0f;
+
 
 void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum) {
 	// MAIN WINDOW 	
@@ -498,8 +500,13 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 			ImGui::RadioButton("Coarse##1-level_Basis_Only", &basisType, Coarse_1Level_Basis); ImGui::SameLine();
 			ImGui::RadioButton("MG_Geom##Multigrid_smooth", &basisType, MultiGrid_Geom_Basis); ImGui::SameLine();
 			ImGui::RadioButton("NotSmooth##consnt_basis", &basisType, MultiGrid_NonSmooth_Basis);
+						
 
 			
+			//static char tauScale[6] = "10.0"; 
+			//ImGui::InputText("", tauScale, 10);				
+			ImGui::InputFloat("tau_scale", &tauScale);			
+			//ImGui::SameLine();
 			if (ImGui::Button("Reduced Heat Method", ImVec2(w, 0))) {
 				if (useNonSmoothBasis) {
 					cout << "Solving heat method using NON-smooth basis approach \n";
@@ -508,6 +515,7 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 				else
 				{
 					cout << "Solving heat method using SMOOTH basis approach \n";
+					fastSpectrum.tauScale =tauScale;
 					fastSpectrum.solveHeatMethodRed(viewer);
 				}
 			}
