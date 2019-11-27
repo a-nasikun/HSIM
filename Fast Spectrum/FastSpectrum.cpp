@@ -556,7 +556,7 @@ void FastSpectrum::normalizeGradient(Eigen::VectorXd& grad)
 	{
 		localGrad = grad.block(3 * i, 0, 3, 1);
 		localGrad.normalize();
-		grad.block(3 * i, 0, 3, 1) = localGrad;
+		grad.block(3 * i, 0, 3, 1) = -1.0*localGrad;
 	}
 
 	t2 = chrono::high_resolution_clock::now();
@@ -627,6 +627,7 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	//visualizeHeatGeodesics(viewer, heatDistanceRed);
 	//visualizeHeatGeodesics(viewer, outputHeatRed);
 	
+	measureAccuracyOfReducedSolver(heatDistance, heatDistanceRed);
 	if (heatDistance.size() > 0 && heatDistanceRed.rows() > 0)
 	{
 		double accu; 
@@ -636,6 +637,7 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 		accu = checkAccuracy(S, heatDistance, heatDistanceRed);
 		cout << "Total: Relative L2-norm accuracy: " << accu << endl;
 	}	
+
 }
 
 void FastSpectrum::solveHeatMethodRedMultiGridNonSmooth(igl::opengl::glfw::Viewer &viewer)
@@ -926,19 +928,19 @@ void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, do
 {	
 	vector<Eigen::VectorXd> yML, xML;
 	//buildMultiLevelRHS(viewer, 0.5*tau, input, yML);
-	buildMultiLevelRHSFineOnly(viewer, 0.1*tau, input, yML);
+	buildMultiLevelRHSFineOnly(viewer, 0.05*tau, input, yML);
 	//output = yML[0];
 
 	//solveHeatDiffusionLevelK(viewer, 0.8*tau, 0, yML, xML);
 	//solveHeatDiffusionLevelKFineOnly(viewer, 0.8*tau, 0, yML, xML);
-	solveHeatDiffsuionVCycle(viewer, 0.8*tau, yML, xML);
+	solveHeatDiffsuionVCycle(viewer, 0.95*tau, yML, xML);
 
 	output.setZero(V.rows());
 	
 	cout << "__Concatenate solutions from multilevels \n";
 	for (int i = 0; i <= level; i++) output = output + xML[i];
 
-	postSmoothing(viewer, 0.1*tau, output, output);
+	//postSmoothing(viewer, 0.1*tau, output, output);
 
 }
 
@@ -1440,16 +1442,67 @@ void FastSpectrum::solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, d
 	x.resize(level + 1);
 	Eigen::SparseMatrix<double> L = Minv*S;
 
-	for (int i = 0; i <= level; i++)
+	for (int i = 0; i < level; i++)
 	{
 		printf("MG Approach: solving diffusin level %d \n", i);
-		if(i<level)
+		//if(i<level)
 			diffusionVCycle(viewer, L, tau, 0, i, rhs[i], x[i]);
-		else 
-			diffusionVCycle(viewer, L, tau, 0, 0, rhs[i], x[i]);
+		//else 
+		//	diffusionVCycle(viewer, L, tau, 0, 0, rhs[i], x[i]);
 	}
 
+	/* [1] SMOOTHING For the finest level */
+	printf("MG Approach: solving diffusion finest level. \n");
+	int iterDiff = 100, iterPost = 100;
+	double tDiff = 0.9, tSmooth = 1.0-tDiff; 
 
+	x[level] = rhs[level];
+	for (int i = 0; i < iterDiff; i++)	{
+		x[level] = x[level] - (tDiff*tau / (double)iterDiff)*L*x[level];
+	}
+
+	/* [2] POST-SMOOTHNG */
+	cout << "__POST-SMOOTHING \n";
+	for (int i = 0; i < iterPost; i++)	{
+		x[level] = x[level] - (tSmooth*tau / (double)iterPost)*L*x[level];
+	}
+
+}
+
+void FastSpectrum::measureAccuracyOfReducedSolver(Eigen::VectorXd& ref, Eigen::VectorXd& red)
+{
+	/* Rescaling the functions*/
+	mapFunction(ref);
+	mapFunction(red);
+
+	cout << "Measuring accuracy \n";
+	srand(time(NULL));
+	const int randID = rand() % V.rows();
+
+	/* MAX-MIN */
+	printf("Ref | Max: %.3f, Min: %.3f \n ___ Red | Max: %.3f, Min: %.3f \n", ref.maxCoeff(), ref.minCoeff(), red.maxCoeff(), red.minCoeff());
+
+	/* Distance at certain point*/
+	printf("Comparison: Distance from %d: \n___Ref: %.3f | Red: %.3f \n", randID, ref(randID), red(randID));
+
+	/* Distance on the center of interest */
+	printf("Comparison: Distance at %d: \n___Ref: %.3f | Red: %.3f \n", 0, ref(0), red(0));
+
+	checkAccuracy(S, ref, red);
+}
+
+void FastSpectrum::mapFunction(Eigen::VectorXd& func)
+{
+	double min = func.minCoeff();
+	double max = func.maxCoeff();
+	double nMin = -0.419;
+	double nMax = max - min; 
+	double scale = (nMax-nMin) / (max-min);
+
+	Eigen::VectorXd minVect(func.rows()); minVect.setConstant(min);
+	Eigen::VectorXd nMinVect(func.rows()); nMinVect.setConstant(nMin);
+
+	func = scale * (func - minVect) + nMinVect;	
 }
 
 /* Multi-grid solver */

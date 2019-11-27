@@ -124,6 +124,9 @@ public:
 	void diffusionVCycle(igl::opengl::glfw::Viewer &viewer, const Eigen::SparseMatrix<double>& L1, double tau, int lvl_now, int lvl_goal, Eigen::VectorXd& vin, Eigen::VectorXd& vout);
 	void solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, double tau, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x);
 
+	void measureAccuracyOfReducedSolver(Eigen::VectorXd& ref, Eigen::VectorXd& red);
+	void mapFunction(Eigen::VectorXd& func);
+
 	void multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 	void multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 	void multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x);
