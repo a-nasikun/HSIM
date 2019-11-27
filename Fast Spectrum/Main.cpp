@@ -1,5 +1,6 @@
 #include "FastSpectrum.h"
 #include "FastSpectrumGUI.h"
+#include <igl/unproject_onto_mesh.h>
 
 /* [MAIN FUNCTION THAT CALLS EVERYTHING ELSE] */
 int main(int argc, char *argv[])
@@ -19,8 +20,10 @@ int main(int argc, char *argv[])
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();							// Set style
 
-	meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
-	fastSpectrum.setInitialSystem(3);
+	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
+	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
+
+	fastSpectrum.setInitialSystem(1);
 	fastSpectrum.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
 	fastSpectrum.getV(V);
 	fastSpectrum.getF(F);
@@ -35,6 +38,15 @@ int main(int argc, char *argv[])
 	/* User interaction via keyboard */
 	const auto &key_down = [&](igl::opengl::glfw::Viewer &viewer, unsigned char key, int mod)->bool
 	{
+
+		/* For selecting faces */
+		double xMouse;
+		double yMouse;
+		int fid;
+		Eigen::Vector3f bc;
+		int selectedFace;
+		//Eigen::MatrixXd C;
+
 		switch (key)
 		{
 		case '0':
@@ -44,6 +56,29 @@ int main(int argc, char *argv[])
 			viewer.data().set_mesh(V, F);
 			viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 			break;
+		case 'n':
+		case 'N':
+			//selectFace = true; 
+			xMouse = viewer.current_mouse_x;
+			yMouse = viewer.core.viewport(3) - viewer.current_mouse_y;
+
+			//if (selectFace) {
+			if (igl::unproject_onto_mesh(Eigen::Vector2f(xMouse, yMouse), viewer.core.view,
+				viewer.core.proj, viewer.core.viewport, V, F, selectedFace, bc))
+			{
+				// paint hit red
+				printf("Selected face is %d [%d, %d, %d]", selectedFace, F(selectedFace,0), F(selectedFace,1), F(selectedFace,2));
+				Eigen::MatrixXd C = Eigen::MatrixXd::Constant(F.rows(), 3, 1);
+				C.row(selectedFace) << 1, 0, 0;
+				viewer.data().set_colors(C);
+				//viewer.data().add_points(vectorFields.FC.row(selectedFace), Eigen::RowVector3d(0.0, 0.1, 0.0));
+
+				return true;
+			}
+			//}
+			break;
+
+
 		default:
 			return false;
 		}

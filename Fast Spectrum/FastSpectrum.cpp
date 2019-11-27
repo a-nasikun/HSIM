@@ -3,6 +3,7 @@
 #include <Eigen/IterativeLinearSolvers>
 #include <igl/grad.h>
 #include <igl/invert_diag.h>
+#include <igl/isolines.h>
 
 /* [MAIN FUNCTIONS IN FAST APPROXIMATIONG ALGORITHM] */
 
@@ -124,7 +125,8 @@ void FastSpectrum::constructLaplacianMatrix(){
 	S = -S;
 
 	/* Construct Mass matrix M*/
-	igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
+	//igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
+	igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_VORONOI, M);
 	igl::invert_diag(M, Minv);
 
 	/* Constructing Average length of the edges */
@@ -157,16 +159,18 @@ void FastSpectrum::constructLaplacianMatrix(){
 	Mf.setFromTriplets(M1Triplet.begin(), M1Triplet.end());
 	MfInv.setFromTriplets(M2Triplet.begin(), M2Triplet.end());
 	/* Get the Gradient Matrix + Re-arrange*/
-	Eigen::SparseMatrix<double> GTemp;
-	igl::grad(V, F, GTemp);
-	vector<Eigen::Triplet<double>> GTriplet; GTriplet.reserve(GTemp.nonZeros());
-	for (int k = 0; k < GTemp.outerSize(); ++k) {
-		for (Eigen::SparseMatrix<double>::InnerIterator it(GTemp, k); it; ++it) {
-			GTriplet.push_back(Eigen::Triplet<double>(it.row() % F.rows() + (int)(it.row()/F.rows()), it.col(), it.value()));
-		}
-	}
-	G.resize(GTemp.rows(), GTemp.cols());
-	G.setFromTriplets(GTriplet.begin(), GTriplet.end());
+	igl::grad(V, F, G);
+	rearrangeGradient3D(G);
+	//Eigen::SparseMatrix<double> GTemp;
+	//igl::grad(V, F, GTemp);
+	//vector<Eigen::Triplet<double>> GTriplet; GTriplet.reserve(GTemp.nonZeros());
+	//for (int k = 0; k < GTemp.outerSize(); ++k) {
+	//	for (Eigen::SparseMatrix<double>::InnerIterator it(GTemp, k); it; ++it) {
+	//		GTriplet.push_back(Eigen::Triplet<double>(it.row() % F.rows() + (int)(it.row()/F.rows()), it.col(), it.value()));
+	//	}
+	//}
+	//G.resize(GTemp.rows(), GTemp.cols());
+	//G.setFromTriplets(GTriplet.begin(), GTriplet.end());
 
 	printf("A Stiffness matrix S(%dx%d) and Mass matrix M(%dx%d) are constructed.\n", S.rows(), S.cols(), M.rows(), M.cols());
 }
@@ -495,11 +499,13 @@ void FastSpectrum::setSampleType(SamplingType sampleType)
 /* Heat Method*/
 void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 {
-	double tau = avgEdgeLength*avgEdgeLength;
+	//double tau = avgEdgeLength*avgEdgeLength;
 	//double tau = 10000.0*avgEdgeLength;
-	//double tau = 100.0*avgEdgeLength;
+	double tau = 100.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
-	inputHeat(0) = 1.0; 
+	heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	//inputHeat(heatSource) = 1.0 * M.coeff(heatSource, heatSource);  // M*inputHeat;
+	inputHeat(heatSource) = 1.0;
 	//inputHeat(V.rows()/2) = -1.0;
 	//inputHeat(1000) = 0.5;
 	//inputHeat(2000) = -0.5;
@@ -510,9 +516,6 @@ void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 	solvePoissonEquation(grad, heatDistance);
 	//visualizeHeatGeodesics(viewer, outputHeat);
 	visualizeHeatGeodesics(viewer, heatDistance);
-
-	
-
 	
 	//testGaussSeidel();
 }
@@ -527,7 +530,8 @@ void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, E
 	
 
 	Eigen::SparseMatrix<double> LHS = M + tau*S;
-	Eigen::VectorXd rhs = M*input; 
+	//Eigen::VectorXd rhs = M*input; 
+	Eigen::VectorXd rhs = input;
 
 	/// PARDISO (Direct Solver)
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
@@ -598,6 +602,15 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 	Eigen::MatrixXd VColor;
 	igl::jet(functions, true, VColor);
 	viewer.data().set_colors(VColor);
+
+	/* Isolines*/
+	bool showIsolines = true; 
+	Eigen::MatrixXd isoV;
+	Eigen::MatrixXi isoE;
+	if (showIsolines) {
+		igl::isolines(V, F, functions, 15, isoV, isoE);
+		viewer.data().set_edges(isoV, isoE, Eigen::RowVector3d(0, 0, 0));
+	}
 }
 
 /* Reduced (1-level) Heat Method */
@@ -608,7 +621,8 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	double tau = 1.0*avgEdgeLength*avgEdgeLength;
 
 	inputHeatRed.setZero(V.rows());
-	inputHeatRed(0) = 1.0;
+	heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	inputHeatRed(heatSource) = 1.0;
 	inputHeatRed = M*inputHeatRed;
 
 	//solveHeatEquationRed(tau, inputHeatRed, outputHeatRed);
@@ -817,6 +831,15 @@ void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, 
 	Eigen::MatrixXd VColor;
 	igl::jet(funcLifted, true, VColor);
 	viewer.data().set_colors(VColor);
+
+	/* Isolines*/
+	bool showIsolines = true;
+	Eigen::MatrixXd isoV;
+	Eigen::MatrixXi isoE;
+	if (showIsolines) {
+		igl::isolines(V, F, functions, 15, isoV, isoE);
+		viewer.data().set_edges(isoV, isoE, Eigen::RowVector3d(0, 0, 0));
+	}
 }
 
 /* Heat Diffusion */
@@ -845,10 +868,10 @@ void FastSpectrum::buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorX
 	y.resize(level);
 	y0.resize(V.rows());
 	y0.setZero();
-	y0(0) = 1.0;
+	y0(heatSource) = 1.0;
 	cout << "__max: " << y0.maxCoeff() << " | min: " << y0.minCoeff() << endl;
-	//double tau = avgEdgeLength*avgEdgeLength/double(level+1);
-	double tau = 1000*avgEdgeLength / double(level + 1);
+	double tau = avgEdgeLength*avgEdgeLength/double(level+1);
+	//double tau = 1000*avgEdgeLength / double(level + 1);
 
 	/* Do some iterations on the finest level */
 	cout << "Explicit euler, finest level \n";
@@ -1486,7 +1509,7 @@ void FastSpectrum::measureAccuracyOfReducedSolver(Eigen::VectorXd& ref, Eigen::V
 	printf("Comparison: Distance from %d: \n___Ref: %.3f | Red: %.3f \n", randID, ref(randID), red(randID));
 
 	/* Distance on the center of interest */
-	printf("Comparison: Distance at %d: \n___Ref: %.3f | Red: %.3f \n", 0, ref(0), red(0));
+	printf("Comparison: Distance at %d: \n___Ref: %.3f | Red: %.3f \n", heatSource, ref(heatSource), red(heatSource));
 
 	checkAccuracy(S, ref, red);
 }
@@ -1503,6 +1526,32 @@ void FastSpectrum::mapFunction(Eigen::VectorXd& func)
 	Eigen::VectorXd nMinVect(func.rows()); nMinVect.setConstant(nMin);
 
 	func = scale * (func - minVect) + nMinVect;	
+}
+
+void FastSpectrum::rearrangeGradient3D(Eigen::SparseMatrix<double> &Grad3D)
+{
+	//MFinv.resize(MF.rows(), MF.cols());
+	vector<Eigen::Triplet<double>> GTriplet;
+	GTriplet.reserve(Grad3D.nonZeros());
+	int nRows = F.rows(), nCols = Grad3D.cols();
+
+	/* Getting the sum of every non-zero elements in a row */
+	for (int k = 0; k < Grad3D.outerSize(); ++k) {
+		for (Eigen::SparseMatrix<double>::InnerIterator it(Grad3D, k); it; ++it) {
+			if (it.row() < nRows) {					// values for x-coordinates
+				GTriplet.push_back(Eigen::Triplet<double>(3 * it.row(), it.col(), it.value()));
+			}
+			else if (it.row() < 2 * nRows) {		// values for y-coordinates
+				GTriplet.push_back(Eigen::Triplet<double>(3 * (it.row() - nRows) + 1, it.col(), it.value()));
+			}
+			else {									// values for z-coordinates
+				GTriplet.push_back(Eigen::Triplet<double>(3 * (it.row() - 2 * nRows) + 2, it.col(), it.value()));
+			}
+		}
+	}
+	Grad3D.resize(0, 0);
+	Grad3D.resize(3 * nRows, nCols);
+	Grad3D.setFromTriplets(GTriplet.begin(), GTriplet.end());
 }
 
 /* Multi-grid solver */

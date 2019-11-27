@@ -126,6 +126,7 @@ public:
 
 	void measureAccuracyOfReducedSolver(Eigen::VectorXd& ref, Eigen::VectorXd& red);
 	void mapFunction(Eigen::VectorXd& func);
+	void rearrangeGradient3D(Eigen::SparseMatrix<double>& Grad3D);
 
 	void multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
 	void multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x);
@@ -163,6 +164,7 @@ public:
 	vector<double>					maxNeighDist;									// geodesic distance for sampling, to control the sparsity
 	double							avgEdgeLength, surfaceArea;						// average edge length and total surface area (from the mesh)
 	int								sampleSize;										// sample of the finest level sample, i.e. level 0
+	int								heatSource;
 	SamplingType					sampleType = Sample_Farthest_Point;				// we only use Farthest point sampling on this scenario
 
 	/* [MULTI-GRID STUFF]*/
