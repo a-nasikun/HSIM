@@ -961,8 +961,8 @@ void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, do
 	//output = yML[0];
 
 	//solveHeatDiffusionLevelK(viewer, 0.8*tau, 0, yML, xML);
-	solveHeatDiffusionLevelKFineOnly(viewer, 0.75*tau, 0, yML, xML);
-	//solveHeatDiffsuionVCycle(viewer, 0.75*tau, yML, xML);
+	//solveHeatDiffusionLevelKFineOnly(viewer, 0.75*tau, 0, yML, xML);
+	solveHeatDiffsuionVCycle(viewer, 0.75*tau, yML, xML);
 
 	output.setZero(V.rows());
 	
