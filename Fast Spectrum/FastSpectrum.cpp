@@ -503,8 +503,8 @@ void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 	//double tau = 10000.0*avgEdgeLength;
 	//double tau = 100.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
-	//heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
-	heatSource = 0;
+	heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	//heatSource = 0;
 	//inputHeat(heatSource) = 1.0 * M.coeff(heatSource, heatSource);  // M*inputHeat;
 	inputHeat(heatSource) = 1.0;
 	//inputHeat(V.rows()/2) = -1.0;
@@ -626,8 +626,8 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	cout << "__Scale: " << tauScale << endl; 
 
 	inputHeatRed.setZero(V.rows());
-	//heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
-	heatSource = 0;
+	heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	//heatSource = 0;
 	inputHeatRed(heatSource) = 1.0;
 	inputHeatRed = M*inputHeatRed;
 
@@ -960,16 +960,16 @@ void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, do
 	buildMultiLevelRHSFineOnly(viewer, 0.25*tau, input, yML);
 	//output = yML[0];
 
-	//solveHeatDiffusionLevelK(viewer, 0.8*tau, 0, yML, xML);
+	solveHeatDiffusionLevelK(viewer, 0.5*tau, 0, yML, xML);
 	//solveHeatDiffusionLevelKFineOnly(viewer, 0.75*tau, 0, yML, xML);
-	solveHeatDiffsuionVCycle(viewer, 0.75*tau, yML, xML);
+	//solveHeatDiffsuionVCycle(viewer, 0.65*tau, yML, xML);
 
 	output.setZero(V.rows());
 	
 	cout << "__Concatenate solutions from multilevels \n";
 	for (int i = 0; i <= level; i++) output = output + xML[i];
 
-	//postSmoothing(viewer, 0.1*tau, output, output);
+	postSmoothing(viewer, 0.25*tau, output, output);
 
 }
 
@@ -1090,6 +1090,12 @@ void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, d
 	UTemp.setIdentity();
 	x.resize(level+1);
 
+	bool explicitEuler = true;
+	Eigen::SparseMatrix<double> L, LRed;
+	L = Minv*S;
+	int loopIter = 100;
+	double t_;
+
 	for (int i = 0; i <= level; i++)
 	{
 		printf("_____Level %d ", i);
@@ -1100,6 +1106,7 @@ void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, d
 
 		if (i == level) {
 			Mred = M; Sred = S;
+			LRed = L;
 			t_ = tau;
 		} else {
 			UTemp = UTemp*U[i];
@@ -1108,20 +1115,52 @@ void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, d
 			//t_ = (double)V.rows() / (double)SubspaceSize[i] * tau;
 			//t_ = pow(SubspaceSize[0]/SubspaceSize[1], (i + 1)) * tau;
 			t_ = tau;
+			LRed = UTemp.transpose()*L*UTemp;
 		}
 
 		Eigen::SparseMatrix<double> LHS = Mred + t_*Sred;
+		Eigen::VectorXd r, x_;
 
-		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
-		printf(" tau=%.4f | projection ",t_);
-		spSolver.compute(LHS);
-		printf(" | solving \n ");
-		printf("__DIM check: LHS: %dx%d | rhs: %d \n", LHS.rows(), LHS.cols(), rhs[i].rows());
-		cout << "__Solving |";
-		if(i<level)
-			x[i] = UTemp * spSolver.solve(rhs[i]); // Solve and project
-		else 
-			x[i] = spSolver.solve(rhs[i]); // Solve and project
+		if (explicitEuler)
+		{
+			cout << "EXPLICTI EULER! \n";
+			/* EXPLICIT EULER */
+			if (i < level) {
+				r = UTemp.transpose() * rhs[i];
+				x_ = r;
+				for (int j = 0; j < loopIter; j++)
+				{
+					x_ = x_ - (t_/(double)loopIter)*LRed*x_;
+				}
+				x[i] = UTemp*x_;
+			}
+			else {
+				x_ = rhs[level];
+				for (int j = 0; j < loopIter; j++)
+				{
+					x_ = x_ - (t_ / (double)loopIter)*LRed*x_;
+				}
+				x[level] = x_;
+			}
+
+		}
+		else {
+			/* IMPLICIT EULER */
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+			printf(" tau=%.4f | projection ", t_);
+			spSolver.compute(LHS);
+			printf(" | solving \n ");
+			printf("__DIM check: LHS: %dx%d | rhs: %d \n", LHS.rows(), LHS.cols(), rhs[i].rows());
+			cout << "__Solving |";
+			if (i < level) {
+				r = UTemp.transpose() * rhs[i];
+				x[i] = UTemp * spSolver.solve(r); // Solve and project
+				//x[i] = UTemp * spSolver.solve(rhs[i]); // Solve and project
+			}
+			else {
+				x[i] = spSolver.solve(rhs[i]); // Solve and project
+			}
+		}
 		cout << " done \n";		
 	}
 
@@ -1472,7 +1511,7 @@ void FastSpectrum::diffusionVCycle(igl::opengl::glfw::Viewer &viewer,const Eigen
 	cout << "__POST-SMOOTHING \n";
 	for (int i = 0; i < iterPost; i++)
 	{
-		vout = vout - (tSmooth*tau / (double)iterPost)*LInv*vout;
+		vout = vout - (tSmooth*tau/(double)iterPost)*LInv*vout;
 	}
 }
 
@@ -1483,8 +1522,8 @@ void FastSpectrum::solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, d
 	Eigen::SparseMatrix<double> L = Minv*S;
 
 	/* variable for iterations */
-	int iterDiff = 100, iterPost = 100;
-	double tDiff = 0.9, tSmooth = 1.0-tDiff; 
+	int iterDiff = 1000, iterPost = 100;
+	double tDiff = 1.0, tSmooth = 1.0-tDiff; 
 
 	/* [1] SMOOTHING For the coarse levels */
 	for (int i = 0; i < level; i++)
@@ -1500,11 +1539,11 @@ void FastSpectrum::solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, d
 		x[level] = x[level] - (tDiff*tau / (double)iterDiff)*L*x[level];
 	}
 
-	/* [3] POST-SMOOTHNG */
-	cout << "__POST-SMOOTHING \n";
-	for (int i = 0; i < iterPost; i++)	{
-		x[level] = x[level] - (tSmooth*tau / (double)iterPost)*L*x[level];
-	}
+	///* [3] POST-SMOOTHNG */
+	//cout << "__POST-SMOOTHING \n";
+	//for (int i = 0; i < iterPost; i++)	{
+	//	x[level] = x[level] - (tSmooth*tau / (double)iterPost)*L*x[level];
+	//}
 
 }
 
