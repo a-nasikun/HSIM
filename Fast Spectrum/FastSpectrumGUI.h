@@ -490,7 +490,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 	float w = ImGui::GetContentRegionAvailWidth();
 	float p = ImGui::GetStyle().FramePadding.x;
 
-	if (ImGui::CollapsingHeader("Draft on subspace iteration", ImGuiTreeNodeFlags_OpenOnArrow)) {
+	if (ImGui::CollapsingHeader("Draft on subspace iteration", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::Button("Run Subspace", ImVec2(w, 0))) {
 			fastSpectrum.simpleSubspaceIterMethod(viewer);
 		}
@@ -500,7 +500,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		Eigen::MatrixXd vColor;
 		ImGui::Text("Show EigVec");
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("- 1##EigVec1", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {			
+		if (ImGui::Button("- 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {			
 
 			if (eigToShow > 0)
 				eigToShow--;
@@ -516,7 +516,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		ImGui::Text("[%d]", eigToShow);
 		ImGui::SameLine(0, p);
 
-		if (ImGui::Button("+ 1##EigVec1", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {	
+		if (ImGui::Button("+ 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {	
 			if (eigToShow < fastSpectrum.SIMeigVects.cols())
 				eigToShow++;
 			
@@ -524,7 +524,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			viewer.data().set_colors(vColor);
 		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("Red##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {			
+		if (ImGui::Button("SIM##EigVecSIM", ImVec2((w - 50.0f - 3 * p) / 3.f, 0))) {			
 			igl::jet(fastSpectrum.SIMeigVects.col(eigToShow), true, vColor);
 			viewer.data().set_colors(vColor);
 		}

@@ -2417,6 +2417,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 
 	SIMeigVals = Alpha;
 	SIMeigVects = Xk; 
+	cout << "Eigenvalues: \n" << SIMeigVals << endl << endl; 
 }
 
 /* [Read mesh model from file] */
