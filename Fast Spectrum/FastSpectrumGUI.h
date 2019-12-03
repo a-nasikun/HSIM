@@ -86,16 +86,16 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0))){
 				viewer.open_dialog_save_mesh();
 			}
-			//if (ImGui::Button("Run Algorithm", ImVec2((w), 30))){
-			//	Eigen::SparseMatrix<double>	U;
-			//	fastSpectrum.computeEigenPairs( V, F, numOfSample, (SamplingType) sampleType, U, redEigVects, redEigVals);
-			//	
-			//	// Show the first non-zero eigenvectors
-			//	eigToShow					= 1;
-			//	Z							= U * redEigVects.col(eigToShow);
-			//	igl::jet(Z, true, vColor);
-			//	viewer.data().set_colors(vColor);
-			//}
+			if (ImGui::Button("Run Algorithm", ImVec2((w), 30))){
+				Eigen::SparseMatrix<double>	U;
+				fastSpectrum.computeEigenPairs( V, F, numOfSample, (SamplingType) sampleType, U, redEigVects, redEigVals);
+				
+				// Show the first non-zero eigenvectors
+				eigToShow					= 1;
+				Z							= U * redEigVects.col(eigToShow);
+				igl::jet(Z, true, vColor);
+				viewer.data().set_colors(vColor);
+			}
 			
 			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
@@ -260,7 +260,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					}
 
 					fastSpectrum.solveRestrictedProblem();
-					cout << "(approx) Eigenvector: \n " << fastSpectrum.reducedEigVals << endl << endl; 
+					//cout << "(approx) Eigenvector: \n " << fastSpectrum.reducedEigVals << endl << endl; 
 
 					// Show the first non-zero eigenvectors
 					Eigen::SparseMatrix<double>	U;
@@ -472,6 +472,66 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 	}
 }
 
+void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum)
+{
+	// Variable for Processing
+	Eigen::MatrixXd V = viewer.data().V;
+	Eigen::MatrixXi F = viewer.data().F;
+
+	// Variables For Viewer visualization
+	float	menuWindowLeft = 375.f,
+		menuWindowWidth = 200.f,
+		menuWindowHeight = 475.f;
+
+	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	ImGui::Begin("Subspace##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
+
+	float w = ImGui::GetContentRegionAvailWidth();
+	float p = ImGui::GetStyle().FramePadding.x;
+
+	if (ImGui::CollapsingHeader("Draft on subspace iteration", ImGuiTreeNodeFlags_OpenOnArrow)) {
+		if (ImGui::Button("Run Subspace", ImVec2(w, 0))) {
+			fastSpectrum.simpleSubspaceIterMethod(viewer);
+		}
+
+		/* For Subspace Iteration Method Eigenvectors */
+
+		Eigen::MatrixXd vColor;
+		ImGui::Text("Show EigVec");
+		ImGui::SameLine(0, p);
+		if (ImGui::Button("- 1##EigVec1", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {			
+
+			if (eigToShow > 0)
+				eigToShow--;
+
+			
+			if (eigToShow>0)
+				igl::jet(fastSpectrum.SIMeigVects.col(eigToShow), true, vColor);
+			else
+				igl::jet(fastSpectrum.SIMeigVects.col(eigToShow), false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
+			viewer.data().set_colors(vColor);
+		}
+		ImGui::SameLine(0, p);
+		ImGui::Text("[%d]", eigToShow);
+		ImGui::SameLine(0, p);
+
+		if (ImGui::Button("+ 1##EigVec1", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {	
+			if (eigToShow < fastSpectrum.SIMeigVects.cols())
+				eigToShow++;
+			
+			igl::jet(fastSpectrum.SIMeigVects.col(eigToShow), true, vColor);
+			viewer.data().set_colors(vColor);
+		}
+		ImGui::SameLine(0, p);
+		if (ImGui::Button("Red##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {			
+			igl::jet(fastSpectrum.SIMeigVects.col(eigToShow), true, vColor);
+			viewer.data().set_colors(vColor);
+		}
+
+	}
+}
+
 void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum)
 {
 	{
@@ -492,7 +552,8 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 		float p = ImGui::GetStyle().FramePadding.x;
 
 		/* HEAT METHOD */
-		if (ImGui::CollapsingHeader("Heat Method", ImGuiTreeNodeFlags_DefaultOpen)) {
+		//if (ImGui::CollapsingHeader("Heat Method", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if (ImGui::CollapsingHeader("Heat Method", ImGuiTreeNodeFlags_OpenOnArrow)) {
 			if (ImGui::Button("Solve Heat Method", ImVec2(w, 0))) {
 				fastSpectrum.solveHeatMethod(viewer);
 			}

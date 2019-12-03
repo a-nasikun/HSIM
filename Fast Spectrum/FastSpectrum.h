@@ -151,6 +151,9 @@ public:
 	void testGaussSeidel();
 	void testConstantFuncsProjection();
 
+	/* Subspace Iteration Method */
+	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer);
+
 public:
 	/* [CLASS VARIABLES] */
 	Eigen::SparseMatrix<double>		S, M, Minv, Mf, MfInv, G,  Basis, DistanceTableSpM;
@@ -166,6 +169,10 @@ public:
 	int								sampleSize;										// sample of the finest level sample, i.e. level 0
 	int								heatSource;
 	SamplingType					sampleType = Sample_Farthest_Point;				// we only use Farthest point sampling on this scenario
+
+	/* [SUBSPACE ITERATION METHOD] */
+	Eigen::MatrixXd					SIMeigVects;									// matrix storing eigenvectors, after Subspace Iteration Method (SIM)
+	Eigen::VectorXd					SIMeigVals;										// vector stroing eigenvalues,  after Subspace Iteration Method (SIM)
 
 	/* [MULTI-GRID STUFF]*/
 	int									level;										// the total number of hierarchy/levels on multigrid

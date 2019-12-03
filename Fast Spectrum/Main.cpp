@@ -20,8 +20,8 @@ int main(int argc, char *argv[])
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();							// Set style
 
-	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
-	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
+	meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
 
 	fastSpectrum.setInitialSystem(2);
 	fastSpectrum.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
 	{
 		showMenu(viewer, menu, fastSpectrum);
 		applicationMenu(viewer, menu, fastSpectrum);
+		subspaceMenu(viewer, menu, fastSpectrum);
 	};
 	/* END OF GUI FUNCTIONALITY */
 

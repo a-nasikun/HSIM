@@ -2368,6 +2368,57 @@ void FastSpectrum::testConstantFuncsProjection()
 
 }
 
+/* Subspace Iteration Method */
+void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
+{
+	/* Initialization */
+	cout << "[1] SIM::Setup initialization of varibles\n";
+	int q = reducedEigVals.rows();
+	Eigen::MatrixXd Xk = Basis * reducedEigVects;
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	factorization.compute(S);
+	int k = 0;
+	cout << "__ num of subspace q: " << q << endl;
+	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
+
+	/* Iteration for eigenproblem */
+	cout << "[2] Iterating steps. \n";
+	bool convergenceCheck;
+	Eigen::MatrixXd XbarK(V.rows(), q);
+	Eigen::MatrixXd Mproj, Sproj;
+	Eigen::MatrixXd Q;
+	Eigen::VectorXd Alpha;
+	const int MAX_ITER = 3;
+	do {
+		printf("__(%d) iteration \n", k+1);
+		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
+		for (int i = 0; i < q; i++){						// easily parallelizeable
+			Eigen::VectorXd v = M*Xk.col(i);
+			XbarK.col(i) = factorization.solve(v);
+		}
+		/* Projection of M and K*/
+		printf("__setting up reduced matrix M and S. ");
+		Mproj = XbarK.transpose()*M*XbarK;
+		Sproj = XbarK.transpose()*S*XbarK;
+		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+
+		/* Reduced eigenvalue problem */
+		printf("__solve reduced eigenvalue problem. ");
+		computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
+
+		printf("__lifting up/prolongation.");
+		Xk = XbarK*Q;
+		printf("Xk size: %d \n", Xk.rows());
+
+		k++;
+		convergenceCheck = (k < MAX_ITER);
+	} while (convergenceCheck);
+
+	SIMeigVals = Alpha;
+	SIMeigVects = Xk; 
+}
+
 /* [Read mesh model from file] */
 void FastSpectrum::readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F)
 {
