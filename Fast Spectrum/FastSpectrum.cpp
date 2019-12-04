@@ -2392,11 +2392,12 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	for (int i = blockSize; i < eigenToCompute; i += blockSize)
 	{
 		printf("Block: %d \n", i / blockSize + 1);
-		SubspaceIterMethodBlockShift(viewer, i, blockSize, reducedEigVals(i), eigVectsTemp, eigValsTemp);
+		SubspaceIterMethodBlockShift(viewer, i, blockSize, 0.9*reducedEigVals(i), eigVectsTemp, eigValsTemp);
 		SIMeigVals.block(i, 0, blockSize, 1) = eigValsTemp;
 		SIMeigVects.block(0, i, V.rows(), blockSize) = eigVectsTemp;
 	}
 
+	cout << "Eigenvalues (all blocks): \n" << SIMeigVals << endl << endl;
 }
 
 void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
@@ -2405,7 +2406,9 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	/* Initialization */
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
-	int q = 25;
+	int q = 100;
+	SIMeigVals.resize(q);
+	SIMeigVects.resize(V.rows(), q);
 	simpleSubspaceIterMethod(viewer, q, SIMeigVects, SIMeigVals);
 
 	//Eigen::MatrixXd Xk = Basis * reducedEigVects;
@@ -2459,8 +2462,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	int q = width;
-	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0,0,reducedEigVals.rows(), width);
+	int q = max(2*width, width+8);
+	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0,0,reducedEigVals.rows(), q);
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	factorization.compute(S);
 	int k = 0;
@@ -2474,7 +2477,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
-	const int MAX_ITER = 5;
+	const int MAX_ITER = 2;
 	do {
 		printf("__(%d) iteration \n", k + 1);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
@@ -2501,8 +2504,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		convergenceCheck = (k < MAX_ITER);
 	} while (convergenceCheck);
 
-	EigVals = Alpha;
-	EigVects = Xk;
+	EigVals = Alpha.block(0,0,width,1);
+	EigVects = Xk.block(0,0,V.rows(),width);
 	cout << "Eigenvalues: \n" << EigVals << endl << endl;
 }
 
@@ -2567,8 +2570,8 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	/* Initialization */
 	cout << "[1] SIM w Shift ::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	int q = width;
-	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0, init, reducedEigVals.rows(), width);
+	int q = max(2 * width, width + 8);
+	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0, init, reducedEigVals.rows(), q);
 	int k = 0;
 	cout << "__ num of subspace q: " << q << endl;
 	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
@@ -2580,12 +2583,12 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	Eigen::SparseMatrix<double> K = S - shiftFactor*M;
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	factorization.compute(K);
-	Eigen::SparseMatrix<double> Id(q,q); Id.setIdentity();
+	Eigen::VectorXd Id(q); Id.setOnes();
 	Eigen::MatrixXd XbarK(V.rows(), q);
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
-	const int MAX_ITER = 5;
+	const int MAX_ITER = 4;
 
 	do {
 		printf("__(%d) iteration \n", k + 1);
@@ -2613,12 +2616,10 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 		convergenceCheck = (k < MAX_ITER);
 	} while (convergenceCheck);
 
-	EigVals = Alpha + shiftFactor*Id;
-	EigVects = Xk;
+	EigVals = (Alpha + shiftFactor*Id).block(0, 0, width, 1);
+	EigVects = Xk.block(0, 0, V.rows(), width);
 	
-	cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
-
-
+	//cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
 }
 
 /* [Read mesh model from file] */
