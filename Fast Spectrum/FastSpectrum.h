@@ -152,7 +152,11 @@ public:
 	void testConstantFuncsProjection();
 
 	/* Subspace Iteration Method */
+	void SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer);
 	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer);
+	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
+	void SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer);
+	void SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
 
 public:
 	/* [CLASS VARIABLES] */

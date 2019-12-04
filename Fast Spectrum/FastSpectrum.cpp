@@ -78,7 +78,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	this->F = F;
 	constructLaplacianMatrix();
 
-	/*
+	
 	// [2]	SAMPLING
 	this->setSample(numOfSamples, sampleType);
 	Eigen::VectorXd sampSize(level); 
@@ -87,9 +87,11 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	//constructSample();
 
 	// [3]	BASIS CONSTRUCTION
-	double	distRatio = sqrt(pow(0.7, 2) + pow(0.7, 2));
-	maxNeighDist[0] = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
-	constructBasis();
+	//double	distRatio = sqrt(pow(0.7, 2) + pow(0.7, 2));
+	//maxNeighDist[0] = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
+	//maxNeighDist[0] = sqrt((surfaceArea*10.0) / (M_PI*SubspaceSize[0]));
+	//constructBasis();
+	constructBasisCoarseOnly();
 
 	// [4]	LOW-DIM PROBLEM
 	constructRestrictedProblem();
@@ -101,7 +103,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	Basis = this->Basis;
 	reducedEigVects = this->reducedEigVects;
 	reducedEigVals = this->reducedEigVals;
-	*/
+	
 }
 
 void FastSpectrum::setInitialSystem(int n)
@@ -2369,12 +2371,96 @@ void FastSpectrum::testConstantFuncsProjection()
 }
 
 /* Subspace Iteration Method */
+void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
+{
+	//int eigenToCompute = reducedEigVals.rows();
+	int eigenToCompute = 100;
+	int blockSize = 20;
+
+	Eigen::MatrixXd eigVectsTemp;
+	Eigen::VectorXd eigValsTemp;
+	SIMeigVals.resize(eigenToCompute);
+	SIMeigVects.resize(V.rows(), eigenToCompute);
+	
+	/* First block */
+	cout << "First block! \n";
+	simpleSubspaceIterMethod(viewer, blockSize, eigVectsTemp, eigValsTemp);
+	SIMeigVals.block(0, 0, blockSize, 1)			= eigValsTemp;
+	SIMeigVects.block(0, 0, V.rows(), blockSize)	= eigVectsTemp;
+
+	/* Other blocks */
+	for (int i = blockSize; i < eigenToCompute; i += blockSize)
+	{
+		printf("Block: %d \n", i / blockSize + 1);
+		SubspaceIterMethodBlockShift(viewer, i, blockSize, reducedEigVals(i), eigVectsTemp, eigValsTemp);
+		SIMeigVals.block(i, 0, blockSize, 1) = eigValsTemp;
+		SIMeigVects.block(0, i, V.rows(), blockSize) = eigVectsTemp;
+	}
+
+}
+
 void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 {
+	cout << "The SIMPLEST Subspace Iteration Method \n";
 	/* Initialization */
-	cout << "[1] SIM::Setup initialization of varibles\n";
-	int q = reducedEigVals.rows();
-	Eigen::MatrixXd Xk = Basis * reducedEigVects;
+	//cout << "[1] SIM::Setup initialization of varibles\n";
+	//int q = reducedEigVals.rows();
+	int q = 25;
+	simpleSubspaceIterMethod(viewer, q, SIMeigVects, SIMeigVals);
+
+	//Eigen::MatrixXd Xk = Basis * reducedEigVects;
+	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	//factorization.compute(S);
+	//int k = 0;
+	//cout << "__ num of subspace q: " << q << endl;
+	//cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
+	//
+	///* Iteration for eigenproblem */
+	//cout << "[2] Iterating steps. \n";
+	//bool convergenceCheck;
+	//Eigen::MatrixXd XbarK(V.rows(), q);
+	//Eigen::MatrixXd Mproj, Sproj;
+	//Eigen::MatrixXd Q;
+	//Eigen::VectorXd Alpha;
+	//const int MAX_ITER = 5;
+	//do {
+	//	printf("__(%d) iteration \n", k+1);
+	//	printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
+	//	for (int i = 0; i < q; i++){						// easily parallelizeable
+	//		Eigen::VectorXd v = M*Xk.col(i);
+	//		XbarK.col(i) = factorization.solve(v);
+	//	}
+	//	/* Projection of M and K*/
+	//	printf("__setting up reduced matrix M and S. ");
+	//	Mproj = XbarK.transpose()*M*XbarK;
+	//	Sproj = XbarK.transpose()*S*XbarK;
+	//	printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+	//
+	//	/* Reduced eigenvalue problem */
+	//	printf("__solve reduced eigenvalue problem. ");
+	//	computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+	//	printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
+	//
+	//	printf("__lifting up/prolongation.");
+	//	Xk = XbarK*Q;
+	//	printf("Xk size: %d \n", Xk.rows());
+	//
+	//	k++;
+	//	convergenceCheck = (k < MAX_ITER);
+	//} while (convergenceCheck);
+	//
+	//SIMeigVals = Alpha;
+	//SIMeigVects = Xk; 
+	//cout << "Eigenvalues: \n" << SIMeigVals << endl << endl; 
+}
+
+void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+{
+	/* Initialization */
+	cout << "[1] SIM::Setup initialization of variables\n";
+	//int q = reducedEigVals.rows();
+	int q = width;
+	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0,0,reducedEigVals.rows(), width);
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	factorization.compute(S);
 	int k = 0;
@@ -2388,11 +2474,11 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
-	const int MAX_ITER = 3;
+	const int MAX_ITER = 5;
 	do {
-		printf("__(%d) iteration \n", k+1);
+		printf("__(%d) iteration \n", k + 1);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
-		for (int i = 0; i < q; i++){						// easily parallelizeable
+		for (int i = 0; i < q; i++) {						// easily parallelizeable
 			Eigen::VectorXd v = M*Xk.col(i);
 			XbarK.col(i) = factorization.solve(v);
 		}
@@ -2415,9 +2501,124 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 		convergenceCheck = (k < MAX_ITER);
 	} while (convergenceCheck);
 
-	SIMeigVals = Alpha;
-	SIMeigVects = Xk; 
-	cout << "Eigenvalues: \n" << SIMeigVals << endl << endl; 
+	EigVals = Alpha;
+	EigVects = Xk;
+	cout << "Eigenvalues: \n" << EigVals << endl << endl;
+}
+
+void FastSpectrum::SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer)
+{
+	/* Initialization */
+	cout << "[1] SIM w Shift ::Setup initialization of variables\n";
+	//int q = reducedEigVals.rows();
+	int q = 100;
+	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
+	int k = 0;
+	cout << "__ num of subspace q: " << q << endl;
+	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
+
+	/* Iteration for eigenproblem */
+	cout << "[2] Iterating steps. \n";
+	bool convergenceCheck;
+	double shiftFactor;
+	Eigen::SparseMatrix<double> K = S - shiftFactor*M;
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	factorization.compute(K);
+	Eigen::SparseMatrix<double> Id(M.rows(), M.cols()); Id.setIdentity();
+	Eigen::MatrixXd XbarK(V.rows(), q);
+	Eigen::MatrixXd Mproj, Sproj;
+	Eigen::MatrixXd Q;
+	Eigen::VectorXd Alpha;
+	const int MAX_ITER = 5;
+
+	do {
+		printf("__(%d) iteration \n", k + 1);
+		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
+		for (int i = 0; i < q; i++) {						// easily parallelizeable
+			Eigen::VectorXd v = M*Xk.col(i);
+			XbarK.col(i) = factorization.solve(v);
+		}
+		/* Projection of M and K*/
+		printf("__setting up reduced matrix M and S. ");
+		Mproj = XbarK.transpose()*M*XbarK;
+		Sproj = XbarK.transpose()*K*XbarK;
+		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+
+		/* Reduced eigenvalue problem */
+		printf("__solve reduced eigenvalue problem. ");
+		computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
+
+		printf("__lifting up/prolongation.");
+		Xk = XbarK*Q;
+		printf("Xk size: %d \n", Xk.rows());
+
+		k++;
+		convergenceCheck = (k < MAX_ITER);
+	} while (convergenceCheck);
+
+	SIMeigVals = Alpha + shiftFactor*Id;
+	SIMeigVects = Xk;
+	cout << "Eigenvalues: \n" << SIMeigVals << endl << endl;
+}
+
+void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+{
+	/* Initialization */
+	cout << "[1] SIM w Shift ::Setup initialization of variables\n";
+	//int q = reducedEigVals.rows();
+	int q = width;
+	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0, init, reducedEigVals.rows(), width);
+	int k = 0;
+	cout << "__ num of subspace q: " << q << endl;
+	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
+
+	/* Iteration for eigenproblem */
+	cout << "[2] Iterating steps. \n";
+	bool convergenceCheck;
+	double shiftFactor = myu;
+	Eigen::SparseMatrix<double> K = S - shiftFactor*M;
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	factorization.compute(K);
+	Eigen::SparseMatrix<double> Id(q,q); Id.setIdentity();
+	Eigen::MatrixXd XbarK(V.rows(), q);
+	Eigen::MatrixXd Mproj, Sproj;
+	Eigen::MatrixXd Q;
+	Eigen::VectorXd Alpha;
+	const int MAX_ITER = 5;
+
+	do {
+		printf("__(%d) iteration \n", k + 1);
+		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
+		for (int i = 0; i < q; i++) {						// easily parallelizeable
+			Eigen::VectorXd v = M*Xk.col(i);
+			XbarK.col(i) = factorization.solve(v);
+		}
+		/* Projection of M and K*/
+		printf("__setting up reduced matrix M and S. ");
+		Mproj = XbarK.transpose()*M*XbarK;
+		Sproj = XbarK.transpose()*K*XbarK;
+		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+
+		/* Reduced eigenvalue problem */
+		printf("__solve reduced eigenvalue problem. ");
+		computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
+
+		printf("__lifting up/prolongation.");
+		Xk = XbarK*Q;
+		printf("Xk size: %d \n", Xk.rows());
+
+		k++;
+		convergenceCheck = (k < MAX_ITER);
+	} while (convergenceCheck);
+
+	EigVals = Alpha + shiftFactor*Id;
+	EigVects = Xk;
+	
+	cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
+
+
 }
 
 /* [Read mesh model from file] */

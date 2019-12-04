@@ -491,10 +491,12 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 	float p = ImGui::GetStyle().FramePadding.x;
 
 	if (ImGui::CollapsingHeader("Draft on subspace iteration", ImGuiTreeNodeFlags_DefaultOpen)) {
-		if (ImGui::Button("Run Subspace", ImVec2(w, 0))) {
+		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
 			fastSpectrum.simpleSubspaceIterMethod(viewer);
 		}
-
+		if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
+			fastSpectrum.SubspaceIterMethod(viewer);
+		}
 		/* For Subspace Iteration Method Eigenvectors */
 
 		Eigen::MatrixXd vColor;
@@ -530,6 +532,8 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 
 	}
+
+	ImGui::End();
 }
 
 void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum)
@@ -648,6 +652,10 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 			eigToCompute = atoi(numEig);
 			if (ImGui::Button("Compute Ref. eigproblem", ImVec2(w, 0))) {
 				fastSpectrum.computeRefEigenProblem(eigToCompute, "hello");
+			}
+
+			if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {
+				// read from file 
 			}
 		}
 
