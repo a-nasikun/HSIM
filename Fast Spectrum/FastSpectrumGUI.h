@@ -272,6 +272,11 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					igl::jet(Z, true, vColor);
 					viewer.data().set_colors(vColor);
 				}
+
+				if (ImGui::Button("Save EigVect#Approx", ImVec2(w, 0))) {
+					int toStore = 250;
+					writeDenseMatrixToFile(fastSpectrum.Basis*fastSpectrum.reducedEigVects.block(0,0,fastSpectrum.V.rows(), toStore), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigVects_Red_" + to_string(toStore) + ".txt");
+				}
 			}
 		}
 				
@@ -497,6 +502,10 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
 			fastSpectrum.SubspaceIterMethod(viewer);
 		}
+		if (ImGui::Button("Save EigVect#RIM", ImVec2(w, 0))) {
+			writeDenseMatrixToFile(fastSpectrum.SIMeigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigVects_SIM_" + to_string(fastSpectrum.SIMeigVects.cols()) + ".txt");
+		}
+
 		/* For Subspace Iteration Method Eigenvectors */
 
 		Eigen::MatrixXd vColor;
@@ -656,6 +665,9 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 
 			if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {
 				// read from file 
+			}
+			if (ImGui::Button("Save EigVect#REF", ImVec2(w, 0))) {
+				writeDenseMatrixToFile(fastSpectrum.refEigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigVects_Ref_"+to_string(fastSpectrum.refEigVects.cols())+".txt");
 			}
 		}
 

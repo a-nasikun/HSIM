@@ -2406,10 +2406,15 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	/* Initialization */
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
-	int q = 100;
+	int q = 250;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
+	SIMeigValsStack.resize(q, 7);
+
 	simpleSubspaceIterMethod(viewer, q, SIMeigVects, SIMeigVals);
+
+	string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack.txt";
+	//writeDenseMatrixToFile(SIMeigValsStack, filename);
 
 	//Eigen::MatrixXd Xk = Basis * reducedEigVects;
 	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -2462,7 +2467,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	int q = max(2*width, width+8);
+	int q = min(2*width, width+8);
 	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0,0,reducedEigVals.rows(), q);
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	factorization.compute(S);
@@ -2477,7 +2482,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
-	const int MAX_ITER = 2;
+	const int MAX_ITER = 3;
 	do {
 		printf("__(%d) iteration \n", k + 1);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
@@ -2499,6 +2504,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		printf("__lifting up/prolongation.");
 		Xk = XbarK*Q;
 		printf("Xk size: %d \n", Xk.rows());
+
+		SIMeigValsStack.col(k) = Alpha.block(0, 0, width, 1);
 
 		k++;
 		convergenceCheck = (k < MAX_ITER);

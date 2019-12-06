@@ -38,5 +38,7 @@ double computeSurfaceArea(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F);
 /* Check accuracy*/
 double checkAccuracy(const Eigen::SparseMatrix<double>& M, const Eigen::VectorXd& ref, const Eigen::VectorXd& approx);
 
+void writeDenseMatrixToFile(const Eigen::MatrixXd& M, const string& filename);
+
 #endif // !UTILITY_H
 
