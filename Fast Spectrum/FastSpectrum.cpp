@@ -2392,7 +2392,7 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	for (int i = blockSize; i < eigenToCompute; i += blockSize)
 	{
 		printf("Block: %d \n", i / blockSize + 1);
-		SubspaceIterMethodBlockShift(viewer, i, blockSize, 0.9*reducedEigVals(i), eigVectsTemp, eigValsTemp);
+		SubspaceIterMethodBlockShift(viewer, i, blockSize, 0.5*reducedEigVals(i), eigVectsTemp, eigValsTemp);
 		SIMeigVals.block(i, 0, blockSize, 1) = eigValsTemp;
 		SIMeigVects.block(0, i, V.rows(), blockSize) = eigVectsTemp;
 	}
@@ -2467,7 +2467,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	int q = min(2*width, width+8);
+	int q = max(2*width, width+8);
 	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0,0,reducedEigVals.rows(), q);
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	factorization.compute(S);
@@ -2595,7 +2595,7 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
-	const int MAX_ITER = 4;
+	const int MAX_ITER = 3;
 
 	do {
 		printf("__(%d) iteration \n", k + 1);
