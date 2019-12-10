@@ -27,6 +27,7 @@ static int			sampleType		= Sample_Farthest_Point;
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
+string				model			= "Sphere150k";
 
 
 void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum) {
@@ -273,9 +274,14 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					viewer.data().set_colors(vColor);
 				}
 
-				if (ImGui::Button("Save EigVect#Approx", ImVec2(w, 0))) {
+				if (ImGui::Button("Save EigVals#Approx", ImVec2(w/2.0, 0))) {
+					int toStore = min(250, (int) fastSpectrum.reducedEigVals.rows());
+					writeDenseMatrixToFile(fastSpectrum.reducedEigVals.block(0, 0, toStore,1), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_Red_" + to_string(toStore) + ".txt");
+				}
+				ImGui::SameLine(0, p);
+				if (ImGui::Button("Save EigVect#Approx", ImVec2(w/2.0, 0))) {
 					int toStore = 250;
-					writeDenseMatrixToFile(fastSpectrum.Basis*fastSpectrum.reducedEigVects.block(0,0,fastSpectrum.V.rows(), toStore), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigVects_Red_" + to_string(toStore) + ".txt");
+					writeDenseMatrixToFile(fastSpectrum.Basis*fastSpectrum.reducedEigVects.block(0,0,fastSpectrum.V.rows(), toStore), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Red_" + to_string(toStore) + ".txt");
 				}
 			}
 		}
@@ -502,8 +508,13 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
 			fastSpectrum.SubspaceIterMethod(viewer);
 		}
-		if (ImGui::Button("Save EigVect#RIM", ImVec2(w, 0))) {
-			writeDenseMatrixToFile(fastSpectrum.SIMeigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigVects_SIM_" + to_string(fastSpectrum.SIMeigVects.cols()) + ".txt");
+
+		if (ImGui::Button("Save EigVals#RIM", ImVec2(w/2.0, 0))) {
+			writeDenseMatrixToFile(fastSpectrum.SIMeigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(fastSpectrum.SIMeigVals.rows()) + ".txt");
+		}
+		ImGui::SameLine(0, p);
+		if (ImGui::Button("Save EigVect#RIM", ImVec2(w/2.0, 0))) {
+			writeDenseMatrixToFile(fastSpectrum.SIMeigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_SIM_" + to_string(fastSpectrum.SIMeigVects.cols()) + ".txt");
 		}
 
 		/* For Subspace Iteration Method Eigenvectors */
@@ -666,8 +677,12 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 			if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {
 				// read from file 
 			}
-			if (ImGui::Button("Save EigVect#REF", ImVec2(w, 0))) {
-				writeDenseMatrixToFile(fastSpectrum.refEigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigVects_Ref_"+to_string(fastSpectrum.refEigVects.cols())+".txt");
+			if (ImGui::Button("Save EigVals#REF", ImVec2(w/2, 0))) {
+				writeDenseMatrixToFile(fastSpectrum.refEigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_Ref_"+to_string(fastSpectrum.refEigVals.rows())+".txt");
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Save EigVect#REF", ImVec2(w / 2, 0))) {
+				writeDenseMatrixToFile(fastSpectrum.refEigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Ref_" + to_string(fastSpectrum.refEigVects.cols()) + ".txt");
 			}
 		}
 
