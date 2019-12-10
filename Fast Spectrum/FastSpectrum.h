@@ -154,10 +154,11 @@ public:
 	/* Subspace Iteration Method */
 	void SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer);
 	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer);
-	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
+	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
 	void SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer);
 	void SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
 
+	void generateRandomMatrix(int m, int n, Eigen::MatrixXd& M);
 public:
 	/* [CLASS VARIABLES] */
 	Eigen::SparseMatrix<double>		S, M, Minv, Mf, MfInv, G,  Basis, DistanceTableSpM;

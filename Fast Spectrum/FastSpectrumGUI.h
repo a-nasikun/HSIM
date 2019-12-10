@@ -510,7 +510,8 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 
 		if (ImGui::Button("Save EigVals#RIM", ImVec2(w/2.0, 0))) {
-			writeDenseMatrixToFile(fastSpectrum.SIMeigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(fastSpectrum.SIMeigVals.rows()) + ".txt");
+			//writeDenseMatrixToFile(fastSpectrum.SIMeigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(fastSpectrum.SIMeigVals.rows()) + ".txt");
+			writeDenseMatrixToFile(fastSpectrum.SIMeigValsStack, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(fastSpectrum.SIMeigVals.rows()) + ".txt");
 		}
 		ImGui::SameLine(0, p);
 		if (ImGui::Button("Save EigVect#RIM", ImVec2(w/2.0, 0))) {

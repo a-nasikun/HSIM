@@ -186,7 +186,9 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 	if (cudaStat1 != 0 || cudaStat2 != 0) {
 		cout << "Error! CUDA cuSolver's eigensolver FAILED to solve the eigenproblem." << endl;
 	}
-
+	else if(cudaStat1 == 0) {
+		cout << "Yeay! I can compute the eigenvalues!!!\n";
+	}
 	cudaStat1 = cudaMemcpy(W, d_W, sizeof(double)*m, cudaMemcpyDeviceToHost);
 	cudaStat2 = cudaMemcpy(V, d_A, sizeof(double)*lda*m, cudaMemcpyDeviceToHost);
 	cudaStat3 = cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost);
@@ -198,7 +200,7 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 	assert(cudaSuccess == cudaStat3);
 
 	if (info_gpu != 0) {
-		cout << "Error! There's some error with sygvd." << endl;
+		cout << "Error! Cannot copy back to CPU sygvd." << endl;
 	}
 	assert(0 == info_gpu);
 

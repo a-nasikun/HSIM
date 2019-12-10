@@ -2384,7 +2384,7 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	
 	/* First block */
 	cout << "First block! \n";
-	simpleSubspaceIterMethod(viewer, blockSize, eigVectsTemp, eigValsTemp);
+	simpleSubspaceIterMethod(viewer, blockSize, 3, eigVectsTemp, eigValsTemp);
 	SIMeigVals.block(0, 0, blockSize, 1)			= eigValsTemp;
 	SIMeigVects.block(0, 0, V.rows(), blockSize)	= eigVectsTemp;
 
@@ -2406,14 +2406,15 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	/* Initialization */
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
-	int q = 250;
+	int q = 100;
+	int max_iter = 10;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
-	SIMeigValsStack.resize(q, 7);
+	SIMeigValsStack.resize(q, max_iter);
 
-	simpleSubspaceIterMethod(viewer, q, SIMeigVects, SIMeigVals);
+	simpleSubspaceIterMethod(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 
-	string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack.txt";
+	//string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack.txt";
 	//writeDenseMatrixToFile(SIMeigValsStack, filename);
 
 	//Eigen::MatrixXd Xk = Basis * reducedEigVects;
@@ -2462,13 +2463,26 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	//cout << "Eigenvalues: \n" << SIMeigVals << endl << endl; 
 }
 
-void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
 {
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
+	bool subSpaceInit = false; 
 	int q = max(2*width, width+8);
-	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0,0,reducedEigVals.rows(), q);
+	Eigen::MatrixXd Xk;
+	 
+	if (subSpaceInit) {
+		/* Warm start */
+		cout << "Warm start.\n";
+		Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
+	}
+	else {
+		/* Random matrices */
+		cout << "Random initialization.\n";
+		generateRandomMatrix(V.rows(), q, Xk);
+	}
+
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	factorization.compute(S);
 	int k = 0;
@@ -2482,7 +2496,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
-	const int MAX_ITER = 3;
+	const int MAX_ITER = max_iter;
 	do {
 		printf("__(%d) iteration \n", k + 1);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
@@ -2627,6 +2641,30 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	EigVects = Xk.block(0, 0, V.rows(), width);
 	
 	//cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
+}
+
+void FastSpectrum::generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
+{
+	M.resize(m, n);
+	M.setIdentity();
+
+	/* Random number generator */
+	std::random_device rd;								// Will be used to obtain a seed for the random number engine
+	std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
+		
+	std::uniform_int_distribution<> dist(0, V.rows()); // From 0 to F.rows()-1
+
+	/* Filling out each element by random numbers */
+	//for (int j = 0; j < n; j++) {						// column
+	//	for (int i = 0; i < m; i++)	{					// row
+	//		double randNum = (double) dist(gen);
+	//		M(i, j) = randNum / (double)V.rows();
+	//	}
+	//}
+
+	cout << "Block: \n" << M.topLeftCorner(20, min(n, 10)) << endl;
+	
+	/* Normalization*/
 }
 
 /* [Read mesh model from file] */
