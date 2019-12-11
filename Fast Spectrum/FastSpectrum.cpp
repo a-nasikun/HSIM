@@ -229,6 +229,7 @@ void FastSpectrum::constructSample()
 {
 	constructFarthestPointSample(V, AdM, sampleSize, Sample);
 	this->sampleSize = Sample.size();
+	printf("A set of %d samples is constructed \n", Sample.size());
 }
 
 void FastSpectrum::constructBasis()
@@ -2406,8 +2407,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	/* Initialization */
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
-	int q = 100;
-	int max_iter = 10;
+	int q = 20;
+	int max_iter = 3;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
 	SIMeigValsStack.resize(q, max_iter);
@@ -2645,8 +2646,10 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 
 void FastSpectrum::generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
 {
+	Eigen::MatrixXd MTemp(m, n);
+	Eigen::MatrixXd Id(m, n); Id.setIdentity();
 	M.resize(m, n);
-	M.setIdentity();
+	//MTemp.setIdentity();
 
 	/* Random number generator */
 	std::random_device rd;								// Will be used to obtain a seed for the random number engine
@@ -2655,12 +2658,23 @@ void FastSpectrum::generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
 	std::uniform_int_distribution<> dist(0, V.rows()); // From 0 to F.rows()-1
 
 	/* Filling out each element by random numbers */
-	//for (int j = 0; j < n; j++) {						// column
-	//	for (int i = 0; i < m; i++)	{					// row
-	//		double randNum = (double) dist(gen);
-	//		M(i, j) = randNum / (double)V.rows();
-	//	}
-	//}
+	for (int j = 0; j < n; j++) {						// column
+		for (int i = 0; i < m; i++)	{					// row
+			double randNum = (double) dist(gen);
+			MTemp(i, j) = randNum / (double)V.rows();
+		}
+		//M.col(j).normalize();
+	}
+
+	//cout << "Householder QR :";
+	//Eigen::HouseholderQR<Eigen::MatrixXd> qr(MTemp);
+	//M = qr.householderQ()*Id;	
+	cout << "ColPivHouseholder QR :";
+	Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(MTemp);
+	cout << "its rank:" << qr.rank() << endl;
+	M = qr.householderQ()*Id;
+
+	cout << " done\n";
 
 	cout << "Block: \n" << M.topLeftCorner(20, min(n, 10)) << endl;
 	

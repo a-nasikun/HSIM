@@ -180,6 +180,8 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 
 	// step 4: compute spectrum of (A,B) 
 	cusolver_status = cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, devInfo);
+	cout << "Dev inf:" << devInfo << endl;
+
 	cudaStat1 = cudaDeviceSynchronize();
 	assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
 	assert(cudaSuccess == cudaStat1);
@@ -189,6 +191,10 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 	else if(cudaStat1 == 0) {
 		cout << "Yeay! I can compute the eigenvalues!!!\n";
 	}
+
+	//cout << "DevInfo: " << (devInfo) << endl; 
+	//printf("dev info(2) %d:", *devInfo);
+
 	cudaStat1 = cudaMemcpy(W, d_W, sizeof(double)*m, cudaMemcpyDeviceToHost);
 	cudaStat2 = cudaMemcpy(V, d_A, sizeof(double)*lda*m, cudaMemcpyDeviceToHost);
 	cudaStat3 = cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost);

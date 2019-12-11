@@ -27,7 +27,7 @@ static int			sampleType		= Sample_Farthest_Point;
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
-string				model			= "Sphere150k";
+string				model			= "Sphere40k";
 
 
 void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum) {
@@ -139,11 +139,11 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					/* Manual input */
 					//sampSize << 16000, 4000, 1000; 
 
-					fastSpectrum.constructSampleHierarchy(sampSize);
-					viewer.data().points.resize(0, 6);
+					//fastSpectrum.constructSampleHierarchy(sampSize);
+					//viewer.data().points.resize(0, 6);
 					///visualizeSampleMulti(viewer, V, F, fastSpectrum.Sample, fastSpectrum.SubspaceSize);
 					boolShowSamples = true; 
-					//fastSpectrum.constructSample();
+					fastSpectrum.constructSample();
 
 				}
 				//ImGui::RadioButton("Poisson Disk", &sampleType, Sample_Poisson_Disk); ImGui::SameLine();
