@@ -2407,8 +2407,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	/* Initialization */
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
-	int q = 20;
-	int max_iter = 3;
+	int q = 50;
+	int max_iter = 5;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
 	SIMeigValsStack.resize(q, max_iter);
@@ -2502,7 +2502,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		printf("__(%d) iteration \n", k + 1);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
 		for (int i = 0; i < q; i++) {						// easily parallelizeable
-			Eigen::VectorXd v = M*Xk.col(i);
+			Eigen::VectorXd v;			
+			v = M*Xk.col(i);
 			XbarK.col(i) = factorization.solve(v);
 		}
 		/* Projection of M and K*/
@@ -2523,11 +2524,11 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		double convergence;
 		/* Check convergence */
 		// Criterion 3:
-		int checkId = 1;
+		int checkId = width-1;
 		double qTq = Q.col(checkId).transpose()*Q.col(checkId);
 		cout << "qTq=" << qTq << endl; 
 		cout << "eigenVal^2: " << pow(Alpha(checkId), 2) << endl;
-		convergence = sqrt(1.0 - (pow(Alpha(checkId),2))/qTq);
+		convergence = sqrt(abs(1.0 - (pow(Alpha(checkId),2))/qTq));
 		
 		printf("Convergence (c3) for index %d after %d iteration is: ", checkId, k + 1);
 		cout << convergence << endl;
@@ -2545,7 +2546,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		SIMeigValsStack.col(k) = Alpha.block(0, 0, width, 1);
 
 		k++;
-		convergenceCheck = (k < MAX_ITER);
+		//convergenceCheck = (k < MAX_ITER);
+		convergenceCheck = (convergence > 1e-4); 
 	} while (convergenceCheck);
 
 	EigVals = Alpha.block(0,0,width,1);
