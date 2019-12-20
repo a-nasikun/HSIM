@@ -2413,7 +2413,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	SIMeigVects.resize(V.rows(), q);
 	SIMeigValsStack.resize(q, max_iter);
 
-	simpleSubspaceIterMethod(viewer, q, max_iter, SIMeigVects, SIMeigVals);
+	//simpleSubspaceIterMethod(viewer, q, max_iter, SIMeigVects, SIMeigVals);
+	simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 
 	//string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack.txt";
 	//writeDenseMatrixToFile(SIMeigValsStack, filename);
@@ -2547,11 +2548,152 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 
 		k++;
 		//convergenceCheck = (k < MAX_ITER);
-		convergenceCheck = (convergence > 1e-4); 
+		convergenceCheck = (convergence > 1e-3); 
 	} while (convergenceCheck);
 
 	EigVals = Alpha.block(0,0,width,1);
 	EigVects = Xk.block(0,0,V.rows(),width);
+	cout << "Eigenvalues: \n" << EigVals << endl << endl;
+}
+
+void FastSpectrum::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+{
+	/* Initialization */
+	cout << "[1] SIM::Setup initialization of variables\n";
+	//int q = reducedEigVals.rows();
+	bool subSpaceInit = true;
+	int q = max(2 * width, width + 8);
+	Eigen::MatrixXd Xk;
+
+	if (subSpaceInit) {
+		/* Warm start */
+		cout << "Warm start.\n";
+		Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
+	}
+	else {
+		/* Random matrices */
+		cout << "Random initialization.\n";
+		generateRandomMatrix(V.rows(), q, Xk);
+	}
+
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	factorization.compute(S);
+	int k = 0;
+	cout << "__ num of subspace q: " << q << endl;
+	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
+
+	/* Iteration for eigenproblem */
+	cout << "[2] Iterating steps. \n";
+	bool notConverged = true;
+	Eigen::MatrixXd XbarK(V.rows(), q);
+	Eigen::MatrixXd Mproj, Sproj;
+	Eigen::MatrixXd Q(V.rows(), q);
+	Eigen::VectorXd Alpha(q);
+	Eigen::VectorXd conv_rate(q); 
+	conv_rate.setConstant(std::numeric_limits<double>::infinity());
+	const int MAX_ITER = max_iter;
+	double CONV_CHECK = 5e-4;
+
+	/* variable for smaller size of subspace  */
+	Eigen::MatrixXd XbarS, XS, QS;
+	Eigen::VectorXd LS;
+	XbarS.resize(V.rows(), q);
+	XS = Xk;
+	int sWidth = q;
+
+	do {
+		printf("__(%d) iteration \n", k + 1);
+		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarS.rows(), XbarS.cols());
+		for (int i = 0; i < sWidth; i++) {						// easily parallelizeable
+			if (conv_rate(q - sWidth + i) > CONV_CHECK) {
+				Eigen::VectorXd v = M*XS.col(i);
+				XbarS.col(i) = factorization.solve(v);
+			}
+		}
+		/* Projection of M and K*/
+		printf("__setting up reduced matrix M and S. ");
+		Mproj = XbarS.transpose()*M*XbarS;
+		Sproj = XbarS.transpose()*S*XbarS;
+		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+
+		/* Reduced eigenvalue problem */
+		printf("__solve reduced eigenvalue problem. ");
+		computeEigenGPUDense(Sproj, Mproj, QS, LS);
+		printf(" EigVec: %dx%d | eigVals: %d \n", QS.rows(), QS.cols(), LS.rows());
+
+		printf("__lifting up/prolongation.");
+		XS = XbarS*QS;
+		printf("Xk size: %d \n", XS.rows());
+
+		double convergence;
+		/* Check convergence */
+		// Criterion 3:
+		cout << "Iter: " << k + 1 <<  endl << "____Conv: " ;
+		double conv;
+		//for (int checkId = 0; checkId < sWidth-width; checkId++) {
+		for (int checkId = 0; checkId < sWidth; checkId++) {
+			double qTq = QS.col(checkId).transpose()*QS.col(checkId);
+			//cout << "qTq=" << qTq << endl;
+			//cout << "eigenVal^2: " << pow(Alpha(checkId), 2) << endl;
+			conv = (pow(LS(checkId), 2)) / qTq;
+			convergence = sqrt(1.0 - conv);
+			conv_rate(q-sWidth+checkId) = convergence;
+			//printf("<%d> %.5f |", checkId, convergence);			
+			//printf("Convergence (c3) for index %d after %d iteration is: ", checkId, k + 1);
+			//cout << convergence << endl;
+		}
+		
+		notConverged = false;
+		for (int i = 0; i < sWidth-width; i++) {
+			if (conv_rate(q-sWidth+i) < CONV_CHECK) {
+				cout << "0 |";
+				//notConverged = notConverged && false;
+			} else {
+				cout << "1 |";
+				//notConverged = notConverged && true;
+				notConverged = true;
+			}
+		}
+
+		cout << endl << endl;
+
+		/* Putting everything on the proper places */
+		cout << "Checking size: \n";
+		printf("wWidth=%d | XK: %dx%d | LS: %d \n", sWidth, XS.rows(), XS.cols(), LS.rows(), LS.cols());
+		Xk.rightCols(sWidth) = XS;
+		Alpha.tail(sWidth) = LS;
+
+		cout << "Setting new width \n";		
+		for (int i = 1; i < width; i++) {
+			if (conv_rate(i) > CONV_CHECK) {
+				sWidth = q - i;
+				break;
+			}
+		}
+		
+		cout << "New width: " << sWidth << endl; 
+		XbarS.resize(XbarS.rows(), sWidth);
+
+		cout << "Convergence: " << conv_rate.transpose() << endl << endl;
+
+		// Convergence: criterion 2
+		//Eigen::VectorXd diff = S*Xk.col(checkId) - Alpha(checkId)*M*Xk.col(checkId);
+		//Eigen::VectorXd stiff = S*Xk.col(checkId);
+		//convergence = diff.transpose()*M*diff;
+		//convergence /= stiff.transpose()*M*stiff;
+		//convergence = sqrt(convergence);
+		//printf("Convergence (c2) for index %d after %d iteration is: ", checkId, k + 1);
+		//cout << convergence << endl;
+
+		SIMeigValsStack.col(k) = Alpha.block(0, 0, width, 1);
+
+		k++;
+		//notConverged = (k < MAX_ITER);
+		//notConverged = (convergence > 5e-4) && (conv > 0.0);
+	} while (notConverged);
+
+	EigVals = Alpha.block(0, 0, width, 1);
+	EigVects = Xk.block(0, 0, V.rows(), width);
 	cout << "Eigenvalues: \n" << EigVals << endl << endl;
 }
 
