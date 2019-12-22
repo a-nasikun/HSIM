@@ -2629,19 +2629,28 @@ void FastSpectrum::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::V
 		/* Check convergence */
 		// Criterion 3:
 		cout << "Iter: " << k + 1 <<  endl << "____Conv: " ;
-		double conv;
-		//for (int checkId = 0; checkId < sWidth-width; checkId++) {
-		for (int checkId = 0; checkId < sWidth; checkId++) {
-			double qTq = QS.col(checkId).transpose()*QS.col(checkId);
-			//cout << "qTq=" << qTq << endl;
-			//cout << "eigenVal^2: " << pow(Alpha(checkId), 2) << endl;
-			conv = (pow(LS(checkId), 2)) / qTq;
-			convergence = sqrt(1.0 - conv);
-			conv_rate(q-sWidth+checkId) = convergence;
-			//printf("<%d> %.5f |", checkId, convergence);			
-			//printf("Convergence (c3) for index %d after %d iteration is: ", checkId, k + 1);
-			//cout << convergence << endl;
-		}
+		
+		checkConvergenceCat2(XS, LS, conv_rate);
+		//checkConvergenceCat3(QS, LS, conv_rate);
+		//double conv;
+		////for (int checkId = 0; checkId < sWidth-width; checkId++) {
+		//for (int checkId = 0; checkId < sWidth; checkId++) {
+		//	double qTq = QS.col(checkId).transpose()*QS.col(checkId);
+		//	//cout << "qTq=" << qTq << endl;
+		//	//cout << "eigenVal^2: " << pow(Alpha(checkId), 2) << endl;
+		//	conv = (pow(LS(checkId), 2)) / qTq;
+		//	if (conv > 1.0) {
+		//		printf("IT's WEIRD! the second part is:");
+		//		cout << conv << endl; 
+		//		cout << "qTq=" << qTq;
+		//		cout << "| eigenVal^2: " << pow(LS(checkId), 2) << endl;
+		//	}
+		//	convergence = sqrt(abs(1.0 - conv));
+		//	conv_rate(q-sWidth+checkId) = convergence;
+		//	//printf("<%d> %.5f |", checkId, convergence);			
+		//	//printf("Convergence (c3) for index %d after %d iteration is: ", checkId, k + 1);
+		//	//cout << convergence << endl;
+		//}
 		
 		notConverged = false;
 		for (int i = 0; i < sWidth-width; i++) {
@@ -2663,13 +2672,13 @@ void FastSpectrum::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::V
 		Xk.rightCols(sWidth) = XS;
 		Alpha.tail(sWidth) = LS;
 
-		cout << "Setting new width \n";		
-		for (int i = 1; i < width; i++) {
-			if (conv_rate(i) > CONV_CHECK) {
-				sWidth = q - i;
-				break;
-			}
-		}
+		//cout << "Setting new width \n";		
+		//for (int i = 1; i < width; i++) {
+		//	if (conv_rate(i) > CONV_CHECK) {
+		//		sWidth = q - i;
+		//		break;
+		//	}
+		//}
 		
 		cout << "New width: " << sWidth << endl; 
 		XbarS.resize(XbarS.rows(), sWidth);
@@ -2808,6 +2817,45 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	EigVects = Xk.block(0, 0, V.rows(), width);
 	
 	//cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
+}
+
+void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
+{
+	convRate.resize(A.rows());
+	Eigen::VectorXd Kq, AMq, diff;
+
+	for (int i = 0; i < A.rows(); i++) {
+		Kq = S * Q.col(i);
+		AMq = A(i)*M*Q.col(i);
+		diff = Kq - AMq; 
+
+		double n1 = diff.transpose()*M*diff;
+		double n2 = Kq.transpose()*M*Kq;
+		convRate(i) = sqrt(abs(n1/n2));
+		if (i == 1)
+			cout << "Conv: " << convRate(i);
+	}
+
+	//Eigen::VectorXd diff = S*Xk.col(checkId) - Alpha(checkId)*M*Xk.col(checkId);
+	//Eigen::VectorXd stiff = S*Xk.col(checkId);
+	//convergence = diff.transpose()*M*diff;
+	//convergence /= stiff.transpose()*M*stiff;
+	//convergence = sqrt(abs(convergence));
+}
+
+void FastSpectrum::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
+{
+	convRate.resize(A.rows());
+
+	for (int i = 0; i < A.rows(); i++)
+	{
+		double a2 = A(i)*A(i);
+		double qTq = Q.col(i).transpose()*Q.col(i);
+		double rat = a2 / qTq;
+		double conv = abs(1.0 - rat);
+		conv = sqrt(conv);
+		convRate(i) = conv;
+	}
 }
 
 void FastSpectrum::generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
