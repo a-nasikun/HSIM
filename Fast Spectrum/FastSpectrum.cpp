@@ -2413,8 +2413,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	SIMeigVects.resize(V.rows(), q);
 	SIMeigValsStack.resize(q, max_iter);
 
-	//simpleSubspaceIterMethod(viewer, q, max_iter, SIMeigVects, SIMeigVals);
-	simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
+	simpleSubspaceIterMethod(viewer, q, max_iter, SIMeigVects, SIMeigVals);
+	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 
 	//string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack.txt";
 	//writeDenseMatrixToFile(SIMeigValsStack, filename);
@@ -2498,7 +2498,10 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
+	Eigen::VectorXd conv2, conv3;
 	const int MAX_ITER = max_iter;
+
+
 	do {
 		printf("__(%d) iteration \n", k + 1);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
@@ -2522,8 +2525,16 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		Xk = XbarK*Q;
 		printf("Xk size: %d \n", Xk.rows());
 		
-		double convergence;
-		/* Check convergence */
+		/* Convergence Check*
+		** Type 2: */
+		checkConvergenceCat2(Xk, Alpha, conv2);
+		cout << "Conv 2 \n" << conv2.head(width).transpose() << endl;
+		/** Type 3: */
+		checkConvergenceCat3(Q, Alpha, conv3);
+		cout << "Conv 3 \n" << conv3.head(width).transpose() << endl;
+
+		/*
+		double convergence;		
 		// Criterion 3:
 		int checkId = width-1;
 		double qTq = Q.col(checkId).transpose()*Q.col(checkId);
@@ -2543,12 +2554,13 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 
 		printf("Convergence (c2) for index %d after %d iteration is: ", checkId, k + 1);
 		cout << convergence << endl; 
+		*/
 
 		SIMeigValsStack.col(k) = Alpha.block(0, 0, width, 1);
 
 		k++;
 		//convergenceCheck = (k < MAX_ITER);
-		convergenceCheck = (convergence > 1e-3); 
+		convergenceCheck = (conv2(width-1) > 1e-4); 
 	} while (convergenceCheck);
 
 	EigVals = Alpha.block(0,0,width,1);
@@ -2831,16 +2843,8 @@ void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::V
 
 		double n1 = diff.transpose()*M*diff;
 		double n2 = Kq.transpose()*M*Kq;
-		convRate(i) = sqrt(abs(n1/n2));
-		if (i == 1)
-			cout << "Conv: " << convRate(i);
+		convRate(i) = sqrt(n1/n2);
 	}
-
-	//Eigen::VectorXd diff = S*Xk.col(checkId) - Alpha(checkId)*M*Xk.col(checkId);
-	//Eigen::VectorXd stiff = S*Xk.col(checkId);
-	//convergence = diff.transpose()*M*diff;
-	//convergence /= stiff.transpose()*M*stiff;
-	//convergence = sqrt(abs(convergence));
 }
 
 void FastSpectrum::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
