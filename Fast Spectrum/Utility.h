@@ -40,5 +40,8 @@ double checkAccuracy(const Eigen::SparseMatrix<double>& M, const Eigen::VectorXd
 
 void writeDenseMatrixToFile(const Eigen::MatrixXd& M, const string& filename);
 
+void generateRandomMatrix(int m, int n, Eigen::MatrixXd& M);
+
+
 #endif // !UTILITY_H
 

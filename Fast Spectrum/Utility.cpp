@@ -1,6 +1,9 @@
 #include "Utility.h"
 #include <fstream>
 #include <igl/doublearea.h>
+#include <random>
+
+using namespace std;
 
 /* Create a list of neighbors of every vertex *
 ** Input:
@@ -120,4 +123,52 @@ void writeDenseMatrixToFile(const Eigen::MatrixXd& M, const string& filename)
 		myfile.close();
 	}
 	else cout << "Unable to open file";
+}
+
+void generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
+{
+	Eigen::MatrixXd MTemp(m, n);
+	Eigen::MatrixXd Id(m, n); Id.setIdentity();
+	M.resize(m, n);
+	//MTemp.setIdentity();
+
+	/* Random number generator */
+	std::random_device rd;								// Will be used to obtain a seed for the random number engine
+	std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
+
+	std::uniform_int_distribution<> dist(0, m);			// From 0 to F.rows()-1
+
+													   /* Filling out each element by random numbers */
+	for (int j = 0; j < n; j++) {						// column
+		for (int i = 0; i < m; i++) {					// row
+			double randNum = (double)dist(gen);
+			MTemp(i, j) = 2.0 * (randNum / (double)m - 0.5);
+		}
+		//M.col(j).normalize();		
+	}
+
+	/* Use as it is */
+	M = MTemp;
+
+	/* Regular normalization */
+	//for (int j = 0; j < n; j++) {
+	//	M.col(j) = MTemp.col(j).normalized();
+	//}
+
+
+
+	/* QR orthonormalized*/
+	//cout << "Householder QR :";
+	//Eigen::HouseholderQR<Eigen::MatrixXd> qr(MTemp);
+	//M = qr.householderQ()*Id;	
+	//cout << "ColPivHouseholder QR :";
+	//Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(MTemp);
+	//cout << "its rank:" << qr.rank() << endl;
+	//M = qr.householderQ()*Id;
+
+	cout << " done\n";
+
+	cout << "Block: \n" << M.topLeftCorner(20, min(n, 10)) << endl;
+
+	/* Normalization*/
 }

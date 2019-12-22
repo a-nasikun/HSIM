@@ -2476,13 +2476,26 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	 
 	if (subSpaceInit) {
 		/* Warm start */
+		
 		cout << "Warm start.\n";
-		Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
+		//Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
+
+		/* Bathe initialization */
+		generateBatheInitVectors(V.rows(), q, Xk);
+		cout << "Block: \n" << Xk.topLeftCorner(20, min(q, 10)) << endl;
 	}
 	else {
 		/* Random matrices */
 		cout << "Random initialization.\n";
 		generateRandomMatrix(V.rows(), q, Xk);
+
+		/* M-normalized per column */
+		for (int i = 0; i < q; i++) {
+			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			mNorm = (double) 1.0 / sqrt(mNorm);
+			Xk.col(i) = mNorm * Xk.col(i);
+		}
+		cout << "Check: " << Xk.col(2).transpose()*M*Xk.col(2) << endl; 
 	}
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -2501,13 +2514,13 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	Eigen::VectorXd conv2, conv3;
 	const int MAX_ITER = max_iter;
 
-
 	do {
 		printf("__(%d) iteration \n", k + 1);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
 		for (int i = 0; i < q; i++) {						// easily parallelizeable
 			Eigen::VectorXd v;			
-			v = M*Xk.col(i);
+			//v = M*Xk.col(i);
+			v = Xk.col(i);
 			XbarK.col(i) = factorization.solve(v);
 		}
 		/* Projection of M and K*/
@@ -2831,6 +2844,36 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	//cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
 }
 
+void FastSpectrum::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
+{
+	Xk.resize(m, n);
+	Eigen::VectorXd e(m); e.setZero();
+	
+
+	Xk.col(0) = M.diagonal();
+	for (int i = 1; i < n - 1; i++) {
+		e(i) = 1.0;
+		Xk.col(i) = e;
+		e(i) = 0.0;
+	}
+	
+	/*Last column*/
+	std::random_device rd;								// Will be used to obtain a seed for the random number engine
+	std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
+	std::uniform_int_distribution<> dist(0, m);			// From 0 to F.rows()-1
+
+	// Filling out each element by random numbers
+	for (int i = 0; i < m; i++) {					// row
+		double randNum = (double)dist(gen);
+		Xk(i, n-1) = 2.0 * (randNum / (double)m - 0.5);
+	}
+	double mNorm = Xk.col(n-1).transpose() * M * Xk.col(n-1);
+	mNorm = (double) 1.0 / sqrt(mNorm);
+	Xk.col(n-1) = mNorm * Xk.col(n-1);
+
+
+}
+
 void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
 {
 	convRate.resize(A.rows());
@@ -2862,42 +2905,6 @@ void FastSpectrum::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::V
 	}
 }
 
-void FastSpectrum::generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
-{
-	Eigen::MatrixXd MTemp(m, n);
-	Eigen::MatrixXd Id(m, n); Id.setIdentity();
-	M.resize(m, n);
-	//MTemp.setIdentity();
-
-	/* Random number generator */
-	std::random_device rd;								// Will be used to obtain a seed for the random number engine
-	std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
-		
-	std::uniform_int_distribution<> dist(0, V.rows()); // From 0 to F.rows()-1
-
-	/* Filling out each element by random numbers */
-	for (int j = 0; j < n; j++) {						// column
-		for (int i = 0; i < m; i++)	{					// row
-			double randNum = (double) dist(gen);
-			MTemp(i, j) = randNum / (double)V.rows();
-		}
-		//M.col(j).normalize();
-	}
-
-	//cout << "Householder QR :";
-	//Eigen::HouseholderQR<Eigen::MatrixXd> qr(MTemp);
-	//M = qr.householderQ()*Id;	
-	cout << "ColPivHouseholder QR :";
-	Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(MTemp);
-	cout << "its rank:" << qr.rank() << endl;
-	M = qr.householderQ()*Id;
-
-	cout << " done\n";
-
-	cout << "Block: \n" << M.topLeftCorner(20, min(n, 10)) << endl;
-	
-	/* Normalization*/
-}
 
 /* [Read mesh model from file] */
 void FastSpectrum::readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F)
