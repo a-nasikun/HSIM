@@ -2473,15 +2473,16 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	bool subSpaceInit = true; 
 	int q = max(2*width, width+8);
 	Eigen::MatrixXd Xk;
-	 
+	Eigen::MatrixXd Xk2;
+
 	if (subSpaceInit) {
 		/* Warm start */
 		
 		cout << "Warm start.\n";
-		//Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
+		Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
 
 		/* Bathe initialization */
-		generateBatheInitVectors(V.rows(), q, Xk);
+		//generateBatheInitVectors(V.rows(), q, Xk);
 		cout << "Block: \n" << Xk.topLeftCorner(20, min(q, 10)) << endl;
 	}
 	else {
@@ -2496,6 +2497,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
 		cout << "Check: " << Xk.col(2).transpose()*M*Xk.col(2) << endl; 
+
+		Xk2 = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
 	}
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -2519,9 +2522,20 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
 		for (int i = 0; i < q; i++) {						// easily parallelizeable
 			Eigen::VectorXd v;			
-			//v = M*Xk.col(i);
-			v = Xk.col(i);
+			v = M*Xk.col(i);
+			//v = Xk.col(i);
 			XbarK.col(i) = factorization.solve(v);
+
+			//cout << "Solution to the system: \n";
+			//if (i < 10)
+			//{
+			//	cout << "__" << i << "_Random:" << XbarK.col(i).head(10).transpose() << endl; 
+			//	
+			//	// Approx. eigenvectors
+			//	v = M*Xk2.col(i);
+			//	v = factorization.solve(v);
+			//	cout << "__" << i << "_Approx:" << v.col(i).head(10).transpose() << endl;
+			//}
 		}
 		/* Projection of M and K*/
 		printf("__setting up reduced matrix M and S. ");
@@ -2531,7 +2545,10 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 
 		/* Reduced eigenvalue problem */
 		printf("__solve reduced eigenvalue problem. ");
-		computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		//computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
+		computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
+
 		printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
 
 		printf("__lifting up/prolongation.");
