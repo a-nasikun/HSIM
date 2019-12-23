@@ -12,7 +12,9 @@ find_package(OpenGL)
 # Matlab
 set (MATLAB_LIBRARY_DIR "" CACHE PATH "Matlab static library dirs (e.g. R2018a/extern/lib/win64/microsoft)")
 set (MATLAB_INCLUDE_DIR "" CACHE PATH "Matlab include dir ((e.g. R2018a/extern/include)")
+set (SPECTRA_INCLUDE_DIR "" CACHE PATH "Include library for the Spectra eigensolver")
 include_directories(${MATLAB_INCLUDE_DIR})
+include_directories(${SPECTRA_INCLUDE_DIR}/include)
 link_directories(${MATLAB_LIBRARY_DIR})
 					
 # EIGEN
