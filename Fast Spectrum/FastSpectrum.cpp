@@ -232,6 +232,7 @@ void FastSpectrum::constructSample()
 	printf("A set of %d samples is constructed \n", Sample.size());
 }
 
+/* Constructing multi-level basis */
 void FastSpectrum::constructBasis()
 {
 	//const double NUM_SUPPORT = 5.0;
@@ -2545,9 +2546,9 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 
 		/* Reduced eigenvalue problem */
 		printf("__solve reduced eigenvalue problem. ");
-		//computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
 		//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
-		computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
+		//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
 		printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
 

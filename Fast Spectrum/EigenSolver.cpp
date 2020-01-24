@@ -195,7 +195,7 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 	cout << " jobz: " << jobz << endl; 
 
 	cusolver_status = cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, devInfo);
-	cout << "Dev inf:" << devInfo << endl;
+	//cout << "Dev inf:" << devInfo << endl;
 	//cout << "Dev inf:" << *devInfo << endl;
 
 	cudaStat1 = cudaDeviceSynchronize();
@@ -222,7 +222,7 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 	assert(cudaSuccess == cudaStat3);
 
 	if (info_gpu != 0) {
-		cout << "Error! Cannot copy back to CPU sygvd." << endl;
+		cout << info_gpu << "| Error! Cannot copy back to CPU sygvd." << endl;
 	}
 	assert(0 == info_gpu);
 

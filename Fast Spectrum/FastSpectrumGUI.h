@@ -104,6 +104,7 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			if (ImGui::CollapsingHeader("Program Step by Step", ImGuiTreeNodeFlags_DefaultOpen)) {
 				/* Setup Laplace-Beltrami Matrix */
 				if (ImGui::Button("[1] Construct Laplacian Matrix", ImVec2(w, 0))) {
+					fastSpectrum.setInitialSystem(1);
 					fastSpectrum.constructLaplacianMatrix();
 				}
 				/* For Sampling */
@@ -143,8 +144,8 @@ void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					//viewer.data().points.resize(0, 6);
 					///visualizeSampleMulti(viewer, V, F, fastSpectrum.Sample, fastSpectrum.SubspaceSize);
 					boolShowSamples = true; 
-					fastSpectrum.constructSample();
-
+					//fastSpectrum.constructSample();
+					fastSpectrum.constructSampleHierarchy(sampSize);
 				}
 				//ImGui::RadioButton("Poisson Disk", &sampleType, Sample_Poisson_Disk); ImGui::SameLine();
 				ImGui::RadioButton("Farthest Point", &sampleType, Sample_Farthest_Point);
@@ -490,9 +491,9 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 	Eigen::MatrixXi F = viewer.data().F;
 
 	// Variables For Viewer visualization
-	float	menuWindowLeft = 375.f,
-		menuWindowWidth = 200.f,
-		menuWindowHeight = 475.f;
+	float	menuWindowLeft		= 375.f,
+			menuWindowWidth		= 200.f,
+			menuWindowHeight	= 475.f;
 
 	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
 	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);

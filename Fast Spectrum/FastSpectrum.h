@@ -45,11 +45,11 @@ public:
 	
 	void setInitialSystem(int n);
 	void constructLaplacianMatrix();
-	void constructSampleHierarchy(Eigen::VectorXd& n);
-	void constructSample();
-	void constructBasis();
-	void constructBasisCoarseOnly();
-	void constructNonSmoothBasis();
+	void constructSampleHierarchy(Eigen::VectorXd& n);		// Creating hierarchies when constructing the samples (multi-level), using farthest point sampling
+	void constructSample();									// Creating samples
+	void constructBasis();									// Constructing multi-level basis
+	void constructBasisCoarseOnly();						// Constructing 1-level basis (similar to our SGP)
+	void constructNonSmoothBasis();							// 1/0-weighted function, from SIGGRAPH Asia paper
 	void constructRestrictedProblem();
 	void solveRestrictedProblem();
 
