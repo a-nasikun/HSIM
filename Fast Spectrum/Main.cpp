@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 			
 	menu.callback_draw_viewer_window = [&]()
 	{
-		showMenu(viewer, menu, fastSpectrum);
+		fastSpectrumMenu(viewer, menu, fastSpectrum);
 		applicationMenu(viewer, menu, fastSpectrum);
 		subspaceMenu(viewer, menu, fastSpectrum);
 	};

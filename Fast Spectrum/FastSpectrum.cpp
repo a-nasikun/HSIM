@@ -2471,7 +2471,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	bool subSpaceInit = true; 
+	bool subSpaceInit = false; 
 	int q = max(2*width, width+8);
 	Eigen::MatrixXd Xk;
 	Eigen::MatrixXd Xk2;

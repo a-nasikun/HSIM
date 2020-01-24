@@ -30,7 +30,7 @@ float				tauScale		= 10.0f;
 string				model			= "Sphere40k";
 
 
-void showMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum) {
+void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum) {
 	// MAIN WINDOW 	
 	{
 		// Variable for Processing
