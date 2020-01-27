@@ -504,6 +504,21 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 	if (ImGui::CollapsingHeader("Draft on subspace iteration", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
+			//sanity check
+			Eigen::SparseMatrix<double> SS = fastSpectrum.S;
+			Eigen::SparseMatrix<double> MM = fastSpectrum.M;
+			Eigen::VectorXd				ee(MM.rows()); ee.setZero(); ee(1) = 1.0; ee = MM*ee;
+
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> solver;
+			solver.compute(SS);
+			if (solver.info() != Eigen::Success) {
+				cout << "Decom failed \n";
+			}
+			Eigen::VectorXd				ff = solver.solve(ee);
+			cout << "Top " << ff.head(20) << endl;
+			cout << "Bottom " << ff.tail(20) << endl;
+			writeDenseMatrixToFile(ff, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/function.txt");
+
 			fastSpectrum.simpleSubspaceIterMethod(viewer);
 		}
 		if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
