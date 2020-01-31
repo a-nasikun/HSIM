@@ -2410,7 +2410,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
 	int q = 250;
-	int max_iter = 10;
+	int max_iter = 15;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
 	SIMeigValsStack.resize(q, max_iter);
@@ -2484,9 +2484,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		Xk = Basis * reducedEigVects.block(0, 0, Basis.cols(), q);
 
 		/* Bathe initialization */
-		cout << "___ with Bathe's initialization scheme \n";
-		//generateBatheInitVectors(V.rows(), q, Xk);
-		
+		//cout << "___ with Bathe's initialization scheme \n";
+		//generateBatheInitVectors(V.rows(), q, Xk);		
 		cout << "Block: \n" << Xk.topLeftCorner(20, min(q, 10)) << endl;
 	}
 	else {
@@ -2504,10 +2503,10 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 
 		cout << "Check 2: " << Xk.col(2).transpose()*M*Xk.col(2) << endl; 
 		cout << "Check 9: " << Xk.col(9).transpose()*M*Xk.col(9) << endl;
-
 		//Xk2 = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
 	}
 
+	// Adding small epsilon the the diagonal (to avoid the kernel)
 	Eigen::SparseMatrix<double> SS;
 	Eigen::SparseMatrix<double> Id; Id.resize(S.rows(), S.cols()); Id.setIdentity();
 	double eps = 1e-6;
@@ -2596,36 +2595,14 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		/** Type 3: */
 		checkConvergenceCat3(Q, Alpha, conv3);
 		cout << "Conv 3 \n" << conv3.head(width).transpose() << endl;
-		cout << Alpha.transpose() << endl; 
-
-		/*
-		double convergence;		
-		// Criterion 3:
-		int checkId = width-1;
-		double qTq = Q.col(checkId).transpose()*Q.col(checkId);
-		cout << "qTq=" << qTq << endl; 
-		cout << "eigenVal^2: " << pow(Alpha(checkId), 2) << endl;
-		convergence = sqrt(abs(1.0 - (pow(Alpha(checkId),2))/qTq));
-		
-		printf("Convergence (c3) for index %d after %d iteration is: ", checkId, k + 1);
-		cout << convergence << endl;
-
-		// Convergence: criterion 2
-		Eigen::VectorXd diff = S*Xk.col(checkId) - Alpha(checkId)*M*Xk.col(checkId); 
-		Eigen::VectorXd stiff = S*Xk.col(checkId);
-		convergence = diff.transpose()*M*diff;
-		convergence /= stiff.transpose()*M*stiff;
-		convergence = sqrt(abs(convergence));
-
-		printf("Convergence (c2) for index %d after %d iteration is: ", checkId, k + 1);
-		cout << convergence << endl; 
-		*/
+		cout << Alpha.transpose() << endl; 		
 
 		SIMeigValsStack.col(k) = Alpha.block(0, 0, width, 1);
 
 		k++;
-		convergenceCheck = (k < MAX_ITER);
+		//convergenceCheck = (k < MAX_ITER);
 		//convergenceCheck = (conv2(width-1) > 1e-4); 
+		convergenceCheck = (k < MAX_ITER || (conv2(width-1)>1e-4));
 	} while (convergenceCheck);
 
 	EigVals = Alpha.block(0,0,width,1);
