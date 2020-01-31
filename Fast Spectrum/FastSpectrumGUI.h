@@ -506,8 +506,12 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
 			//sanity check
 			Eigen::SparseMatrix<double> SS = fastSpectrum.S;
+			Eigen::SparseMatrix<double> Id; Id.resize(SS.rows(), SS.cols()); Id.setIdentity();
+			double eps = 1e-6;
+			Id = eps*Id;
+			SS = SS + Id;
 			Eigen::SparseMatrix<double> MM = fastSpectrum.M;
-			Eigen::VectorXd				ee(MM.rows()); ee.setZero(); ee(1) = 1.0; ee = MM*ee;
+			Eigen::VectorXd				ee(MM.rows()); ee.setZero(); ee(1) = 1.0; ee = MM*ee;		// rhs of 1 on 1 diagonal
 
 			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> solver;
 			solver.compute(SS);

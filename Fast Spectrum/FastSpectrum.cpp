@@ -2409,8 +2409,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	/* Initialization */
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
-	int q = 10;
-	int max_iter = 5;
+	int q = 250;
+	int max_iter = 10;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
 	SIMeigValsStack.resize(q, max_iter);
@@ -2418,8 +2418,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	simpleSubspaceIterMethod(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 
-	//string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack.txt";
-	//writeDenseMatrixToFile(SIMeigValsStack, filename);
+	string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Kitten_EigValsStack_250_random.txt";
+	writeDenseMatrixToFile(SIMeigValsStack, filename);
 
 	//Eigen::MatrixXd Xk = Basis * reducedEigVects;
 	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -2492,23 +2492,30 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	else {
 		/* Random matrices */
 		cout << "Random initialization.\n";
-		generateRandomMatrix(V.rows(), q, Xk);
 		//generateSampleBaseInitVectors(q, Xk);
 
+		generateRandomMatrix(V.rows(), q, Xk);
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
 			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
 			mNorm = (double) 1.0 / sqrt(mNorm);
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
+
 		cout << "Check 2: " << Xk.col(2).transpose()*M*Xk.col(2) << endl; 
 		cout << "Check 9: " << Xk.col(9).transpose()*M*Xk.col(9) << endl;
 
 		//Xk2 = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
 	}
 
+	Eigen::SparseMatrix<double> SS;
+	Eigen::SparseMatrix<double> Id; Id.resize(S.rows(), S.cols()); Id.setIdentity();
+	double eps = 1e-6;
+	Id = eps*Id;
+	SS = S + Id;		// Adding epsilon to the diagonal
+
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-	factorization.compute(S);
+	factorization.compute(SS);
 	int k = 0;
 	cout << "__ num of subspace q: " << q << endl;
 	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
@@ -2531,7 +2538,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 			//if(i==0)
 			//v = Xk.col(i);				// use the input as "MxXi" directly
 			//else 
-				v = M * (Xk.col(i));				
+			v = M * (Xk.col(i));				
 
 			XbarK.col(i) = factorization.solve(v);
 
@@ -2546,28 +2553,28 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 			//	cout << "__" << i << "_Approx:" << v.col(i).head(10).transpose() << endl;
 			//}
 		}
-		cout << "Xbar top Right corner: \n" << XbarK.topRightCorner(10, 10) << endl;
-		cout << "Xbar bottom right corner: \n" << XbarK.bottomRightCorner(10, 10) << endl;
+		///cout << "Xbar top Right corner: \n" << XbarK.topRightCorner(10, 10) << endl;
+		///cout << "Xbar bottom right corner: \n" << XbarK.bottomRightCorner(10, 10) << endl;
 		/* Projection of M and K*/
 		printf("__setting up reduced matrix M and S. ");
 		Sproj = XbarK.transpose()*S*XbarK;
 		Mproj = XbarK.transpose()*M*XbarK;
 		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
 
-		cout << "Sbar\n" << Sproj.topLeftCorner(10, 10) << endl;
-		cout << "Mbar\n" << Mproj.topLeftCorner(10, 10) << endl;
-		Eigen::MatrixXd XkTXk = Xk.transpose()*Xk;
+		///cout << "Sbar\n" << Sproj.topLeftCorner(10, 10) << endl;
+		///cout << "Mbar\n" << Mproj.topLeftCorner(10, 10) << endl;
+		///Eigen::MatrixXd XkTXk = Xk.transpose()*Xk;
 		
-		double maxNum = -1000;
-		cout << "XKT * Xk \n" << XkTXk.topLeftCorner(10, 10) << endl;
-		Eigen::SparseMatrix<double> STS = S.transpose();
-		STS = STS - S;
-		for (int k = 0; k < STS.outerSize(); ++k) {
-			for (Eigen::SparseMatrix<double>::InnerIterator it(STS, k); it; ++it) {
-				if(abs(it.value()) > maxNum) maxNum = it.value();
-			}
-		}
-		printf("With the max of STS is %.32f \n", maxNum);
+		///double maxNum = -1000;
+		///cout << "XKT * Xk \n" << XkTXk.topLeftCorner(10, 10) << endl;
+		///Eigen::SparseMatrix<double> STS = S.transpose();
+		///STS = STS - S;
+		///for (int k = 0; k < STS.outerSize(); ++k) {
+		///	for (Eigen::SparseMatrix<double>::InnerIterator it(STS, k); it; ++it) {
+		///		if(abs(it.value()) > maxNum) maxNum = it.value();
+		///	}
+		///}
+		///printf("With the max of STS is %.32f \n", maxNum);
 
 		/* Reduced eigenvalue problem */
 		printf("__solve reduced eigenvalue problem. ");
@@ -2576,7 +2583,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 		//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
-		printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
+		///printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
 
 		printf("__lifting up/prolongation.");
 		Xk = XbarK*Q;
@@ -2617,8 +2624,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		SIMeigValsStack.col(k) = Alpha.block(0, 0, width, 1);
 
 		k++;
-		//convergenceCheck = (k < MAX_ITER);
-		convergenceCheck = (conv2(width-1) > 1e-4); 
+		convergenceCheck = (k < MAX_ITER);
+		//convergenceCheck = (conv2(width-1) > 1e-4); 
 	} while (convergenceCheck);
 
 	EigVals = Alpha.block(0,0,width,1);
