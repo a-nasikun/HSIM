@@ -186,6 +186,7 @@ public:
 	Eigen::MatrixXd					SIMeigVects;									// matrix storing eigenvectors, after Subspace Iteration Method (SIM)
 	Eigen::VectorXd					SIMeigVals;										// vector stroing eigenvalues,  after Subspace Iteration Method (SIM)
 	Eigen::MatrixXd					SIMeigValsStack;								// Stack of eigenvalues, from multiple iterations
+	Eigen::MatrixXd					convergenceStacks;								// Stack of convergence rate, from multiple iterations
 
 	/* [MULTI-GRID STUFF]*/
 	int									level;										// the total number of hierarchy/levels on multigrid
