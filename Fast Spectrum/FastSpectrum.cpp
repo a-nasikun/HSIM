@@ -39,8 +39,10 @@ void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSam
 void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
 {
 	readMesh(meshFile, V, F);
-	if (V.rows() < 1) return;
-	computeEigenPairs(V, F, numOfSamples, sampleType, Basis, reducedEigVects, reducedEigVals);
+
+	/* Deactivate this momentarily, for speed*/
+	///if (V.rows() < 1) return;
+	///computeEigenPairs(V, F, numOfSamples, sampleType, Basis, reducedEigVects, reducedEigVals);
 }
 
 // Constructor: Vertices & Faces + No predefined sample type + No Basis call + reduced eigenbasis
@@ -2409,8 +2411,8 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	/* Initialization */
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
-	int q = 1000;
-	int max_iter = 50;
+	int q = 500;
+	int max_iter = 25;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
 	SIMeigValsStack.resize(q, max_iter);
@@ -2420,10 +2422,10 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 	
 	/* WRITING UP THE CONVERGENCE */
-	//string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack_1000_random.txt";
-	//writeDenseMatrixToFile(SIMeigValsStack, fileConv);
-	//string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_ConvergenceStack_1000_random.txt";
-	//writeDenseMatrixToFile(convergenceStacks, fileEigs);
+	string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Fertility_EigValsStack_500_subspace.txt";
+	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
+	string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Fertility_ConvergenceStack_500_subspace.txt";
+	writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
 void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
@@ -2431,7 +2433,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	bool				subSpaceInit = false; 
+	bool				subSpaceInit = true; 
 	int					q = max(2*width, width+8);
 	Eigen::MatrixXd		Xk;
 	Eigen::MatrixXd		Xk2;
@@ -2487,6 +2489,13 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	const int MAX_ITER = max_iter;
 	const double TOL = 1e-4; 
 
+	////* Solving the system in parallel */
+	///const int						NUM_OF_THREADS = 2; // omp_get_num_procs() / 2;
+	///omp_set_num_threads(NUM_OF_THREADS);
+	///int tid, ntids, ipts, istart, iproc, i = 0;
+	///vector<Eigen::MatrixXd> XbarKblock; 
+	///XbarKblock.resize(NUM_OF_THREADS);
+
 	do {
 		printf("__(%d) iteration \n", k + 1);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());			
@@ -2497,11 +2506,50 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 			//v = Xk.col(i);				// use the input as "MxXi" directly
 			//else 
 			v = M * (Xk.col(i));				
-
+		
 			XbarK.col(i) = factorization.solve(v);
 		}
-		///cout << "Xbar top Right corner: \n" << XbarK.topRightCorner(10, 10) << endl;
-		///cout << "Xbar bottom right corner: \n" << XbarK.bottomRightCorner(10, 10) << endl;
+		
+		Eigen::MatrixXd VV = M*Xk;
+
+
+		///#pragma omp parallel private(i,tid, ntids,ipts,istart) 
+		///{
+		///	// dividing the stuff per chunk/block
+		///	iproc = omp_get_num_procs();
+		///	tid = omp_get_thread_num();
+		///	ntids = omp_get_num_threads();
+		///	ipts = (int)ceil(1.00*(double)q/ (double)ntids);
+		///	istart = tid * ipts;
+		///	if (tid == ntids - 1) ipts = q - istart;
+		///	if (ipts <= 0) ipts = 0;
+		///
+		///	XbarKblock[tid].resize(XbarK.rows(), ipts);
+		///	Eigen::VectorXd v;
+		///
+		///	for (i = istart; i < (istart + ipts); i++)
+		///	{
+		///		
+		///		//if(i==0)
+		///		//v = Xk.col(i);				// use the input as "MxXi" directly
+		///		//else 
+		///		//v = M * (Xk.col(i));	
+		///		v = VV.col(i);
+		///		XbarKblock[tid].col(i-istart) = factorization.solve(v);
+		///
+		///		//XbarK.col(i) = factorization.solve(v);
+		///
+		///		if (i < 5) {
+		///			cout << "input " << v.head(5).transpose() << endl;
+		///			cout << "output" << XbarKblock[tid].col(i-istart).head(5).transpose() << endl;
+		///		}
+		///		
+		///	}
+		///}
+
+		cout << "Xbar top Right corner: \n" << XbarK.topRightCorner(10, 10) << endl;
+		cout << "Xbar bottom right corner: \n" << XbarK.bottomRightCorner(10, 10) << endl;
+
 		/* Projection of M and K*/
 		printf("__setting up reduced matrix M and S. ");
 		Sproj = XbarK.transpose()*S*XbarK;
@@ -2550,10 +2598,10 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		convergenceStacks.col(k) = conv2.block(0, 0, width, 1);
 
 		/* WRITING UP THE CONVERGENCE */
-		string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack_1000_random.txt";
-		writeDenseMatrixToFile(Alpha.block(0, 0, width, 1), fileConv);
-		string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_ConvergenceStack_1000_random.txt";
-		writeDenseMatrixToFile(conv2.block(0, 0, width, 1), fileEigs);
+		//string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack_1000_random.txt";
+		//writeDenseMatrixToFile(Alpha.block(0, 0, width, 1), fileConv);
+		//string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_ConvergenceStack_1000_random.txt";
+		//writeDenseMatrixToFile(conv2.block(0, 0, width, 1), fileEigs);
 
 		k++;
 		//convergenceCheck = (k < MAX_ITER);
