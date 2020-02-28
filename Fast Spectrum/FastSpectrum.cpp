@@ -642,14 +642,14 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	//solveHeatEquation(tau, inputHeatRed, outputHeatRed);
 
 	/* Test on new heat diffusion */
-	multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
-	//Eigen::SparseMatrix<double>  LHS = M + tau*S;
-	//multiGridSolver(LHS, inputHeatRed, outputHeatRed);
+	//multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
+	Eigen::SparseMatrix<double>  LHS = M + tau*S;
+	multiGridSolver(LHS, inputHeatRed, outputHeatRed);
 
 	gradRed = G*outputHeatRed;
 	normalizeGradient(gradRed);
-	solvePoissonEquation(gradRed, heatDistanceRed);
-	//solvePoissonEquationRed(gradRed, heatDistanceRed);
+	//solvePoissonEquation(gradRed, heatDistanceRed);
+	solvePoissonEquationRed(gradRed, heatDistanceRed);
 	
 	//visualizeHeatGeodesics(viewer, heatDistanceRed);
 	//visualizeHeatGeodesics(viewer, outputHeatRed);
@@ -1789,7 +1789,8 @@ void FastSpectrum::initiateMultigrid(Eigen::SparseMatrix<double>& A, Eigen::Vect
 	t1 = chrono::high_resolution_clock::now();
 
 	Eigen::SparseMatrix<double> Ub(b.rows(), b.rows()); Ub.setIdentity();
-	for (int i = 0; i < level; i++) Ub = Ub*U[i];
+	for (int i = 0; i < level; i++) 
+		Ub = Ub*U[i];
 	Eigen::SparseMatrix<double> A1 = Ub.transpose()*A*Ub;
 	Eigen::VectorXd				b1 = Ub.transpose()*b; 
 	Eigen::VectorXd				x1;
@@ -2411,7 +2412,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	/* Initialization */
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
-	int q = 500;
+	int q = 50;
 	int max_iter = 25;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
@@ -2423,9 +2424,9 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	
 	/* WRITING UP THE CONVERGENCE */
 	string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Fertility_EigValsStack_500_subspace.txt";
-	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
+	//writeDenseMatrixToFile(SIMeigValsStack, fileConv);
 	string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Fertility_ConvergenceStack_500_subspace.txt";
-	writeDenseMatrixToFile(convergenceStacks, fileEigs);
+	//writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
 void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
@@ -2554,22 +2555,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		printf("__setting up reduced matrix M and S. ");
 		Sproj = XbarK.transpose()*S*XbarK;
 		Mproj = XbarK.transpose()*M*XbarK;
-		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
-
-		///cout << "Sbar\n" << Sproj.topLeftCorner(10, 10) << endl;
-		///cout << "Mbar\n" << Mproj.topLeftCorner(10, 10) << endl;
-		///Eigen::MatrixXd XkTXk = Xk.transpose()*Xk;
-		
-		///double maxNum = -1000;
-		///cout << "XKT * Xk \n" << XkTXk.topLeftCorner(10, 10) << endl;
-		///Eigen::SparseMatrix<double> STS = S.transpose();
-		///STS = STS - S;
-		///for (int k = 0; k < STS.outerSize(); ++k) {
-		///	for (Eigen::SparseMatrix<double>::InnerIterator it(STS, k); it; ++it) {
-		///		if(abs(it.value()) > maxNum) maxNum = it.value();
-		///	}
-		///}
-		///printf("With the max of STS is %.32f \n", maxNum);
+		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());		
 
 		/* Reduced eigenvalue problem */
 		printf("__solve reduced eigenvalue problem. ");
@@ -2595,13 +2581,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		//cout << Alpha.transpose() << endl; 		
 
 		SIMeigValsStack.col(k) = Alpha.block(0, 0, width, 1);
-		convergenceStacks.col(k) = conv2.block(0, 0, width, 1);
-
-		/* WRITING UP THE CONVERGENCE */
-		//string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack_1000_random.txt";
-		//writeDenseMatrixToFile(Alpha.block(0, 0, width, 1), fileConv);
-		//string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_ConvergenceStack_1000_random.txt";
-		//writeDenseMatrixToFile(conv2.block(0, 0, width, 1), fileEigs);
+		convergenceStacks.col(k) = conv2.block(0, 0, width, 1);		
 
 		k++;
 		//convergenceCheck = (k < MAX_ITER);
