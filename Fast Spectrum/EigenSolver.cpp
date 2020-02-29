@@ -296,7 +296,13 @@ void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::M
 	cusolverEigType_t	itype = CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
 	cusolverEigMode_t	jobz = CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
 	cublasFillMode_t	uplo = CUBLAS_FILL_MODE_UPPER;
-
+	cusolver_status = cusolverDnDsygvj_bufferSize(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, &lwork);
+	assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+	cudaStat1 = cudaMalloc((void**)&d_work, sizeof(double)*lwork);
+	assert(cudaSuccess == cudaStat1);
+	if (cudaStat1 != 0) {
+		cout << "Error! Cannot request space to solve the eigenproblem." << endl;
+	}
 
 }
 
