@@ -240,71 +240,156 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 	cudaDeviceReset();
 }
 
-void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
-{
-	cusolverDnHandle_t	cusolverH = NULL;
-	cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;
-	cudaError_t			cudaStat1 = cudaSuccess;
-	cudaError_t			cudaStat2 = cudaSuccess;
-	cudaError_t			cudaStat3 = cudaSuccess;
-	cudaError_t			cudaStat4 = cudaSuccess;
-
-	const int m = S.rows();
-	const int lda = m;
-
-	double *A = (double*)std::malloc(m*lda * sizeof(double));
-	double *B = (double*)std::malloc(m*lda * sizeof(double));
-	A = S.data();
-	B = M.data();
-
-	double	*V = (double*)std::malloc(m*lda * sizeof(double)); // [lda*m];		// eigenvectors 
-	double	*W = (double*)std::malloc(m * sizeof(double)); 			// eigenvalues 
-	double	*d_A = NULL;
-	double	*d_B = NULL;
-	double	*d_W = NULL;
-	int		*devInfo = NULL;
-	double	*d_work = NULL;
-	int		lwork = 0;
-	int		info_gpu = 0;
-
-	// step 1: create cusolver/cublas handle 
-	cusolver_status = cusolverDnCreate(&cusolverH);
-	assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
-
-	// step 2: copy A and B to device 
-	cudaStat1 = cudaMalloc((void**)&d_A, sizeof(double) * lda * m);
-	cudaStat2 = cudaMalloc((void**)&d_B, sizeof(double) * lda * m);
-	cudaStat3 = cudaMalloc((void**)&d_W, sizeof(double) * m);
-	cudaStat4 = cudaMalloc((void**)&devInfo, sizeof(int));
-	if (cudaStat1 != 0 || cudaStat2 != 0 || cudaStat3 != 0 || cudaStat4 != 0) {
-		cout << "Error! Cannot allocate memory in GPU." << endl;
-	}
-	assert(cudaSuccess == cudaStat1);
-	assert(cudaSuccess == cudaStat2);
-	assert(cudaSuccess == cudaStat3);
-	assert(cudaSuccess == cudaStat4);
-
-	cudaStat1 = cudaMemcpy(d_A, A, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
-	cudaStat2 = cudaMemcpy(d_B, B, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
-	assert(cudaSuccess == cudaStat1);
-	assert(cudaSuccess == cudaStat2);
-	if (cudaStat1 != 0 || cudaStat2 != 0) {
-		cout << "Error! Cannot copy data to GPU." << endl;
-	}
-
-	// step 3: query working space of sygvd 
-	cusolverEigType_t	itype = CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
-	cusolverEigMode_t	jobz = CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
-	cublasFillMode_t	uplo = CUBLAS_FILL_MODE_UPPER;
-	cusolver_status = cusolverDnDsygvj_bufferSize(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, &lwork);
-	assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
-	cudaStat1 = cudaMalloc((void**)&d_work, sizeof(double)*lwork);
-	assert(cudaSuccess == cudaStat1);
-	if (cudaStat1 != 0) {
-		cout << "Error! Cannot request space to solve the eigenproblem." << endl;
-	}
-
-}
+///void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
+///{
+///	cusolverDnHandle_t	cusolverH = NULL;
+///	cudaStream_t		stream = NULL;
+///	syevjInfo_t			syevj_params = NULL;
+///	cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;
+///	cudaError_t			cudaStat1 = cudaSuccess;
+///	cudaError_t			cudaStat2 = cudaSuccess;
+///	cudaError_t			cudaStat3 = cudaSuccess;
+///	cudaError_t			cudaStat4 = cudaSuccess;
+///
+///	const int m = S.rows();
+///	const int lda = m;
+///
+///	double *A = (double*)std::malloc(m*lda * sizeof(double));
+///	double *B = (double*)std::malloc(m*lda * sizeof(double));
+///	A = S.data();
+///	B = M.data();
+///
+///	double	*V = (double*)std::malloc(m*lda * sizeof(double)); // [lda*m];		// eigenvectors 
+///	double	*W = (double*)std::malloc(m * sizeof(double)); 			// eigenvalues 
+///	double	*d_A = NULL;
+///	double	*d_B = NULL;
+///	double	*d_W = NULL;
+///	int		*devInfo = NULL;
+///	double	*d_work = NULL;
+///	int		lwork = 0;
+///	int		info_gpu = 0;
+///
+///	// step 1: create cusolver/cublas handle 
+///	cusolver_status = cusolverDnCreate(&cusolverH);
+///	assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+///
+///	// step 2: copy A and B to device 
+///	cudaStat1 = cudaMalloc((void**)&d_A, sizeof(double) * lda * m);
+///	cudaStat2 = cudaMalloc((void**)&d_B, sizeof(double) * lda * m);
+///	cudaStat3 = cudaMalloc((void**)&d_W, sizeof(double) * m);
+///	cudaStat4 = cudaMalloc((void**)&devInfo, sizeof(int));
+///	if (cudaStat1 != 0 || cudaStat2 != 0 || cudaStat3 != 0 || cudaStat4 != 0) {
+///		cout << "Error! Cannot allocate memory in GPU." << endl;
+///	}
+///	assert(cudaSuccess == cudaStat1);
+///	assert(cudaSuccess == cudaStat2);
+///	assert(cudaSuccess == cudaStat3);
+///	assert(cudaSuccess == cudaStat4);
+///
+///	cudaStat1 = cudaMemcpy(d_A, A, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
+///	cudaStat2 = cudaMemcpy(d_B, B, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
+///	assert(cudaSuccess == cudaStat1);
+///	assert(cudaSuccess == cudaStat2);
+///	if (cudaStat1 != 0 || cudaStat2 != 0) {
+///		cout << "Error! Cannot copy data to GPU." << endl;
+///	}
+///
+///	// configuring the jacobi 
+///	const double tol = 1.e-7;
+///	const int max_sweeps = 15;
+///	double residual = 0;
+///	int executed_sweeps = 0;
+///
+///	cudaStat1 = cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+///	assert(cudaSuccess == cudaStat1);
+///
+///	cusolver_status = cusolverDnSetStream(cusolverH, stream);
+///	assert(CUSOLVER_STATUS_SUCCESS == status);
+///
+///	/* step 2: configuration of syevj */
+///	cusolver_status = cusolverDnCreateSyevjInfo(&syevj_params);
+///	assert(CUSOLVER_STATUS_SUCCESS == status);
+///
+///	/* default value of tolerance is machine zero */
+///	cusolver_status = cusolverDnXsyevjSetTolerance(syevj_params, tol);
+///	assert(CUSOLVER_STATUS_SUCCESS == status);
+///
+///	/* default value of max. sweeps is 100 */
+///	cusolver_status = cusolverDnXsyevjSetMaxSweeps(syevj_params, max_sweeps);
+///	assert(CUSOLVER_STATUS_SUCCESS == status);
+///
+///	// step 3: query working space of sygvj 
+///	cusolverEigType_t	itype = CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
+///	cusolverEigMode_t	jobz = CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
+///	cublasFillMode_t	uplo = CUBLAS_FILL_MODE_UPPER;
+/// ///<<<<<<< HEAD
+/// ///	cusolver_status = cusolverDnDsygvj_bufferSize(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, &lwork);
+/// ///=======
+///	cusolver_status = cusolverDnDsygvj_bufferSize(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, &lwork, syevj_params);
+/// ///>>>>>>> 1cc065c4333e22e0cb956b8e9d5cff4985043e48
+///	assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+///	cudaStat1 = cudaMalloc((void**)&d_work, sizeof(double)*lwork);
+///	assert(cudaSuccess == cudaStat1);
+///	if (cudaStat1 != 0) {
+///		cout << "Error! Cannot request space to solve the eigenproblem." << endl;
+///	}
+/// ///<<<<<<< HEAD
+/// ///=======
+///
+///	// step 4: compute spectrum of (A,B) 
+///	cout << "Prior to computation \n";
+///	printf("__Lwork=%d |", lwork);
+///	cout << " jobz: " << jobz << endl;
+///
+///	
+///	//cusolver_status = cusolverDnDsygvj(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, devInfo);
+///	cusolver_status = cusolverDnDsygvj(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, devInfo, syevj_params);
+///
+///	//cout << "Dev inf:" << devInfo << endl;
+///	//cout << "Dev inf:" << *devInfo << endl;
+/// ///>>>>>>> 1cc065c4333e22e0cb956b8e9d5cff4985043e48
+///
+///	cudaStat1 = cudaDeviceSynchronize();
+///	assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+///	assert(cudaSuccess == cudaStat1);
+///	if (cudaStat1 != 0 || cudaStat2 != 0) {
+///		cout << "Error! CUDA cuSolver's eigensolver FAILED to solve the eigenproblem." << endl;
+///	}
+///	else if (cudaStat1 == 0) {
+///		cout << "Yeay! I can compute the eigenvalues!!!\n";
+///	}
+///
+///	//cout << "DevInfo: " << (devInfo) << endl; 
+///	//printf("dev info(2) %d:", *devInfo);
+///
+///	cudaStat1 = cudaMemcpy(W, d_W, sizeof(double)*m, cudaMemcpyDeviceToHost);
+///	cudaStat2 = cudaMemcpy(V, d_A, sizeof(double)*lda*m, cudaMemcpyDeviceToHost);
+///	cudaStat3 = cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost);
+///	if (cudaStat1 != 0 || cudaStat2 != 0 || cudaStat3 != 0) {
+///		cout << "Error! Cannot copy data from GPU to CPU." << endl;
+///	}
+///	assert(cudaSuccess == cudaStat1);
+///	assert(cudaSuccess == cudaStat2);
+///	assert(cudaSuccess == cudaStat3);
+///
+///	if (info_gpu != 0) {
+///		cout << info_gpu << "| Error! Cannot copy back to CPU sygvd." << endl;
+///	}
+///	assert(0 == info_gpu);
+///
+///	// Copying back to EigenFormat (dense) for Eigenvalues and Eigenvectors
+///	LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V, m, lda, Eigen::OuterStride<>(m));
+///	LDEigVal = Eigen::Map<Eigen::VectorXd>(W, m);
+///
+///	// free resources 
+///	if (d_A) cudaFree(d_A);
+///	if (d_B) cudaFree(d_B);
+///	if (d_W) cudaFree(d_W);
+///	if (devInfo) cudaFree(devInfo);
+///	if (d_work) cudaFree(d_work);
+///	if (cusolverH) cusolverDnDestroy(cusolverH);
+///	cudaDeviceReset();
+///}
 
 void computeEigenGPUDense2(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
@@ -575,7 +660,7 @@ void computeEigenMatlabDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int& 
 
 	/* Performing the eigenvalue computation */
 	cout << "Performing the eigenvalue computation \n";
-	igl::matlab::mleval(&ep, "[EVec, EVal]=eigs(S,M,numEigen,'smallestreal');");
+	igl::matlab::mleval(&ep, "[EVec, EVal]=eig(S,M,numEigen,'smallestreal');");
 	igl::matlab::mleval(&ep, "EVal=diag(EVal);");
 	igl::matlab::mleval(&ep, "plot(EVal);");
 

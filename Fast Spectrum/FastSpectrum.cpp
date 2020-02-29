@@ -39,8 +39,10 @@ void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSam
 void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
 {
 	readMesh(meshFile, V, F);
-	if (V.rows() < 1) return;
-	computeEigenPairs(V, F, numOfSamples, sampleType, Basis, reducedEigVects, reducedEigVals);
+
+	/* Deactivate this momentarily, for speed*/
+	///if (V.rows() < 1) return;
+	///computeEigenPairs(V, F, numOfSamples, sampleType, Basis, reducedEigVects, reducedEigVals);
 }
 
 // Constructor: Vertices & Faces + No predefined sample type + No Basis call + reduced eigenbasis
@@ -125,6 +127,7 @@ void FastSpectrum::constructLaplacianMatrix(){
 	/* Construct Stiffness matrix S */
 	igl::cotmatrix(V, F, S);
 	S = -S;
+	cout << "S: \n" << S.topLeftCorner(20, 20) << endl; 
 
 	/* Construct Mass matrix M*/
 	//igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
@@ -639,14 +642,14 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	//solveHeatEquation(tau, inputHeatRed, outputHeatRed);
 
 	/* Test on new heat diffusion */
-	multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
-	//Eigen::SparseMatrix<double>  LHS = M + tau*S;
-	//multiGridSolver(LHS, inputHeatRed, outputHeatRed);
+	//multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
+	Eigen::SparseMatrix<double>  LHS = M + tau*S;
+	multiGridSolver(LHS, inputHeatRed, outputHeatRed);
 
 	gradRed = G*outputHeatRed;
 	normalizeGradient(gradRed);
-	solvePoissonEquation(gradRed, heatDistanceRed);
-	//solvePoissonEquationRed(gradRed, heatDistanceRed);
+	//solvePoissonEquation(gradRed, heatDistanceRed);
+	solvePoissonEquationRed(gradRed, heatDistanceRed);
 	
 	//visualizeHeatGeodesics(viewer, heatDistanceRed);
 	//visualizeHeatGeodesics(viewer, outputHeatRed);
@@ -1786,7 +1789,8 @@ void FastSpectrum::initiateMultigrid(Eigen::SparseMatrix<double>& A, Eigen::Vect
 	t1 = chrono::high_resolution_clock::now();
 
 	Eigen::SparseMatrix<double> Ub(b.rows(), b.rows()); Ub.setIdentity();
-	for (int i = 0; i < level; i++) Ub = Ub*U[i];
+	for (int i = 0; i < level; i++) 
+		Ub = Ub*U[i];
 	Eigen::SparseMatrix<double> A1 = Ub.transpose()*A*Ub;
 	Eigen::VectorXd				b1 = Ub.transpose()*b; 
 	Eigen::VectorXd				x1;
@@ -2409,61 +2413,20 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	//cout << "[1] SIM::Setup initialization of varibles\n";
 	//int q = reducedEigVals.rows();
 	int q = 50;
-	int max_iter = 5;
+	int max_iter = 25;
 	SIMeigVals.resize(q);
 	SIMeigVects.resize(V.rows(), q);
 	SIMeigValsStack.resize(q, max_iter);
+	convergenceStacks.resize(q, max_iter);
 
 	simpleSubspaceIterMethod(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
-
-	//string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_EigValsStack.txt";
-	//writeDenseMatrixToFile(SIMeigValsStack, filename);
-
-	//Eigen::MatrixXd Xk = Basis * reducedEigVects;
-	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-	//factorization.compute(S);
-	//int k = 0;
-	//cout << "__ num of subspace q: " << q << endl;
-	//cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
-	//
-	///* Iteration for eigenproblem */
-	//cout << "[2] Iterating steps. \n";
-	//bool convergenceCheck;
-	//Eigen::MatrixXd XbarK(V.rows(), q);
-	//Eigen::MatrixXd Mproj, Sproj;
-	//Eigen::MatrixXd Q;
-	//Eigen::VectorXd Alpha;
-	//const int MAX_ITER = 5;
-	//do {
-	//	printf("__(%d) iteration \n", k+1);
-	//	printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
-	//	for (int i = 0; i < q; i++){						// easily parallelizeable
-	//		Eigen::VectorXd v = M*Xk.col(i);
-	//		XbarK.col(i) = factorization.solve(v);
-	//	}
-	//	/* Projection of M and K*/
-	//	printf("__setting up reduced matrix M and S. ");
-	//	Mproj = XbarK.transpose()*M*XbarK;
-	//	Sproj = XbarK.transpose()*S*XbarK;
-	//	printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
-	//
-	//	/* Reduced eigenvalue problem */
-	//	printf("__solve reduced eigenvalue problem. ");
-	//	computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
-	//	printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
-	//
-	//	printf("__lifting up/prolongation.");
-	//	Xk = XbarK*Q;
-	//	printf("Xk size: %d \n", Xk.rows());
-	//
-	//	k++;
-	//	convergenceCheck = (k < MAX_ITER);
-	//} while (convergenceCheck);
-	//
-	//SIMeigVals = Alpha;
-	//SIMeigVects = Xk; 
-	//cout << "Eigenvalues: \n" << SIMeigVals << endl << endl; 
+	
+	/* WRITING UP THE CONVERGENCE */
+	string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Fertility_EigValsStack_500_subspace.txt";
+	//writeDenseMatrixToFile(SIMeigValsStack, fileConv);
+	string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Fertility_ConvergenceStack_500_subspace.txt";
+	//writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
 void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
@@ -2471,39 +2434,46 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	bool subSpaceInit = false; 
-	int q = max(2*width, width+8);
-	Eigen::MatrixXd Xk;
-	Eigen::MatrixXd Xk2;
+	bool				subSpaceInit = true; 
+	int					q = max(2*width, width+8);
+	Eigen::MatrixXd		Xk;
+	Eigen::MatrixXd		Xk2;
 
 	if (subSpaceInit) {
 		/* Warm start */
 		
-		cout << "Warm start.\n";
-		Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
+		cout << "SUBSPACE ITERATION METHOD with a Warm Start.\n";
+		Xk = Basis * reducedEigVects.block(0, 0, Basis.cols(), q);
 
 		/* Bathe initialization */
-		//generateBatheInitVectors(V.rows(), q, Xk);
-		cout << "Block: \n" << Xk.topLeftCorner(20, min(q, 10)) << endl;
+		//cout << "___ with Bathe's initialization scheme \n";
+		//generateBatheInitVectors(V.rows(), q, Xk);		
+		
+		//cout << "Block: \n" << Xk.topLeftCorner(20, min(q, 10)) << endl;
 	}
 	else {
 		/* Random matrices */
-		cout << "Random initialization.\n";
-		generateRandomMatrix(V.rows(), q, Xk);
+		cout << "SUBSPACE ITERATION METHOD with Random initialization Vectors (normalized).\n";
+		//generateSampleBaseInitVectors(q, Xk);
 
+		generateRandomMatrix(V.rows(), q, Xk);
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
 			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
 			mNorm = (double) 1.0 / sqrt(mNorm);
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
-		cout << "Check: " << Xk.col(2).transpose()*M*Xk.col(2) << endl; 
-
-		Xk2 = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
 	}
 
+	// Adding small epsilon the the diagonal (to avoid the kernel)
+	Eigen::SparseMatrix<double> SS;
+	Eigen::SparseMatrix<double> Id; Id.resize(S.rows(), S.cols()); Id.setIdentity();
+	double eps = 1e-6;
+	Id = eps*Id;
+	SS = S + Id;		// Adding epsilon to the diagonal
+
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-	factorization.compute(S);
+	factorization.compute(SS);
 	int k = 0;
 	cout << "__ num of subspace q: " << q << endl;
 	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
@@ -2511,46 +2481,90 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 	/* Iteration for eigenproblem */
 	cout << "[2] Iterating steps. \n";
 	bool convergenceCheck;
-	Eigen::MatrixXd XbarK(V.rows(), q);
+	Eigen::MatrixXd XbarK(V.rows(), q); XbarK.setZero();
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
 	Eigen::VectorXd conv2, conv3;
+
 	const int MAX_ITER = max_iter;
+	const double TOL = 1e-4; 
+
+	////* Solving the system in parallel */
+	///const int						NUM_OF_THREADS = 2; // omp_get_num_procs() / 2;
+	///omp_set_num_threads(NUM_OF_THREADS);
+	///int tid, ntids, ipts, istart, iproc, i = 0;
+	///vector<Eigen::MatrixXd> XbarKblock; 
+	///XbarKblock.resize(NUM_OF_THREADS);
 
 	do {
 		printf("__(%d) iteration \n", k + 1);
-		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
+		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());			
+		
 		for (int i = 0; i < q; i++) {						// easily parallelizeable
 			Eigen::VectorXd v;			
-			v = M*Xk.col(i);
-			//v = Xk.col(i);
+			//if(i==0)
+			//v = Xk.col(i);				// use the input as "MxXi" directly
+			//else 
+			v = M * (Xk.col(i));				
+		
 			XbarK.col(i) = factorization.solve(v);
-
-			//cout << "Solution to the system: \n";
-			//if (i < 10)
-			//{
-			//	cout << "__" << i << "_Random:" << XbarK.col(i).head(10).transpose() << endl; 
-			//	
-			//	// Approx. eigenvectors
-			//	v = M*Xk2.col(i);
-			//	v = factorization.solve(v);
-			//	cout << "__" << i << "_Approx:" << v.col(i).head(10).transpose() << endl;
-			//}
 		}
+		
+		Eigen::MatrixXd VV = M*Xk;
+
+
+		///#pragma omp parallel private(i,tid, ntids,ipts,istart) 
+		///{
+		///	// dividing the stuff per chunk/block
+		///	iproc = omp_get_num_procs();
+		///	tid = omp_get_thread_num();
+		///	ntids = omp_get_num_threads();
+		///	ipts = (int)ceil(1.00*(double)q/ (double)ntids);
+		///	istart = tid * ipts;
+		///	if (tid == ntids - 1) ipts = q - istart;
+		///	if (ipts <= 0) ipts = 0;
+		///
+		///	XbarKblock[tid].resize(XbarK.rows(), ipts);
+		///	Eigen::VectorXd v;
+		///
+		///	for (i = istart; i < (istart + ipts); i++)
+		///	{
+		///		
+		///		//if(i==0)
+		///		//v = Xk.col(i);				// use the input as "MxXi" directly
+		///		//else 
+		///		//v = M * (Xk.col(i));	
+		///		v = VV.col(i);
+		///		XbarKblock[tid].col(i-istart) = factorization.solve(v);
+		///
+		///		//XbarK.col(i) = factorization.solve(v);
+		///
+		///		if (i < 5) {
+		///			cout << "input " << v.head(5).transpose() << endl;
+		///			cout << "output" << XbarKblock[tid].col(i-istart).head(5).transpose() << endl;
+		///		}
+		///		
+		///	}
+		///}
+
+		cout << "Xbar top Right corner: \n" << XbarK.topRightCorner(10, 10) << endl;
+		cout << "Xbar bottom right corner: \n" << XbarK.bottomRightCorner(10, 10) << endl;
+
 		/* Projection of M and K*/
 		printf("__setting up reduced matrix M and S. ");
-		Mproj = XbarK.transpose()*M*XbarK;
 		Sproj = XbarK.transpose()*S*XbarK;
-		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+		Mproj = XbarK.transpose()*M*XbarK;
+		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());		
 
 		/* Reduced eigenvalue problem */
 		printf("__solve reduced eigenvalue problem. ");
 		computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
 		//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 		//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
-		printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
+		///printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
 
 		printf("__lifting up/prolongation.");
 		Xk = XbarK*Q;
@@ -2563,36 +2577,18 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 		/** Type 3: */
 		checkConvergenceCat3(Q, Alpha, conv3);
 		cout << "Conv 3 \n" << conv3.head(width).transpose() << endl;
-
-		/*
-		double convergence;		
-		// Criterion 3:
-		int checkId = width-1;
-		double qTq = Q.col(checkId).transpose()*Q.col(checkId);
-		cout << "qTq=" << qTq << endl; 
-		cout << "eigenVal^2: " << pow(Alpha(checkId), 2) << endl;
-		convergence = sqrt(abs(1.0 - (pow(Alpha(checkId),2))/qTq));
 		
-		printf("Convergence (c3) for index %d after %d iteration is: ", checkId, k + 1);
-		cout << convergence << endl;
-
-		// Convergence: criterion 2
-		Eigen::VectorXd diff = S*Xk.col(checkId) - Alpha(checkId)*M*Xk.col(checkId); 
-		Eigen::VectorXd stiff = S*Xk.col(checkId);
-		convergence = diff.transpose()*M*diff;
-		convergence /= stiff.transpose()*M*stiff;
-		convergence = sqrt(abs(convergence));
-
-		printf("Convergence (c2) for index %d after %d iteration is: ", checkId, k + 1);
-		cout << convergence << endl; 
-		*/
+		//cout << Alpha.transpose() << endl; 		
 
 		SIMeigValsStack.col(k) = Alpha.block(0, 0, width, 1);
+		convergenceStacks.col(k) = conv2.block(0, 0, width, 1);		
 
 		k++;
 		//convergenceCheck = (k < MAX_ITER);
-		convergenceCheck = (conv2(width-1) > 1e-4); 
-	} while (convergenceCheck);
+		//convergenceCheck = (conv2(width-1) > 1e-4); 
+		convergenceCheck = (k > MAX_ITER || (conv2(width-1)<TOL));
+	} while (!convergenceCheck);
+
 
 	EigVals = Alpha.block(0,0,width,1);
 	EigVects = Xk.block(0,0,V.rows(),width);
@@ -2869,7 +2865,7 @@ void FastSpectrum::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
 	
 
 	Xk.col(0) = M.diagonal();
-	for (int i = 1; i < n - 1; i++) {
+	for (int i = 1; i < (n - 1); i++) {
 		e(i) = 1.0;
 		Xk.col(i) = e;
 		e(i) = 0.0;
@@ -2888,7 +2884,18 @@ void FastSpectrum::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
 	double mNorm = Xk.col(n-1).transpose() * M * Xk.col(n-1);
 	mNorm = (double) 1.0 / sqrt(mNorm);
 	Xk.col(n-1) = mNorm * Xk.col(n-1);
+}
 
+void  FastSpectrum::generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk)
+{
+	cout << "Setting the initial vectors to be at the sampling vertices \n";
+
+	Xk.resize(V.rows(), m);
+	Xk.setZero();
+	for (unsigned int i = 0; i < m; i++) {
+		Xk(Sample(i), i) = 1.0;
+		printf("[%d, %d]=%.1f \n", Sample(i), i, Xk(Sample(i), i));
+	}
 
 }
 

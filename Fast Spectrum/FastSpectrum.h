@@ -159,16 +159,20 @@ public:
 	void SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer);
 	void SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
 	void generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk);
+	void generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk);
 	void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate);
 	void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate);
+
 	
 public:
 	/* [CLASS VARIABLES] */
-	Eigen::SparseMatrix<double>		S, M, Minv, Mf, MfInv, G,  Basis, DistanceTableSpM;
+	Eigen::SparseMatrix<double>		S, M, Minv, Mf, MfInv, G;
+	Eigen::SparseMatrix<double>		Basis;											// combined basis matrix (Basis = U0 * Uk * ....  U_{k-1} *  Uk)
+	Eigen::SparseMatrix<double>		DistanceTableSpM;								// stored vertex-to-vertex distance table
 	Eigen::SparseMatrix<double>		S_, M_, GTMf_;									// reduced stiffness, mass, and divergent matrix, respectively
-	Eigen::MatrixXd					V;
+	Eigen::MatrixXd					V;												// vertices position 
 	Eigen::MatrixXd					reducedEigVects, refEigVects;
-	Eigen::MatrixXi					F;												// face matrix
+	Eigen::MatrixXi					F;												// face matrix (indices of each vertex for each face)
 	Eigen::VectorXd					reducedEigVals, refEigVals;			
 	Eigen::VectorXi					Sample, SampleMap;								// id of the samples | for a certain vertex sample, get the id of the sample
 	vector<set<int>>				AdM;											// adjacency matrix, vertex to neighboring vertices
@@ -182,6 +186,7 @@ public:
 	Eigen::MatrixXd					SIMeigVects;									// matrix storing eigenvectors, after Subspace Iteration Method (SIM)
 	Eigen::VectorXd					SIMeigVals;										// vector stroing eigenvalues,  after Subspace Iteration Method (SIM)
 	Eigen::MatrixXd					SIMeigValsStack;								// Stack of eigenvalues, from multiple iterations
+	Eigen::MatrixXd					convergenceStacks;								// Stack of convergence rate, from multiple iterations
 
 	/* [MULTI-GRID STUFF]*/
 	int									level;										// the total number of hierarchy/levels on multigrid
