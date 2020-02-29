@@ -158,6 +158,9 @@ public:
 	void simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
 	void SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer);
 	void SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
+	void MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL);
+
+
 	void generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk);
 	void generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk);
 	void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate);
