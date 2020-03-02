@@ -104,7 +104,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			if (ImGui::CollapsingHeader("Program Step by Step", ImGuiTreeNodeFlags_DefaultOpen)) {
 				/* Setup Laplace-Beltrami Matrix */
 				if (ImGui::Button("[1] Construct Laplacian Matrix", ImVec2(w, 0))) {
-					fastSpectrum.setInitialSystem(1);
+					int numLevels = 3;
+					fastSpectrum.setInitialSystem(numLevels);
 					fastSpectrum.constructLaplacianMatrix();
 				}
 				/* For Sampling */

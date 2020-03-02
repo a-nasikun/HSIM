@@ -2794,28 +2794,40 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 
 void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
 {
+	printf("[1] level: %d \n", k);
 	int		width	= 50;
 	int		q		= max(2 * width, width + 8);	
 
 	/* 4: RECURSION */
 	if (k == level)			// check if this already in the lowest/coarsest subspace
-	{		
+	{	
 		XL = reducedEigVects.topLeftCorner(reducedEigVects.rows(), q);
+		printf("[n] Size of the initial vectors: %dx%d \n", XL.rows(), XL.cols());
 	}
 	else						// RECURSIVE for level k < max_level
 	{
 		/* 1: RESTRICTION */
+		printf("[1] Restriction: ");
 		Eigen::SparseMatrix<double> SK, MK;
-		if (k = 0) { SK = S; MK = M; }
+		if (k == 0) { 
+			printf("S:%dx%d (nnz: %d) | M:%dx%d (nnz: %d) \n", S.rows(), S.cols(), S.nonZeros(), M.rows(), M.cols(), M.nonZeros());
+			SK = S; MK = M; 
+			printf("Sred:%dx%d (nnz: %d) | Mred:%dx%d (nnz: %d) \n", SK.rows(), SK.cols(), SK.nonZeros(), MK.rows(), MK.cols(), MK.nonZeros());
+		}
 		else {
 			SK = U[k-1].transpose()*SL*U[k-1];
 			MK = U[k-1].transpose()*ML*U[k-1];
-		}		
 
+			printf("Sred=%dx%d | Mred: %dx%d | U:%dx%d \n", SK.rows(), SK.cols(), MK.rows(), MK.cols(), U[k - 1].rows(), U[k - 1].cols());
+		}
+
+		printf("[2] Going deeper => \n ################");
 		MultiLevelSIM(SK, MK, k+1, XL, AL);
+		printf(" level %d | SK: %dx%d | MK: %dx%d \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols());
 
 		/* [3] SUBSPACE ITERATION METHOD */
 		XL = U[k] * XL;
+		printf("[3] Lifting, Init vectors: %dx%d \n", XL.rows(), XL.cols());
 
 		/* Adding a small number on the diagonal, for robustness */
 		Eigen::SparseMatrix<double> SS;
@@ -2825,6 +2837,7 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 		SS = SK + Id;		// Adding epsilon to the diagonal
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 		factorization.compute(SS);
+		printf("[4] Embedding a small-valued diagonal matrix \n");
 
 		/* Temporary variables */
 		bool convergenceCheck;
@@ -2837,6 +2850,8 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 		const double TOL = 1e-4;
 
 		/* Iterating*/
+		printf("[5] Subspace iteration.\n");
+		int iterCount = 0;
 		do {
 			/* Set up the iteration matrix */
 			for (int i = 0; i < q; i++) {						// easily parallelizeable
@@ -2844,10 +2859,16 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 				v = MK * (XL.col(i));
 				XbarK.col(i) = factorization.solve(v);
 			}
+			if (iterCount == 0) {
+				printf("__MK: %dx%d | XL:%dx%d | XbarK: %dx%d \n", MK.rows(), MK.cols(), XL.rows(), XL.cols(), XbarK.rows(), XbarK.cols());
+			}
 
 			/* Projected matrix */
-			Sproj = XbarK.transpose()*SL*XbarK;
-			Mproj = XbarK.transpose()*ML*XbarK;
+			Sproj = XbarK.transpose()*SK*XbarK;
+			Mproj = XbarK.transpose()*MK*XbarK;
+			if (iterCount == 0) {
+				printf("__SProj: %dx%d | Mproj: %dx%d \n", Sproj.rows(), Sproj.cols(), Mproj.rows(), Mproj.cols());
+			}
 
 			/* Computing the eigenproblem in reduced space*/
 			computeEigenGPUDense(Sproj, Mproj, Q, AL);
@@ -2855,14 +2876,20 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
 			XL = XbarK*Q;
+			if (iterCount == 0) {
+				printf("__XL: %dx%d | Q: %dx%d \n", XL.rows(), XL.cols(), Q.rows(), Q.cols());
+			}
 
-			checkConvergenceCat3(XL, AL, conv3);
+			checkConvergenceCat2(XL, AL, MK, SK, conv2);
+			//printf("__%d: Convergence check: %.3f (end) \n", iterCount, conv3(width-1));
+			cout << "_____ [" << iterCount << "] convergence check: \n" << conv2.head(width).transpose() << endl; 
+			
+			convergenceCheck = (iterCount > MAX_ITER || (conv2(width - 1)<TOL));
+			iterCount++;
 
-			convergenceCheck = (k > MAX_ITER || (conv3(width - 1)<TOL));
 		} while (!convergenceCheck);
-	}
-
-	
+		printf("[6] After iteration: XL= %dx%d \n", XL.rows(), XL.cols());
+	}	
 }
 
 void FastSpectrum::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
@@ -2906,6 +2933,21 @@ void  FastSpectrum::generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk)
 
 }
 
+void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::SparseMatrix<double>& MK, Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate)
+{
+	convRate.resize(A.rows());
+	Eigen::VectorXd Kq, AMq, diff;
+
+	for (int i = 0; i < A.rows(); i++) {
+		Kq = SK * Q.col(i);
+		AMq = A(i)*MK*Q.col(i);
+		diff = Kq - AMq; 
+
+		double n1 = diff.transpose()*MK*diff;
+		double n2 = Kq.transpose()*MK*Kq;
+		convRate(i) = sqrt(n1/n2);
+	}
+}
 void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
 {
 	convRate.resize(A.rows());
@@ -2914,11 +2956,11 @@ void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::V
 	for (int i = 0; i < A.rows(); i++) {
 		Kq = S * Q.col(i);
 		AMq = A(i)*M*Q.col(i);
-		diff = Kq - AMq; 
+		diff = Kq - AMq;
 
 		double n1 = diff.transpose()*M*diff;
 		double n2 = Kq.transpose()*M*Kq;
-		convRate(i) = sqrt(n1/n2);
+		convRate(i) = sqrt(n1 / n2);
 	}
 }
 
@@ -3155,7 +3197,7 @@ void FastSpectrum::constructBasisFunctionsLevelK(int k)
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
 	chrono::duration<double>					duration;
-	cout << "> Basis construction (level 0)... ";
+	cout << "> Basis construction (level " << k << ")... ";
 	t1 = chrono::high_resolution_clock::now();
 
 	vector<vector<Eigen::Triplet<double>>>	UTriplet;

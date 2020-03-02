@@ -190,9 +190,9 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 	}
 
 	// step 4: compute spectrum of (A,B) 
-	cout << "Prior to computation \n";
-	printf("__Lwork=%d |", lwork);
-	cout << " jobz: " << jobz << endl; 
+	///cout << "Prior to computation \n";
+	///printf("__Lwork=%d |", lwork);
+	///cout << " jobz: " << jobz << endl; 
 
 	cusolver_status = cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, devInfo);
 	//cout << "Dev inf:" << devInfo << endl;
@@ -205,7 +205,7 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 		cout << "Error! CUDA cuSolver's eigensolver FAILED to solve the eigenproblem." << endl;
 	}
 	else if(cudaStat1 == 0) {
-		cout << "Yeay! I can compute the eigenvalues!!!\n";
+		///cout << "Yeay! I can compute the eigenvalues!!!\n";
 	}
 
 	//cout << "DevInfo: " << (devInfo) << endl; 
