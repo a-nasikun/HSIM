@@ -2323,7 +2323,7 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	
 	/* First block */
 	cout << "First block! \n";
-	simpleSubspaceIterMethod(viewer, blockSize, 3, eigVectsTemp, eigValsTemp);
+	simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, eigenToCompute, 10, eigVectsTemp, eigValsTemp);
 	SIMeigVals.block(0, 0, blockSize, 1)			= eigValsTemp;
 	SIMeigVects.block(0, 0, V.rows(), blockSize)	= eigVectsTemp;
 
@@ -2339,21 +2339,20 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	cout << "Eigenvalues (all blocks): \n" << SIMeigVals << endl << endl;
 }
 
-void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
+void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, int numModes, int maxIter)
 {
-	cout << "The SIMPLEST Subspace Iteration Method \n";
+	cout << "The Subspace Iteration Method \n";
 	/* Initialization */
-	//cout << "[1] SIM::Setup initialization of varibles\n";
-	//int q = reducedEigVals.rows();
-	int q = 50;
-	int max_iter = 25;
-	SIMeigVals.resize(q);
-	SIMeigVects.resize(V.rows(), q);
-	SIMeigValsStack.resize(q, max_iter);
-	convergenceStacks.resize(q, max_iter);
+	SIMeigVals.resize(numModes);
+	SIMeigVects.resize(V.rows(), numModes);
+	SIMeigValsStack.resize(numModes, maxIter);
+	convergenceStacks.resize(numModes, maxIter);
+	
+	if(type==SIM_Type::SIM_MultiLevel)	
+		MultiLevelSIM(S, M, numModes, 0, SIMeigVects, SIMeigVals);
+	else 
+		simpleSubspaceIterMethod(viewer, type, numModes, maxIter, SIMeigVects, SIMeigVals);
 
-	//simpleSubspaceIterMethod(viewer, q, max_iter, SIMeigVects, SIMeigVals);
-	MultiLevelSIM(S, M, 0, SIMeigVects, SIMeigVals);
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 	
 	/* WRITING UP THE CONVERGENCE */
@@ -2363,33 +2362,26 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	//writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
-void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
 {
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	bool				subSpaceInit = true; 
+	//bool				subSpaceInit = true; 
 	int					q = max(2*width, width+8);
 	Eigen::MatrixXd		Xk;
 	Eigen::MatrixXd		Xk2;
 
-	if (subSpaceInit) {
-		/* Warm start */
-		
+	/* Selecting the appropriate subspace iteration method */
+	switch (type)
+	{
+	case SIM_Type::SIM_1level_WarmStart:
 		cout << "SUBSPACE ITERATION METHOD with a Warm Start.\n";
 		Xk = Basis * reducedEigVects.block(0, 0, Basis.cols(), q);
+		break;
 
-		/* Bathe initialization */
-		//cout << "___ with Bathe's initialization scheme \n";
-		//generateBatheInitVectors(V.rows(), q, Xk);		
-		
-		//cout << "Block: \n" << Xk.topLeftCorner(20, min(q, 10)) << endl;
-	}
-	else {
-		/* Random matrices */
+	case SIM_Type::SIM_1level_Random:
 		cout << "SUBSPACE ITERATION METHOD with Random initialization Vectors (normalized).\n";
-		//generateSampleBaseInitVectors(q, Xk);
-
 		generateRandomMatrix(V.rows(), q, Xk);
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
@@ -2397,7 +2389,22 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, i
 			mNorm = (double) 1.0 / sqrt(mNorm);
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
-	}
+		break;
+
+	case SIM_Type::SIM_1level_Bathe:
+		cout << "SUBSPACE ITERATION METHOD with Bathe's proposed initialization Vectors (normalized).\n";
+		generateSampleBaseInitVectors(q, Xk);
+		/* M-normalized per column */
+		for (int i = 0; i < q; i++) {
+			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			mNorm = (double) 1.0 / sqrt(mNorm);
+			Xk.col(i) = mNorm * Xk.col(i);
+		}
+		break;
+		break;
+	default:
+		break;
+	}	
 
 	// Adding small epsilon the the diagonal (to avoid the kernel)
 	Eigen::SparseMatrix<double> SS;
@@ -2792,10 +2799,10 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	//cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
 }
 
-void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
+void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
 {
 	printf("[1] level: %d \n", k);
-	int		width	= 50;
+	int		width	= numEigs;
 	int		q		= max(2 * width, width + 8);	
 
 	/* 4: RECURSION */
@@ -2822,7 +2829,7 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 		}
 
 		printf("[2] Going deeper => \n ################");
-		MultiLevelSIM(SK, MK, k+1, XL, AL);
+		MultiLevelSIM(SK, MK, width, k+1, XL, AL);
 		printf(" level %d | SK: %dx%d | MK: %dx%d \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols());
 
 		/* [3] SUBSPACE ITERATION METHOD */

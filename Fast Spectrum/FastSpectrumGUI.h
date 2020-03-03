@@ -28,6 +28,7 @@ static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
 string				model			= "Sphere40k";
+static int			SIMtype			= 2;
 
 
 void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, FastSpectrum &fastSpectrum) {
@@ -101,10 +102,12 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
 			/* STEP BY STEP CONSTRUCTION */
+			static int numLevels = 3;
 			if (ImGui::CollapsingHeader("Program Step by Step", ImGuiTreeNodeFlags_DefaultOpen)) {
+				static char numLvls[10] = "3"; ImGui::InputText("# Levels", numLvls, 10);
+				numLevels = atoi(numLvls);
 				/* Setup Laplace-Beltrami Matrix */
-				if (ImGui::Button("[1] Construct Laplacian Matrix", ImVec2(w, 0))) {
-					int numLevels = 3;
+				if (ImGui::Button("[1] Construct Laplacian Matrix", ImVec2(w, 0))) {				
 					fastSpectrum.setInitialSystem(numLevels);
 					fastSpectrum.constructLaplacianMatrix();
 				}
@@ -504,8 +507,31 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 	float p = ImGui::GetStyle().FramePadding.x;
 
 	if (ImGui::CollapsingHeader("Draft on subspace iteration", ImGuiTreeNodeFlags_DefaultOpen)) {
+		/* some parameters */
+		static int numOfModes = 50;
+		static int maxIter = 50;
+		/* Type of the SIM to be computed*/
+		std::map<int, SIM_Type>			typeMap;
+		typeMap.insert(std::pair<int, SIM_Type>(0, SIM_Type::SIM_MultiLevel));
+		typeMap.insert(std::pair<int, SIM_Type>(1, SIM_Type::SIM_1level_WarmStart));
+		typeMap.insert(std::pair<int, SIM_Type>(2, SIM_Type::SIM_1level_Random));
+		typeMap.insert(std::pair<int, SIM_Type>(3, SIM_Type::SIM_1level_Bathe));
+
+
+		if (ImGui::CollapsingHeader("SIM Option", ImGuiTreeNodeFlags_CollapsingHeader)) {
+			static char numModesTxt[10] = "50"; ImGui::InputText("Num Eigs", numModesTxt, 10);
+			numOfModes = atoi(numModesTxt);
+			static char maxIterTxt[10] = "50"; ImGui::InputText("Max Iter", maxIterTxt, 10);
+			maxIter = atoi(maxIterTxt);
+
+			ImGui::RadioButton("Random", &SIMtype, 2);			ImGui::SameLine();
+			ImGui::RadioButton("Bathe", &SIMtype, 3);			//ImGui::SameLine();
+			ImGui::RadioButton("SGP Warm-start", &SIMtype, 1);	ImGui::SameLine();
+			ImGui::RadioButton("Multi-level", &SIMtype, 0);		//ImGui::SameLine();
+		}
+
 		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
-			fastSpectrum.simpleSubspaceIterMethod(viewer);
+			fastSpectrum.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], numOfModes, maxIter);
 		}
 		if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
 			fastSpectrum.SubspaceIterMethod(viewer);
