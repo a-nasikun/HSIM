@@ -155,12 +155,12 @@ public:
 
 	/* Subspace Iteration Method */
 	void SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer);
-	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, int numModes, int maxIter);
-	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
+	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int numModes, int maxIter);
+	void simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
 	void simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
 	void SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer);
 	void SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals);
-	void MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL);
+	void MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, double tol, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL);
 
 
 	void generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk);

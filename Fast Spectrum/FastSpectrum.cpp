@@ -2323,7 +2323,7 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	
 	/* First block */
 	cout << "First block! \n";
-	simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, eigenToCompute, 10, eigVectsTemp, eigValsTemp);
+	simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, 1e-4, eigenToCompute, 10, eigVectsTemp, eigValsTemp);
 	SIMeigVals.block(0, 0, blockSize, 1)			= eigValsTemp;
 	SIMeigVects.block(0, 0, V.rows(), blockSize)	= eigVectsTemp;
 
@@ -2339,30 +2339,31 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	cout << "Eigenvalues (all blocks): \n" << SIMeigVals << endl << endl;
 }
 
-void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, int numModes, int maxIter)
+void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int numModes, int maxIter)
 {
 	cout << "The Subspace Iteration Method \n";
 	/* Initialization */
-	SIMeigVals.resize(numModes);
-	SIMeigVects.resize(V.rows(), numModes);
-	SIMeigValsStack.resize(numModes, maxIter);
-	convergenceStacks.resize(numModes, maxIter);
+	SIMeigVals.resize(numModes);					SIMeigVals.setZero();
+	SIMeigVects.resize(V.rows(), numModes);			SIMeigVects.setZero();
+	SIMeigValsStack.resize(numModes, maxIter);		SIMeigValsStack.setZero();
+	convergenceStacks.resize(numModes, maxIter);	convergenceStacks.setZero();
 	
 	if(type==SIM_Type::SIM_MultiLevel)	
-		MultiLevelSIM(S, M, numModes, 0, SIMeigVects, SIMeigVals);
+		MultiLevelSIM(S, M, tol, numModes, 0, SIMeigVects, SIMeigVals);
 	else 
-		simpleSubspaceIterMethod(viewer, type, numModes, maxIter, SIMeigVects, SIMeigVals);
+		simpleSubspaceIterMethod(viewer, type, tol, numModes, maxIter, SIMeigVects, SIMeigVals);
 
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 	
 	/* WRITING UP THE CONVERGENCE */
-	string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Fertility_EigValsStack_500_subspace.txt";
-	//writeDenseMatrixToFile(SIMeigValsStack, fileConv);
-	string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Fertility_ConvergenceStack_500_subspace.txt";
-	//writeDenseMatrixToFile(convergenceStacks, fileEigs);
+	string modelName = "Sphere_" + to_string(V.rows());
+	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/EigValsStack_" + modelName + "_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
+	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/ConvergenceStack_" + modelName + "_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
-void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
 {
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
@@ -2401,7 +2402,6 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
 		break;
-		break;
 	default:
 		break;
 	}	
@@ -2429,7 +2429,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 	Eigen::VectorXd conv2, conv3;
 
 	const int MAX_ITER = max_iter;
-	const double TOL = 1e-4; 
+	double TOL = tol; 
 
 	////* Solving the system in parallel */
 	///const int						NUM_OF_THREADS = 2; // omp_get_num_procs() / 2;
@@ -2444,10 +2444,10 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 		
 		for (int i = 0; i < q; i++) {						// easily parallelizeable
 			Eigen::VectorXd v;			
-			//if(i==0)
-			//v = Xk.col(i);				// use the input as "MxXi" directly
-			//else 
-			v = M * (Xk.col(i));				
+			if(type==SIM_Type::SIM_1level_Bathe && i==0)
+				v = Xk.col(i);				// use the input as "MxXi" directly
+			else 
+				v = M * (Xk.col(i));				
 		
 			XbarK.col(i) = factorization.solve(v);
 		}
@@ -2470,27 +2470,17 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 		///	Eigen::VectorXd v;
 		///
 		///	for (i = istart; i < (istart + ipts); i++)
-		///	{
-		///		
-		///		//if(i==0)
-		///		//v = Xk.col(i);				// use the input as "MxXi" directly
-		///		//else 
+		///	{	
 		///		//v = M * (Xk.col(i));	
 		///		v = VV.col(i);
 		///		XbarKblock[tid].col(i-istart) = factorization.solve(v);
 		///
 		///		//XbarK.col(i) = factorization.solve(v);
-		///
-		///		if (i < 5) {
-		///			cout << "input " << v.head(5).transpose() << endl;
-		///			cout << "output" << XbarKblock[tid].col(i-istart).head(5).transpose() << endl;
-		///		}
-		///		
 		///	}
 		///}
 
-		cout << "Xbar top Right corner: \n" << XbarK.topRightCorner(10, 10) << endl;
-		cout << "Xbar bottom right corner: \n" << XbarK.bottomRightCorner(10, 10) << endl;
+		//cout << "Xbar top Right corner: \n" << XbarK.topRightCorner(10, 10) << endl;
+		//cout << "Xbar bottom right corner: \n" << XbarK.bottomRightCorner(10, 10) << endl;
 
 		/* Projection of M and K*/
 		printf("__setting up reduced matrix M and S. ");
@@ -2509,7 +2499,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 
 		printf("__lifting up/prolongation.");
 		Xk = XbarK*Q;
-		printf("Xk size: %d \n", Xk.rows());
+		//printf("Xk size: %d \n", Xk.rows());
 		
 		/* Convergence Check*
 		** Type 2: */
@@ -2529,6 +2519,9 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 		//convergenceCheck = (conv2(width-1) > 1e-4); 
 		convergenceCheck = (k > MAX_ITER || (conv2(width-1)<TOL));
 	} while (!convergenceCheck);
+
+	convergenceStacks.conservativeResize(Eigen::NoChange, k);
+	SIMeigValsStack.conservativeResize(Eigen::NoChange, k);
 
 
 	EigVals = Alpha.block(0,0,width,1);
@@ -2799,7 +2792,7 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	//cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
 }
 
-void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
+void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, double tol, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
 {
 	printf("[1] level: %d \n", k);
 	int		width	= numEigs;
@@ -2829,8 +2822,8 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 		}
 
 		printf("[2] Going deeper => \n ################");
-		MultiLevelSIM(SK, MK, width, k+1, XL, AL);
-		printf(" level %d | SK: %dx%d | MK: %dx%d \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols());
+		MultiLevelSIM(SK, MK, tol, width, k+1, XL, AL);
+		printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
 
 		/* [3] SUBSPACE ITERATION METHOD */
 		XL = U[k] * XL;
@@ -2854,7 +2847,7 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 		//Eigen::VectorXd Alpha;
 		Eigen::VectorXd conv2, conv3;
 		const int MAX_ITER = 10;
-		const double TOL = 1e-4;
+		double TOL = tol;
 
 		/* Iterating*/
 		printf("[5] Subspace iteration.\n");
@@ -2889,13 +2882,27 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 
 			checkConvergenceCat2(XL, AL, MK, SK, conv2);
 			//printf("__%d: Convergence check: %.3f (end) \n", iterCount, conv3(width-1));
-			cout << "_____ [" << iterCount << "] convergence check: \n" << conv2.head(width).transpose() << endl; 
-			
+			cout << "_____ [" << iterCount+1 << "] convergence check: \n" << conv2.head(width).transpose() << endl; 
+
+			/* Store the eigenvalues and convergence rate if it's on the finest level */
+			if (k == 0) {
+				SIMeigValsStack.col(iterCount) = AL.block(0, 0, width, 1);
+				convergenceStacks.col(iterCount) = conv2.block(0, 0, width, 1);
+			}
+
 			convergenceCheck = (iterCount > MAX_ITER || (conv2(width - 1)<TOL));
 			iterCount++;
 
 		} while (!convergenceCheck);
 		printf("[6] After iteration: XL= %dx%d \n", XL.rows(), XL.cols());
+				
+
+		/* PRint some data when it's on the finest level */
+		if (k == 0) {
+			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
+			SIMeigValsStack.conservativeResize(Eigen::NoChange, iterCount);
+			cout << "Eigenvalues: \n" << AL << endl << endl;
+		}
 	}	
 }
 

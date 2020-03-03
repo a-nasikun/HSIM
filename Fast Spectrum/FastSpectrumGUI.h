@@ -22,7 +22,7 @@ int					eigToShow		= 0;
 int					eigToCompute    = 500;
 bool				boolShowSamples = false;
 bool				useNonSmoothBasis = false; 
-static int			numOfSample		= 250;
+//static int			numOfSample		= 250;
 static int			sampleType		= Sample_Farthest_Point; 
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
@@ -87,77 +87,59 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0))){
 				viewer.open_dialog_save_mesh();
-			}
-			if (ImGui::Button("Run Algorithm", ImVec2((w), 30))){
-				Eigen::SparseMatrix<double>	U;
-				fastSpectrum.computeEigenPairs( V, F, numOfSample, (SamplingType) sampleType, U, redEigVects, redEigVals);
-				
-				// Show the first non-zero eigenvectors
-				eigToShow					= 1;
-				Z							= U * redEigVects.col(eigToShow);
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
-			}
+			}			
 			
 			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
 			/* STEP BY STEP CONSTRUCTION */
 			static int numLevels = 3;
+			
 			if (ImGui::CollapsingHeader("Program Step by Step", ImGuiTreeNodeFlags_DefaultOpen)) {
-				static char numLvls[10] = "3"; ImGui::InputText("# Levels", numLvls, 10);
-				numLevels = atoi(numLvls);
+				///static char numLvls[10] = "3"; ImGui::InputText("# Levels", numLvls, 10);
+				///numLevels = atoi(numLvls);
 				/* Setup Laplace-Beltrami Matrix */
 				if (ImGui::Button("[1] Construct Laplacian Matrix", ImVec2(w, 0))) {				
-					fastSpectrum.setInitialSystem(numLevels);
+					///fastSpectrum.setInitialSystem(numLevels);
+					if (fastSpectrum.V.rows() < 1) return;
 					fastSpectrum.constructLaplacianMatrix();
 				}
-				/* For Sampling */
-				if (ImGui::Button("[2] Sampling", ImVec2(w, 0))) {
-					Eigen::SparseMatrix<double> M;
-					fastSpectrum.getMassMatrix(M);
-					fastSpectrum.getV(V);
-					if (M.rows() != V.rows() || V.rows() < 1) {
+				/* For Hierarchy and Sampling */
+				static double levelRatio = 8.0;
+				static char lvlRatTxt[10] = "8.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
+				levelRatio = atof(lvlRatTxt);
+
+				if (ImGui::Button("[2] Sampling", ImVec2(w, 0))) {					
+					if (fastSpectrum.M.rows() != fastSpectrum.V.rows() || fastSpectrum.V.rows() < 1) {
 						cout << "Error! Make sure you construct Laplacian matrices before creating samples." << endl;
 						return;
 					}
 
-					if (numOfSample < 1) {
-						cout << "Error! Sample cannot be smaller than 1. The program will assign 1000 as the default sampling." << endl;
-						numOfSample = 1000;
-					}
-					else if (numOfSample > V.rows()) {
-						cout << "Error! Sample cannot be larger than the number of vertices in the mesh. The program will assign 1000 as the default sampling.\n" << endl;
-						numOfSample = 1000;
-					}
+					vector<int> sampleLevels; sampleLevels.reserve(10);
+					int SAMPLE_LOW_BOUND = 1000;
+					int numSample = fastSpectrum.V.rows();
+					int lvlCounter = 0;
+					do {
+						numSample = (int)round(numSample / levelRatio);
+						sampleLevels.push_back(numSample);
+						lvlCounter++;
+					} while (numSample > SAMPLE_LOW_BOUND);
+					
+					/* Setting the number of levels */
+					numLevels = lvlCounter;
+					fastSpectrum.setInitialSystem(numLevels);
 
-					fastSpectrum.setSample(numOfSample, (SamplingType)sampleType);
-					Eigen::VectorXd sampSize(fastSpectrum.level);
-					/* User defined*/
-					//for (int i = 0; i < fastSpectrum.level; i++) sampSize(i) = (int)(numOfSample / (double)(pow(2, 2 * i)));
-
-					/* hierarchy sampling, on linear increase */
-					int lowestSample = numOfSample;
-					double scale = pow((double)V.rows() / (double)lowestSample, 1.0 / fastSpectrum.level);
-					for (int i = 0; i < fastSpectrum.level-1; i++) sampSize(i) = (int)round((double)V.rows()/pow(scale,i+1));
-					sampSize(fastSpectrum.level - 1) = lowestSample;
-
-					/* Manual input */
-					//sampSize << 16000, 4000, 1000; 
-
-					//fastSpectrum.constructSampleHierarchy(sampSize);
-					//viewer.data().points.resize(0, 6);
-					///visualizeSampleMulti(viewer, V, F, fastSpectrum.Sample, fastSpectrum.SubspaceSize);
-					boolShowSamples = true; 
-					//fastSpectrum.constructSample();
+					Eigen::VectorXd sampSize(sampleLevels.size());
+					for (int ii = 0; ii < sampleLevels.size(); ii++)
+						sampSize(ii) = sampleLevels[ii];
+					
+					/* For 1 level (coarsest level) sampling only*/
+					fastSpectrum.setSample(sampSize(sampleLevels.size()-1), (SamplingType)sampleType);
+					/* For the multilevel sampling */
 					fastSpectrum.constructSampleHierarchy(sampSize);
+										
+					boolShowSamples = true; 
 				}
-				//ImGui::RadioButton("Poisson Disk", &sampleType, Sample_Poisson_Disk); ImGui::SameLine();
-				ImGui::RadioButton("Farthest Point", &sampleType, Sample_Farthest_Point);
-				//ImGui::RadioButton("Random", &sampleType, Sample_Random);
 
-				ImGui::Text("Number of sample"); ImGui::SameLine();
-				static char numSample[6] = "1000"; ImGui::InputText("", numSample, 6);
-				numOfSample = atoi(numSample);
 				ImGui::Text("Show sample distance");				
 				for (int i = 0; i < fastSpectrum.level; i++)
 				{
@@ -510,6 +492,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		/* some parameters */
 		static int numOfModes = 50;
 		static int maxIter = 50;
+		static double tol = 1e-4;
 		/* Type of the SIM to be computed*/
 		std::map<int, SIM_Type>			typeMap;
 		typeMap.insert(std::pair<int, SIM_Type>(0, SIM_Type::SIM_MultiLevel));
@@ -523,6 +506,8 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			numOfModes = atoi(numModesTxt);
 			static char maxIterTxt[10] = "50"; ImGui::InputText("Max Iter", maxIterTxt, 10);
 			maxIter = atoi(maxIterTxt);
+			static char tolTxt[10] = "0.0001"; ImGui::InputText("Tolerance", tolTxt, 10);
+			tol = atof(tolTxt);
 
 			ImGui::RadioButton("Random", &SIMtype, 2);			ImGui::SameLine();
 			ImGui::RadioButton("Bathe", &SIMtype, 3);			//ImGui::SameLine();
@@ -531,11 +516,35 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 
 		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
-			fastSpectrum.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], numOfModes, maxIter);
+			fastSpectrum.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
 		}
-		if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
-			fastSpectrum.SubspaceIterMethod(viewer);
+
+		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
+			double thisTol = 1e-2;
+			vector<int> wantedModes{ 50, 100, 250 };
+			for (int j = 0; j < wantedModes.size(); j++) {
+				for (int k = 0; k < 4; k++) {
+					double tolTol = thisTol / pow(10, k);
+					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, tolTol, wantedModes[j], maxIter);
+					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Bathe,  tolTol, wantedModes[j], maxIter);
+					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_MultiLevel,    tolTol, wantedModes[j], maxIter);
+				}
+			}
 		}
+
+		if (ImGui::Button("Scripted experiment (2)", ImVec2(w, 0))) {
+			double thisTol = 1e-2;
+			vector<int> wantedModes{ 50, 100, 250 };
+			for (int j = 0; j < wantedModes.size(); j++) {
+				for (int k = 0; k < 4; k++) {
+					double tolTol = thisTol / pow(10, k);
+					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_WarmStart, tolTol, wantedModes[j], maxIter);
+				}
+			}
+		}
+		//if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
+		//	fastSpectrum.SubspaceIterMethod(viewer);
+		//}
 
 		if (ImGui::Button("Save EigVals#RIM", ImVec2(w/2.0, 0))) {
 			//writeDenseMatrixToFile(fastSpectrum.SIMeigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(fastSpectrum.SIMeigVals.rows()) + ".txt");
