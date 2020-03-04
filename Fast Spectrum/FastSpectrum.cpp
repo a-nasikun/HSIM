@@ -2357,9 +2357,9 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 	
 	/* WRITING UP THE CONVERGENCE */
 	string modelName = "Sphere_" + to_string(V.rows());
-	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/EigValsStack_" + modelName + "_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
 	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
-	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/ConvergenceStack_" + modelName + "_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
 	writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
@@ -2517,7 +2517,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 		k++;
 		//convergenceCheck = (k < MAX_ITER);
 		//convergenceCheck = (conv2(width-1) > 1e-4); 
-		convergenceCheck = (k > MAX_ITER || (conv2(width-1)<TOL));
+		convergenceCheck = (k >= MAX_ITER || (conv2(width-1)<TOL));
 	} while (!convergenceCheck);
 
 	convergenceStacks.conservativeResize(Eigen::NoChange, k);
@@ -2890,7 +2890,7 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 				convergenceStacks.col(iterCount) = conv2.block(0, 0, width, 1);
 			}
 
-			convergenceCheck = (iterCount > MAX_ITER || (conv2(width - 1)<TOL));
+			convergenceCheck = (iterCount >= MAX_ITER || (conv2(width - 1)<TOL));
 			iterCount++;
 
 		} while (!convergenceCheck);

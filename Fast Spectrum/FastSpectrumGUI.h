@@ -522,6 +522,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
 			double thisTol = 1e-2;
 			vector<int> wantedModes{ 50, 100, 250 };
+			//vector<int> wantedModes{ 100, 250 };
 			for (int j = 0; j < wantedModes.size(); j++) {
 				for (int k = 0; k < 4; k++) {
 					double tolTol = thisTol / pow(10, k);
