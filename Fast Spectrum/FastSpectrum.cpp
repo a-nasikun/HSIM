@@ -256,7 +256,7 @@ void FastSpectrum::constructBasis()
 	constructBasisFunctionsLevel0();
 	for (int i = 1; i < level; i++)	{
 		constructBasisFunctionsLevelK(i);
-		printf("Construction of basis level %d is done \n", i);
+		printf("basis level %d: done \n", i);
 	}
 
 	formPartitionOfUnityMultiLevel();
@@ -382,7 +382,7 @@ void FastSpectrum::constructRestrictedProblem() {
 
 void FastSpectrum::solveRestrictedProblem() {
 	computeEigenPair();
-	normalizeReducedEigVects();
+	//normalizeReducedEigVects();
 }
 
 /* [GETTER AMD SETTER] */
@@ -2250,7 +2250,17 @@ void FastSpectrum::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer 
 void FastSpectrum::computeRefEigenProblem(int numEig, const string& filename)
 {
 	string fileLoc = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_" + to_string(numEig);
+
+	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+	cout << "> Computing reference eigenproblem in Matlab...";
+
 	computeEigenMatlab(S, M, numEig, refEigVects, refEigVals, fileLoc);
+
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	cout << "...in " << duration.count() << " seconds." << endl;
 }
 
 void FastSpectrum::testGaussSeidel()
@@ -2342,6 +2352,10 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int numModes, int maxIter)
 {
 	cout << "The Subspace Iteration Method \n";
+	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
 	/* Initialization */
 	SIMeigVals.resize(numModes);					SIMeigVals.setZero();
 	SIMeigVects.resize(V.rows(), numModes);			SIMeigVects.setZero();
@@ -2354,9 +2368,14 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 		simpleSubspaceIterMethod(viewer, type, tol, numModes, maxIter, SIMeigVects, SIMeigVals);
 
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
+
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
 	
 	/* WRITING UP THE CONVERGENCE */
-	string modelName = "Sphere_" + to_string(V.rows());
+	string modelName = "AAA_" + to_string(V.rows());
 	string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
 	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
 	string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
@@ -2526,7 +2545,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 
 	EigVals = Alpha.block(0,0,width,1);
 	EigVects = Xk.block(0,0,V.rows(),width);
-	cout << "Eigenvalues: \n" << EigVals << endl << endl;
+	//cout << "Eigenvalues: \n" << EigVals << endl << endl;
 }
 
 void FastSpectrum::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
@@ -2794,6 +2813,11 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 
 void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, double tol, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
 {
+	cout << "[LEVEL" << k << "] \n";
+	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
 	printf("[1] level: %d \n", k);
 	int		width	= numEigs;
 	int		q		= max(2 * width, width + 8);	
@@ -2810,15 +2834,15 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 		printf("[1] Restriction: ");
 		Eigen::SparseMatrix<double> SK, MK;
 		if (k == 0) { 
-			printf("S:%dx%d (nnz: %d) | M:%dx%d (nnz: %d) \n", S.rows(), S.cols(), S.nonZeros(), M.rows(), M.cols(), M.nonZeros());
+			//printf("S:%dx%d (nnz: %d) | M:%dx%d (nnz: %d) \n", S.rows(), S.cols(), S.nonZeros(), M.rows(), M.cols(), M.nonZeros());
 			SK = S; MK = M; 
-			printf("Sred:%dx%d (nnz: %d) | Mred:%dx%d (nnz: %d) \n", SK.rows(), SK.cols(), SK.nonZeros(), MK.rows(), MK.cols(), MK.nonZeros());
+			//printf("Sred:%dx%d (nnz: %d) | Mred:%dx%d (nnz: %d) \n", SK.rows(), SK.cols(), SK.nonZeros(), MK.rows(), MK.cols(), MK.nonZeros());
 		}
 		else {
 			SK = U[k-1].transpose()*SL*U[k-1];
 			MK = U[k-1].transpose()*ML*U[k-1];
 
-			printf("Sred=%dx%d | Mred: %dx%d | U:%dx%d \n", SK.rows(), SK.cols(), MK.rows(), MK.cols(), U[k - 1].rows(), U[k - 1].cols());
+			//printf("Sred=%dx%d | Mred: %dx%d | U:%dx%d \n", SK.rows(), SK.cols(), MK.rows(), MK.cols(), U[k - 1].rows(), U[k - 1].cols());
 		}
 
 		printf("[2] Going deeper => \n ################");
@@ -2859,16 +2883,16 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 				v = MK * (XL.col(i));
 				XbarK.col(i) = factorization.solve(v);
 			}
-			if (iterCount == 0) {
-				printf("__MK: %dx%d | XL:%dx%d | XbarK: %dx%d \n", MK.rows(), MK.cols(), XL.rows(), XL.cols(), XbarK.rows(), XbarK.cols());
-			}
+			///if (iterCount == 0) {
+			///	printf("__MK: %dx%d | XL:%dx%d | XbarK: %dx%d \n", MK.rows(), MK.cols(), XL.rows(), XL.cols(), XbarK.rows(), XbarK.cols());
+			///}
 
 			/* Projected matrix */
 			Sproj = XbarK.transpose()*SK*XbarK;
 			Mproj = XbarK.transpose()*MK*XbarK;
-			if (iterCount == 0) {
-				printf("__SProj: %dx%d | Mproj: %dx%d \n", Sproj.rows(), Sproj.cols(), Mproj.rows(), Mproj.cols());
-			}
+			///if (iterCount == 0) {
+			///	printf("__SProj: %dx%d | Mproj: %dx%d \n", Sproj.rows(), Sproj.cols(), Mproj.rows(), Mproj.cols());
+			///}
 
 			/* Computing the eigenproblem in reduced space*/
 			computeEigenGPUDense(Sproj, Mproj, Q, AL);
@@ -2876,9 +2900,9 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
 			XL = XbarK*Q;
-			if (iterCount == 0) {
-				printf("__XL: %dx%d | Q: %dx%d \n", XL.rows(), XL.cols(), Q.rows(), Q.cols());
-			}
+			///if (iterCount == 0) {
+			///	printf("__XL: %dx%d | Q: %dx%d \n", XL.rows(), XL.cols(), Q.rows(), Q.cols());
+			///}
 
 			checkConvergenceCat2(XL, AL, MK, SK, conv2);
 			//printf("__%d: Convergence check: %.3f (end) \n", iterCount, conv3(width-1));
@@ -2901,9 +2925,15 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 		if (k == 0) {
 			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
 			SIMeigValsStack.conservativeResize(Eigen::NoChange, iterCount);
-			cout << "Eigenvalues: \n" << AL << endl << endl;
+			//cout << "Eigenvalues: \n" << AL << endl << endl;
 		}
 	}	
+
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	
 }
 
 void FastSpectrum::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)

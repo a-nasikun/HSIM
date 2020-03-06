@@ -113,13 +113,18 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 						cout << "Error! Make sure you construct Laplacian matrices before creating samples." << endl;
 						return;
 					}
-
+					cout << "Creating samples... " << endl;
+					chrono::high_resolution_clock::time_point	t0, t1;
+					chrono::duration<double>					duration;
+					t0 = chrono::high_resolution_clock::now();
+					
 					vector<int> sampleLevels; sampleLevels.reserve(10);
 					int SAMPLE_LOW_BOUND = 1000;
 					int numSample = fastSpectrum.V.rows();
 					int lvlCounter = 0;
 					do {
 						numSample = (int)round(numSample / levelRatio);
+						if (numSample < 500) break;
 						sampleLevels.push_back(numSample);
 						lvlCounter++;
 					} while (numSample > SAMPLE_LOW_BOUND);
@@ -138,6 +143,10 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					fastSpectrum.constructSampleHierarchy(sampSize);
 										
 					boolShowSamples = true; 
+					
+					t1 = chrono::high_resolution_clock::now();
+					duration = t1 - t0;
+					cout << "in " << duration.count() << " seconds." << endl;
 				}
 
 				ImGui::Text("Show sample distance");				
@@ -167,9 +176,18 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 						return;
 					}
 
+					cout << "Constructing basis..." << endl;
+					chrono::high_resolution_clock::time_point	t0, t1;
+					chrono::duration<double>					duration;
+					t0 = chrono::high_resolution_clock::now();
+
 					fastSpectrum.constructBasis();
 					useNonSmoothBasis = false; 
-					fastSpectrum.testConstantFuncsProjection();
+					//fastSpectrum.testConstantFuncsProjection();
+
+					t1 = chrono::high_resolution_clock::now();
+					duration = t1 - t0;
+					cout << "in " << duration.count() << " seconds." << endl;
 				}
 
 				// Showing basis in different levels
@@ -223,31 +241,27 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 
 				ImGui::Spacing(); ImGui::Spacing();
-
-				/* For Low-Dim Problem */
-				if (ImGui::Button("[4] Construct Low-Dim Eigenproblem", ImVec2(w, 0))) {
-					Eigen::SparseMatrix<double> Basis;
-					int numSample;
-					fastSpectrum.getFunctionBasis(Basis);
-					fastSpectrum.getSampleSize(numSample);
-					if (Basis.rows()!=V.rows() || !(Basis.cols()>0)) {
-						cout << "Error! Make sure you execute previous steps before constructing Low-Dim Eigenproblem." << endl;
-						return;
-					}
-
-					fastSpectrum.constructRestrictedProblem();
-				}
+				
 				/* Solving Low-Dim Eigenproblem */
-				if (ImGui::Button("[5] Solve Low-Dim Eigenproblem", ImVec2(w, 0))) {
-					Eigen::SparseMatrix<double> MBar, Basis;
-					fastSpectrum.getReducedMassMatrix(MBar);
-					fastSpectrum.getFunctionBasis(Basis);
-					if (Basis.cols() != MBar.cols() || MBar.cols()<1) {
+				if (ImGui::Button("[4] Solve Low-Dim Eigenproblem", ImVec2(w, 0))) {					
+					if (fastSpectrum.Basis.cols()<1 || fastSpectrum.Sample.size()<1) {
 						cout << "Error! Make sure you execute previous steps before solving the Low-Dim Eigenproblem." << endl;
 						return;
 					}
 
+					cout << "Computing the restricted eigen problem" << endl;
+					chrono::high_resolution_clock::time_point	t0, t1;
+					chrono::duration<double>					duration;
+					t0 = chrono::high_resolution_clock::now();
+
+					fastSpectrum.constructRestrictedProblem();
 					fastSpectrum.solveRestrictedProblem();
+
+					t1 = chrono::high_resolution_clock::now();
+					duration = t1 - t0;
+					cout << "in " << duration.count() << " seconds." << endl;
+
+
 					//cout << "(approx) Eigenvector: \n " << fastSpectrum.reducedEigVals << endl << endl; 
 
 					// Show the first non-zero eigenvectors
@@ -255,8 +269,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					fastSpectrum.getFunctionBasis(U);
 					fastSpectrum.getReducedEigVects(redEigVects);
 					printf("Approximated (lifted) eigenvectors %dx%d\n", U.rows(), redEigVects.cols());
-					eigToShow					= 1;
-					Z							= U * redEigVects.col(eigToShow);
+					eigToShow = 1;
+					Z = U * redEigVects.col(eigToShow);
 					igl::jet(Z, true, vColor);
 					viewer.data().set_colors(vColor);
 				}
@@ -422,7 +436,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Text("Show Refer.");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
-				if (fastSpectrum.refEigVects.rows() != V.rows()) {
+				if (fastSpectrum.refEigVects.cols() <1) {
 					cout << "Error! Make sure you have computed the reference eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -442,7 +456,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::SameLine(0, p);
 
 			if (ImGui::Button("+ 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
-				if (fastSpectrum.refEigVects.rows() != V.rows()) {
+				if (fastSpectrum.refEigVects.cols() <1) {
 					cout << "Error! Make sure you have computed the reference eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -517,18 +531,20 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
 			fastSpectrum.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
+
+			cout << "Eigenvalues: \n" << fastSpectrum.SIMeigVals << endl << endl;
 		}
 
 		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
 			double thisTol = 1e-2;
-			vector<int> wantedModes{ 50, 100, 250 };
-			//vector<int> wantedModes{ 100, 250 };
+			//vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> wantedModes{ 250 };
 			for (int j = 0; j < wantedModes.size(); j++) {
 				for (int k = 0; k < 4; k++) {
 					double tolTol = thisTol / pow(10, k);
+					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_MultiLevel,    tolTol, wantedModes[j], maxIter);
 					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, tolTol, wantedModes[j], maxIter);
 					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Bathe,  tolTol, wantedModes[j], maxIter);
-					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_MultiLevel,    tolTol, wantedModes[j], maxIter);
 				}
 			}
 		}
@@ -542,7 +558,8 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 					fastSpectrum.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_WarmStart, tolTol, wantedModes[j], maxIter);
 				}
 			}
-		}
+		}	
+		
 		//if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
 		//	fastSpectrum.SubspaceIterMethod(viewer);
 		//}
@@ -709,8 +726,25 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 			ImGui::Text("EigVal to Comp."); ImGui::SameLine();
 			static char numEig[6] = "100"; ImGui::InputText("", numEig, 6);
 			eigToCompute = atoi(numEig);
-			if (ImGui::Button("Compute Ref. eigproblem", ImVec2(w, 0))) {
+			if (ImGui::Button("Compute Ref. in Matlab", ImVec2(w, 0))) {
 				fastSpectrum.computeRefEigenProblem(eigToCompute, "hello");
+			}
+
+			if (ImGui::Button("Compute Ref. in Spectra", ImVec2(w, 0))) {
+
+				chrono::high_resolution_clock::time_point	t0, t1;
+				chrono::duration<double>					duration;
+				t0 = chrono::high_resolution_clock::now();
+				cout << "> Computing reference eigenproblem in Spectra...";
+
+				computeEigenSpectraSparse(fastSpectrum.S, fastSpectrum.M, eigToCompute, fastSpectrum.refEigVects, fastSpectrum.refEigVals);
+
+				t1 = chrono::high_resolution_clock::now();
+				duration = t1 - t0;
+				cout << "...in " << duration.count() << " seconds." << endl;
+
+				cout << "Ref eigenvalues: \n" <<  fastSpectrum.refEigVals << endl; 
+
 			}
 
 			if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {

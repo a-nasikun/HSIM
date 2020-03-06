@@ -707,6 +707,42 @@ void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int&
 	cout << "Eigenvalues: " << EigVal.transpose() << endl; 
 }
 
+/* Sparse spectra eigensolver */
+void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal)
+{
+	///cout << "Computing eigenproblem in Spectra...";
+	///chrono::high_resolution_clock::time_point	t1, t2;
+	///chrono::duration<double>					duration;
+
+	printf("M: %dx%d | S:%dx%d \n", M.rows(), M.cols(), S.rows(), S.cols());
+
+	Spectra::SparseSymMatProd<double> SOp(S);
+	Spectra::SparseCholesky<double> MOp(M);
+
+	printf("Wrapper \n");
+
+	Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> spectraSolver(&SOp, &MOp, numEigs, 2 * numEigs);
+
+	cout << "Trying to initiate \n";
+	spectraSolver.init();
+	cout << "Trying to solve \n";
+	int info = spectraSolver.compute();
+	cout << "Result of solving: " << info << endl; 
+
+	if (spectraSolver.info() == Spectra::SUCCESSFUL) {
+		EigVal = spectraSolver.eigenvalues().reverse();
+		EigVec = spectraSolver.eigenvectors().rowwise().reverse();
+		cout << "Yes! Made it! \n";
+	}
+	else {
+		cout << "Computation failed \n";
+	}
+
+	///t2 = chrono::high_resolution_clock::now();
+	///duration = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
+	///cout << "in " << duration.count()/1000 << " seconds." << endl;
+}
+
 /* Iterative Gauss-Seidel Solver */
 void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol)
 {
