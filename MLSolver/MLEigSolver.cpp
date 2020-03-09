@@ -429,8 +429,15 @@ void MLEigSolver::constructNonSmoothBasis()
 //}
 
 void MLEigSolver::constructRestrictedProblem() {
-	S_ = Basis.transpose() * S  * Basis;
-	M_ = Basis.transpose() * M  * Basis;
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		S_ = Basis.transpose() * S  * Basis;
+		M_ = Basis.transpose() * M  * Basis;
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		printf("Dim check: ST:%dx%d | MT:%dx%d | Basis:%dx%d \n", ST.rows(), ST.cols(), MT.rows(), MT.cols(), Basis.rows(), Basis.cols());
+		S_ = Basis.transpose() * ST  * Basis;
+		M_ = Basis.transpose() * MT  * Basis;
+	}
 
 	printf("A set of reduced stiffness and mass matrix (each %dx%d) is constructed.\n", S_.rows(), M_.cols());
 	printf("__S red %.4f (%d nnz)\n", (double)S_.nonZeros() / (double)S_.rows(), S_.nonZeros());
@@ -2846,7 +2853,10 @@ void MLEigSolver::computeRefEigenProblem(int numEig, const string& filename)
 	t0 = chrono::high_resolution_clock::now();
 	cout << "> Computing reference eigenproblem in Matlab...";
 
-	computeEigenMatlab(S, M, numEig, refEigVects, refEigVals, fileLoc);
+	if(problemType==Problem_Class::Laplace_Beltrami)
+		computeEigenMatlab(S, M, numEig, refEigVects, refEigVals, fileLoc);
+	else if(problemType==Problem_Class::Linear_Elasticity)
+		computeEigenMatlab(ST, MT, numEig, refEigVects, refEigVals, fileLoc);
 
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;

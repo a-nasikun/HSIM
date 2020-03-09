@@ -228,6 +228,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					/* For Hessian of Linear-Elasticity Eigenproblem */
 					else if (problemType == 1) {
 						if (ml_eigSolver.TV.rows() < 1) return;
+						ml_eigSolver.constructVolumetricMassMatrix();
 						initiateAdM(ml_eigSolver.TV, ml_eigSolver.TT, ml_eigSolver.AdM);
 
 						Eigen::VectorXd vColor;
@@ -403,12 +404,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					//cout << "(approx) Eigenvector: \n " << ml_eigSolver.reducedEigVals << endl << endl; 
 
 					// Show the first non-zero eigenvectors
-					Eigen::SparseMatrix<double>	U;
-					ml_eigSolver.getFunctionBasis(U);
-					ml_eigSolver.getReducedEigVects(redEigVects);
-					printf("Approximated (lifted) eigenvectors %dx%d\n", U.rows(), redEigVects.cols());
 					eigToShow = 1;
-					Z = U * redEigVects.col(eigToShow);
+					Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
 					igl::jet(Z, true, vColor);
 					viewer.data().set_colors(vColor);
 				}
@@ -459,7 +456,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Text("Show Basis ");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##Basis", ImVec2((w - 85.0f - 5.0*p) /4.f, 0))) {
-				if (ml_eigSolver.Basis.rows() != V.rows()) {
+				if (ml_eigSolver.Basis.rows()<1) {
 					cout << "Error! Make sure you have computed basis function on the current model." << endl;
 					return;
 				}
@@ -481,7 +478,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::SameLine(0, p);
 
 			if (ImGui::Button("+ 1##Basis", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
-				if (ml_eigSolver.Basis.rows() != V.rows()) {
+				if (ml_eigSolver.Basis.rows() < 1) {
 					cout << "Error! Make sure you have computed basis function on the current model." << endl;
 					return;
 				}
@@ -500,11 +497,12 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Rand", ImVec2((w - 85.0f - 5.0*p)*2/4.f, 0))) {
-				if (ml_eigSolver.Basis.rows() != V.rows()) {
+				if (ml_eigSolver.Basis.rows() < 1) {
 					cout << "Error! Make sure you have computed basis function on the current model." << endl;
 					return;
 				}
 				
+				srand(time(NULL));
 				basisToShow = rand() % ml_eigSolver.Basis.cols();
 
 				if (boolShowSamples) {
@@ -519,12 +517,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			/* For Approx. Eigenvectors */
 			ImGui::Text("Show EigVec");
 			ImGui::SameLine(0, p);
-			if (ImGui::Button("- 1##EigVec1", ImVec2((w-120.0f-3*p)/2.f, 0))) {
-				ml_eigSolver.getReducedEigVects(redEigVects);
-				Eigen::SparseMatrix<double> U;
-				ml_eigSolver.getFunctionBasis(U);
-
-				if (U.rows() != V.rows()) {
+			if (ImGui::Button("- 1##EigVec1", ImVec2((w-120.0f-3*p)/2.f, 0))) {		
+				if (ml_eigSolver.reducedEigVals.rows()<1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -532,31 +526,33 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow > 0)
 					eigToShow--;
 
-				Z = U * redEigVects.col(eigToShow);
+				Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
 				if(eigToShow>0)
 					igl::jet(Z, true, vColor);
 				else 
 					igl::jet(Z, false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
+
+				printf("Color size: %d | V size: %d \n", vColor.rows(), viewer.data().V.rows());
+
 				viewer.data().set_colors(vColor);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", eigToShow);
 			ImGui::SameLine(0, p);
 
-			if (ImGui::Button("+ 1##EigVec1", ImVec2((w-120.0f-3*p)/2.f, 0))) {
-				ml_eigSolver.getReducedEigVects(redEigVects);
-				Eigen::SparseMatrix<double> U;
-				ml_eigSolver.getFunctionBasis(U);
-				
-				if (U.rows() != V.rows()) {
+			if (ImGui::Button("+ 1##EigVec1", ImVec2((w-120.0f-3*p)/2.f, 0))) {				
+				if (ml_eigSolver.reducedEigVals.rows()<1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
 
-				if (eigToShow < redEigVects.cols())
+				if (eigToShow < ml_eigSolver.reducedEigVals.rows())
 					eigToShow++;
 
-				Z = U * redEigVects.col(eigToShow);
+				Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+
+				printf("Color size: %d | V size: %d \n", vColor.rows(), viewer.data().V.rows());
+
 				igl::jet(Z, true, vColor);
 				viewer.data().set_colors(vColor);
 			}
@@ -872,7 +868,10 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 				t0 = chrono::high_resolution_clock::now();
 				cout << "> Computing reference eigenproblem in Spectra...";
 
-				computeEigenSpectraSparse(ml_eigSolver.S, ml_eigSolver.M, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals);
+				if(problemType==0)
+					computeEigenSpectraSparse(ml_eigSolver.S, ml_eigSolver.M, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals);
+				else if(problemType==1)
+					computeEigenSpectraSparse(ml_eigSolver.ST, ml_eigSolver.MT, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals);
 
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
