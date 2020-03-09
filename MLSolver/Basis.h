@@ -9,10 +9,10 @@ using namespace std;
 /* Computing Dijkstra Distance (single input, distance vector D initialized inside, stops when reaching a certain distance. 
 ** COMPACT Version, meaning that distance vector D is only initialized when necessary **/
 void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector<set<int>> &AdM,
-	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, const int sampleSize,
+	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, const int sampleSize, int probType,
 	vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);	
 void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector<set<int>> &AdM,
-	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, int level, Eigen::VectorXi Sample, const vector<int>& SubspaceSize,
+	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, int level, Eigen::VectorXi Sample, const vector<int>& SubspaceSize, int probType,
 	vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);
 
 #endif // !BASIS_H

@@ -13,7 +13,7 @@
 // Computing Dijkstra Distance (sing input, D initialized inside, stops when reaching a certain distance, 
 // and used for Basis Construction), COMPACT Version
 void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector<set<int>> &AdM,
-	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, const int sampleSize,
+	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, const int sampleSize, int probType,
 	vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter)
 {
 	//vector<VertexPair> container;
@@ -41,11 +41,11 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 		for (auto it = elem.begin(); it != elem.end(); ++it) {
 			double dist;
 			/* Regular Dikjstra */
-			//VtoVDist(V.row(vp1.vId), V.row(*it), dist);
-			//double tempDist = vp1.distance + dist;
+			VtoVDist(V.row(vp1.vId), V.row(*it), dist);
+			double tempDist = vp1.distance + dist;
 
 			/* Correct distance using Euclidean Distance */
-			double tempDist = (V.row(s1) - V.row(*it)).norm();
+			//double tempDist = (V.row(s1) - V.row(*it)).norm();
 
 			/* updating the distance */
 			if (tempDist < D(*it)) {
@@ -58,16 +58,6 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 
 	// Constructing a sparse matrix based on the triplet
 
-	///*Parameters for 5th-Order Polynomial */
-	//double a5 = -6.0 / (nDist*nDist*nDist*nDist*nDist);
-	//double b5 = 15.0 / (nDist*nDist*nDist*nDist);
-	//double c5 = -10.0 / (nDist*nDist*nDist);
-	//
-	///* Gaussian Mapping */
-	//double tHalf = 0.45; tHalf = tHalf*tHalf;
-	//double yHalf = 0.5; yHalf = log(yHalf);
-	//double aCoeff = yHalf / (nDist*nDist*tHalf);
-
 	for (int i = 0; i < D.size(); i++) {
 		double aVal = D(i);
 		if (aVal <= nDist) {
@@ -76,16 +66,15 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 	
 			/* Polynomial mapping (3rd Order) */
-			double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
-			UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
-	
-			/* Polynomial mapping (5th Order) */
-			//double val = a5*aVal*aVal*aVal*aVal*aVal + b5*aVal*aVal*aVal*aVal + c5*aVal*aVal*aVal + 1.0;
-			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
-	
-			/* Gaussian Mapping */
-			//double val = exp(aCoeff*aVal*aVal);
-			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+			double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
+			if(probType==0)
+				UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+
+			else if (probType == 1)												// tet-mesh
+			{
+				for (int k = 0; k < 3; k++)
+					UTriplet.push_back(Eigen::Triplet<double>(3 * i + k, 3 * col + k, val));
+			}
 		}
 	
 		// For the next samples, reset to infinity
@@ -94,7 +83,7 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 }
 
 void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector<set<int>> &AdM,
-	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, int level, Eigen::VectorXi Sample, const vector<int>& SubspaceSize,
+	Eigen::VectorXd &D, const double a, const double b, const double nDist, const int col, int level, Eigen::VectorXi Sample, const vector<int>& SubspaceSize, int probType,
 	vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter)
 {
 	priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
@@ -121,11 +110,11 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 			double dist;
 
 			/* Regular dijkstra */
-			//VtoVDist(V.row(vp1.vId), V.row(*it), dist);
-			//double tempDist = vp1.distance + dist;
+			VtoVDist(V.row(vp1.vId), V.row(*it), dist);
+			double tempDist = vp1.distance + dist;
 
 			/* Correct distance using Euclidean Distance */
-			double tempDist = (V.row(s1) - V.row(*it)).norm();
+			//double tempDist = (V.row(s1) - V.row(*it)).norm();
 
 			/* updating the distance */
 			if (tempDist < D(*it)) {
@@ -145,19 +134,13 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 
 			/* Polynomial mapping (3rd Order) */
 			double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
-			UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
-
-			/* Polynomial mapping (5th Order) */
-			//double val = a5*aVal*aVal*aVal*aVal*aVal + b5*aVal*aVal*aVal*aVal + c5*aVal*aVal*aVal + 1.0;
-			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
-
-			/* Gaussian Mapping */
-			//double val = exp(aCoeff*aVal*aVal);
-			//UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+			if(probType==0)
+				UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+			else if (probType == 1) {
+				for (int k = 0; k < 3; k++)
+					UTriplet.push_back(Eigen::Triplet<double>(3 * i + k, 3 * col + k, val));
+			}
 		}
-
-		// For the next samples, reset to infinity
-		//D(i) = numeric_limits<double>::infinity();
 	}
 
 	D.setConstant(numeric_limits<double>::infinity());

@@ -91,7 +91,9 @@ public:
 	void constructVolumetricMassMatrix();
 	void constructHessianMatrixForLinearElasticity(double lame1, double lame2);
 	void constructHessianMatrixForLinearElasticityMM(double m1l1, double m1l2, double m2l1, double m2l2, Eigen::VectorXd& vColor);
-	
+	void constructBasisFunctionsHessianLevel0();
+	void constructBasisFunctionsHessianLevelK(int k);
+	void constructBasisFunctionsHessianCoarseOnly();
 
 
 	/* Heat Method*/

@@ -316,16 +316,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				ImGui::Spacing(); ImGui::Spacing();
 
 				/* For Basis */
-				if (ImGui::Button("[3] Construct Basis", ImVec2(w, 0))) {
-					Eigen::SparseMatrix<double> M;
-					Eigen::VectorXi samples;
-					int numSample;
-					double avgEdgeLen;
-					ml_eigSolver.getMassMatrix(M);
-					ml_eigSolver.getSamples(samples);
-					ml_eigSolver.getSampleSize(numSample);
-					ml_eigSolver.getAvgEdgeLength(avgEdgeLen);
-					if (numSample < 1 || V.rows() != M.rows() || samples.maxCoeff() >= V.rows() || !(avgEdgeLen > 0.0)) {
+				if (ImGui::Button("[3] Construct Basis", ImVec2(w, 0))) {					
+					if (ml_eigSolver.Sample.size()<1) {
 						cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
 						return;
 					}
@@ -357,16 +349,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 
 
-				if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {
-					Eigen::SparseMatrix<double> M;
-					Eigen::VectorXi samples;
-					int numSample;
-					double avgEdgeLen;
-					ml_eigSolver.getMassMatrix(M);
-					ml_eigSolver.getSamples(samples);
-					ml_eigSolver.getSampleSize(numSample);
-					ml_eigSolver.getAvgEdgeLength(avgEdgeLen);
-					if (numSample < 1 || V.rows() != M.rows() || samples.maxCoeff() >= V.rows() || !(avgEdgeLen > 0.0)) {
+				if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {					
+					if (ml_eigSolver.Sample.size() < 1) {
 						cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
 						return;
 					}

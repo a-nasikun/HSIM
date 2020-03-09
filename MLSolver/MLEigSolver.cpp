@@ -273,26 +273,54 @@ void MLEigSolver::constructBasis()
 	//const double SCALE = 4.25;
 	//const double SCALE = 5.0;
 	const double SCALE = 1.0;
-
 	const double NUM_SUPPORT = 4.0;
-	//maxNeighDist[0] = SCALE*sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[0]));
-	//printf("Radius %d is %.4f (avg edge: %.4f)\n", 0, maxNeighDist[0], avgEdgeLength);
-	for (int i = 0; i < level; i++) {
-		maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
-		printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
+
+	if (problemType == Problem_Class::Laplace_Beltrami)
+	{
+
+		//maxNeighDist[0] = SCALE*sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[0]));
+		//printf("Radius %d is %.4f (avg edge: %.4f)\n", 0, maxNeighDist[0], avgEdgeLength);
+		for (int i = 0; i < level; i++) {
+			maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
+			printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
+		}
+
+		constructBasisFunctionsLevel0();
+		for (int i = 1; i < level; i++) {
+			constructBasisFunctionsLevelK(i);
+			printf("basis level %d: done \n", i);
+		}
+
+		formPartitionOfUnityMultiLevel();
+		//formPartitionOfUnityCombinatorialMultiLevel();
+
+		Basis.resize(V.rows(), V.rows());
 	}
-	
-	constructBasisFunctionsLevel0();
-	for (int i = 1; i < level; i++)	{
-		constructBasisFunctionsLevelK(i);
-		printf("basis level %d: done \n", i);
+	else if (problemType == Problem_Class::Linear_Elasticity)
+	{
+		double			totalVolume = 0.0;
+		for (int i = 0; i < TT.rows(); i++) totalVolume += (volume(i));
+
+		for (int i = 0; i < level; i++) {
+			//maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
+			maxNeighDist[i] = (i+1.0)* cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*SubspaceSize[i] *M_PI));
+			printf("Radius %d is %.4f\n", i, maxNeighDist[i]);
+		}
+
+		constructBasisFunctionsHessianLevel0();
+		for (int i = 1; i < level; i++) {
+			constructBasisFunctionsHessianLevelK(i);
+			printf("basis level %d: done \n", i);
+		}
+
+		formPartitionOfUnityMultiLevel();
+		//formPartitionOfUnityCombinatorialMultiLevel();
+
+		Basis.resize(3*TV.rows(), 3*TV.rows());
 	}
 
-	formPartitionOfUnityMultiLevel();
-	//formPartitionOfUnityCombinatorialMultiLevel();
-
-	Basis.resize(V.rows(), V.rows());
 	Basis.setIdentity();
+
 	for (int i = 0; i < level; i++)
 		Basis = Basis * U[i];
 
@@ -797,6 +825,272 @@ void MLEigSolver::constructHessianMatrixForLinearElasticityMM(double m1l1, doubl
 	ST.setFromTriplets(KTriplet.begin(), KTriplet.end());
 	printf("K: %dx%d \n", ST.rows(), ST.cols());
 }
+
+
+void MLEigSolver::constructBasisFunctionsHessianCoarseOnly()
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Basis construction (Coarse only)... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	//Basis.resize(V.rows(), Sample.size());
+	//Basis.reserve(20 * V.rows());
+	int coarseSample = SubspaceSize[SubspaceSize.size() - 1];
+
+	cout << "__Getting the correct size\n";
+
+	double NUM_SUPPORT = 10.0;
+	double maxDist = sqrt((NUM_SUPPORT*surfaceArea) / (M_PI*coarseSample));
+
+	vector<vector<Eigen::Triplet<double>>>	UTriplet;
+	vector<Eigen::Triplet<double>>			AllTriplet;
+	int				eCounter = 0;
+	double			aCoef = 2.0 / (maxDist * maxDist * maxDist);
+	double			bCoef = -3.0 / (maxDist * maxDist);
+	int				i = 0;
+
+	const int						NUM_OF_THREADS = omp_get_num_procs();
+	omp_set_num_threads(NUM_OF_THREADS);
+	UTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc;
+
+	vector<int> elementCounter;
+	elementCounter.resize(NUM_OF_THREADS);
+	int totalElementInsertions = 0;
+
+	/* Manually break the chunck for parallelization */
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
+	{
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)coarseSample / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = coarseSample - istart;
+		if (ipts <= 0) ipts = 0;
+
+		// Instantiate D once, used for all Dijkstra
+		Eigen::VectorXd				D(V.rows());
+		D.setConstant(numeric_limits<double>::infinity());
+		//for (int i = 0; i < V.rows(); i++) {
+		//	D(i) = numeric_limits<double>::infinity();
+		//}
+
+		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)coarseSample) * 20.0 * V.rows());
+
+		for (i = istart; i < (istart + ipts); i++) {
+			if (i >= coarseSample) break;
+			/* Dijkstra basis function */
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, 1, UTriplet[tid], elementCounter[tid]);
+		}
+	} /* End of OpenMP parallelization */
+
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += UTriplet[j].size();
+		totalElementInsertions += elementCounter[j];
+	}
+
+	/* Combining the Triplet */
+	AllTriplet.resize(totalElements);
+#pragma omp parallel for
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		int tripSize = 0;
+		for (int k = 0; k < j; k++) {
+			tripSize += UTriplet[k].size();
+		}
+		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
+	}
+
+	Basis.resize(V.rows(), coarseSample);
+	Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	// Clearing up stuff
+	AllTriplet.clear(); AllTriplet.shrink_to_fit();
+	for (int j = 0; j < NUM_OF_THREADS; j++) { UTriplet[j].clear(); UTriplet[j].shrink_to_fit(); }
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double)(Basis.nonZeros() / (double)Basis.rows()));
+	//printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[0].rows(), U[0].cols(), (double)(U[0].nonZeros() / (double)U[0].rows()));
+
+}
+
+/* [Construct Basis Matrix] */
+void MLEigSolver::constructBasisFunctionsHessianLevel0()
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Basis construction (level 0)... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	//Basis.resize(V.rows(), Sample.size());
+	//Basis.reserve(20 * V.rows());
+
+	vector<vector<Eigen::Triplet<double>>>	UTriplet;
+	vector<Eigen::Triplet<double>>			AllTriplet;
+	int				eCounter = 0;
+	double			aCoef = 2.0 / (pow(maxNeighDist[0], 3));
+	double			bCoef = -3.0 / (pow(maxNeighDist[0], 2));
+	int				i = 0;
+
+	const int						NUM_OF_THREADS = omp_get_num_procs();
+	omp_set_num_threads(NUM_OF_THREADS);
+	UTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc;
+
+	vector<int> elementCounter;
+	elementCounter.resize(NUM_OF_THREADS);
+	int totalElementInsertions = 0;
+
+	/* Manually break the chunck for parallelization */
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
+	{
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)SubspaceSize[0] / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = SubspaceSize[0] - istart;
+		if (ipts <= 0) ipts = 0;
+
+		// Instantiate D once, used for all Dijkstra
+		Eigen::VectorXd				D(TV.rows());
+		D.setConstant(numeric_limits<double>::infinity());
+		//for (int i = 0; i < V.rows(); i++) {
+		//	D(i) = numeric_limits<double>::infinity();
+		//}
+
+		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)SubspaceSize[0]) * 20.0 * TV.rows());
+
+		for (i = istart; i < (istart + ipts); i++) {
+			if (i >= SubspaceSize[0]) break;
+			/* Dijkstra basis function */
+			ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0],1, UTriplet[tid], elementCounter[tid]);
+
+			// Ref level k
+			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, 0, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
+		}
+	} /* End of OpenMP parallelization */
+
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += UTriplet[j].size();
+		totalElementInsertions += elementCounter[j];
+	}
+
+	/* Combining the Triplet */
+	AllTriplet.resize(totalElements);
+#pragma omp parallel for
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		int tripSize = 0;
+		for (int k = 0; k < j; k++) {
+			tripSize += UTriplet[k].size();
+		}
+		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
+	}
+	//Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	U[0].resize(3*TV.rows(), 3*SubspaceSize[0]);
+	U[0].setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+
+	//printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double) (Basis.nonZeros()/ (double) Basis.rows()));
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[0].rows(), U[0].cols(), (double)(U[0].nonZeros() / (double)U[0].rows()));
+}
+
+void MLEigSolver::constructBasisFunctionsHessianLevelK(int k)
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "> Basis construction (level " << k << ")... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	vector<vector<Eigen::Triplet<double>>>	UTriplet;
+	vector<Eigen::Triplet<double>>			AllTriplet;
+	int				eCounter = 0;
+	double			aCoef = 2.0 / (maxNeighDist[k] * maxNeighDist[k] * maxNeighDist[k]);
+	double			bCoef = -3.0 / (maxNeighDist[k] * maxNeighDist[k]);
+	int				i = 0;
+
+	const int		NUM_OF_THREADS = omp_get_num_procs();
+	omp_set_num_threads(NUM_OF_THREADS);
+	UTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc;
+
+	vector<int> elementCounter;
+	elementCounter.resize(NUM_OF_THREADS);
+	int totalElementInsertions = 0;
+
+	/* Manually break the chunck for parallelization */
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
+	{
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)SubspaceSize[k] / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = SubspaceSize[k] - istart;
+		if (ipts <= 0) ipts = 0;
+
+		// Instantiate D once, used for all Dijkstra
+		Eigen::VectorXd				D(TV.rows());
+		D.setConstant(numeric_limits<double>::infinity());
+
+		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)SubspaceSize[k]) * 20.0 * SubspaceSize[k - 1]);
+
+		for (i = istart; i < (istart + ipts); i++) {
+			if (i >= SubspaceSize[k]) break;
+			/* Dijkstra basis function */
+			ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize,1, UTriplet[tid], elementCounter[tid]);
+
+			// Ref: Level 0
+			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
+		}
+	} /* End of OpenMP parallelization */
+
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += UTriplet[j].size();
+		totalElementInsertions += elementCounter[j];
+	}
+
+	/* Combining the Triplet */
+	AllTriplet.resize(totalElements);
+#pragma omp parallel for
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		int tripSize = 0;
+		for (int k = 0; k < j; k++) {
+			tripSize += UTriplet[k].size();
+		}
+		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
+	} /* End of OpenMP parallelization for combining triplet */
+
+	  // timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+
+	U[k].resize(3*SubspaceSize[k - 1], 3*SubspaceSize[k]);
+	U[k].setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
+}
+
 
 
 /* Heat Method*/
@@ -3363,7 +3657,15 @@ void MLEigSolver::constructBasisFunctionsCoarseOnly()
 	cout << "__Getting the correct size\n";
 
 	double NUM_SUPPORT = 10.0;
-	double maxDist = sqrt((NUM_SUPPORT*surfaceArea) / (M_PI*coarseSample));
+	double maxDist;
+	if(problemType==Problem_Class::Laplace_Beltrami)
+		maxDist = sqrt((NUM_SUPPORT*surfaceArea) / (M_PI*coarseSample));
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		double			totalVolume = 0.0;
+		for (int i = 0; i < TT.rows(); i++) totalVolume += (volume(i));
+		//maxDist = sqrt((NUM_SUPPORT*surfaceArea) / (M_PI*coarseSample));
+		maxDist = cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*coarseSample * M_PI));
+	}
 
 	vector<vector<Eigen::Triplet<double>>>	UTriplet;
 	vector<Eigen::Triplet<double>>			AllTriplet;
@@ -3394,18 +3696,24 @@ void MLEigSolver::constructBasisFunctionsCoarseOnly()
 		if (ipts <= 0) ipts = 0;
 
 		// Instantiate D once, used for all Dijkstra
-		Eigen::VectorXd				D(V.rows());
+		Eigen::VectorXd				D; D.resize(problemType==Problem_Class::Laplace_Beltrami? V.rows() : TV.rows());
 		D.setConstant(numeric_limits<double>::infinity());
 		//for (int i = 0; i < V.rows(); i++) {
 		//	D(i) = numeric_limits<double>::infinity();
 		//}
 
-		UTriplet[tid].reserve(2.0 * ((double)ipts / (double)coarseSample) * 20.0 * V.rows());
+		if(problemType==Problem_Class::Laplace_Beltrami)
+			UTriplet[tid].reserve(2.0 * ((double)ipts / (double)coarseSample) * 20.0 * V.rows());
+		else if(problemType==Problem_Class::Linear_Elasticity)
+			UTriplet[tid].reserve(3.0*2.0 * ((double)ipts / (double)coarseSample) * 20.0 * TV.rows());
 
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= coarseSample) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, UTriplet[tid], elementCounter[tid]);
+			if (problemType == Problem_Class::Laplace_Beltrami)
+				ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, 0, UTriplet[tid], elementCounter[tid]);
+			else if (problemType == Problem_Class::Linear_Elasticity)
+				ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample,1, UTriplet[tid], elementCounter[tid]);
 		}
 	} /* End of OpenMP parallelization */
 	
@@ -3425,8 +3733,11 @@ void MLEigSolver::constructBasisFunctionsCoarseOnly()
 		}
 		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
 	}
+	if(problemType==Problem_Class::Laplace_Beltrami)
+		Basis.resize(V.rows(), coarseSample);
+	else if(problemType==Problem_Class::Linear_Elasticity)
+		Basis.resize(3 * TV.rows(), 3 * coarseSample);
 
-	Basis.resize(V.rows(), coarseSample);
 	Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
 
 	// Clearing up stuff
@@ -3495,7 +3806,7 @@ void MLEigSolver::constructBasisFunctionsLevel0()
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= SubspaceSize[0]) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0,  UTriplet[tid], elementCounter[tid]);
 
 			// Ref level k
 			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, 0, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
@@ -3577,7 +3888,7 @@ void MLEigSolver::constructBasisFunctionsLevelK(int k)
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= SubspaceSize[k]) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize,0, UTriplet[tid], elementCounter[tid]);
 			
 			// Ref: Level 0
 			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
