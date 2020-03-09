@@ -12,28 +12,50 @@ using namespace std;
 /* Create a list of neighbors of every vertex *
 ** Input:
 **		V: matrix of vertices
-**		F: matrix of faces (e.g. triangles)
+**		F: matrix of faces (e.g. triangles) OR tetrahedron
 ** Output:
 **		AM: Adjacency matrix */
 void initiateAdM(Eigen::MatrixXd &V, Eigen::MatrixXi &F, vector<set<int>> &AM) {
 	AM.clear();
-	for (int i = 0; i < V.rows(); i++) {
-		set<int>		emptySet;
-		AM.insert(AM.end(), emptySet);
-	}
+	AM.resize(V.rows());
 
-	for (int i = 0; i < F.rows(); i++)
+	/* For triangle mesh / faces */
+	if (V.cols() == 3) {
+		for (int i = 0; i < F.rows(); i++)
+		{
+			int a1 = F(i, 0);
+			int a2 = F(i, 1);
+			int a3 = F(i, 2);
+
+			AM[a1].insert(a2);
+			AM[a1].insert(a3);
+			AM[a2].insert(a1);
+			AM[a2].insert(a3);
+			AM[a3].insert(a1);
+			AM[a3].insert(a2);
+		}
+	} else if (V.cols() == 4)
 	{
-		int a1 = F(i, 0);
-		int a2 = F(i, 1);
-		int a3 = F(i, 2);
+		for (int i = 0; i < F.rows(); i++)
+		{
+			int a1 = F(i, 0);
+			int a2 = F(i, 1);
+			int a3 = F(i, 2);
+			int a4 = F(i, 3);
 
-		AM[a1].insert(a2);
-		AM[a1].insert(a3);
-		AM[a2].insert(a1);
-		AM[a2].insert(a3);
-		AM[a3].insert(a1);
-		AM[a3].insert(a2);
+			AM[a1].insert(a2);
+			AM[a1].insert(a3);
+			AM[a1].insert(a4);
+			AM[a2].insert(a1);
+			AM[a2].insert(a3);
+			AM[a2].insert(a4);
+			AM[a3].insert(a1);
+			AM[a3].insert(a2);
+			AM[a3].insert(a4);
+			AM[a4].insert(a1);
+			AM[a4].insert(a2);
+			AM[a4].insert(a3);
+		}
 	}
 }
 

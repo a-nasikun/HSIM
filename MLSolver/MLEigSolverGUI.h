@@ -30,6 +30,7 @@ float				tauScale		= 10.0f;
 string				model			= "Sphere40k";
 static int			SIMtype			= 2;
 int					problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
+int					matType			= 0;					// material type (for hessian/linear elasticity)
 
 
 void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigSolver &ml_eigSolver) {
@@ -44,6 +45,12 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		float	menuWindowLeft		= 0.f,
 				menuWindowWidth		= 200.f,
 				menuWindowHeight	= 475.f;
+
+		/* Material properties (for linear elasticity) */
+		static double	m1lame1 = 1.49977776131565*1e-9,
+						m1lame2 = 0.000333358026520483*1e-9,
+						m2lame1 = 19.8175675675676*1e-9,
+						m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
 		
 		Eigen::MatrixXd		vColor;
 		Eigen::VectorXd		Z;
@@ -102,6 +109,9 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::RadioButton("Lap--Belt.", &problemType, 0); ImGui::SameLine();
 			ImGui::RadioButton("Lin. Elast.", &problemType, 1);
 
+			if (problemType == 0)		ml_eigSolver.problemType = Problem_Class::Laplace_Beltrami;
+			else if (problemType == 1)	ml_eigSolver.problemType = Problem_Class::Linear_Elasticity;
+
 
 			static int axis = 0;
 			if (problemType == 1) {
@@ -130,7 +140,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 				ImGui::SameLine(0, p);
 				if (ImGui::Button("Show Tets", ImVec2((w) / 2.0, 0))) {
-					viewer.data().invert_normals = false;
+					viewer.data().invert_normals	= false;
+					viewer.data().show_lines		= true;
 
 					srand(time(NULL));
 					double t = (double)(rand() % 20 + 1) / 20.0;
@@ -171,6 +182,32 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 					printf("mesh that we have  now: %d \n", viewer.data_list.size());
 				}
+
+
+				/* Set material propertries*/				
+				enum class MaterialType { Homogen = 0, PiecewiseConstant_2 = 1, PiecewiseConstant_Multi = 2, PiecewiseLinear = 3 };
+				//int matType;
+				if (ImGui::CollapsingHeader("Elements material", ImGuiTreeNodeFlags_CollapsingHeader)) {
+					/* Radio button to select material type */
+					ImGui::RadioButton("Const", &matType, 0); ImGui::SameLine();
+					ImGui::RadioButton("2-Mat", &matType, 1); ImGui::SameLine();
+					ImGui::RadioButton("n-Mat", &matType, 2); ImGui::SameLine();
+					ImGui::RadioButton("Hetero", &matType, 3);
+
+					/* Setting up the lame parameters */
+					//static char lame1txt[15] = "1.499777761"; ImGui::InputText("Lame_1", lame1txt, 15);
+					//static char lame2txt[15] = "0.000333358"; ImGui::InputText("Lame_2", lame2txt, 15);					
+					static char lame1txt[32] = "1.49977776131565";			ImGui::InputText("L1_1", lame1txt, 32);
+					static char lame2txt[32] = "0.000333358026520483";		ImGui::InputText("L1_2", lame2txt, 32);
+					static char lame3txt[32] = "19.8175675675676";			ImGui::InputText("L2_1", lame3txt, 32);
+					static char lame4txt[32] = "0.875";						ImGui::InputText("L2_2", lame4txt, 32);
+					m1lame1 = atof(lame1txt)*1e-9;
+					m1lame2 = atof(lame2txt)*1e-9;
+					m2lame1 = atof(lame3txt)*1e-9;
+					m2lame2 = atof(lame4txt)*1e-9;
+				}
+
+				ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); 
 			}
 
 			/* STEP BY STEP CONSTRUCTION */
@@ -184,10 +221,38 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					///ml_eigSolver.setInitialSystem(numLevels);
 					if (ml_eigSolver.V.rows() < 1) return;
 
+					/* For Laplace--Beltrami Eigenproblem */
 					if (problemType == 0)
 						ml_eigSolver.constructLaplacianMatrix();
-					else if (problemType == 1)
-						ml_eigSolver.constructHessianMatrixForLinearElasticity(1.0, 1.0);
+
+					/* For Hessian of Linear-Elasticity Eigenproblem */
+					else if (problemType == 1) {
+						if (ml_eigSolver.TV.rows() < 1) return;
+						initiateAdM(ml_eigSolver.TV, ml_eigSolver.TT, ml_eigSolver.AdM);
+
+						Eigen::VectorXd vColor;
+						Eigen::MatrixXd VColor;
+						switch (matType)
+						{
+
+						case 0:
+							cout << "Material TYpe: " << matType  << " ,i.e., Constant material" << endl;
+							ml_eigSolver.constructHessianMatrixForLinearElasticity(m1lame1, m1lame2);
+							break;
+
+						case 1:
+							cout << "MatType: " << matType << " ,i.e., heterogeneous (left-right) material" << endl;
+							//simulation.constructHessianMatrixForLinearElasticityMM(vColor);
+							ml_eigSolver.constructHessianMatrixForLinearElasticityMM(m1lame1, m1lame2, m2lame1, m2lame2, vColor);
+							igl::jet(vColor, false, VColor);
+							viewer.data().set_colors(VColor);
+							break;
+
+						default:
+							break;
+						}
+
+					}
 				}
 				/* For Hierarchy and Sampling */
 				static double levelRatio = 4.0;
@@ -195,10 +260,13 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				levelRatio = atof(lvlRatTxt);
 
 				if (ImGui::Button("[2] Sampling", ImVec2(w, 0))) {					
-					if (ml_eigSolver.M.rows() != ml_eigSolver.V.rows() || ml_eigSolver.V.rows() < 1) {
-						cout << "Error! Make sure you construct Laplacian matrices before creating samples." << endl;
-						return;
-					}
+					//if (ml_eigSolver.M.rows() != ml_eigSolver.V.rows() || ml_eigSolver.V.rows() < 1) {
+					//	cout << "Error! Make sure you construct Laplacian matrices before creating samples." << endl;
+					//	return;
+					//}
+					if (problemType == 0) if (ml_eigSolver.M.rows() < 1) return; 
+					else if (problemType == 1) if (ml_eigSolver.MT.rows() < 1) return;
+
 					cout << "Creating samples... " << endl;
 					chrono::high_resolution_clock::time_point	t0, t1;
 					chrono::duration<double>					duration;
@@ -206,7 +274,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					
 					vector<int> sampleLevels; sampleLevels.reserve(10);
 					int SAMPLE_LOW_BOUND = 1000;
-					int numSample = ml_eigSolver.V.rows();
+					int numSample = (problemType == 0 ? ml_eigSolver.V.rows() : ml_eigSolver.TV.rows() );					
+					
 					int lvlCounter = 0;
 					do {
 						numSample = (int)round(numSample / levelRatio);
@@ -226,9 +295,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					/* For 1 level (coarsest level) sampling only*/
 					ml_eigSolver.setSample(sampSize(sampleLevels.size()-1), (SamplingType)sampleType);
 					/* For the multilevel sampling */
-					ml_eigSolver.constructSampleHierarchy(sampSize);
-										
-					boolShowSamples = true; 
+					ml_eigSolver.constructSampleHierarchy(sampSize);									
+					
 					
 					t1 = chrono::high_resolution_clock::now();
 					duration = t1 - t0;
@@ -383,23 +451,20 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				//ml_eigSolver.getSamples(Sample);
 				boolShowSamples = !boolShowSamples;
 
-				if (ml_eigSolver.Sample.maxCoeff() > V.rows()) {
+				if (ml_eigSolver.Sample.size()<1) {
 					cout << "Error! Make sure you compute new samples before viewing them." << endl;
 					return;
 				}
 
-				if (boolShowSamples) {	
-					//for (int i = 0; i < Sample.size(); i++) {
-					//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.7, 0.1, 0.1));
-					//}
-					
-					visualizeSampleMulti(viewer, ml_eigSolver.V, ml_eigSolver.F, ml_eigSolver.Sample, ml_eigSolver.SubspaceSize);
+				if (boolShowSamples) {
+					/* Vertex-based sampling on surface data*/
+					if(problemType==0)
+						visualizeSampleMulti(viewer, ml_eigSolver.V, ml_eigSolver.F, ml_eigSolver.Sample, ml_eigSolver.SubspaceSize);
+					/* Vertex-based sampling on volumetric data*/
+					else if (problemType == 1)
+						visualizeSampleMulti(viewer, ml_eigSolver.TV, ml_eigSolver.TT, ml_eigSolver.Sample, ml_eigSolver.SubspaceSize);
 				}
 				else {
-					//viewer.data().clear();
-					//ml_eigSolver.getV(V);
-					//ml_eigSolver.getF(F);
-					//viewer.data().set_mesh(V, F);
 					viewer.data().points.resize(0, 6);
 				}
 

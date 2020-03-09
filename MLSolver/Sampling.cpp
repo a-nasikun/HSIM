@@ -314,9 +314,11 @@ void ComputeDijkstra(const Eigen::MatrixXd &V, const int Si, const vector<set<in
 		for (set<int>::iterator it = AdM[vp1.vId].begin(); it != AdM[vp1.vId].end(); ++it) {
 			double dist;
 			Eigen::VectorXd vRow2 = V.block<1, 3>(*it, 0);
-			//VtoVDist(vRow1, vRow2, dist);
-			//double tempDist = vp1.distance + dist;
-			double tempDist = (V.row(Si) - V.row(*it)).norm();
+			VtoVDist(vRow1, vRow2, dist);
+			double tempDist = vp1.distance + dist;
+
+			//double tempDist = (V.row(Si) - V.row(*it)).norm();
+
 			if (tempDist < D(*it)) {
 				D(*it) = tempDist;
 				distFromCenter = tempDist;
@@ -370,15 +372,11 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 		D(i) = numeric_limits<double>::infinity();
 	}
 
-	srand(time(NULL));
-	//Samples(0) = rand() % V.rows();
-	Samples(0) = 0;
-	//Si = Samples.head(1);
-
-	ComputeDijkstra(V, Samples(0), AdM, D);
-	Eigen::VectorXi::Index maxIndex1;
-	D.maxCoeff(&maxIndex1);
-	Samples(0) = maxIndex1;
+	/* Random number generator */
+	std::random_device rd;								// Will be used to obtain a seed for the random number engine
+	std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
+	std::uniform_int_distribution<> dist(0, V.rows());	// From 0 to F.rows()-1
+	Samples(0) = dist(gen);	
 	
 	Eigen::VectorXi::Index maxIndex;
 
@@ -402,6 +400,4 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 		}
 		geoDist[level - (j+1)] = D;
 	}
-
-
 }

@@ -172,6 +172,7 @@ public:
 	
 public:
 	/* [CLASS VARIABLES] */
+	Problem_Class					problemType = Problem_Class::Laplace_Beltrami;	// Selected problem, e.g. either laplace--beltrami or hessian of elasticity
 	Eigen::SparseMatrix<double>		S, M, Minv, Mf, MfInv, G;						// Stiffness, Mass and inverse mass matrix for triangle-mesh
 	Eigen::SparseMatrix<double>		ST, MT, MTinv, MThNeg;							// Stiffness, Mass and inverse mass matrix, and H^{-0.5} for tet-mesh
 	Eigen::SparseMatrix<double>		Basis;											// combined basis matrix (Basis = U0 * Uk * ....  U_{k-1} *  Uk)

@@ -211,11 +211,19 @@ void MLEigSolver::constructSampleHierarchy(Eigen::VectorXd& n)
 	}
 
 	//constructSample();
-	SampleMap.resize(V.rows()); SampleMap.setConstant(-1);
-	constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		SampleMap.resize(V.rows()); SampleMap.setConstant(-1);
+		constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
+		cout << "Assigning level \n";
+		sampleLevel.resize(V.rows());	sampleLevel.setConstant(-1);
+	} else if (problemType == Problem_Class::Linear_Elasticity) {
+		SampleMap.resize(TV.rows()); SampleMap.setConstant(-1);
+		constructFarthestPointSample(TV, AdM, Sample, SubspaceSize, geoDist);
+		cout << "Assigning level \n";
+		sampleLevel.resize(TV.rows());	sampleLevel.setConstant(-1);
+	}
 
-	cout << "Assigning level \n";
-	sampleLevel.resize(V.rows());	sampleLevel.setConstant(-1);
+
 	// for level n-1
 	for (int i = 0; i < SubspaceSize[level - 1]; i++)
 	{
@@ -536,6 +544,8 @@ void MLEigSolver::createTetrahedralMesh()
 
 	printf("____ Input: V=%dx%d | F=%dx%d \n", V.rows(), V.cols(), F.rows(), F.cols());
 	printf("____ Output: TV=%dx%d | TF=%dx%d | TT=%dx%d\n", TV.rows(), TV.cols(), TF.rows(), TF.cols(), TT.rows(), TT.cols());	
+
+
 }
 
 void MLEigSolver::computeVolume()
