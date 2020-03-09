@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.10 FATAL_ERROR)
-project(MultiGridSolver LANGUAGES CXX CUDA)
+project(MultiLevelEigenSolver LANGUAGES CXX CUDA)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
 cmake_policy(SET CMP0076 NEW)
@@ -51,24 +51,24 @@ add_subdirectory(libigl/external/imgui)
 add_library(libigl INTERFACE)
 target_include_directories(libigl INTERFACE libigl/include)
 
-# Fast spectrum
+# Multi-level eigen solver
 # #################################################################################################
-add_executable(MultiGridSolver
-	"Fast Spectrum/Main.cpp"
-	"Fast Spectrum/FastSpectrum.h"
-	"Fast Spectrum/FastSpectrum.cpp"
-	"Fast Spectrum/FastSpectrumGUI.h"
-	"Fast Spectrum/Basis.h"
-	"Fast Spectrum/Basis.cpp"
-	"Fast Spectrum/EigenSolver.h"
-	"Fast Spectrum/EigenSolver.cpp"
-	"Fast Spectrum/Sampling.h"
-	"Fast Spectrum/Sampling.cpp"
-	"Fast Spectrum/Utility.h"
-	"Fast Spectrum/Utility.cpp"
-	"Fast Spectrum/Visualization.h"
-	"Fast Spectrum/Visualization.cpp")
-target_link_libraries(MultiGridSolver
+add_executable(MultiLevelEigenSolver
+	"MLSolver/Main.cpp"
+	"MLSolver/MLEigSolver.h"
+	"MLSolver/MLEigSolver.cpp"
+	"MLSolver/MLEigSolverGUI.h"
+	"MLSolver/Basis.h"
+	"MLSolver/Basis.cpp"
+	"MLSolver/EigenSolver.h"
+	"MLSolver/EigenSolver.cpp"
+	"MLSolver/Sampling.h"
+	"MLSolver/Sampling.cpp"
+	"MLSolver/Utility.h"
+	"MLSolver/Utility.cpp"
+	"MLSolver/Visualization.h"
+	"MLSolver/Visualization.cpp")
+target_link_libraries(MultiLevelEigenSolver
 	PUBLIC libigl
 	PUBLIC eigen
 	PUBLIC glad
@@ -87,10 +87,10 @@ target_link_libraries(MultiGridSolver
 	libmex.lib                  # 
 	libmx.lib                   # for matlab stuff
 	)
-set_target_properties(MultiGridSolver PROPERTIES
+set_target_properties(MultiLevelEigenSolver PROPERTIES
 	VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin
 	RUNTIME_OUTPUT_DIRECTORY $<1:${CMAKE_CURRENT_LIST_DIR}/bin>)
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT MultiGridSolver)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT MultiLevelEigenSolver)
 if(MSVC)
-	target_compile_definitions(MultiGridSolver PUBLIC _USE_MATH_DEFINES)
+	target_compile_definitions(MultiLevelEigenSolver PUBLIC _USE_MATH_DEFINES)
 endif()

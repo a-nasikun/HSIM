@@ -1,15 +1,6 @@
 #ifndef BASIS_H
 #define BASIS_H
 
-#include <set>
-#include <queue>
-#include <vector>
-#include <iostream>
-
-#include <omp.h>			// OpenMP, parallelizing basis construction
-
-#include <Eigen/Eigen>
-
 #include "Utility.h"
 
 using namespace std;

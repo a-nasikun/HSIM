@@ -7,23 +7,13 @@
 #include "EigenSolver.h"
 #include "Visualization.h"
 
-/* [LIBIGL HEADERS] */
-#include <igl/jet.h>
-#include <igl/readOFF.h>
-#include <igl/readOBJ.h>
-#include <igl/isolines.h>
-#include <igl/cotmatrix.h>
-#include <igl/doublearea.h>
-#include <igl/massmatrix.h>
-#include <igl/barycenter.h>
-#include <igl/avg_edge_length.h>
 #include <igl/opengl/glfw/Viewer.h>
 
 using namespace std;
 
 enum class SIM_Type {SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe};
 
-class FastSpectrum
+class MLEigSolver
 {
 public:
 	/* [MAIN FUNCTIONS CALLED BY USER FOR ABSTRACTION] */

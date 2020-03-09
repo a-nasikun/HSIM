@@ -1,13 +1,12 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
-#include <set>
-#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
 
-#include <chrono>				// For quite precise timing, needed (perhaps) in most sub-task
+#include <set>
+#include <vector>
 
 #include <Eigen/Eigen>
 

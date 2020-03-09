@@ -1,6 +1,17 @@
 #include "EigenSolver.h"
 #include <chrono>
 
+#include <iostream>
+#include <assert.h> 
+
+#include <Eigen/PardisoSupport>
+
+// For CUDA
+#include "cublas_v2.h"
+#include "cusolverDn.h"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
 // For MATLAB
 #include <MatlabDataArray.hpp>
 #include <MatlabEngine.hpp>

@@ -1,6 +1,21 @@
-#include "FastSpectrum.h"
+#include "MLEigSolver.h"
+
 #include <Eigen/PardisoSupport>
 #include <Eigen/IterativeLinearSolvers>
+
+#include <random>
+#include <queue>
+
+/* [LIBIGL HEADERS] */
+#include <igl/jet.h>
+#include <igl/readOFF.h>
+#include <igl/readOBJ.h>
+#include <igl/isolines.h>
+#include <igl/cotmatrix.h>
+#include <igl/doublearea.h>
+#include <igl/massmatrix.h>
+#include <igl/barycenter.h>
+#include <igl/avg_edge_length.h>
 #include <igl/grad.h>
 #include <igl/invert_diag.h>
 #include <igl/isolines.h>
@@ -10,7 +25,7 @@
 
 // Constructor: String mesh name + No predefined sample type + No Basis call + approx eigenbasis
 // INPUT: String of mesh-location & number of samples/subpsace, OUTPUT: approximated lifted eigenvectors & eigenvalues)
-void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSamples, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
+void MLEigSolver::computeEigenPairs(const string &meshFile, const int &numOfSamples, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
 {
 	computeEigenPairs(meshFile, numOfSamples, Sample_Farthest_Point, Basis, reducedEigVects, reducedEigVals);
 	approxEigVects = this->Basis * this->reducedEigVects;
@@ -19,14 +34,14 @@ void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSam
 
 // Constructor: String mesh name + No predefined sample type + Basis call + reduced eigenbasis
 // INPUT: String of mesh-location & number of samples/subpsace, OUTPUT: Basis & reduced eigenvectors & eigenvalues )
-void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSamples, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
+void MLEigSolver::computeEigenPairs(const string &meshFile, const int &numOfSamples, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
 {
 	computeEigenPairs(meshFile, numOfSamples, Sample_Farthest_Point, Basis, reducedEigVects, reducedEigVals);
 }
 
 // Constructor: String mesh name + With predefined sample type + No Basis call + reduced eigenbasis
 // INPUT: String of mesh-location & number of samples/subpsace & type of sampling, OUTPUT: approximated lifted eigenvectors & eigenvalues)
-void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSamples, SamplingType sampleType, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
+void MLEigSolver::computeEigenPairs(const string &meshFile, const int &numOfSamples, SamplingType sampleType, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
 {	
 	computeEigenPairs(meshFile, numOfSamples, sampleType, Basis, reducedEigVects, reducedEigVals);
 	approxEigVects = this->Basis * this->reducedEigVects;
@@ -36,7 +51,7 @@ void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSam
 /* Sub-main function (the one that called the most important version of this family of overloaded functions */
 // Constructor: String mesh name + With predefined sample type + with Basis call + reduced eigenbasis
 // INPUT: String of mesh-location & number of samples/subpsace & type of sampling, OUTPUT: Basis & reduced eigenvectors & eigenvalues)
-void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
+void MLEigSolver::computeEigenPairs(const string &meshFile, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
 {
 	readMesh(meshFile, V, F);
 
@@ -47,7 +62,7 @@ void FastSpectrum::computeEigenPairs(const string &meshFile, const int &numOfSam
 
 // Constructor: Vertices & Faces + No predefined sample type + No Basis call + reduced eigenbasis
 // INPUT: V and F matrices & number of samples/subpsace, OUTPUT: approximated lifted eigenvectors & eigenvalues)
-void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
+void MLEigSolver::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
 {
 	computeEigenPairs(V, F, numOfSamples, Sample_Farthest_Point, Basis, reducedEigVects, reducedEigVals);
 	approxEigVects	= this->Basis * this->reducedEigVects;
@@ -56,14 +71,14 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 
 // Constructor: Vertices & Faces + No predefined sample type + Basis call + reduced eigenbasis
 // INPUT: V and F matrices & number of samples/subpsace, OUTPUT: OUTPUT: Basis & reduced eigenvectors & eigenvalues )
-void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
+void MLEigSolver::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
 {
 	computeEigenPairs(V, F, numOfSamples, Sample_Farthest_Point, Basis, reducedEigVects, reducedEigVals);
 }
  
 // Constructor: Vertices & Faces + With predefined sample type + No Basis call + reduced eigenbasis
 // INPUT: V and F matrices & number of samples/subpsace & type of sampling, OUTPUT: approximated lifted eigenvectors & eigenvalues)
-void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, SamplingType sampleType, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
+void MLEigSolver::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, SamplingType sampleType, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals)
 {
 	computeEigenPairs(V, F, numOfSamples, sampleType, Basis, reducedEigVects, reducedEigVals);
 	approxEigVects = this->Basis*this->reducedEigVects;
@@ -73,7 +88,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 /* Most important version of the overloaded family of this function calls */
 // Constructor: Vertices & Faces + With predefined sample type + with Basis call + reduced eigenbasis
 // INPUT: V and F matrices & number of samples / subpsace & type of sampling, OUTPUT : Basis & reduced eigenvectors & eigenvalues)
-void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
+void MLEigSolver::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals)
 {
 	// [1.2] Constructing Laplacian Matrices (Stiffness and Mass-Matrix)
 	this->V = V;
@@ -108,7 +123,7 @@ void FastSpectrum::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, con
 	
 }
 
-void FastSpectrum::setInitialSystem(int n)
+void MLEigSolver::setInitialSystem(int n)
 {
 	level = n;
 	maxNeighDist.resize(level);
@@ -123,7 +138,7 @@ void FastSpectrum::setInitialSystem(int n)
 
 /* [ENCAPSULATION]*/
 /* [Construct the stiffness & mass matrix AND other important tables] */
-void FastSpectrum::constructLaplacianMatrix(){
+void MLEigSolver::constructLaplacianMatrix(){
 	/* Construct Stiffness matrix S */
 	igl::cotmatrix(V, F, S);
 	S = -S;
@@ -180,7 +195,7 @@ void FastSpectrum::constructLaplacianMatrix(){
 	printf("A Stiffness matrix S(%dx%d) and Mass matrix M(%dx%d) are constructed.\n", S.rows(), S.cols(), M.rows(), M.cols());
 }
 
-void FastSpectrum::constructSampleHierarchy(Eigen::VectorXd& n)
+void MLEigSolver::constructSampleHierarchy(Eigen::VectorXd& n)
 {
 
 	for (int i = 0; i < level; i++)
@@ -228,7 +243,7 @@ void FastSpectrum::constructSampleHierarchy(Eigen::VectorXd& n)
 }
 
 /* [Construct samples for the subspace] */
-void FastSpectrum::constructSample()
+void MLEigSolver::constructSample()
 {
 	constructFarthestPointSample(V, AdM, sampleSize, Sample);
 	this->sampleSize = Sample.size();
@@ -236,7 +251,7 @@ void FastSpectrum::constructSample()
 }
 
 /* Constructing multi-level basis */
-void FastSpectrum::constructBasis()
+void MLEigSolver::constructBasis()
 {
 	//const double NUM_SUPPORT = 5.0;
 	//const double NUM_SUPPORT = 3.75;			// Dragon model, result in 8 nnz per row (total basis)
@@ -272,7 +287,7 @@ void FastSpectrum::constructBasis()
 	printf("Basis sparsity:  %.4f (%d/%d) \n", (double) Basis.nonZeros() / (double) Basis.rows(), Basis.nonZeros(), Basis.rows());
 }
 
-void FastSpectrum::constructBasisCoarseOnly()
+void MLEigSolver::constructBasisCoarseOnly()
 {
 	constructBasisFunctionsCoarseOnly();
 
@@ -281,7 +296,7 @@ void FastSpectrum::constructBasisCoarseOnly()
 	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
 }
 
-void FastSpectrum::constructNonSmoothBasis()
+void MLEigSolver::constructNonSmoothBasis()
 {
 	/* Resizing the cluster */
 	cout << "Resizing the clusters \n";
@@ -359,7 +374,7 @@ void FastSpectrum::constructNonSmoothBasis()
 
 }
 
-//void FastSpectrum::constructNonSmoothBasis()
+//void MLEigSolver::constructNonSmoothBasis()
 //{
 //	/* Resizing the cluster */
 //	cout << "Resizing the clusters \n";
@@ -371,7 +386,7 @@ void FastSpectrum::constructNonSmoothBasis()
 //		BuildLocalClusterLevelK(i);
 //}
 
-void FastSpectrum::constructRestrictedProblem() {
+void MLEigSolver::constructRestrictedProblem() {
 	S_ = Basis.transpose() * S  * Basis;
 	M_ = Basis.transpose() * M  * Basis;
 
@@ -380,131 +395,131 @@ void FastSpectrum::constructRestrictedProblem() {
 	printf("__M red %.4f (%d nnz)\n", (double)M_.nonZeros() / (double)M_.rows(), M_.nonZeros());
 }
 
-void FastSpectrum::solveRestrictedProblem() {
+void MLEigSolver::solveRestrictedProblem() {
 	computeEigenPair();
 	//normalizeReducedEigVects();
 }
 
 /* [GETTER AMD SETTER] */
-void FastSpectrum::getV(Eigen::MatrixXd &V)
+void MLEigSolver::getV(Eigen::MatrixXd &V)
 {
 	V = this->V;
 }
-void FastSpectrum::getF(Eigen::MatrixXi &F)
+void MLEigSolver::getF(Eigen::MatrixXi &F)
 {
 	F = this->F;
 }
 
 
-void FastSpectrum::getVF(Eigen::MatrixXd &V, Eigen::MatrixXi &F) {
+void MLEigSolver::getVF(Eigen::MatrixXd &V, Eigen::MatrixXi &F) {
 	getV(V);
 	getF(F);
 }
 
-void FastSpectrum::getAvgEdgeLength(double &avgEdgeLength)
+void MLEigSolver::getAvgEdgeLength(double &avgEdgeLength)
 {
 	avgEdgeLength = this->avgEdgeLength;
 }
 
-void FastSpectrum::getMassMatrix(Eigen::SparseMatrix<double> &M) 
+void MLEigSolver::getMassMatrix(Eigen::SparseMatrix<double> &M) 
 {
 	M = this->M;
 }
 
-void FastSpectrum::getStiffnessMatrix(Eigen::SparseMatrix<double> &S)
+void MLEigSolver::getStiffnessMatrix(Eigen::SparseMatrix<double> &S)
 {
 	S = this->S; 
 }
 
-void FastSpectrum::getLaplacian(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M)
+void MLEigSolver::getLaplacian(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M)
 {
 	getStiffnessMatrix(S);
 	getMassMatrix(M);
 }
 
-void FastSpectrum::getSamples(Eigen::VectorXi &Sample)
+void MLEigSolver::getSamples(Eigen::VectorXi &Sample)
 {
 	Sample = this->Sample;
 }
 
-void FastSpectrum::getSampleSize(int &sampleSize)
+void MLEigSolver::getSampleSize(int &sampleSize)
 {
 	sampleSize = this->sampleSize;
 }
 
-void FastSpectrum::getFunctionBasis(Eigen::SparseMatrix<double> &Basis)
+void MLEigSolver::getFunctionBasis(Eigen::SparseMatrix<double> &Basis)
 {
 	Basis = this->Basis;
 }
 
-void FastSpectrum::getReducedEigVals(Eigen::VectorXd &reducedEigVals)
+void MLEigSolver::getReducedEigVals(Eigen::VectorXd &reducedEigVals)
 {
 	reducedEigVals = this->reducedEigVals;
 }
 
-void FastSpectrum::getReducedEigVects(Eigen::MatrixXd &reducedEigVects)
+void MLEigSolver::getReducedEigVects(Eigen::MatrixXd &reducedEigVects)
 {
 	reducedEigVects = this->reducedEigVects;
 }
 
-void FastSpectrum::getApproxEigVects(Eigen::MatrixXd &approxEigVects)
+void MLEigSolver::getApproxEigVects(Eigen::MatrixXd &approxEigVects)
 {
 	approxEigVects = Basis*reducedEigVects;
 }
 
-void FastSpectrum::getReducedStiffnessMatrix(Eigen::SparseMatrix<double> &Sbar)
+void MLEigSolver::getReducedStiffnessMatrix(Eigen::SparseMatrix<double> &Sbar)
 {
 	Sbar = this->S_;
 }
 
-void FastSpectrum::getReducedMassMatrix(Eigen::SparseMatrix<double> &Mbar)
+void MLEigSolver::getReducedMassMatrix(Eigen::SparseMatrix<double> &Mbar)
 {
 	Mbar = this->M_;
 }
 
-void FastSpectrum::getReducedLaplacian(Eigen::SparseMatrix<double> &SBar, Eigen::SparseMatrix<double> &MBar)
+void MLEigSolver::getReducedLaplacian(Eigen::SparseMatrix<double> &SBar, Eigen::SparseMatrix<double> &MBar)
 {
 	getReducedStiffnessMatrix(SBar);
 	getReducedMassMatrix(MBar);
 }
 
-void FastSpectrum::setV(const Eigen::MatrixXd &V){
+void MLEigSolver::setV(const Eigen::MatrixXd &V){
 	this->V = V;
 }
-void FastSpectrum::setF(const Eigen::MatrixXi &F){
+void MLEigSolver::setF(const Eigen::MatrixXi &F){
 	this->F = F;
 }
 
-void FastSpectrum::setMesh(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F)
+void MLEigSolver::setMesh(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F)
 {
 	setV(V);
 	setF(F);
 }
 
-void FastSpectrum::setMesh(const string &meshFile) 
+void MLEigSolver::setMesh(const string &meshFile) 
 {
 	readMesh(meshFile, V, F);
 	setMesh(V, F);
 }
 
-void FastSpectrum::setSample(const int &sampleSize, SamplingType sampleType)
+void MLEigSolver::setSample(const int &sampleSize, SamplingType sampleType)
 {
 	setSampleNumber(sampleSize);
 	setSampleType(sampleType);
 }
 
-void FastSpectrum::setSampleNumber(const int &sampleSize)
+void MLEigSolver::setSampleNumber(const int &sampleSize)
 {
 	this->sampleSize = sampleSize;
 }
 
-void FastSpectrum::setSampleType(SamplingType sampleType)
+void MLEigSolver::setSampleType(SamplingType sampleType)
 {
 	this->sampleType = sampleType; 
 }
 
 /* Heat Method*/
-void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
+void MLEigSolver::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 {
 	double tau = avgEdgeLength*avgEdgeLength;
 	//double tau = 10000.0*avgEdgeLength;
@@ -528,7 +543,7 @@ void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 	//testGaussSeidel();
 }
 
-void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::solveHeatEquation(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -555,7 +570,7 @@ void FastSpectrum::solveHeatEquation(double tau, const Eigen::VectorXd& input, E
 	cout << "in " << duration.count() << " seconds" << endl;
 }
 
-void FastSpectrum::normalizeGradient(Eigen::VectorXd& grad)
+void MLEigSolver::normalizeGradient(Eigen::VectorXd& grad)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -576,7 +591,7 @@ void FastSpectrum::normalizeGradient(Eigen::VectorXd& grad)
 	cout << "in " << duration.count() << " seconds" << endl;
 }
 
-void FastSpectrum::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -605,7 +620,7 @@ void FastSpectrum::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::Vec
 	cout << "__Ref. residu: " << residual << endl; 
 }
 
-void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
+void MLEigSolver::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
 {
 	Eigen::MatrixXd VColor;
 	igl::jet(functions, true, VColor);
@@ -622,7 +637,7 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 }
 
 /* Reduced (1-level) Heat Method */
-void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
+void MLEigSolver::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 {
 	//double tauScale = (double)V.rows() / SubspaceSize[level-1];
 	//double tauScale = 1.0;
@@ -667,7 +682,7 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 
 }
 
-void FastSpectrum::solveHeatMethodRedMultiGridNonSmooth(igl::opengl::glfw::Viewer &viewer)
+void MLEigSolver::solveHeatMethodRedMultiGridNonSmooth(igl::opengl::glfw::Viewer &viewer)
 {
 	//double tau = 1000.0*avgEdgeLength;
 	double tau = avgEdgeLength*avgEdgeLength;
@@ -686,7 +701,7 @@ void FastSpectrum::solveHeatMethodRedMultiGridNonSmooth(igl::opengl::glfw::Viewe
 	visualizeHeatGeodesicsRed(viewer, heatDistance);
 }
 
-void FastSpectrum::prepareRedMatrix()
+void MLEigSolver::prepareRedMatrix()
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -704,7 +719,7 @@ void FastSpectrum::prepareRedMatrix()
 }
 
 /* Both input and output are in reduced space */
-void FastSpectrum::solveHeatEquationRed(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::solveHeatEquationRed(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -729,7 +744,7 @@ void FastSpectrum::solveHeatEquationRed(double tau, const Eigen::VectorXd& input
 	cout << "in " << duration.count() << " seconds" << endl;
 }
 
-void FastSpectrum::solveHeatEquationRed_CoarseOnly(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::solveHeatEquationRed_CoarseOnly(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
 	Eigen::SparseMatrix<double> MS = Basis.transpose() * (M + tau*S) * Basis;
 	Eigen::VectorXd rhs = Basis.transpose() * ( M*input);
@@ -752,7 +767,7 @@ void FastSpectrum::solveHeatEquationRed_CoarseOnly(double tau, const Eigen::Vect
 	output = Basis * tempRes;
 }
 
-void FastSpectrum::solveHeatEquationRedMultiGridNonSmooth(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::solveHeatEquationRedMultiGridNonSmooth(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
 	Eigen::SparseMatrix<double> SM = M + tau*S;
 	Eigen::VectorXd rhs = input;
@@ -780,13 +795,13 @@ void FastSpectrum::solveHeatEquationRedMultiGridNonSmooth(double tau, const Eige
 	//GaussSeidelSparseSolver(SM, rhs, x1, output, 30, 1e-15);
 }
 
-void FastSpectrum::normalizeGradientRed(Eigen::VectorXd& grad)
+void MLEigSolver::normalizeGradientRed(Eigen::VectorXd& grad)
 {
 	normalizeGradient(grad);
 }
 
 /* Input: full resolution, output: reduced */
-void FastSpectrum::solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
 	Eigen::VectorXd rhs = G.transpose() * Mf * input;
 
@@ -815,7 +830,7 @@ void FastSpectrum::solvePoissonEquationRed(const Eigen::VectorXd& input, Eigen::
 	cout << "__Approx. residu: " << residual << endl;
 }
 
-void FastSpectrum::solvePoissonEquationRed_CoarseOnly(const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::solvePoissonEquationRed_CoarseOnly(const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
 	Eigen::SparseMatrix<double> MS = Basis.transpose() * (S) * Basis;
 	Eigen::VectorXd rhs = Basis.transpose() * (G.transpose() * Mf *input);
@@ -837,7 +852,7 @@ void FastSpectrum::solvePoissonEquationRed_CoarseOnly(const Eigen::VectorXd& inp
 
 	output = Basis * tempRes;
 }
-void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
+void MLEigSolver::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
 {
 	Eigen::VectorXd funcLifted = Basis*functions;
 
@@ -856,7 +871,7 @@ void FastSpectrum::visualizeHeatGeodesicsRed(igl::opengl::glfw::Viewer &viewer, 
 }
 
 /* Heat Diffusion */
-void FastSpectrum::multiLevelHeatDiffusion(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::multiLevelHeatDiffusion(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {
 	Eigen::VectorXd y0;
 	vector<Eigen::VectorXd> yML, xML;
@@ -870,7 +885,7 @@ void FastSpectrum::multiLevelHeatDiffusion(double tau, const Eigen::VectorXd& in
 	//output = y0;
 }
 
-void FastSpectrum::buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
+void MLEigSolver::buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
 {
 	/* Setting up the multi-level basis matrix */
 	vector<Eigen::SparseMatrix<double>> UTemp; UTemp.resize(level);
@@ -930,7 +945,7 @@ void FastSpectrum::buildMultiLevelRHS(Eigen::VectorXd& y0, vector<Eigen::VectorX
 	
 }
 
-void FastSpectrum::solveHeatDiffusionLevelK(int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
+void MLEigSolver::solveHeatDiffusionLevelK(int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
 {
 	cout << "__Solving the heat diffusion \n";
 	Eigen::SparseMatrix<double> UTemp;
@@ -960,7 +975,7 @@ void FastSpectrum::solveHeatDiffusionLevelK(int k, vector<Eigen::VectorXd>& rhs,
 	}
 }
 
-void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
+void MLEigSolver::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output)
 {	
 	vector<double> tSplit(3);
 	tSplit[0] = 0.7;
@@ -983,7 +998,7 @@ void FastSpectrum::multiLevelHeatDiffusion(igl::opengl::glfw::Viewer &viewer, do
 
 }
 
-void FastSpectrum::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
+void MLEigSolver::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
 {
 	bool explicitEuler = true; 
 	/* Setting up the multi-level basis matrix */
@@ -1092,7 +1107,7 @@ void FastSpectrum::buildMultiLevelRHS(igl::opengl::glfw::Viewer &viewer, double 
 
 }
 
-void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
+void MLEigSolver::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
 {
 	cout << "__Solving the heat diffusion \n";
 	vector<Eigen::SparseMatrix<double>> UTemp;	
@@ -1182,7 +1197,7 @@ void FastSpectrum::solveHeatDiffusionLevelK(igl::opengl::glfw::Viewer &viewer, d
 	//viewer.data().set_colors(VCol);
 }
 
-void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
+void MLEigSolver::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, vector<Eigen::VectorXd>& y)
 {
 	bool explicitEuler = false; 
 	bool evaluateAtFineLevel = true;
@@ -1364,7 +1379,7 @@ void FastSpectrum::buildMultiLevelRHSFineOnly(igl::opengl::glfw::Viewer &viewer,
 	cout << "The rel error is :: " << diff << endl;
 }
 
-void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
+void MLEigSolver::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &viewer, double tau, int k, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
 {
 	Eigen::SparseMatrix<double> L = Minv*S;
 
@@ -1461,7 +1476,7 @@ void FastSpectrum::solveHeatDiffusionLevelKFineOnly(igl::opengl::glfw::Viewer &v
 
 }
 
-void FastSpectrum::postSmoothing(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, Eigen::VectorXd& y)
+void MLEigSolver::postSmoothing(igl::opengl::glfw::Viewer &viewer, double tau, const Eigen::VectorXd& y0, Eigen::VectorXd& y)
 {
 	bool explicitEuler = true;
 	double fineScale = 1.0;
@@ -1485,7 +1500,7 @@ void FastSpectrum::postSmoothing(igl::opengl::glfw::Viewer &viewer, double tau, 
 	}
 }
 
-void FastSpectrum::diffusionVCycle(igl::opengl::glfw::Viewer &viewer,const Eigen::SparseMatrix<double>& LInv, double tau, int lvl_now, int lvl_goal, Eigen::VectorXd& vin, Eigen::VectorXd& vout)
+void MLEigSolver::diffusionVCycle(igl::opengl::glfw::Viewer &viewer,const Eigen::SparseMatrix<double>& LInv, double tau, int lvl_now, int lvl_goal, Eigen::VectorXd& vin, Eigen::VectorXd& vout)
 {
 	double tDiff = 0.9;
 	double tSmooth = 0.1;
@@ -1525,7 +1540,7 @@ void FastSpectrum::diffusionVCycle(igl::opengl::glfw::Viewer &viewer,const Eigen
 	}
 }
 
-void FastSpectrum::solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, double tau, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
+void MLEigSolver::solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, double tau, vector<Eigen::VectorXd>& rhs, vector<Eigen::VectorXd>& x)
 {
 	// k is currently useless
 	x.resize(level + 1);
@@ -1557,7 +1572,7 @@ void FastSpectrum::solveHeatDiffsuionVCycle(igl::opengl::glfw::Viewer &viewer, d
 
 }
 
-void FastSpectrum::measureAccuracyOfReducedSolver(Eigen::VectorXd& ref, Eigen::VectorXd& red)
+void MLEigSolver::measureAccuracyOfReducedSolver(Eigen::VectorXd& ref, Eigen::VectorXd& red)
 {
 	/* Rescaling the functions*/
 	mapFunction(ref);
@@ -1579,7 +1594,7 @@ void FastSpectrum::measureAccuracyOfReducedSolver(Eigen::VectorXd& ref, Eigen::V
 	checkAccuracy(S, ref, red);
 }
 
-void FastSpectrum::mapFunction(Eigen::VectorXd& func)
+void MLEigSolver::mapFunction(Eigen::VectorXd& func)
 {
 	double min = func.minCoeff();
 	double max = func.maxCoeff();
@@ -1593,7 +1608,7 @@ void FastSpectrum::mapFunction(Eigen::VectorXd& func)
 	func = scale * (func - minVect) + nMinVect;	
 }
 
-void FastSpectrum::rearrangeGradient3D(Eigen::SparseMatrix<double> &Grad3D)
+void MLEigSolver::rearrangeGradient3D(Eigen::SparseMatrix<double> &Grad3D)
 {
 	//MFinv.resize(MF.rows(), MF.cols());
 	vector<Eigen::Triplet<double>> GTriplet;
@@ -1620,7 +1635,7 @@ void FastSpectrum::rearrangeGradient3D(Eigen::SparseMatrix<double> &Grad3D)
 }
 
 /* Multi-grid solver */
-void FastSpectrum::multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
+void MLEigSolver::multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
 {
 	const int MAX_ITER = 250;
 	const double TOL = 1e-10;
@@ -1661,7 +1676,7 @@ void FastSpectrum::multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A,
 	GaussSeidelSparseSolver(A, b, x1, x, MAX_ITER, TOL);
 }
 
-void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
+void MLEigSolver::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
 {
 	/* ======================================= NEW RECURSIVE ====================================== */	
 	initiateMultigrid(A, b, x);
@@ -1670,7 +1685,7 @@ void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::Vector
 	//multiGridWCycle(A, M, b, x, 0);
 }
 
-void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
+void MLEigSolver::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, Eigen::VectorXd& b, Eigen::VectorXd& x0, Eigen::VectorXd& x)
 {
 	printf("__Creating basis level %d \n", k);
 	Eigen::SparseMatrix<double> UK;
@@ -1713,7 +1728,7 @@ void FastSpectrum::multiGridSolverLevelK(Eigen::SparseMatrix<double>& A, int k, 
 
 }
 
-void FastSpectrum::initiateMultigrid(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
+void MLEigSolver::initiateMultigrid(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -1739,7 +1754,7 @@ void FastSpectrum::initiateMultigrid(Eigen::SparseMatrix<double>& A, Eigen::Vect
 	cout << "in " << duration.count() << " seconds" << endl;
 }
 
-void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
+void MLEigSolver::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
 	cout << "______________________________V-CYCLE______________________________ \n";
 	cout << "LEVEL_" << k << endl; 
@@ -1828,7 +1843,7 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
 }
 
-void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
+void MLEigSolver::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
 	cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^ F-CYCLE ^^^^^^^^^^^^^^^^^^^^^^^^^^^ \n";
 	cout << "LEVEL_" << k << endl;
@@ -1953,7 +1968,7 @@ void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 }
 
-void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
+void MLEigSolver::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)
 {
 	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> W-CYCLE <<<<<<<<<<<<<<<<<<<<<<<<<<<< \n";
 	cout << "LEVEL_" << k << endl;	
@@ -2086,7 +2101,7 @@ void FastSpectrum::multiGridWCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 }
 
-void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
+void MLEigSolver::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
 {
 	double tau = avgEdgeLength*avgEdgeLength;
 
@@ -2110,7 +2125,7 @@ void FastSpectrum::testGaussSeidelSolver(igl::opengl::glfw::Viewer &viewer)
 }
 
 /* Supporting functions for non-smooth basis */
-void FastSpectrum::BuildLocalClusterLevel0()
+void MLEigSolver::BuildLocalClusterLevel0()
 {
 	printf("Buildign clusters level 0 \n");
 	Eigen::VectorXi visited(V.rows());
@@ -2152,7 +2167,7 @@ void FastSpectrum::BuildLocalClusterLevel0()
 		}
 	}
 }
-void FastSpectrum::BuildLocalClusterLevelK(int l)
+void MLEigSolver::BuildLocalClusterLevelK(int l)
 {
 	printf("Buildign clusters level %d \n", l);
 	printf("__Entries: %d => %d \n", SubspaceSize[l - 1], SubspaceSize[l]);
@@ -2206,7 +2221,7 @@ void FastSpectrum::BuildLocalClusterLevelK(int l)
 	cout << " is over \n";
 }
 
-void FastSpectrum::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer)
+void MLEigSolver::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer)
 {
 	Eigen::MatrixXd VColor;
 	Eigen::VectorXd vcolor(V.rows());
@@ -2219,7 +2234,7 @@ void FastSpectrum::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &vi
 	viewer.data().set_colors(VColor);
 }
 
-void FastSpectrum::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k)
+void MLEigSolver::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k)
 {
 	viewer.data().points.resize(0,6);
 	Eigen::MatrixXd VColor;
@@ -2239,7 +2254,7 @@ void FastSpectrum::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &vi
 	}
 }
 
-void FastSpectrum::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k)
+void MLEigSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k)
 {
 	Eigen::MatrixXd VColor;
 	igl::jet(geoDist[k], true, VColor);
@@ -2247,7 +2262,7 @@ void FastSpectrum::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer 
 }
 
 /* Reference eigenproblem */
-void FastSpectrum::computeRefEigenProblem(int numEig, const string& filename)
+void MLEigSolver::computeRefEigenProblem(int numEig, const string& filename)
 {
 	string fileLoc = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_" + to_string(numEig);
 
@@ -2263,7 +2278,7 @@ void FastSpectrum::computeRefEigenProblem(int numEig, const string& filename)
 	cout << "...in " << duration.count() << " seconds." << endl;
 }
 
-void FastSpectrum::testGaussSeidel()
+void MLEigSolver::testGaussSeidel()
 {	
 	Eigen::SparseMatrix<double> A(4, 4);
 	A.coeffRef(0, 0) = 10;
@@ -2293,7 +2308,7 @@ void FastSpectrum::testGaussSeidel()
 	GaussSeidelSparseSolver(A, b, x0, x, 100, 0.0001);
 }
 
-void FastSpectrum::testConstantFuncsProjection()
+void MLEigSolver::testConstantFuncsProjection()
 {
 	int n = level - 1;
 	Eigen::VectorXd constFunct(U[n].cols()); 
@@ -2320,7 +2335,7 @@ void FastSpectrum::testConstantFuncsProjection()
 }
 
 /* Subspace Iteration Method */
-void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
+void MLEigSolver::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 {
 	//int eigenToCompute = reducedEigVals.rows();
 	int eigenToCompute = 100;
@@ -2349,7 +2364,7 @@ void FastSpectrum::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	cout << "Eigenvalues (all blocks): \n" << SIMeigVals << endl << endl;
 }
 
-void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int numModes, int maxIter)
+void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int numModes, int maxIter)
 {
 	cout << "The Subspace Iteration Method \n";
 	chrono::high_resolution_clock::time_point	t0, t1;
@@ -2382,7 +2397,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 	writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
-void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
 {
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
@@ -2548,7 +2563,7 @@ void FastSpectrum::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, S
 	//cout << "Eigenvalues: \n" << EigVals << endl << endl;
 }
 
-void FastSpectrum::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+void MLEigSolver::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::Viewer &viewer, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
 {
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
@@ -2698,7 +2713,7 @@ void FastSpectrum::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::V
 	cout << "Eigenvalues: \n" << EigVals << endl << endl;
 }
 
-void FastSpectrum::SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer)
+void MLEigSolver::SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer)
 {
 	/* Initialization */
 	cout << "[1] SIM w Shift ::Setup initialization of variables\n";
@@ -2754,7 +2769,7 @@ void FastSpectrum::SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer)
 	cout << "Eigenvalues: \n" << SIMeigVals << endl << endl;
 }
 
-void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+void MLEigSolver::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
 {
 	/* Initialization */
 	cout << "[1] SIM w Shift ::Setup initialization of variables\n";
@@ -2811,7 +2826,7 @@ void FastSpectrum::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewe
 	//cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
 }
 
-void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, double tol, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
+void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, double tol, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
 {
 	cout << "[LEVEL" << k << "] \n";
 	chrono::high_resolution_clock::time_point	t0, t1;
@@ -2936,7 +2951,7 @@ void FastSpectrum::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseM
 	
 }
 
-void FastSpectrum::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
+void MLEigSolver::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
 {
 	Xk.resize(m, n);
 	Eigen::VectorXd e(m); e.setZero();
@@ -2964,7 +2979,7 @@ void FastSpectrum::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
 	Xk.col(n-1) = mNorm * Xk.col(n-1);
 }
 
-void  FastSpectrum::generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk)
+void  MLEigSolver::generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk)
 {
 	cout << "Setting the initial vectors to be at the sampling vertices \n";
 
@@ -2977,7 +2992,7 @@ void  FastSpectrum::generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk)
 
 }
 
-void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::SparseMatrix<double>& MK, Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate)
+void MLEigSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::SparseMatrix<double>& MK, Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate)
 {
 	convRate.resize(A.rows());
 	Eigen::VectorXd Kq, AMq, diff;
@@ -2992,7 +3007,7 @@ void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::V
 		convRate(i) = sqrt(n1/n2);
 	}
 }
-void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
+void MLEigSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
 {
 	convRate.resize(A.rows());
 	Eigen::VectorXd Kq, AMq, diff;
@@ -3008,7 +3023,7 @@ void FastSpectrum::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::V
 	}
 }
 
-void FastSpectrum::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
+void MLEigSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
 {
 	convRate.resize(A.rows());
 
@@ -3025,7 +3040,7 @@ void FastSpectrum::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::V
 
 
 /* [Read mesh model from file] */
-void FastSpectrum::readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F)
+void MLEigSolver::readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F)
 {
 	V.resize(0, 0);
 	F.resize(0, 0);
@@ -3052,7 +3067,7 @@ void FastSpectrum::readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::M
 	}	
 }
 
-void FastSpectrum::constructBasisFunctionsCoarseOnly()
+void MLEigSolver::constructBasisFunctionsCoarseOnly()
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -3148,7 +3163,7 @@ void FastSpectrum::constructBasisFunctionsCoarseOnly()
 }
 
 /* [Construct Basis Matrix] */
-void FastSpectrum::constructBasisFunctionsLevel0()
+void MLEigSolver::constructBasisFunctionsLevel0()
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -3236,7 +3251,7 @@ void FastSpectrum::constructBasisFunctionsLevel0()
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[0].rows(), U[0].cols(), (double)(U[0].nonZeros() / (double)U[0].rows()));
 }
 
-void FastSpectrum::constructBasisFunctionsLevelK(int k)
+void MLEigSolver::constructBasisFunctionsLevelK(int k)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -3317,7 +3332,7 @@ void FastSpectrum::constructBasisFunctionsLevelK(int k)
 }
 
 /* [Form partition of unity for the basis matrix Basis] */
-void FastSpectrum::formPartitionOfUnity()
+void MLEigSolver::formPartitionOfUnity()
 {
 	cout << "> Partition of unity \n";
 	/* Temporary variables */
@@ -3344,7 +3359,7 @@ void FastSpectrum::formPartitionOfUnity()
 	Basis = DiagNormMatrix * Basis;
 }
 
-void FastSpectrum::formPartitionOfUnityMultiLevel()
+void MLEigSolver::formPartitionOfUnityMultiLevel()
 {
 	cout << "Partition of unity \n";
 	/* Temporary variables */
@@ -3381,7 +3396,7 @@ void FastSpectrum::formPartitionOfUnityMultiLevel()
 	}	
 }
 
-void FastSpectrum::formPartitionOfUnityCombinatorialMultiLevel()
+void MLEigSolver::formPartitionOfUnityCombinatorialMultiLevel()
 {	
 	cout << "_ Partition of Unity \n";
 	for (int i = 0; i < level; i++)
@@ -3445,14 +3460,14 @@ void FastSpectrum::formPartitionOfUnityCombinatorialMultiLevel()
 }
 
 /* [Compute the eigenpairs of Low-Dim Problem ] */
-void FastSpectrum::computeEigenPair(/*Eigen::SparseMatrix<double> &S_, Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal*/)
+void MLEigSolver::computeEigenPair(/*Eigen::SparseMatrix<double> &S_, Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal*/)
 {
 	computeEigenGPU(S_, M_, reducedEigVects, reducedEigVals);
 }
 
 /* We do this because the result of eigensolver generally orthonormal to each other in low dim,
 ** but not w.r.t. mass matrix M, */
-void FastSpectrum::normalizeReducedEigVects()
+void MLEigSolver::normalizeReducedEigVects()
 {
 	Eigen::SparseMatrix<double> UTMU;
 	UTMU = Basis.transpose() * M *Basis;
@@ -3467,7 +3482,7 @@ void FastSpectrum::normalizeReducedEigVects()
 	printf("A set of %d eigenpairs is computed.\n", reducedEigVects.cols());
 }
 
-void FastSpectrum::computeTempBasis(int k)
+void MLEigSolver::computeTempBasis(int k)
 {
 	Basis.resize(V.rows(), V.rows());
 	Basis.setIdentity();
@@ -3478,7 +3493,7 @@ void FastSpectrum::computeTempBasis(int k)
 	printf("__Avg support: %.3f \n", (double)Basis.nonZeros()/(double)Basis.rows());
 }
 
-void  FastSpectrum::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int k)
+void  MLEigSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int k)
 {
 	Eigen::MatrixXd VColor;
 	Eigen::VectorXd funcCols = Basis.col(k);

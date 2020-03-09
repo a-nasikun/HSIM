@@ -1,5 +1,12 @@
 #include "Sampling.h"
 
+#include <set>
+#include <queue>
+#include <time.h>
+#include <random>
+#include <chrono>
+#include <iostream>
+
 /* Construct random n number of samples */
 void constructRandomSample(Eigen::VectorXi &Sample, const Eigen::MatrixXd &V, int n)
 {

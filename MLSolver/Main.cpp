@@ -1,5 +1,5 @@
-#include "FastSpectrum.h"
-#include "FastSpectrumGUI.h"
+#include "MLEigSolver.h"
+#include "MLEigSolverGUI.h"
 #include <igl/unproject_onto_mesh.h>
 
 /* [MAIN FUNCTION THAT CALLS EVERYTHING ELSE] */
@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	
 	/* GUI FUNCTIONALITY */	
 	igl::opengl::glfw::Viewer			viewer;			// Set up main viewer
-	FastSpectrum						fastSpectrum;
+	MLEigSolver						ml_eigSolver;
 	igl::opengl::glfw::imgui::ImGuiMenu menu;			// Attach a menu plugin
 	viewer.plugins.push_back(&menu);	
 	//IMGUI_CHECKVERSION();								// Setup Dear ImGui binding
@@ -24,16 +24,16 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
 	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
 
-	fastSpectrum.setInitialSystem(1);
-	fastSpectrum.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
-	fastSpectrum.getV(V);
-	fastSpectrum.getF(F);
+	ml_eigSolver.setInitialSystem(1);
+	ml_eigSolver.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
+	ml_eigSolver.getV(V);
+	ml_eigSolver.getF(F);
 			
 	menu.callback_draw_viewer_window = [&]()
 	{
-		fastSpectrumMenu(viewer, menu, fastSpectrum);
-		applicationMenu(viewer, menu, fastSpectrum);
-		subspaceMenu(viewer, menu, fastSpectrum);
+		fastSpectrumMenu(viewer, menu, ml_eigSolver);
+		applicationMenu(viewer, menu, ml_eigSolver);
+		subspaceMenu(viewer, menu, ml_eigSolver);
 	};
 	/* END OF GUI FUNCTIONALITY */
 
@@ -53,8 +53,8 @@ int main(int argc, char *argv[])
 		{
 		case '0':
 			viewer.data().clear();
-			fastSpectrum.getV(V);
-			fastSpectrum.getF(F);
+			ml_eigSolver.getV(V);
+			ml_eigSolver.getF(F);
 			viewer.data().set_mesh(V, F);
 			viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 			break;

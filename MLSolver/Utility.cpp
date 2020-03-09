@@ -1,7 +1,11 @@
 #include "Utility.h"
-#include <fstream>
+
 #include <igl/doublearea.h>
+
 #include <random>
+#include <fstream>
+
+#include <chrono>				// For quite precise timing, needed (perhaps) in most sub-task
 
 using namespace std;
 

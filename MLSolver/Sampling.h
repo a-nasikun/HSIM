@@ -1,13 +1,6 @@
 #ifndef SAMPLING_H
 #define SAMPLING_H
 
-#include <set>
-#include <queue>
-#include <time.h>
-#include <random>
-#include <chrono>
-#include <iostream>
-
 #include <igl/opengl/glfw/Viewer.h>
 
 #include "Utility.h"

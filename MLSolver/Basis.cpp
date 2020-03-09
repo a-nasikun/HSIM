@@ -1,5 +1,14 @@
 #include "Basis.h"
 
+#include <set>
+#include <queue>
+#include <vector>
+#include <iostream>
+
+#include <omp.h>			// OpenMP, parallelizing basis construction
+
+#include <Eigen/Eigen>
+
 /* [DIJKSTRA-based BASIS] */
 // Computing Dijkstra Distance (sing input, D initialized inside, stops when reaching a certain distance, 
 // and used for Basis Construction), COMPACT Version
