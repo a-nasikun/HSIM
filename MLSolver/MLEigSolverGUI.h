@@ -29,6 +29,7 @@ static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
 string				model			= "Sphere40k";
 static int			SIMtype			= 2;
+int					problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
 
 
 void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigSolver &ml_eigSolver) {
@@ -37,7 +38,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		// Variable for Processing
 		Eigen::MatrixXd redEigVects, V = viewer.data().V;
 		Eigen::VectorXd redEigVals;
-		Eigen::MatrixXi F = viewer.data().F;
+		//Eigen::MatrixXi F = viewer.data().F;
 
 		// Variables For Viewer visualization
 		float	menuWindowLeft		= 0.f,
@@ -58,28 +59,35 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		if (ImGui::CollapsingHeader("Executing Algorithm", ImGuiTreeNodeFlags_DefaultOpen)){
 			if (ImGui::Button("Load##Mesh", ImVec2((w) / 2.f, 0))){
 				// Load mesh + display the correct mesh
+				Eigen::MatrixXd tempV = viewer.data_list[0].V;
+				Eigen::MatrixXi tempF = viewer.data_list[0].F;
+
+				// Load mesh + display the correct mesh
 				int numOfModel = viewer.data_list.size();
+				if (numOfModel > 0)	viewer.data_list.clear();
+
 				viewer.open_dialog_load_mesh();
-				if (viewer.data_list.size() > numOfModel) {
-					viewer.data() = viewer.data_list.at(++dataToShow);
-					viewer.data_list.at(dataToShow - 1).clear();
+
+				// if no mesh is selected, re-used the old one
+				if (viewer.data_list.size() < 1) {
+					viewer.append_mesh();
+					viewer.data().clear();
+					viewer.data().set_mesh(tempV, tempF);
+					viewer.data().compute_normals();
 				}
+				
+				ml_eigSolver.setV(viewer.data().V);
+				ml_eigSolver.setF(viewer.data().F);
 
-				V.resize(viewer.data().V.rows(), viewer.data().V.cols());
-				F.resize(viewer.data().F.rows(), viewer.data().F.cols());
-				V = viewer.data().V;
-				F = viewer.data().F;	
-				ml_eigSolver.setV(V);
-				ml_eigSolver.setF(F);				
-
-				viewer.core.align_camera_center(V, F);
+				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
 
 				viewer.data().show_lines = false;
-				printf("A new mesh with %d vertices (%d faces).\n", V.rows(), F.rows());
-				viewer.data().set_mesh(V, F);
+				printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());
+				//viewer.data().set_mesh(V, F);
 				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 
 				boolShowSamples = false; 
+				printf("mesh that we have  now: %d \n", viewer.data_list.size());
 				//for (int i = 0; i < viewer.data_list.size(); i++) {
 				//	printf("Data %d: %d (%d) \n", i, viewer.data_list.at(i).V.rows(), dataToShow);
 				//}
@@ -91,6 +99,80 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			
 			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
+			ImGui::RadioButton("Lap--Belt.", &problemType, 0); ImGui::SameLine();
+			ImGui::RadioButton("Lin. Elast.", &problemType, 1);
+
+
+			static int axis = 0;
+			if (problemType == 1) {
+				if (ImGui::Button("Tetrahedralize", ImVec2((w), 0))) {
+					ml_eigSolver.createTetrahedralMesh();
+					ml_eigSolver.computeVolume();
+
+					/* Set the parameters of the mesh for deformable objects */
+					viewer.data().clear();
+					viewer.data().set_mesh(ml_eigSolver.TV, ml_eigSolver.TF);
+					viewer.core.align_camera_center(viewer.data().V, viewer.data().F);		
+					
+					printf("mesh that we have  now: %d \n", viewer.data_list.size());
+
+					//viewer.selected_data_index = 0;
+					viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+					viewer.data().invert_normals = true;
+				}
+
+				/* Visualizing the tetrahedral mesh */
+				if (ImGui::Button("Select Axis", ImVec2((w) / 2.0, 0))) {
+					axis = (axis + 1) % 3;
+					if (axis == 0) cout << "X axis \n";
+					else if (axis == 1) cout << "Y axis \n";
+					else cout << "Z axis \n";
+				}
+				ImGui::SameLine(0, p);
+				if (ImGui::Button("Show Tets", ImVec2((w) / 2.0, 0))) {
+					viewer.data().invert_normals = false;
+
+					srand(time(NULL));
+					double t = (double)(rand() % 20 + 1) / 20.0;
+					//double t = 1.0;
+					cout << "The variable is: " << t << endl;
+					int id = axis;
+					Eigen::VectorXd v = ml_eigSolver.TB.col(id).array() - ml_eigSolver.TB.col(id).minCoeff();
+					v /= v.col(0).maxCoeff();
+
+					vector<int> s;
+					for (unsigned int i = 0; i < v.size(); i++) {
+						if (v(i) < t) {
+							s.push_back(i);
+						}
+					}
+
+					Eigen::MatrixXd V_temp(s.size() * 4, 3);
+					Eigen::MatrixXi F_temp(s.size() * 4, 3);
+
+					for (unsigned i = 0; i < s.size(); ++i)
+					{
+						V_temp.row(i * 4 + 0) = ml_eigSolver.TV.row(ml_eigSolver.TT(s[i], 0));
+						V_temp.row(i * 4 + 1) = ml_eigSolver.TV.row(ml_eigSolver.TT(s[i], 1));
+						V_temp.row(i * 4 + 2) = ml_eigSolver.TV.row(ml_eigSolver.TT(s[i], 2));
+						V_temp.row(i * 4 + 3) = ml_eigSolver.TV.row(ml_eigSolver.TT(s[i], 3));
+
+						F_temp.row(i * 4 + 0) << (i * 4) + 0, (i * 4) + 1, (i * 4) + 3;			// CW
+						F_temp.row(i * 4 + 1) << (i * 4) + 0, (i * 4) + 2, (i * 4) + 1;
+						F_temp.row(i * 4 + 2) << (i * 4) + 3, (i * 4) + 2, (i * 4) + 0;
+						F_temp.row(i * 4 + 3) << (i * 4) + 1, (i * 4) + 2, (i * 4) + 3;
+					}
+					printf("Size of V_Temp; %dx%d | F=%dx%d \n", V_temp.rows(), V_temp.cols(), F_temp.rows(), F_temp.cols());
+
+					viewer.data().clear();
+					viewer.data().set_mesh(V_temp, F_temp);
+					viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+					viewer.data().set_face_based(true);
+
+					printf("mesh that we have  now: %d \n", viewer.data_list.size());
+				}
+			}
+
 			/* STEP BY STEP CONSTRUCTION */
 			static int numLevels = 3;
 			
@@ -101,11 +183,15 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (ImGui::Button("[1] Construct Laplacian Matrix", ImVec2(w, 0))) {				
 					///ml_eigSolver.setInitialSystem(numLevels);
 					if (ml_eigSolver.V.rows() < 1) return;
-					ml_eigSolver.constructLaplacianMatrix();
+
+					if (problemType == 0)
+						ml_eigSolver.constructLaplacianMatrix();
+					else if (problemType == 1)
+						ml_eigSolver.constructHessianMatrixForLinearElasticity(1.0, 1.0);
 				}
 				/* For Hierarchy and Sampling */
-				static double levelRatio = 8.0;
-				static char lvlRatTxt[10] = "8.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
+				static double levelRatio = 4.0;
+				static char lvlRatTxt[10] = "4.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 				levelRatio = atof(lvlRatTxt);
 
 				if (ImGui::Button("[2] Sampling", ImVec2(w, 0))) {					
@@ -307,7 +393,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(0.7, 0.1, 0.1));
 					//}
 					
-					visualizeSampleMulti(viewer, V, F, ml_eigSolver.Sample, ml_eigSolver.SubspaceSize);
+					visualizeSampleMulti(viewer, ml_eigSolver.V, ml_eigSolver.F, ml_eigSolver.Sample, ml_eigSolver.SubspaceSize);
 				}
 				else {
 					//viewer.data().clear();

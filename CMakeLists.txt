@@ -51,6 +51,10 @@ add_subdirectory(libigl/external/imgui)
 add_library(libigl INTERFACE)
 target_include_directories(libigl INTERFACE libigl/include)
 
+# TETGEN
+# #################################################################################################
+add_subdirectory(libigl/external/tetgen)
+
 # Multi-level eigen solver
 # #################################################################################################
 add_executable(MultiLevelEigenSolver
@@ -67,13 +71,16 @@ add_executable(MultiLevelEigenSolver
 	"MLSolver/Utility.h"
 	"MLSolver/Utility.cpp"
 	"MLSolver/Visualization.h"
-	"MLSolver/Visualization.cpp")
+	"MLSolver/Visualization.cpp"
+	"MLSolver/Hessian.h"
+	)
 target_link_libraries(MultiLevelEigenSolver
 	PUBLIC libigl
 	PUBLIC eigen
 	PUBLIC glad
 	PUBLIC glfw
 	PUBLIC imgui
+	PUBLIC tetgen
 	PUBLIC OpenGL::GL
 	PUBLIC OpenMP::OpenMP_CXX
 	PUBLIC cudart

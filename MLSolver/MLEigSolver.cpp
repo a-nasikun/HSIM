@@ -20,6 +20,12 @@
 #include <igl/invert_diag.h>
 #include <igl/isolines.h>
 
+/* Volumetric stuff */
+#include <igl/copyleft/tetgen/tetrahedralize.h>
+#include <igl/barycenter.h>
+
+#include "Hessian.h"
+
 /* [MAIN FUNCTIONS IN FAST APPROXIMATIONG ALGORITHM] */
 
 
@@ -517,6 +523,271 @@ void MLEigSolver::setSampleType(SamplingType sampleType)
 {
 	this->sampleType = sampleType; 
 }
+
+/* For Volumetric Data */
+void MLEigSolver::createTetrahedralMesh()
+{
+	cout << "> Tetrahedralization: \n";
+	cout << "_____ For the time being, we'll be working with these two wolfs \n";	
+
+	igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.05Y", TV, TT, TF);
+	//igl::copyleft::tetgen::tetrahedralize(V, F, "pq1.114Y", TV, TT, TF);
+	igl::barycenter(TV, TT, TB);
+
+	printf("____ Input: V=%dx%d | F=%dx%d \n", V.rows(), V.cols(), F.rows(), F.cols());
+	printf("____ Output: TV=%dx%d | TF=%dx%d | TT=%dx%d\n", TV.rows(), TV.cols(), TF.rows(), TF.cols(), TT.rows(), TT.cols());	
+}
+
+void MLEigSolver::computeVolume()
+{
+	cout << "Computing volume of each tetrahedral mesh\n";
+	igl::volume(TV, TT, volume);
+}
+
+void MLEigSolver::constructVolumetricMassMatrix()
+{
+	cout << "Creating mass matrix for the tet-mesh \n";
+
+	vector<Eigen::Triplet<double>> MTriplet, MhNegTriplet;
+	MTriplet.reserve(3 * TV.rows());
+	MhNegTriplet.reserve(3 * TV.rows());
+	MT.resize(3 * TV.rows(), 3 * TV.rows());
+	MThNeg.resize(3 * TV.rows(), 3 * TV.rows());
+	double rho = 1.0;							// material density
+
+	double totVol = 0;
+
+	/* Iterating over all tet-mesh element */
+	for (int i = 0; i < TT.rows(); i++) {
+		double vol = volume(i);
+		double mass = rho*vol / 4.0;
+		//double half_inverse = 1.0/sqrt(mass);
+		totVol += vol;
+
+		/* iterating over each node/vertex on the tetmesh element (4 per element) */
+		for (int el = 0; el < 4; el++) {
+			/* iterating for 3 coordinates (3 per node/vertex: x,y,z) */
+			for (int coor = 0; coor < 3; coor++) {
+				MTriplet.push_back(Eigen::Triplet<double>(3 * TT(i, el) + coor, 3 * TT(i, el) + coor, mass));
+
+			} // end of each coordinate
+		}	  // end of vertex list
+	}		  // end of mesh elements list
+
+	MT.setFromTriplets(MTriplet.begin(), MTriplet.end());
+
+	/* Set the hal-inverse mass matrix [M^(-0.5)] */
+	for (int k = 0; k < MT.outerSize(); ++k) {
+		for (Eigen::SparseMatrix<double>::InnerIterator it(MT, k); it; ++it) {
+			MhNegTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), 1.0 / sqrt(it.value())));
+		}
+	}
+	MThNeg.setFromTriplets(MhNegTriplet.begin(), MhNegTriplet.end());
+	printf("Mass matrix %dx%d with %d non-zero entries \n", MT.rows(), MT.cols(), MT.nonZeros());
+	cout << "Some part of the mass matrix: \n" << MT.topLeftCorner(10, 10) << endl << endl;
+	cout << "Some part of the neg matrix: \n" << MThNeg.topLeftCorner(10, 10) << endl << endl;
+
+	/* Checking mass matrix */
+	double massTot = 0;
+	for (int k = 0; k < M.outerSize(); ++k) {
+		for (Eigen::SparseMatrix<double>::InnerIterator it(M, k); it; ++it) {
+			massTot += it.value();
+		}
+	}
+	printf("The total volume is %.4f and the diag of mass matrix is %.4f \n", totVol, massTot);
+}
+
+void MLEigSolver::constructHessianMatrixForLinearElasticity(double lame1, double lame2)
+{
+	/* Constructing Adjacency Matrix (neighborhood) */
+	//initiateAdM(TV, TT, AdM);
+
+	/* Constructing table of edge-length using sparse Matrix (faster than vector-of-map and vector-of-unordered map) */
+	//initiateDistTableSpM(TV, AdM, DistanceTableSpM);
+
+	cout << "Construction the hessian matrix \n";
+	ST.resize(3 * TV.rows(), 3 * TV.rows());
+
+	/* Construct the HESSIAN for every TET-Mesh
+	** then DISTRIBUTE to each vertex entry */
+	vector<Eigen::Triplet<double>> KTriplet;
+	KTriplet.reserve(12 * 12 * TT.rows());
+
+	chrono::high_resolution_clock::time_point	t0, t1, t2;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
+	/* Parallelizing the hessian construction */
+	vector<vector<Eigen::Triplet<double>>>	KiTriplet;
+	const int						NUM_OF_THREADS = 8; // omp_get_num_procs() / 2;
+	omp_set_num_threads(NUM_OF_THREADS);
+	KiTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc, i = 0;
+
+	//for (unsigned int i = 0; i < TT.rows(); i++) {
+#pragma omp parallel private(i,tid, ntids,ipts,istart) // ADOLC_OPENMP //private(ADOLC_OPENMP) //
+	{
+		// dividing the stuff per chunk/block
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)TT.rows() / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = TT.rows() - istart;
+		if (ipts <= 0) ipts = 0;
+
+		KiTriplet[tid].reserve(12 * 12 * TT.rows() / (ntids));
+
+		// Doing iteration per thread of the CPU
+		for (i = istart; i < (istart + ipts); i++)
+		{
+			/* __ Computing the hessian energy + energy value for each tet-mesh */
+			Eigen::MatrixXd Hess;
+			computeHessian_Linear(lame1, lame2, TV.row(TT(i, 0)), TV.row(TT(i, 1)), TV.row(TT(i, 2)), TV.row(TT(i, 3)), Hess);
+			if (i == 0)
+				cout << "First hessian: \n" << Hess << endl;
+
+			/* Constructing the entries for the GLOBAL Hessian matrix */
+			for (unsigned int hi = 0; hi < 4; hi++) {				// for every COL block of the 12x12 matrix
+				for (unsigned int hj = 0; hj < 4; hj++) {			// for every ROW block of the 12x12 matrix					
+					for (unsigned int ti = 0; ti < 3; ti++) {
+						for (unsigned int tj = 0; tj < 3; tj++) {
+							KiTriplet[tid].push_back(Eigen::Triplet<double>(3 * TT(i, hj) + tj, 3 * TT(i, hi) + ti, 0.25*volume(i)*Hess(3 * hj + tj, 3 * hi + ti)));
+						}
+					}
+				}
+			}
+		}
+	}	// End of paralleization
+
+		// Collcting Entries
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += KiTriplet[j].size();
+	}
+
+	/* Combining the Triplet */
+	KTriplet.resize(totalElements);
+	//#pragma omp parallel 
+	{
+		for (int j = 0; j < NUM_OF_THREADS; j++) {
+			int tripSize = 0;
+			for (int k = 0; k < j; k++) {
+				tripSize += KiTriplet[k].size();
+			}
+			std::copy(KiTriplet[j].begin(), KiTriplet[j].end(), KTriplet.begin() + tripSize);
+		}
+	}
+
+	printf("Triplet size: %d |", KTriplet.size());
+	ST.setFromTriplets(KTriplet.begin(), KTriplet.end());
+	printf("K: %dx%d \n", ST.rows(), ST.cols());
+}
+
+void MLEigSolver::constructHessianMatrixForLinearElasticityMM(double m1l1, double m1l2, double m2l1, double m2l2, Eigen::VectorXd& vColor)
+{	
+
+	double mat1lame1 = m1l1, mat1lame2 = m1l2;	// silicon and alumunium
+	double mat2lame1 = m2l1, mat2lame2 = m2l2;
+	double lame1, lame2;
+
+	cout << "Construction the hessian matrix \n";
+	ST.resize(3 * TV.rows(), 3 * TV.rows());
+
+	/* Construct the HESSIAN for every TET-Mesh
+	** then DISTRIBUTE to each vertex entry */
+	vector<Eigen::Triplet<double>> KTriplet;
+	KTriplet.reserve(12 * 12 * TT.rows());
+
+	chrono::high_resolution_clock::time_point	t0, t1, t2;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
+	/* Parallelizing the hessian construction */
+	vector<vector<Eigen::Triplet<double>>>	KiTriplet;
+	const int						NUM_OF_THREADS = 8; // omp_get_num_procs() / 2;
+	omp_set_num_threads(NUM_OF_THREADS);
+	KiTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc, i = 0;
+
+	/* Divion of material, in z-axis */
+	int axis = 0;
+	double midDivision = (TV.col(axis).maxCoeff() + TV.col(axis).minCoeff()) / 2.0;
+
+	/* For coloring the mesh */
+	vColor.resize(TV.rows());
+	for (int ii = 0; ii < TV.rows(); ii++) {
+		if (TV(ii, axis) < midDivision) vColor(ii) = 0.3;
+		else vColor(ii) = 0.7;
+	}
+
+	//for (unsigned int i = 0; i < TT.rows(); i++) {
+#pragma omp parallel private(i,tid, ntids,ipts,istart) // ADOLC_OPENMP //private(ADOLC_OPENMP) //
+	{
+		// dividing the stuff per chunk/block
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)TT.rows() / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = TT.rows() - istart;
+		if (ipts <= 0) ipts = 0;
+
+		KiTriplet[tid].reserve(12 * 12 * TT.rows() / (ntids));
+
+		// Doing iteration per thread of the CPU
+		for (i = istart; i < (istart + ipts); i++)
+		{
+			/* __ Computing the hessian energy + energy value for each tet-mesh */
+			Eigen::MatrixXd Hess;
+
+			/* Division of material*/
+			if (TB(i, axis) < midDivision) { lame1 = mat1lame1; lame2 = mat1lame2; }		// half is one type of material
+			else { lame1 = mat2lame1; lame2 = mat2lame2; }									// the other half is different material
+
+			computeHessian_Linear(lame1, lame2, TV.row(TT(i, 0)), TV.row(TT(i, 1)), TV.row(TT(i, 2)), TV.row(TT(i, 3)), Hess);
+			if (i == 0)
+				cout << "First hessian: \n" << Hess << endl;
+
+			/* Constructing the entries for the GLOBAL Hessian matrix */
+			for (unsigned int hi = 0; hi < 4; hi++) {				// for every COL block of the 12x12 matrix
+				for (unsigned int hj = 0; hj < 4; hj++) {			// for every ROW block of the 12x12 matrix					
+					for (unsigned int ti = 0; ti < 3; ti++) {
+						for (unsigned int tj = 0; tj < 3; tj++) {
+							KiTriplet[tid].push_back(Eigen::Triplet<double>(3 * TT(i, hj) + tj, 3 * TT(i, hi) + ti, 0.25*volume(i)*Hess(3 * hj + tj, 3 * hi + ti)));
+						}
+					}
+				}
+			}
+		}
+	}	// End of paralleization
+
+		// Collcting Entries
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += KiTriplet[j].size();
+	}
+
+	/* Combining the Triplet */
+	KTriplet.resize(totalElements);
+	//#pragma omp parallel 
+	{
+		for (int j = 0; j < NUM_OF_THREADS; j++) {
+			int tripSize = 0;
+			for (int k = 0; k < j; k++) {
+				tripSize += KiTriplet[k].size();
+			}
+			std::copy(KiTriplet[j].begin(), KiTriplet[j].end(), KTriplet.begin() + tripSize);
+		}
+	}
+
+	printf("Triplet size: %d |", KTriplet.size());
+	ST.setFromTriplets(KTriplet.begin(), KTriplet.end());
+	printf("K: %dx%d \n", ST.rows(), ST.cols());
+}
+
 
 /* Heat Method*/
 void MLEigSolver::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)

@@ -12,6 +12,7 @@
 using namespace std;
 
 enum class SIM_Type {SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe};
+enum class Problem_Class {Laplace_Beltrami, Linear_Elasticity};
 
 class MLEigSolver
 {
@@ -83,6 +84,15 @@ public:
 	void setSample(const int &sampleSize, SamplingType sampleType);
 	void setSampleNumber(const int &sampleSize);
 	void setSampleType(SamplingType sampleType);
+
+	/* For Volumetric Data */
+	void createTetrahedralMesh();
+	void computeVolume();
+	void constructVolumetricMassMatrix();
+	void constructHessianMatrixForLinearElasticity(double lame1, double lame2);
+	void constructHessianMatrixForLinearElasticityMM(double m1l1, double m1l2, double m2l1, double m2l2, Eigen::VectorXd& vColor);
+	
+
 
 	/* Heat Method*/
 	void solveHeatMethod(igl::opengl::glfw::Viewer &viewer);
@@ -162,13 +172,17 @@ public:
 	
 public:
 	/* [CLASS VARIABLES] */
-	Eigen::SparseMatrix<double>		S, M, Minv, Mf, MfInv, G;
+	Eigen::SparseMatrix<double>		S, M, Minv, Mf, MfInv, G;						// Stiffness, Mass and inverse mass matrix for triangle-mesh
+	Eigen::SparseMatrix<double>		ST, MT, MTinv, MThNeg;							// Stiffness, Mass and inverse mass matrix, and H^{-0.5} for tet-mesh
 	Eigen::SparseMatrix<double>		Basis;											// combined basis matrix (Basis = U0 * Uk * ....  U_{k-1} *  Uk)
 	Eigen::SparseMatrix<double>		DistanceTableSpM;								// stored vertex-to-vertex distance table
 	Eigen::SparseMatrix<double>		S_, M_, GTMf_;									// reduced stiffness, mass, and divergent matrix, respectively
-	Eigen::MatrixXd					V;												// vertices position 
-	Eigen::MatrixXd					reducedEigVects, refEigVects;
+	Eigen::MatrixXd					V;												// vertices position (triangles)
 	Eigen::MatrixXi					F;												// face matrix (indices of each vertex for each face)
+	Eigen::MatrixXd					TV, TB;											// rest-shape and barycentric positions of the tetaderal
+	Eigen::MatrixXi					TT, TF;											// tetrahedron and face matrix (indices of each vertex for each face)
+	Eigen::VectorXd					volume;											// volume of each tetrahedral mesh// tetahedral and faces index
+	Eigen::MatrixXd					reducedEigVects, refEigVects;	
 	Eigen::VectorXd					reducedEigVals, refEigVals;			
 	Eigen::VectorXi					Sample, SampleMap;								// id of the samples | for a certain vertex sample, get the id of the sample
 	vector<set<int>>				AdM;											// adjacency matrix, vertex to neighboring vertices
