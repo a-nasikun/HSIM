@@ -212,17 +212,18 @@ void MLEigSolver::constructSampleHierarchy(Eigen::VectorXd& n)
 
 	//constructSample();
 	if (problemType == Problem_Class::Laplace_Beltrami) {
-		SampleMap.resize(V.rows()); SampleMap.setConstant(-1);
+		SampleMap.resize(V.rows());
 		constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
 		cout << "Assigning level \n";
-		sampleLevel.resize(V.rows());	sampleLevel.setConstant(-1);
+		sampleLevel.resize(V.rows());	
 	} else if (problemType == Problem_Class::Linear_Elasticity) {
-		SampleMap.resize(TV.rows()); SampleMap.setConstant(-1);
+		SampleMap.resize(TV.rows()); 
 		constructFarthestPointSample(TV, AdM, Sample, SubspaceSize, geoDist);
 		cout << "Assigning level \n";
-		sampleLevel.resize(TV.rows());	sampleLevel.setConstant(-1);
+		sampleLevel.resize(TV.rows());	
 	}
-
+	SampleMap.setConstant(-1);
+	sampleLevel.setConstant(-1);
 
 	// for level n-1
 	for (int i = 0; i < SubspaceSize[level - 1]; i++)
@@ -231,11 +232,11 @@ void MLEigSolver::constructSampleHierarchy(Eigen::VectorXd& n)
 		SampleMap(Sample(i)) = i;
 	}
 
-	for (int i = level - 2; i >= 0; i--) 
+	for (int i = level-1; i > 0; i--) 
 	{
-		for (int j = SubspaceSize[i+1]; j < SubspaceSize[i]; j++)
+		for (int j = SubspaceSize[i]; j < SubspaceSize[i-1]; j++)
 		{
-			sampleLevel(Sample(j)) = i; 
+			sampleLevel(Sample(j)) = i-1; 
 			SampleMap(Sample(j)) = j;
 		}
 	}
@@ -273,7 +274,7 @@ void MLEigSolver::constructBasis()
 	//const double SCALE = 4.25;
 	//const double SCALE = 5.0;
 	const double SCALE = 1.0;
-	const double NUM_SUPPORT = 4.0;
+	double NUM_SUPPORT = 4.0;
 
 	if (problemType == Problem_Class::Laplace_Beltrami)
 	{
@@ -300,10 +301,27 @@ void MLEigSolver::constructBasis()
 	{
 		double			totalVolume = 0.0;
 		for (int i = 0; i < TT.rows(); i++) totalVolume += (volume(i));
+		NUM_SUPPORT = 40;
 
-		for (int i = 0; i < level; i++) {
+		maxNeighDist[0] = cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*SubspaceSize[0] * M_PI));
+		printf("Radius %d is %.4f\n", 0, maxNeighDist[0]);
+		//if (1 < level) {
+		//	maxNeighDist[1] = cbrt(NUM_SUPPORT) * maxNeighDist[1 - 1];
+		//	printf("Radius %d is %.4f\n", 1, maxNeighDist[1]);
+		//}
+		//if (2 < level) {
+		//	maxNeighDist[2] = 4*cbrt(NUM_SUPPORT) * maxNeighDist[2 - 1];
+		//	printf("Radius %d is %.4f\n", 2, maxNeighDist[2]);
+		//}
+		//if (3 < level) {
+		//	maxNeighDist[3] = 8 * cbrt(NUM_SUPPORT) * maxNeighDist[3 - 1];
+		//	printf("Radius %d is %.4f\n", 3, maxNeighDist[3]);
+		//}
+
+		for (int i = 1; i < level; i++) {
 			//maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
-			maxNeighDist[i] = (i+1.0)* cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*SubspaceSize[i] *M_PI));
+			//maxNeighDist[i] = (i+1.0)* cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*SubspaceSize[i] *M_PI));
+			maxNeighDist[i] = cbrt(NUM_SUPPORT) * maxNeighDist[i-1];
 			printf("Radius %d is %.4f\n", i, maxNeighDist[i]);
 		}
 
@@ -2958,20 +2976,24 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	/* Initialization */
 	SIMeigVals.resize(numModes);					SIMeigVals.setZero();
-	if(problemType==Problem_Class::Laplace_Beltrami)
-		SIMeigVects.resize(V.rows(), numModes);			
-	else if(problemType==Problem_Class::Linear_Elasticity)
-		SIMeigVects.resize(3*TV.rows(), numModes);
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		SIMeigVects.resize(V.rows(), numModes);
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		SIMeigVects.resize(3 * TV.rows(), numModes);
+	}
 	SIMeigVects.setZero();
 
 	SIMeigValsStack.resize(numModes, maxIter);		SIMeigValsStack.setZero();
 	convergenceStacks.resize(numModes, maxIter);	convergenceStacks.setZero();
 	
 	if (type == SIM_Type::SIM_MultiLevel) {
-		if (problemType == Problem_Class::Laplace_Beltrami)
-			MultiLevelSIM(S, M, tol, numModes, 0, SIMeigVects, SIMeigVals);
-		else if (problemType == Problem_Class::Linear_Elasticity)
-			MultiLevelSIM(ST, MT, tol, numModes, 0, SIMeigVects, SIMeigVals);
+		if (problemType == Problem_Class::Laplace_Beltrami) {
+			MultiLevelSIM(S, M, tol, numModes, 0, maxIter, SIMeigVects, SIMeigVals);
+		}
+		else if (problemType == Problem_Class::Linear_Elasticity) {
+			MultiLevelSIM(ST, MT, tol, numModes, 0, maxIter, SIMeigVects, SIMeigVals);
+		}
 	}
 	else {
 		simpleSubspaceIterMethod(viewer, type, tol, numModes, maxIter, SIMeigVects, SIMeigVals);
@@ -3475,7 +3497,7 @@ void MLEigSolver::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer
 	//cout << "Eigenvalues (this block): \n" << EigVals << endl << endl;
 }
 
-void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, double tol, int numEigs, int k, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
+void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, double tol, int numEigs, int k, int maxIter, Eigen::MatrixXd& XL, Eigen::VectorXd& AL)
 {
 	cout << "[LEVEL" << k << "] \n";
 	chrono::high_resolution_clock::time_point	t0, t1;
@@ -3510,7 +3532,7 @@ void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMa
 		}
 
 		printf("[2] Going deeper => \n ################");
-		MultiLevelSIM(SK, MK, tol, width, k+1, XL, AL);
+		MultiLevelSIM(SK, MK, tol, width, k+1, maxIter, XL, AL);
 		printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
 
 		/* [3] SUBSPACE ITERATION METHOD */
@@ -3534,7 +3556,7 @@ void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMa
 		Eigen::MatrixXd Q;
 		//Eigen::VectorXd Alpha;
 		Eigen::VectorXd conv2, conv3;
-		const int MAX_ITER = 10;
+		const int MAX_ITER = maxIter;
 		double TOL = tol;
 
 		/* Iterating*/
@@ -3587,6 +3609,7 @@ void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMa
 
 		/* PRint some data when it's on the finest level */
 		if (k == 0) {
+			cout << "Clamping to the size of required modes \n";
 			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
 			SIMeigValsStack.conservativeResize(Eigen::NoChange, iterCount);
 			//cout << "Eigenvalues: \n" << AL << endl << endl;

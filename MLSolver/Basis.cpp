@@ -110,7 +110,8 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 			double dist;
 
 			/* Regular dijkstra */
-			VtoVDist(V.row(vp1.vId), V.row(*it), dist);
+			//VtoVDist(V.row(vp1.vId), V.row(*it), dist);
+			dist = (V.row(*it)- V.row(vp1.vId)).norm();
 			double tempDist = vp1.distance + dist;
 
 			/* Correct distance using Euclidean Distance */
@@ -134,11 +135,13 @@ void ComputeDijkstraCompact(const Eigen::MatrixXd &V, const int s1, const vector
 
 			/* Polynomial mapping (3rd Order) */
 			double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
-			if(probType==0)
+			if (probType == 0) {
 				UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+			}
 			else if (probType == 1) {
-				for (int k = 0; k < 3; k++)
+				for (int k = 0; k < 3; k++) {
 					UTriplet.push_back(Eigen::Triplet<double>(3 * i + k, 3 * col + k, val));
+				}
 			}
 		}
 	}

@@ -66,35 +66,46 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		if (ImGui::CollapsingHeader("Executing Algorithm", ImGuiTreeNodeFlags_DefaultOpen)){
 			if (ImGui::Button("Load##Mesh", ImVec2((w) / 2.f, 0))){
 				// Load mesh + display the correct mesh
-				Eigen::MatrixXd tempV = viewer.data_list[0].V;
-				Eigen::MatrixXi tempF = viewer.data_list[0].F;
+				Eigen::MatrixXd tempV;// = viewer.data_list[0].V;
+				Eigen::MatrixXi tempF;// = viewer.data_list[0].F;
 
 				// Load mesh + display the correct mesh
 				int numOfModel = viewer.data_list.size();
-				if (numOfModel > 0)	viewer.data_list.clear();
+				printf("mesh that we have  now: %d \n", viewer.data_list.size());
+
+				if (numOfModel > 0) {
+					tempV = viewer.data_list[0].V;
+					tempF = viewer.data_list[0].F;
+					viewer.data_list.clear();
+				}
 
 				viewer.open_dialog_load_mesh();
 
 				// if no mesh is selected, re-used the old one
 				if (viewer.data_list.size() < 1) {
+					cout << "data less than 1 \n";
 					viewer.append_mesh();
 					viewer.data().clear();
-					viewer.data().set_mesh(tempV, tempF);
-					viewer.data().compute_normals();
+					if (tempV.rows() > 0) {
+						viewer.data().set_mesh(tempV, tempF);
+						viewer.data().compute_normals();
+					}
 				}
 				
-				ml_eigSolver.setV(viewer.data().V);
-				ml_eigSolver.setF(viewer.data().F);
+				if (viewer.data().V.rows() > 0) {
+					ml_eigSolver.setV(viewer.data().V);
+					ml_eigSolver.setF(viewer.data().F);
 
-				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
+					viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
 
-				viewer.data().show_lines = false;
-				printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());
-				//viewer.data().set_mesh(V, F);
-				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+					viewer.data().show_lines = false;
+					printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());
+					//viewer.data().set_mesh(V, F);
+					viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 
-				boolShowSamples = false; 
-				printf("mesh that we have  now: %d \n", viewer.data_list.size());
+					boolShowSamples = false;
+					printf("mesh that we have  now: %d \n", viewer.data_list.size());
+				}
 				//for (int i = 0; i < viewer.data_list.size(); i++) {
 				//	printf("Data %d: %d (%d) \n", i, viewer.data_list.at(i).V.rows(), dataToShow);
 				//}

@@ -22,12 +22,14 @@ int main(int argc, char *argv[])
 
 	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
-	meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
+	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
 
-	ml_eigSolver.setInitialSystem(1);
-	ml_eigSolver.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
+	//ml_eigSolver.setInitialSystem(1);
+	//ml_eigSolver.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
+	ml_eigSolver.readMesh(meshFile, ml_eigSolver.V, ml_eigSolver.F);
 	ml_eigSolver.getV(V);
 	ml_eigSolver.getF(F);
+	if (V.rows() < 1) viewer.data_list.clear();
 			
 	menu.callback_draw_viewer_window = [&]()
 	{

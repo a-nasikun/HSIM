@@ -368,9 +368,10 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 	D.resize(V.rows());
 
 	// Initialize the value of D
-	for (int i = 0; i < V.rows(); i++) {
-		D(i) = numeric_limits<double>::infinity();
-	}
+	D.setConstant(numeric_limits<double>::infinity());
+	//for (int i = 0; i < V.rows(); i++) {
+	//	D(i) = numeric_limits<double>::infinity();
+	//}
 
 	/* Random number generator */
 	std::random_device rd;								// Will be used to obtain a seed for the random number engine
