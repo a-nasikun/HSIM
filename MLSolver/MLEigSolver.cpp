@@ -2958,14 +2958,24 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	/* Initialization */
 	SIMeigVals.resize(numModes);					SIMeigVals.setZero();
-	SIMeigVects.resize(V.rows(), numModes);			SIMeigVects.setZero();
+	if(problemType==Problem_Class::Laplace_Beltrami)
+		SIMeigVects.resize(V.rows(), numModes);			
+	else if(problemType==Problem_Class::Linear_Elasticity)
+		SIMeigVects.resize(3*TV.rows(), numModes);
+	SIMeigVects.setZero();
+
 	SIMeigValsStack.resize(numModes, maxIter);		SIMeigValsStack.setZero();
 	convergenceStacks.resize(numModes, maxIter);	convergenceStacks.setZero();
 	
-	if(type==SIM_Type::SIM_MultiLevel)	
-		MultiLevelSIM(S, M, tol, numModes, 0, SIMeigVects, SIMeigVals);
-	else 
+	if (type == SIM_Type::SIM_MultiLevel) {
+		if (problemType == Problem_Class::Laplace_Beltrami)
+			MultiLevelSIM(S, M, tol, numModes, 0, SIMeigVects, SIMeigVals);
+		else if (problemType == Problem_Class::Linear_Elasticity)
+			MultiLevelSIM(ST, MT, tol, numModes, 0, SIMeigVects, SIMeigVals);
+	}
+	else {
 		simpleSubspaceIterMethod(viewer, type, tol, numModes, maxIter, SIMeigVects, SIMeigVals);
+	}
 
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
 
@@ -3002,10 +3012,21 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	case SIM_Type::SIM_1level_Random:
 		cout << "SUBSPACE ITERATION METHOD with Random initialization Vectors (normalized).\n";
-		generateRandomMatrix(V.rows(), q, Xk);
+		if (problemType == Problem_Class::Laplace_Beltrami) {
+			generateRandomMatrix(V.rows(), q, Xk);
+		}
+		else if (problemType == Problem_Class::Linear_Elasticity) {
+			generateRandomMatrix(3 * TV.rows(), q, Xk);
+		}
+
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
-			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			double mNorm;
+			if (problemType == Problem_Class::Laplace_Beltrami)
+				mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			else if (problemType == Problem_Class::Linear_Elasticity)
+				mNorm = Xk.col(i).transpose() * MT * Xk.col(i);
+			
 			mNorm = (double) 1.0 / sqrt(mNorm);
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
@@ -3013,10 +3034,20 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	case SIM_Type::SIM_1level_Bathe:
 		cout << "SUBSPACE ITERATION METHOD with Bathe's proposed initialization Vectors (normalized).\n";
-		generateSampleBaseInitVectors(q, Xk);
+		//generateSampleBaseInitVectors(q, Xk);
+		if(problemType==Problem_Class::Laplace_Beltrami)
+			generateBatheInitVectors(V.rows(), q, Xk);
+		else if (problemType==Problem_Class::Linear_Elasticity)
+			generateBatheInitVectors(3*TV.rows(), q, Xk);
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
-			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			double mNorm;
+			if (problemType == Problem_Class::Laplace_Beltrami) {
+				mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			}
+			else if (problemType == Problem_Class::Linear_Elasticity) {
+				mNorm = Xk.col(i).transpose() * MT * Xk.col(i);
+			}
 			mNorm = (double) 1.0 / sqrt(mNorm);
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
@@ -3027,10 +3058,21 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	// Adding small epsilon the the diagonal (to avoid the kernel)
 	Eigen::SparseMatrix<double> SS;
-	Eigen::SparseMatrix<double> Id; Id.resize(S.rows(), S.cols()); Id.setIdentity();
+	Eigen::SparseMatrix<double> Id; 
 	double eps = 1e-6;
-	Id = eps*Id;
-	SS = S + Id;		// Adding epsilon to the diagonal
+
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		Id.resize(S.rows(), S.cols()); 
+		Id.setIdentity();
+		Id = eps*Id;
+		SS = S + Id;		// Adding epsilon to the diagonal
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		Id.resize(ST.rows(), ST.cols()); 
+		Id.setIdentity();
+		Id = eps*Id;
+		SS = ST + Id;		// Adding epsilon to the diagonal
+	}
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	factorization.compute(SS);
@@ -3041,7 +3083,13 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 	/* Iteration for eigenproblem */
 	cout << "[2] Iterating steps. \n";
 	bool convergenceCheck;
-	Eigen::MatrixXd XbarK(V.rows(), q); XbarK.setZero();
+	Eigen::MatrixXd XbarK;
+	if(problemType==Problem_Class::Laplace_Beltrami)
+		XbarK.resize(V.rows(), q);
+	if (problemType == Problem_Class::Linear_Elasticity)
+		XbarK.resize(3*TV.rows(), q);
+	XbarK.setZero();
+
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
@@ -3063,15 +3111,23 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 		
 		for (int i = 0; i < q; i++) {						// easily parallelizeable
 			Eigen::VectorXd v;			
-			if(type==SIM_Type::SIM_1level_Bathe && i==0)
+			if (type == SIM_Type::SIM_1level_Bathe && i == 0) {
 				v = Xk.col(i);				// use the input as "MxXi" directly
-			else 
-				v = M * (Xk.col(i));				
+			}else {
+				if (problemType == Problem_Class::Laplace_Beltrami)
+					v = M * (Xk.col(i));
+				else if (problemType == Problem_Class::Linear_Elasticity)
+					v = MT * (Xk.col(i));
+			}
 		
 			XbarK.col(i) = factorization.solve(v);
 		}
 		
-		Eigen::MatrixXd VV = M*Xk;
+		Eigen::MatrixXd VV;
+		if (problemType == Problem_Class::Laplace_Beltrami)
+			VV = M*Xk;
+		else if (problemType == Problem_Class::Linear_Elasticity)
+			VV = MT*Xk;
 
 
 		///#pragma omp parallel private(i,tid, ntids,ipts,istart) 
@@ -3103,8 +3159,15 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 		/* Projection of M and K*/
 		printf("__setting up reduced matrix M and S. ");
-		Sproj = XbarK.transpose()*S*XbarK;
-		Mproj = XbarK.transpose()*M*XbarK;
+		if (problemType == Problem_Class::Laplace_Beltrami) {
+			Sproj = XbarK.transpose()*S*XbarK;
+			Mproj = XbarK.transpose()*M*XbarK;
+		}
+		else if (problemType == Problem_Class::Linear_Elasticity){
+			Sproj = XbarK.transpose()*ST*XbarK;
+			Mproj = XbarK.transpose()*MT*XbarK;
+		}
+		
 		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());		
 
 		/* Reduced eigenvalue problem */
@@ -3122,7 +3185,8 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 		
 		/* Convergence Check*
 		** Type 2: */
-		checkConvergenceCat2(Xk, Alpha, conv2);
+		//checkConvergenceCat2(Xk, Alpha, conv2);
+		checkConvergenceCat2(Xk, Alpha, MT, ST, conv2);
 		cout << "Conv 2 \n" << conv2.head(width).transpose() << endl;
 		/** Type 3: */
 		checkConvergenceCat3(Q, Alpha, conv3);
@@ -3144,7 +3208,7 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 
 	EigVals = Alpha.block(0,0,width,1);
-	EigVects = Xk.block(0,0,V.rows(),width);
+	EigVects = Xk.block(0,0,XbarK.rows(),width);
 	//cout << "Eigenvalues: \n" << EigVals << endl << endl;
 }
 
@@ -3435,7 +3499,7 @@ void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMa
 		Eigen::SparseMatrix<double> SK, MK;
 		if (k == 0) { 
 			//printf("S:%dx%d (nnz: %d) | M:%dx%d (nnz: %d) \n", S.rows(), S.cols(), S.nonZeros(), M.rows(), M.cols(), M.nonZeros());
-			SK = S; MK = M; 
+			SK = SL; MK = ML; 
 			//printf("Sred:%dx%d (nnz: %d) | Mred:%dx%d (nnz: %d) \n", SK.rows(), SK.cols(), SK.nonZeros(), MK.rows(), MK.cols(), MK.nonZeros());
 		}
 		else {
@@ -3541,8 +3605,11 @@ void MLEigSolver::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
 	Xk.resize(m, n);
 	Eigen::VectorXd e(m); e.setZero();
 	
+	if(problemType==Problem_Class::Laplace_Beltrami)
+		Xk.col(0) = M.diagonal();
+	else if(problemType==Problem_Class::Linear_Elasticity)
+		Xk.col(0) = MT.diagonal();
 
-	Xk.col(0) = M.diagonal();
 	for (int i = 1; i < (n - 1); i++) {
 		e(i) = 1.0;
 		Xk.col(i) = e;
@@ -3559,7 +3626,12 @@ void MLEigSolver::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
 		double randNum = (double)dist(gen);
 		Xk(i, n-1) = 2.0 * (randNum / (double)m - 0.5);
 	}
-	double mNorm = Xk.col(n-1).transpose() * M * Xk.col(n-1);
+	double mNorm;
+	if (problemType == Problem_Class::Laplace_Beltrami)
+		mNorm = Xk.col(n - 1).transpose() * M * Xk.col(n - 1);
+	else if (problemType == Problem_Class::Linear_Elasticity)
+		mNorm = Xk.col(n - 1).transpose() * MT * Xk.col(n - 1);
+	
 	mNorm = (double) 1.0 / sqrt(mNorm);
 	Xk.col(n-1) = mNorm * Xk.col(n-1);
 }
@@ -3567,8 +3639,11 @@ void MLEigSolver::generateBatheInitVectors(int m, int n, Eigen::MatrixXd& Xk)
 void  MLEigSolver::generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk)
 {
 	cout << "Setting the initial vectors to be at the sampling vertices \n";
+	if(problemType==Problem_Class::Laplace_Beltrami)
+		Xk.resize(V.rows(), m);
+	if (problemType == Problem_Class::Linear_Elasticity)
+		Xk.resize(3*TV.rows(), m);
 
-	Xk.resize(V.rows(), m);
 	Xk.setZero();
 	for (unsigned int i = 0; i < m; i++) {
 		Xk(Sample(i), i) = 1.0;
