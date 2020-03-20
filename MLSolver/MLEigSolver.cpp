@@ -203,7 +203,7 @@ void MLEigSolver::constructLaplacianMatrix(){
 
 void MLEigSolver::constructSampleHierarchy(Eigen::VectorXd& n)
 {
-
+	printf("Sampling on % level \n", level);
 	for (int i = 0; i < level; i++)
 	{
 		SubspaceSize[i] = n(i);
@@ -211,6 +211,7 @@ void MLEigSolver::constructSampleHierarchy(Eigen::VectorXd& n)
 	}
 
 	//constructSample();
+	/* Construction of samples */
 	if (problemType == Problem_Class::Laplace_Beltrami) {
 		SampleMap.resize(V.rows());
 		constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
@@ -321,7 +322,7 @@ void MLEigSolver::constructBasis()
 		for (int i = 1; i < level; i++) {
 			//maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
 			//maxNeighDist[i] = (i+1.0)* cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*SubspaceSize[i] *M_PI));
-			maxNeighDist[i] = cbrt(NUM_SUPPORT) * maxNeighDist[i-1];
+			maxNeighDist[i] = cbrt(SubspaceSize[i-1]/(double)SubspaceSize[i]) * maxNeighDist[i-1];
 			printf("Radius %d is %.4f\n", i, maxNeighDist[i]);
 		}
 
@@ -3000,6 +3001,7 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 	}
 
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
+	printf("Size of eigenvalues: %d | eigVectors: %dx%d \n", SIMeigVals.rows(), SIMeigVects.rows(), SIMeigVects.cols());
 
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
@@ -3007,11 +3009,11 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	
 	/* WRITING UP THE CONVERGENCE */
-	string modelName = "AAA_" + to_string(V.rows());
-	string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
-	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
-	string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
-	writeDenseMatrixToFile(convergenceStacks, fileEigs);
+	///string modelName = "AAA_" + to_string(V.rows());
+	///string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	///writeDenseMatrixToFile(SIMeigValsStack, fileConv);
+	///string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	///writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
 void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)

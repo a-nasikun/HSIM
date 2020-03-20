@@ -291,7 +291,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					int lvlCounter = 0;
 					do {
 						numSample = (int)round(numSample / levelRatio);
-						if (numSample < 500) break;
+						if (numSample < 250) break;
 						sampleLevels.push_back(numSample);
 						lvlCounter++;
 					} while (numSample > SAMPLE_LOW_BOUND);
@@ -316,7 +316,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 
 				ImGui::Text("Show sample distance");				
-				for (int i = 0; i < ml_eigSolver.level; i++)
+				for (int i = 0; i < ml_eigSolver.level; ++i)
 				{
 					string disp = "Dist ";
 					disp += to_string(i);
@@ -673,8 +673,9 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
 			ml_eigSolver.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
+			printf("Successfully computing the eigenvalues \n");
 
-			cout << "Eigenvalues: \n" << ml_eigSolver.SIMeigVals << endl << endl;
+			///cout << "Eigenvalues: \n" << ml_eigSolver.SIMeigVals << endl << endl;
 		}
 
 		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {

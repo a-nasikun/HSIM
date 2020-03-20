@@ -187,7 +187,7 @@ public:
 	Eigen::VectorXd					volume;											// volume of each tetrahedral mesh// tetahedral and faces index
 	Eigen::MatrixXd					reducedEigVects, refEigVects;	
 	Eigen::VectorXd					reducedEigVals, refEigVals;			
-	Eigen::VectorXi					Sample, SampleMap;								// id of the samples | for a certain vertex sample, get the id of the sample
+	Eigen::VectorXi					Sample, SampleMap;								// id of the samples | for a certain vertex sample, provided that it's a sample vertex, get its 'sample id' 
 	vector<set<int>>				AdM;											// adjacency matrix, vertex to neighboring vertices
 	vector<double>					maxNeighDist;									// geodesic distance for sampling, to control the sparsity
 	double							avgEdgeLength, surfaceArea;						// average edge length and total surface area (from the mesh)

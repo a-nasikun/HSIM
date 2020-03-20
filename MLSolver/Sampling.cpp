@@ -314,7 +314,8 @@ void ComputeDijkstra(const Eigen::MatrixXd &V, const int Si, const vector<set<in
 		for (set<int>::iterator it = AdM[vp1.vId].begin(); it != AdM[vp1.vId].end(); ++it) {
 			double dist;
 			Eigen::VectorXd vRow2 = V.block<1, 3>(*it, 0);
-			VtoVDist(vRow1, vRow2, dist);
+			dist = (vRow2 - vRow1).norm();
+			//VtoVDist(vRow1, vRow2, dist);
 			double tempDist = vp1.distance + dist;
 
 			//double tempDist = (V.row(Si) - V.row(*it)).norm();
@@ -364,14 +365,10 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 	const int level = SubspaceSize.size();
 	Samples.resize(SubspaceSize[0]);
 	Eigen::VectorXd D;
-	//Eigen::VectorXi Si;
 	D.resize(V.rows());
 
 	// Initialize the value of D
 	D.setConstant(numeric_limits<double>::infinity());
-	//for (int i = 0; i < V.rows(); i++) {
-	//	D(i) = numeric_limits<double>::infinity();
-	//}
 
 	/* Random number generator */
 	std::random_device rd;								// Will be used to obtain a seed for the random number engine
@@ -381,24 +378,26 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 	
 	Eigen::VectorXi::Index maxIndex;
 
-	// For level 0
-	printf("Sample %d, %d \n", level-1, SubspaceSize[level - 1]);
-	for (int i = 1; i < SubspaceSize[level-1]; i++) {
-		ComputeDijkstra(V, Samples(i - 1), AdM, D);
+	/* Samples on the coarsest level */
+	printf("Sample %d: %d \n", level-1, SubspaceSize[level-1]);
+	for (int i = 1; i < SubspaceSize[level-1]; ++i) {
+		ComputeDijkstra(V, Samples(i-1), AdM, D);
 		D.maxCoeff(&maxIndex);
 		Samples(i) = maxIndex;
 	}
-	geoDist[level - 1] = D; 
+	geoDist[level-1] = D; 
+	printf("Range of D[%d]: %.2f -> %.2f \n", level - 1, D.minCoeff(), D.maxCoeff());
 
-	// For level 1 and higher
-	for (int j = 1; j < level; j++)
+	/* For samples on coarser to finer level*/	
+	for (int j = (level-2); j >= 0; --j)
 	{
-		printf("Sample %d: %d \n", level-j-1, SubspaceSize[level-(j+1)]);
-		for (int i = SubspaceSize[level-j]; i < SubspaceSize[level-(j+1)]; i++) {
+		printf("Sample %d: %d [%d-%d].\n", j, SubspaceSize[j]-SubspaceSize[j+1], SubspaceSize[j], SubspaceSize[j+1]);
+		for (int i = SubspaceSize[j+1]; i < SubspaceSize[j]; ++i) {
 			ComputeDijkstra(V, Samples(i-1), AdM, D);
 			D.maxCoeff(&maxIndex);
 			Samples(i) = maxIndex;
 		}
-		geoDist[level - (j+1)] = D;
+		geoDist[j] = D;
+		printf("Range of D[%d]: %.2f -> %.2f \n", j, D.minCoeff(), D.maxCoeff());
 	}
 }
