@@ -2882,6 +2882,89 @@ void MLEigSolver::computeRefEigenProblem(int numEig, const string& filename)
 	cout << "...in " << duration.count() << " seconds." << endl;
 }
 
+void MLEigSolver::computeSelectedRefEigenProblem(int axis, double clampSelection, int numEig, const string& filename)
+{
+	double xMin;
+	double xMax;
+	double xScale;
+	double xBound;		// within this bound, the Hessian will be discarded
+
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		xMin = V.col(axis).minCoeff();
+		xMax = V.col(axis).maxCoeff();
+		xScale = clampSelection;
+		xBound = xMin + xScale*(xMax - xMin);
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		xMin = TV.col(axis).minCoeff();
+		xMax = TV.col(axis).maxCoeff();
+		xScale = clampSelection;
+		xBound = xMin + xScale*(xMax - xMin);		// within this bound, the Hessian will be discarded
+	}
+
+	/* Selector Matrix */
+	vector<Eigen::Triplet<double>> STriplet; 
+	Eigen::SparseMatrix<double> SelMat;
+	int vCounter = 0;
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		STriplet.reserve(round((1.0 - xScale)*V.rows()));
+		for (int i = 0; i < V.rows(); i++) {
+			if (V(i, axis) >= xBound) {
+				STriplet.push_back(Eigen::Triplet<double>(i,vCounter, 1.0));
+				vCounter++;
+			}
+		}
+		SelMat.resize(V.rows(), vCounter);
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		STriplet.reserve(3 * round((1.0 - xScale)*TV.rows()));
+		for (int i = 0; i < TV.rows(); i++) {
+			if (TV(i, axis) >= xBound) {							// only select entries corresponding to selected vertices
+				for (int j = 0; j < 3; j++) {
+					STriplet.push_back(Eigen::Triplet<double>(3 * i + j, 3 * vCounter + j, 1));
+				}
+				vCounter++;
+			}
+		}
+		SelMat.resize(3 * TV.rows(), 3 * vCounter);
+	}
+
+	SelMat.setFromTriplets(STriplet.begin(), STriplet.end());
+	STriplet.clear(); STriplet.shrink_to_fit();
+
+
+	/* Reduced problem */
+	Eigen::SparseMatrix<double> SLoc;
+	Eigen::SparseMatrix<double> MLoc;
+	Eigen::MatrixXd EigVectsLoc, EigVectsLocRev;
+	cout << "Setting up the reduced problem \n";
+
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		SLoc = SelMat.transpose()*S*SelMat;
+		MLoc = SelMat.transpose()*M*SelMat;
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity){
+		SLoc = SelMat.transpose()*ST*SelMat;
+		MLoc = SelMat.transpose()*MT*SelMat;
+	}
+	cout << "Computing the eigenproblem using spectra \n";
+	computeEigenSpectraSparse(SLoc, MLoc, numEig, EigVectsLoc, refEigVals);
+	//computeEigenMatlab(SLoc, MLoc, numEig, EigVectsLoc, refEigVals, "");
+	cout << "Reverse the order of the eigenpairs \n";
+
+	//refEigVals.reverseInPlace();
+	//EigVectsLoc.resize(EigVectsLocRev.rows(), EigVectsLocRev.cols());
+	//for (int i = 0; i < EigVectsLocRev.cols(); i++) {
+	//	EigVectsLoc.col(i) = EigVectsLocRev.col(EigVectsLocRev.cols() - i - 1);
+	//}
+
+	cout << "Eigenvalues: \n" << refEigVals << endl;
+
+	/* Lift it up to the full space */
+	refEigVects = SelMat*EigVectsLoc;
+	printf("Size of eigenvectors: %dx%d \n", refEigVects.rows(), refEigVects.cols());
+}
+
 void MLEigSolver::testGaussSeidel()
 {	
 	Eigen::SparseMatrix<double> A(4, 4);
@@ -3009,11 +3092,11 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	
 	/* WRITING UP THE CONVERGENCE */
-	///string modelName = "AAA_" + to_string(V.rows());
-	///string fileConv = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
-	///writeDenseMatrixToFile(SIMeigValsStack, fileConv);
-	///string fileEigs = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
-	///writeDenseMatrixToFile(convergenceStacks, fileEigs);
+	string modelName = "AAA_" + to_string(V.rows());
+	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
+	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
 void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)

@@ -151,6 +151,8 @@ public:
 
 	/* Reference eigenproblem */
 	void computeRefEigenProblem(int numEig, const string& filename);
+	void computeSelectedRefEigenProblem(int axis, double clampSelection, int numEig, const string& filename);
+
 
 	void testGaussSeidel();
 	void testConstantFuncsProjection();

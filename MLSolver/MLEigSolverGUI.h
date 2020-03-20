@@ -19,7 +19,7 @@ enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_No
 
 int					basisToShow		= 0;
 int					eigToShow		= 0;
-int					eigToCompute    = 500;
+static int			eigToCompute    = 500;
 bool				boolShowSamples = false;
 bool				useNonSmoothBasis = false; 
 //static int			numOfSample		= 250;
@@ -31,7 +31,8 @@ string				model			= "Sphere40k";
 static int			SIMtype			= 2;
 int					problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
 int					matType			= 0;					// material type (for hessian/linear elasticity)
-
+int					defAxis = 0;							// axis in selecting the partial eigenproblem
+double				clampRegion;
 
 void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigSolver &ml_eigSolver) {
 	// MAIN WINDOW 	
@@ -637,6 +638,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			menuWindowWidth		= 200.f,
 			menuWindowHeight	= 475.f;
 
+	
 	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
 	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
 	ImGui::Begin("Subspace##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
@@ -646,8 +648,8 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 	if (ImGui::CollapsingHeader("Draft on subspace iteration", ImGuiTreeNodeFlags_DefaultOpen)) {
 		/* some parameters */
-		static int numOfModes = 50;
-		static int maxIter = 50;
+		static int numOfModes = 5;
+		static int maxIter = 5;
 		static double tol = 1e-4;
 		/* Type of the SIM to be computed*/
 		std::map<int, SIM_Type>			typeMap;
@@ -658,9 +660,9 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 
 		if (ImGui::CollapsingHeader("SIM Option", ImGuiTreeNodeFlags_CollapsingHeader)) {
-			static char numModesTxt[10] = "50"; ImGui::InputText("Num Eigs", numModesTxt, 10);
+			static char numModesTxt[10] = "5"; ImGui::InputText("Num Eigs", numModesTxt, 10);
 			numOfModes = atoi(numModesTxt);
-			static char maxIterTxt[10] = "50"; ImGui::InputText("Max Iter", maxIterTxt, 10);
+			static char maxIterTxt[10] = "5"; ImGui::InputText("Max Iter", maxIterTxt, 10);
 			maxIter = atoi(maxIterTxt);
 			static char tolTxt[10] = "0.0001"; ImGui::InputText("Tolerance", tolTxt, 10);
 			tol = atof(tolTxt);
@@ -672,10 +674,15 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 
 		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
-			ml_eigSolver.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
-			printf("Successfully computing the eigenvalues \n");
-
-			///cout << "Eigenvalues: \n" << ml_eigSolver.SIMeigVals << endl << endl;
+			//cout << "Max X Reg:" << ImGui::GetWindowContentRegionMax().x << endl;
+			//cout << "Size (x,y):" << ImGui::GetWindowSize().x << ", " << ImGui::GetWindowSize().y << endl;
+			//cout << "width Reg:" << ImGui::GetWindowWidth() << endl;
+			//cout << "heigth Reg:" << ImGui::GetWindowHeight() << endl;
+			
+			
+			///ml_eigSolver.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
+			///printf("Successfully computing the eigenvalues \n");
+			///cout << "Eigenvalues: \n" << ml_eigSolver.SIMeigVals << endl; 
 		}
 
 		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
@@ -864,33 +871,62 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 		} // End of HEAT METHOD
 
 		/* [REFERENCE] Eigenvectors */
-
+		static int solverType = 0; // 0: Matlab, 1: Spectra
 		if (ImGui::CollapsingHeader("Compute Ref. Eigenproblem", ImGuiTreeNodeFlags_DefaultOpen)) {
 			ImGui::Text("EigVal to Comp."); ImGui::SameLine();
-			static char numEig[6] = "100"; ImGui::InputText("", numEig, 6);
-			eigToCompute = atoi(numEig);
-			if (ImGui::Button("Compute Ref. in Matlab", ImVec2(w, 0))) {
-				ml_eigSolver.computeRefEigenProblem(eigToCompute, "hello");
-			}
+			static char numEig[6] = "100"; ImGui::InputText("", numEig, 6);			
 
-			if (ImGui::Button("Compute Ref. in Spectra", ImVec2(w, 0))) {
+			ImGui::RadioButton("Matlab", &solverType, 0); ImGui::SameLine();
+			ImGui::RadioButton("Spectra", &solverType, 1);			
+
+			if (ImGui::Button("Compute Reference", ImVec2(w, 0))) {
+				eigToCompute = atoi(numEig);
+
+				cout << "> Computing reference eigenproblem ";
 
 				chrono::high_resolution_clock::time_point	t0, t1;
 				chrono::duration<double>					duration;
 				t0 = chrono::high_resolution_clock::now();
-				cout << "> Computing reference eigenproblem in Spectra...";
 
-				if(problemType==0)
-					computeEigenSpectraSparse(ml_eigSolver.S, ml_eigSolver.M, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals);
-				else if(problemType==1)
-					computeEigenSpectraSparse(ml_eigSolver.ST, ml_eigSolver.MT, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals);
+				/* Solving in Matlab */
+				if (solverType == 0) {
+					cout << "in Matlab... ";
+					string fileLoc = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/CDragon_" + to_string(eigToCompute);
+					
+					if (problemType == 0)
+						computeEigenMatlab(ml_eigSolver.S, ml_eigSolver.M, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals, fileLoc);
+					else if (problemType == 1)
+						computeEigenMatlab(ml_eigSolver.ST, ml_eigSolver.MT, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals, fileLoc);
+					
+				}
+				/* Solving in Spectra */
+				else if (solverType == 1) {
+					cout << "in Spectra... ";
+					if (problemType == 0)
+						computeEigenSpectraSparse(ml_eigSolver.S, ml_eigSolver.M, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals);
+					else if (problemType == 1)
+						computeEigenSpectraSparse(ml_eigSolver.ST, ml_eigSolver.MT, eigToCompute, ml_eigSolver.refEigVects, ml_eigSolver.refEigVals);
 
+				}
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
-				cout << "...in " << duration.count() << " seconds." << endl;
+				cout << " in " << duration.count() << " seconds." << endl;
 
 				cout << "Ref eigenvalues: \n" <<  ml_eigSolver.refEigVals << endl; 
 
+			}
+
+			ImGui::RadioButton("X", &defAxis, 0); ImGui::SameLine();
+			ImGui::RadioButton("Y", &defAxis, 1); ImGui::SameLine();
+			ImGui::RadioButton("Z", &defAxis, 2); ImGui::SameLine();
+			static char selScale[10] = "0.01"; ImGui::InputText("Selection", selScale, 10);
+			clampRegion = atof(selScale);
+
+
+			if (ImGui::Button("Compute Ref with selector", ImVec2(w, 0))) {
+				eigToCompute = atoi(numEig);
+
+				ml_eigSolver.computeSelectedRefEigenProblem(defAxis, clampRegion, eigToCompute, "");
 			}
 
 			if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {
