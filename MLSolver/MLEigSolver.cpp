@@ -3675,7 +3675,7 @@ void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMa
 			///	printf("__XL: %dx%d | Q: %dx%d \n", XL.rows(), XL.cols(), Q.rows(), Q.cols());
 			///}
 
-			checkConvergenceCat2(XL, AL, MK, SK, conv2);
+			checkConvergenceCat2(XL, AL, MK, SS, conv2);
 			//printf("__%d: Convergence check: %.3f (end) \n", iterCount, conv3(width-1));
 			cout << "_____ [" << iterCount+1 << "] convergence check: \n" << conv2.head(width).transpose() << endl; 
 
@@ -3693,12 +3693,13 @@ void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMa
 				
 
 		/* PRint some data when it's on the finest level */
-		if (k == 0) {
-			cout << "Clamping to the size of required modes \n";
-			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
-			SIMeigValsStack.conservativeResize(Eigen::NoChange, iterCount);
-			//cout << "Eigenvalues: \n" << AL << endl << endl;
-		}
+		///if (k == 0) {
+		///	cout << "Clamping to the size of required modes \n";
+		///	convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
+		///	SIMeigValsStack.conservativeResize(Eigen::NoChange, iterCount);
+		///	//cout << "Eigenvalues: \n" << AL << endl << endl;
+		///	cout << "DOne here\n";
+		///}
 	}	
 
 	t1 = chrono::high_resolution_clock::now();

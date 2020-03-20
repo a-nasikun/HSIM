@@ -673,16 +673,11 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			ImGui::RadioButton("Multi-level", &SIMtype, 0);		//ImGui::SameLine();
 		}
 
-		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
-			//cout << "Max X Reg:" << ImGui::GetWindowContentRegionMax().x << endl;
-			//cout << "Size (x,y):" << ImGui::GetWindowSize().x << ", " << ImGui::GetWindowSize().y << endl;
-			//cout << "width Reg:" << ImGui::GetWindowWidth() << endl;
-			//cout << "heigth Reg:" << ImGui::GetWindowHeight() << endl;
-			
-			
-			///ml_eigSolver.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
-			///printf("Successfully computing the eigenvalues \n");
-			///cout << "Eigenvalues: \n" << ml_eigSolver.SIMeigVals << endl; 
+		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {			
+			ml_eigSolver.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
+			printf("Successfully computing the eigenvalues \n");
+			cout << "Eigenvalues: \n" << ml_eigSolver.SIMeigVals << endl; 
+			cout << "EigenVectors: \n" << ml_eigSolver.SIMeigVects.topRows(5) << endl; 
 		}
 
 		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
