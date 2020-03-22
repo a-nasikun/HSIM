@@ -131,6 +131,8 @@ void writeDenseMatrixToFile(const Eigen::MatrixXd& M, const string& filename)
 	if (myfile.is_open()){
 		cout << "Writing Matrix file to text ";
 		printf("of %dx%d size \n", M.rows(), M.cols());
+		myfile << "#Cols=" << M.cols() << "\n";
+
 		for (int i = 0; i < M.rows(); i++){
 			for (int j = 0; j < M.cols(); j++){
 				myfile << M(i, j) << "\t";

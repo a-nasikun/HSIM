@@ -289,24 +289,33 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					int SAMPLE_LOW_BOUND = 1000;
 					int numSample = (problemType == 0 ? ml_eigSolver.V.rows() : ml_eigSolver.TV.rows() );					
 					
-					int lvlCounter = 0;
-					do {
-						numSample = (int)round(numSample / levelRatio);
-						if (numSample < 250) break;
-						sampleLevels.push_back(numSample);
-						lvlCounter++;
-					} while (numSample > SAMPLE_LOW_BOUND);
-					
-					/* Setting the number of levels */
-					numLevels = lvlCounter;
+					/* hard coded */
+					numLevels = 4;
+					sampleLevels.resize(numLevels);
+					Eigen::VectorXd sampSize(numLevels);
+					sampSize << 64000, 16000, 4000, 1000;
 					ml_eigSolver.setInitialSystem(numLevels);
 
-					Eigen::VectorXd sampSize(sampleLevels.size());
-					for (int ii = 0; ii < sampleLevels.size(); ii++)
-						sampSize(ii) = sampleLevels[ii];
+					/* automated */
+					///int lvlCounter = 0;
+					///do {
+					///	numSample = (int)round(numSample / levelRatio);
+					///	if (numSample < 250) break;
+					///	sampleLevels.push_back(numSample);
+					///	lvlCounter++;
+					///} while (numSample > SAMPLE_LOW_BOUND);
+					///
+					////* Setting the number of levels */
+					///numLevels = lvlCounter;
+					///ml_eigSolver.setInitialSystem(numLevels);
+					///
+					///Eigen::VectorXd sampSize(sampleLevels.size());
+					///for (int ii = 0; ii < sampleLevels.size(); ii++)
+					///	sampSize(ii) = sampleLevels[ii];
+
 					
 					/* For 1 level (coarsest level) sampling only*/
-					ml_eigSolver.setSample(sampSize(sampleLevels.size()-1), (SamplingType)sampleType);
+					ml_eigSolver.setSample(sampSize(numLevels-1), (SamplingType)sampleType);
 					/* For the multilevel sampling */
 					ml_eigSolver.constructSampleHierarchy(sampSize);									
 					
@@ -673,7 +682,9 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			ImGui::RadioButton("Multi-level", &SIMtype, 0);		//ImGui::SameLine();
 		}
 
-		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {			
+		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
+			if ((SIMtype == 0 || SIMtype == 1) && ml_eigSolver.reducedEigVals.rows() < 1) return;
+
 			ml_eigSolver.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
 			printf("Successfully computing the eigenvalues \n");
 			cout << "Eigenvalues: \n" << ml_eigSolver.SIMeigVals << endl; 
@@ -682,14 +693,14 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
 			double thisTol = 1e-2;
-			//vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> wantedModes{ 250 };
+			vector<int> wantedModes{ 50, 100, 250 };
+			//vector<int> wantedModes{ 250 };
 			for (int j = 0; j < wantedModes.size(); j++) {
 				for (int k = 0; k < 4; k++) {
 					double tolTol = thisTol / pow(10, k);
 					ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_MultiLevel,    tolTol, wantedModes[j], maxIter);
-					ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, tolTol, wantedModes[j], maxIter);
-					ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Bathe,  tolTol, wantedModes[j], maxIter);
+					///ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, tolTol, wantedModes[j], maxIter);
+					///ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Bathe,  tolTol, wantedModes[j], maxIter);
 				}
 			}
 		}

@@ -431,7 +431,15 @@ void MLEigSolver::constructNonSmoothBasis()
 		UTriplet.clear(); UTriplet.shrink_to_fit();
 	} //  End of clustering
 
-	Basis = U[0];
+	//Basis = U[0];
+	Basis.resize(V.rows(), V.rows());
+	Basis.setIdentity();
+	for (int i = 0; i < level; i++) {
+		Basis = Basis * U[i];
+		printf("Basis size: %dx%d | Loc Basis: %dx%d. \n", Basis.rows(), Basis.cols(), U[i].rows(), U[i].cols());
+	}
+
+
 
 }
 
@@ -3092,7 +3100,7 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	
 	/* WRITING UP THE CONVERGENCE */
-	string modelName = "AAA_" + to_string(V.rows());
+	string modelName = "Sphere_" + to_string(V.rows());
 	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
 	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
 	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
@@ -3693,13 +3701,11 @@ void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMa
 				
 
 		/* PRint some data when it's on the finest level */
-		///if (k == 0) {
-		///	cout << "Clamping to the size of required modes \n";
-		///	convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
-		///	SIMeigValsStack.conservativeResize(Eigen::NoChange, iterCount);
-		///	//cout << "Eigenvalues: \n" << AL << endl << endl;
-		///	cout << "DOne here\n";
-		///}
+		if (k == 0) {
+			cout << "Clamping to the size of required modes \n";
+			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
+			SIMeigValsStack.conservativeResize(Eigen::NoChange, iterCount);
+		}
 	}	
 
 	t1 = chrono::high_resolution_clock::now();
