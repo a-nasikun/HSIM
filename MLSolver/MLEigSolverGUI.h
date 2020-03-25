@@ -747,9 +747,10 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			}
 		}	
 		
-		//if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
-		//	ml_eigSolver.SubspaceIterMethod(viewer);
-		//}
+		if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
+			//ml_eigSolver.SubspaceIterMethod(viewer);
+			ml_eigSolver.SubspaceIterMethodShift(viewer, tol, numOfModes, maxIter);
+		}
 
 		if (ImGui::Button("Save EigVals#RIM", ImVec2(w/2.0, 0))) {
 			//writeDenseMatrixToFile(ml_eigSolver.SIMeigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(ml_eigSolver.SIMeigVals.rows()) + ".txt");

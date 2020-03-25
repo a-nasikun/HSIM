@@ -3476,7 +3476,11 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 		/* Convergence Check*
 		** Type 2: */
 		//checkConvergenceCat2(Xk, Alpha, conv2);
-		checkConvergenceCat2(Xk, Alpha, MT, ST, conv2);
+		if(problemType==Problem_Class::Laplace_Beltrami)
+			checkConvergenceCat2(Xk, Alpha, M, S, conv2);
+		else if(problemType==Problem_Class::Linear_Elasticity)
+			checkConvergenceCat2(Xk, Alpha, MT, ST, conv2);
+
 		cout << "Conv 2 \n" << conv2.head(width).transpose() << endl;
 		/** Type 3: */
 		checkConvergenceCat3(Q, Alpha, conv3);
@@ -3577,27 +3581,7 @@ void MLEigSolver::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::Vi
 		cout << "Iter: " << k + 1 <<  endl << "____Conv: " ;
 		
 		checkConvergenceCat2(XS, LS, conv_rate);
-		//checkConvergenceCat3(QS, LS, conv_rate);
-		//double conv;
-		////for (int checkId = 0; checkId < sWidth-width; checkId++) {
-		//for (int checkId = 0; checkId < sWidth; checkId++) {
-		//	double qTq = QS.col(checkId).transpose()*QS.col(checkId);
-		//	//cout << "qTq=" << qTq << endl;
-		//	//cout << "eigenVal^2: " << pow(Alpha(checkId), 2) << endl;
-		//	conv = (pow(LS(checkId), 2)) / qTq;
-		//	if (conv > 1.0) {
-		//		printf("IT's WEIRD! the second part is:");
-		//		cout << conv << endl; 
-		//		cout << "qTq=" << qTq;
-		//		cout << "| eigenVal^2: " << pow(LS(checkId), 2) << endl;
-		//	}
-		//	convergence = sqrt(abs(1.0 - conv));
-		//	conv_rate(q-sWidth+checkId) = convergence;
-		//	//printf("<%d> %.5f |", checkId, convergence);			
-		//	//printf("Convergence (c3) for index %d after %d iteration is: ", checkId, k + 1);
-		//	//cout << convergence << endl;
-		//}
-		
+				
 		notConverged = false;
 		for (int i = 0; i < sWidth-width; i++) {
 			if (conv_rate(q-sWidth+i) < CONV_CHECK) {
@@ -3652,60 +3636,96 @@ void MLEigSolver::simpleSubspaceIterMethodDiscardConverged(igl::opengl::glfw::Vi
 	cout << "Eigenvalues: \n" << EigVals << endl << endl;
 }
 
-void MLEigSolver::SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer)
+void MLEigSolver::SubspaceIterMethodShift(igl::opengl::glfw::Viewer &viewer, double tol, int numModes, int maxIter)
 {
 	/* Initialization */
 	cout << "[1] SIM w Shift ::Setup initialization of variables\n";
 	//int q = reducedEigVals.rows();
-	int q = 100;
+	int q = max(2*numModes, numModes+8);
 	Eigen::MatrixXd Xk = Basis * reducedEigVects.block(0, 0, reducedEigVals.rows(), q);
-	int k = 0;
+	int k = 1;
 	cout << "__ num of subspace q: " << q << endl;
 	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
 
 	/* Iteration for eigenproblem */
 	cout << "[2] Iterating steps. \n";
-	bool convergenceCheck;
-	double shiftFactor;
-	Eigen::SparseMatrix<double> K = S - shiftFactor*M;
+	bool isConverged;
+	double shiftFactor = reducedEigVals(q/4);
+	Eigen::SparseMatrix<double> K;
+	if (problemType == Problem_Class::Laplace_Beltrami)
+		K = S - shiftFactor*M;
+	else if (problemType == Problem_Class::Linear_Elasticity)
+		K = ST - shiftFactor*MT;
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	factorization.compute(K);
-	Eigen::SparseMatrix<double> Id(M.rows(), M.cols()); Id.setIdentity();
-	Eigen::MatrixXd XbarK(V.rows(), q);
+	Eigen::SparseMatrix<double> Id;
+	//if (problemType == Problem_Class::Laplace_Beltrami)
+	//	Id.resize(M.rows(), M.cols());
+	//else if (problemType == Problem_Class::Linear_Elasticity)
+	//	Id.resize(MT.rows(), MT.cols());	
+	K.resize(K.rows(), K.cols());
+	 Id.setIdentity();
+
+	Eigen::VectorXd IdV(q); IdV.setConstant(1.0);
+	Eigen::MatrixXd XbarK (K.rows(), q);
+
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd Alpha;
-	const int MAX_ITER = 5;
+	const int MAX_ITER = maxIter;
 
 	do {
-		printf("__(%d) iteration \n", k + 1);
+		printf("__(%d) iteration \n", k);
 		printf("__setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
 		for (int i = 0; i < q; i++) {						// easily parallelizeable
-			Eigen::VectorXd v = M*Xk.col(i);
+			Eigen::VectorXd v;
+			if (problemType == Problem_Class::Laplace_Beltrami)
+				v = M*Xk.col(i);
+			else if (problemType == Problem_Class::Linear_Elasticity)
+				v = MT*Xk.col(i);
+			
 			XbarK.col(i) = factorization.solve(v);
 		}
+
 		/* Projection of M and K*/
 		printf("__setting up reduced matrix M and S. ");
-		Mproj = XbarK.transpose()*M*XbarK;
-		Sproj = XbarK.transpose()*K*XbarK;
+		if (problemType == Problem_Class::Laplace_Beltrami) {
+			Mproj = XbarK.transpose()*M*XbarK;
+			Sproj = XbarK.transpose()*S*XbarK;
+		}
+		else if (problemType == Problem_Class::Linear_Elasticity) {
+			Mproj = XbarK.transpose()*MT*XbarK;
+			Sproj = XbarK.transpose()*ST*XbarK;
+		}
+		
 		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
 
 		/* Reduced eigenvalue problem */
 		printf("__solve reduced eigenvalue problem. ");
 		computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
 		printf(" EigVec: %dx%d | eigVals: %d \n", Q.rows(), Q.cols(), Alpha.rows());
+		cout << Alpha.transpose() << endl;
 
 		printf("__lifting up/prolongation.");
 		Xk = XbarK*Q;
 		printf("Xk size: %d \n", Xk.rows());
 
-		k++;
-		convergenceCheck = (k < MAX_ITER);
-	} while (convergenceCheck);
+		Eigen::VectorXd conv2;
+		if(problemType==Problem_Class::Laplace_Beltrami)
+			checkConvergenceCat2(Xk, Alpha, M, S, conv2);
+		else if(problemType==Problem_Class::Linear_Elasticity)
+			checkConvergenceCat2(Xk, Alpha, MT, ST, conv2);
 
-	SIMeigVals = Alpha + shiftFactor*Id;
+		cout << "Convergence: " << conv2.transpose() << endl; 
+
+		//convergenceCheck = (k >= MAX_ITER || (conv2(width - 1)<TOL));
+		isConverged = (k >= MAX_ITER || conv2(numModes-1)<tol);
+		k++;
+	} while (!isConverged);
+
+	SIMeigVals = Alpha; // +shiftFactor*IdV;
 	SIMeigVects = Xk;
-	cout << "Eigenvalues: \n" << SIMeigVals << endl << endl;
+	cout << "Eigenvalues are: \n" << SIMeigVals << endl << endl;
 }
 
 void MLEigSolver::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer, int init, int width, double myu, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
@@ -3743,7 +3763,7 @@ void MLEigSolver::SubspaceIterMethodBlockShift(igl::opengl::glfw::Viewer &viewer
 		/* Projection of M and K*/
 		printf("__setting up reduced matrix M and S. ");
 		Mproj = XbarK.transpose()*M*XbarK;
-		Sproj = XbarK.transpose()*K*XbarK;
+		Sproj = XbarK.transpose()*S*XbarK;
 		printf("Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
 
 		/* Reduced eigenvalue problem */
@@ -3955,6 +3975,7 @@ void MLEigSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::Ve
 		double n1 = diff.transpose()*MK*diff;
 		double n2 = Kq.transpose()*MK*Kq;
 		convRate(i) = sqrt(n1/n2);
+
 	}
 }
 void MLEigSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
