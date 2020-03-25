@@ -290,30 +290,29 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					int numSample = (problemType == 0 ? ml_eigSolver.V.rows() : ml_eigSolver.TV.rows() );					
 					
 					/* hard coded */
-					numLevels = 4;
-					sampleLevels.resize(numLevels);
-					Eigen::VectorXd sampSize(numLevels);
-					sampSize << 64000, 16000, 4000, 1000;
-					ml_eigSolver.setInitialSystem(numLevels);
+					///numLevels = 4;
+					///sampleLevels.resize(numLevels);
+					///Eigen::VectorXd sampSize(numLevels);
+					///sampSize << 64000, 16000, 4000, 1000;
+					///ml_eigSolver.setInitialSystem(numLevels);
 
 					/* automated */
-					///int lvlCounter = 0;
-					///do {
-					///	numSample = (int)round(numSample / levelRatio);
-					///	if (numSample < 250) break;
-					///	sampleLevels.push_back(numSample);
-					///	lvlCounter++;
-					///} while (numSample > SAMPLE_LOW_BOUND);
-					///
-					////* Setting the number of levels */
-					///numLevels = lvlCounter;
-					///ml_eigSolver.setInitialSystem(numLevels);
-					///
-					///Eigen::VectorXd sampSize(sampleLevels.size());
-					///for (int ii = 0; ii < sampleLevels.size(); ii++)
-					///	sampSize(ii) = sampleLevels[ii];
-
+					int lvlCounter = 0;
+					do {
+						numSample = (int)round(numSample / levelRatio);
+						if (numSample < 250) break;
+						sampleLevels.push_back(numSample);
+						lvlCounter++;
+					} while (numSample > SAMPLE_LOW_BOUND);
 					
+					/* Setting the number of levels */
+					numLevels = lvlCounter;
+					ml_eigSolver.setInitialSystem(numLevels);
+					
+					Eigen::VectorXd sampSize(sampleLevels.size());
+					for (int ii = 0; ii < sampleLevels.size(); ii++)
+						sampSize(ii) = sampleLevels[ii];
+										
 					/* For 1 level (coarsest level) sampling only*/
 					ml_eigSolver.setSample(sampSize(numLevels-1), (SamplingType)sampleType);
 					/* For the multilevel sampling */
@@ -338,6 +337,12 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				ImGui::Spacing(); ImGui::Spacing();
 
 				/* For Basis */
+				ImGui::Checkbox("Clamp Basis", &(ml_eigSolver.isClampedBasis));
+				static double numOfSupport;
+				static char numSup[15] = "40.0"; ImGui::InputText("Num of Supports", numSup, 6);
+				static char selScale[10] = "0.01"; ImGui::InputText("Selection", selScale, 10);
+				
+				
 				if (ImGui::Button("[3] Construct Basis", ImVec2(w, 0))) {					
 					if (ml_eigSolver.Sample.size()<1) {
 						cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
@@ -349,7 +354,14 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					chrono::duration<double>					duration;
 					t0 = chrono::high_resolution_clock::now();
 
-					ml_eigSolver.constructBasis();
+					numOfSupport = atof(numSup);
+					clampRegion = atof(selScale);
+
+					if (ml_eigSolver.isClampedBasis)
+						ml_eigSolver.constructBasisWithClamping(defAxis, clampRegion, numOfSupport);
+					else 
+						ml_eigSolver.constructBasis();
+
 					useNonSmoothBasis = false; 
 					//ml_eigSolver.testConstantFuncsProjection();
 
@@ -376,6 +388,8 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 						cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
 						return;
 					}
+					numOfSupport = atof(numSup);
+					clampRegion = atof(selScale);
 
 					ml_eigSolver.constructBasisCoarseOnly();
 					useNonSmoothBasis = false;
@@ -383,6 +397,13 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
 				if (ImGui::Button("[3] Non Smooth Basis", ImVec2(w, 0))) {
+					if (ml_eigSolver.Sample.size() < 1) {
+						cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
+						return;
+					}
+
+					numOfSupport = atof(numSup);
+					clampRegion = atof(selScale);
 					ml_eigSolver.constructNonSmoothBasis();
 					ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
 					useNonSmoothBasis = true; 

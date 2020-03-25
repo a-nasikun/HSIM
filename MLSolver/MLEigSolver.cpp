@@ -287,9 +287,9 @@ void MLEigSolver::constructBasis()
 			printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
 		}
 
-		constructBasisFunctionsLevel0();
+		constructBasisFunctionsLevel0(0,0,NUM_SUPPORT);
 		for (int i = 1; i < level; i++) {
-			constructBasisFunctionsLevelK(i);
+			constructBasisFunctionsLevelK(i,0, 0, NUM_SUPPORT);
 			printf("basis level %d: done \n", i);
 		}
 
@@ -306,18 +306,6 @@ void MLEigSolver::constructBasis()
 
 		maxNeighDist[0] = cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*SubspaceSize[0] * M_PI));
 		printf("Radius %d is %.4f\n", 0, maxNeighDist[0]);
-		//if (1 < level) {
-		//	maxNeighDist[1] = cbrt(NUM_SUPPORT) * maxNeighDist[1 - 1];
-		//	printf("Radius %d is %.4f\n", 1, maxNeighDist[1]);
-		//}
-		//if (2 < level) {
-		//	maxNeighDist[2] = 4*cbrt(NUM_SUPPORT) * maxNeighDist[2 - 1];
-		//	printf("Radius %d is %.4f\n", 2, maxNeighDist[2]);
-		//}
-		//if (3 < level) {
-		//	maxNeighDist[3] = 8 * cbrt(NUM_SUPPORT) * maxNeighDist[3 - 1];
-		//	printf("Radius %d is %.4f\n", 3, maxNeighDist[3]);
-		//}
 
 		for (int i = 1; i < level; i++) {
 			//maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
@@ -326,9 +314,9 @@ void MLEigSolver::constructBasis()
 			printf("Radius %d is %.4f\n", i, maxNeighDist[i]);
 		}
 
-		constructBasisFunctionsHessianLevel0();
+		constructBasisFunctionsHessianLevel0(0,0,NUM_SUPPORT);
 		for (int i = 1; i < level; i++) {
-			constructBasisFunctionsHessianLevelK(i);
+			constructBasisFunctionsHessianLevelK(i, 0, 0, NUM_SUPPORT);
 			printf("basis level %d: done \n", i);
 		}
 
@@ -348,9 +336,69 @@ void MLEigSolver::constructBasis()
 	printf("Basis sparsity:  %.4f (%d/%d) \n", (double) Basis.nonZeros() / (double) Basis.rows(), Basis.nonZeros(), Basis.rows());
 }
 
+/* Constructing multi-level basis */
+void MLEigSolver::constructBasisWithClamping(int axis, double clampSelection, double support)
+{	
+	double NUM_SUPPORT = support;
+
+	if (problemType == Problem_Class::Laplace_Beltrami)
+	{
+		for (int i = 0; i < level; i++) {
+			maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
+			printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
+		}
+
+		constructBasisFunctionsLevel0(axis, clampSelection, support);
+		for (int i = 1; i < level; i++) {
+			constructBasisFunctionsLevelK(i, axis, clampSelection, support);
+			printf("basis level %d: done \n", i);
+		}
+
+		formPartitionOfUnityMultiLevel();
+
+		Basis.resize(V.rows(), V.rows());
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity)
+	{
+		double			totalVolume = 0.0;
+		for (int i = 0; i < TT.rows(); i++) totalVolume += (volume(i));
+		NUM_SUPPORT = 40;
+
+		maxNeighDist[0] = cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*SubspaceSize[0] * M_PI));
+		printf("Radius %d is %.4f\n", 0, maxNeighDist[0]);
+
+		for (int i = 1; i < level; i++) {
+			//maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
+			//maxNeighDist[i] = (i+1.0)* cbrt((3.0*3.0*NUM_SUPPORT*totalVolume) / (4.0*SubspaceSize[i] *M_PI));
+			maxNeighDist[i] = cbrt(SubspaceSize[i - 1] / (double)SubspaceSize[i]) * maxNeighDist[i - 1];
+			printf("Radius %d is %.4f\n", i, maxNeighDist[i]);
+		}
+
+		constructBasisFunctionsHessianLevel0(0,0, NUM_SUPPORT);
+		for (int i = 1; i < level; i++) {
+			constructBasisFunctionsHessianLevelK(i, 0, 0, NUM_SUPPORT);
+			printf("basis level %d: done \n", i);
+		}
+
+		formPartitionOfUnityMultiLevel();
+		//formPartitionOfUnityCombinatorialMultiLevel();
+
+		Basis.resize(3 * TV.rows(), 3 * TV.rows());
+	}
+
+	Basis.setIdentity();
+
+	for (int i = 0; i < level; i++)
+		Basis = Basis * U[i];
+
+	//formPartitionOfUnity();
+
+	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
+}
+
 void MLEigSolver::constructBasisCoarseOnly()
 {
-	constructBasisFunctionsCoarseOnly();
+	constructBasisFunctionsCoarseOnly(0, 0, 10.0);
 
 	formPartitionOfUnity();
 
@@ -372,9 +420,9 @@ void MLEigSolver::constructNonSmoothBasis()
 	}
 
 	/* Construct geodesic disks on each level */
-	constructBasisFunctionsLevel0();
+	constructBasisFunctionsLevel0(0, 0, NUM_SUPPORT);
 	for (int i = 1; i < level; i++) {
-		constructBasisFunctionsLevelK(i);
+		constructBasisFunctionsLevelK(i, 0, 0, NUM_SUPPORT);
 		printf("Construction of basis level %d is done \n", i);
 	}
 
@@ -861,7 +909,7 @@ void MLEigSolver::constructHessianMatrixForLinearElasticityMM(double m1l1, doubl
 }
 
 
-void MLEigSolver::constructBasisFunctionsHessianCoarseOnly()
+void MLEigSolver::constructBasisFunctionsHessianCoarseOnly(int axis, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -918,7 +966,7 @@ void MLEigSolver::constructBasisFunctionsHessianCoarseOnly()
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= coarseSample) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, 1, UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, 1, isClampedBasis, axis, offset, UTriplet[tid], elementCounter[tid]);
 		}
 	} /* End of OpenMP parallelization */
 
@@ -957,7 +1005,7 @@ void MLEigSolver::constructBasisFunctionsHessianCoarseOnly()
 }
 
 /* [Construct Basis Matrix] */
-void MLEigSolver::constructBasisFunctionsHessianLevel0()
+void MLEigSolver::constructBasisFunctionsHessianLevel0(int axis, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -1008,7 +1056,8 @@ void MLEigSolver::constructBasisFunctionsHessianLevel0()
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= SubspaceSize[0]) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0],1, UTriplet[tid], elementCounter[tid]);
+			
+			ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0],1, isClampedBasis, axis, offset, UTriplet[tid], elementCounter[tid]);
 
 			// Ref level k
 			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, 0, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
@@ -1045,7 +1094,7 @@ void MLEigSolver::constructBasisFunctionsHessianLevel0()
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[0].rows(), U[0].cols(), (double)(U[0].nonZeros() / (double)U[0].rows()));
 }
 
-void MLEigSolver::constructBasisFunctionsHessianLevelK(int k)
+void MLEigSolver::constructBasisFunctionsHessianLevelK(int k, int axis, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -1090,7 +1139,7 @@ void MLEigSolver::constructBasisFunctionsHessianLevelK(int k)
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= SubspaceSize[k]) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize,1, UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize,1, isClampedBasis, axis, offset, UTriplet[tid], elementCounter[tid]);
 
 			// Ref: Level 0
 			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
@@ -3100,7 +3149,7 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 	
 	/* WRITING UP THE CONVERGENCE */
-	string modelName = "Sphere_" + to_string(V.rows());
+	string modelName = "Sphere_" + to_string(V.rows()) + "_" + to_string(V.cols());
 	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
 	writeDenseMatrixToFile(SIMeigValsStack, fileConv);
 	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numModes) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
@@ -3693,8 +3742,8 @@ void MLEigSolver::MultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMa
 				convergenceStacks.col(iterCount) = conv2.block(0, 0, width, 1);
 			}
 
-			convergenceCheck = (iterCount >= MAX_ITER || (conv2(width - 1)<TOL));
 			iterCount++;
+			convergenceCheck = (iterCount >= MAX_ITER || (conv2(width - 1)<TOL));
 
 		} while (!convergenceCheck);
 		printf("[6] After iteration: XL= %dx%d \n", XL.rows(), XL.cols());
@@ -3842,7 +3891,7 @@ void MLEigSolver::readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::Ma
 	}	
 }
 
-void MLEigSolver::constructBasisFunctionsCoarseOnly()
+void MLEigSolver::constructBasisFunctionsCoarseOnly(int axis, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -3911,9 +3960,9 @@ void MLEigSolver::constructBasisFunctionsCoarseOnly()
 			if (i >= coarseSample) break;
 			/* Dijkstra basis function */
 			if (problemType == Problem_Class::Laplace_Beltrami)
-				ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, 0, UTriplet[tid], elementCounter[tid]);
+				ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample, 0, isClampedBasis, axis, offset, UTriplet[tid], elementCounter[tid]);
 			else if (problemType == Problem_Class::Linear_Elasticity)
-				ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample,1, UTriplet[tid], elementCounter[tid]);
+				ComputeDijkstraCompact(TV, Sample(i), AdM, D, aCoef, bCoef, maxDist, i, coarseSample,1, isClampedBasis, axis, offset, UTriplet[tid], elementCounter[tid]);
 		}
 	} /* End of OpenMP parallelization */
 	
@@ -3955,7 +4004,7 @@ void MLEigSolver::constructBasisFunctionsCoarseOnly()
 }
 
 /* [Construct Basis Matrix] */
-void MLEigSolver::constructBasisFunctionsLevel0()
+void MLEigSolver::constructBasisFunctionsLevel0(int axis, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -4006,7 +4055,7 @@ void MLEigSolver::constructBasisFunctionsLevel0()
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= SubspaceSize[0]) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0,  UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0, isClampedBasis, axis, offset,  UTriplet[tid], elementCounter[tid]);
 
 			// Ref level k
 			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, 0, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
@@ -4043,7 +4092,7 @@ void MLEigSolver::constructBasisFunctionsLevel0()
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[0].rows(), U[0].cols(), (double)(U[0].nonZeros() / (double)U[0].rows()));
 }
 
-void MLEigSolver::constructBasisFunctionsLevelK(int k)
+void MLEigSolver::constructBasisFunctionsLevelK(int k, int axis, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -4088,7 +4137,7 @@ void MLEigSolver::constructBasisFunctionsLevelK(int k)
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= SubspaceSize[k]) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize,0, UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize,0, isClampedBasis, axis, offset, UTriplet[tid], elementCounter[tid]);
 			
 			// Ref: Level 0
 			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);

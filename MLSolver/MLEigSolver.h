@@ -41,6 +41,7 @@ public:
 	void constructSampleHierarchy(Eigen::VectorXd& n);		// Creating hierarchies when constructing the samples (multi-level), using farthest point sampling
 	void constructSample();									// Creating samples
 	void constructBasis();									// Constructing multi-level basis
+	void constructBasisWithClamping(int axis, double clampSelection, double support);						// Constructing multi-level basis with clamping on one side
 	void constructBasisCoarseOnly();						// Constructing 1-level basis (similar to our SGP)
 	void constructNonSmoothBasis();							// 1/0-weighted function, from SIGGRAPH Asia paper
 	void constructRestrictedProblem();
@@ -48,9 +49,9 @@ public:
 
 	/* [SUPPLEMENTARY FUNCTIONS] */
 	void readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F);
-	void constructBasisFunctionsLevel0();
-	void constructBasisFunctionsLevelK(int k);	
-	void constructBasisFunctionsCoarseOnly();
+	void constructBasisFunctionsLevel0(int axis, double offset, double support);
+	void constructBasisFunctionsLevelK(int k, int axis, double offset, double support);
+	void constructBasisFunctionsCoarseOnly(int axis, double offset, double support);
 	void formPartitionOfUnity();
 	void formPartitionOfUnityMultiLevel();
 	void formPartitionOfUnityCombinatorialMultiLevel();
@@ -91,9 +92,9 @@ public:
 	void constructVolumetricMassMatrix();
 	void constructHessianMatrixForLinearElasticity(double lame1, double lame2);
 	void constructHessianMatrixForLinearElasticityMM(double m1l1, double m1l2, double m2l1, double m2l2, Eigen::VectorXd& vColor);
-	void constructBasisFunctionsHessianLevel0();
-	void constructBasisFunctionsHessianLevelK(int k);
-	void constructBasisFunctionsHessianCoarseOnly();
+	void constructBasisFunctionsHessianLevel0(int axis, double offset, double support);
+	void constructBasisFunctionsHessianLevelK(int k, int axis, double offset, double support);
+	void constructBasisFunctionsHessianCoarseOnly(int axis, double offset, double support);
 
 
 	/* Heat Method*/
@@ -196,6 +197,7 @@ public:
 	int								sampleSize;										// sample of the finest level sample, i.e. level 0
 	int								heatSource;
 	SamplingType					sampleType = Sample_Farthest_Point;				// we only use Farthest point sampling on this scenario
+	bool							isClampedBasis;
 
 	/* [SUBSPACE ITERATION METHOD] */
 	Eigen::MatrixXd					SIMeigVects;									// matrix storing eigenvectors, after Subspace Iteration Method (SIM)
