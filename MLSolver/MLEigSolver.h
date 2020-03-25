@@ -50,8 +50,8 @@ public:
 
 	/* [SUPPLEMENTARY FUNCTIONS] */
 	void readMesh(const string &meshFile, Eigen::MatrixXd &V, Eigen::MatrixXi &F);
-	void constructBasisFunctionsLevel0(int axis, double offset, double support);
-	void constructBasisFunctionsLevelK(int k, int axis, double offset, double support);
+	void constructBasisFunctionsLevel0(int axis, bool isClamped, double offset, double support);
+	void constructBasisFunctionsLevelK(int k, int axis, bool isClamped, double offset, double support);
 	void constructBasisFunctionsCoarseOnly(int axis, double offset, double support);
 	void formPartitionOfUnity();
 	void formPartitionOfUnityMultiLevel();

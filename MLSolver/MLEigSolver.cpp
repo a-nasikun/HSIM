@@ -341,9 +341,9 @@ void MLEigSolver::constructBasis()
 			printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
 		}
 
-		constructBasisFunctionsLevel0(0,0,NUM_SUPPORT);
+		constructBasisFunctionsLevel0(0, isClampedBasis, 0,NUM_SUPPORT);
 		for (int i = 1; i < level; i++) {
-			constructBasisFunctionsLevelK(i,0, 0, NUM_SUPPORT);
+			constructBasisFunctionsLevelK(i,0, isClampedBasis, 0, NUM_SUPPORT);
 			printf("basis level %d: done \n", i);
 		}
 
@@ -404,9 +404,9 @@ void MLEigSolver::constructBasisWithClamping(int axis, double clampSelection, do
 			printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
 		}
 
-		constructBasisFunctionsLevel0(axis, clampSelection, support);
+		constructBasisFunctionsLevel0(axis, isClampedBasis, clampSelection, support);
 		for (int i = 1; i < level; i++) {
-			constructBasisFunctionsLevelK(i, axis, clampSelection, support);
+			constructBasisFunctionsLevelK(i, axis, isClampedBasis, clampSelection, support);
 			printf("basis level %d: done \n", i);
 		}
 
@@ -480,10 +480,9 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 		globToLocMap.resize(TV.rows());
 		//locToGlobMap.reserve(TV.rows());
 	}
-
 	globToLocMap.setConstant(-1);
-	int vCounter = 0;
 
+	int vCounter = 0;
 	if (problemType == Problem_Class::Laplace_Beltrami) {
 		for (int i = 0; i < V.rows(); i++) {
 			if (V(i, axis) >= xBound) {							// only select entries corresponding to selected vertices			
@@ -525,13 +524,13 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 	//if(isClampedBasis)
 	//	constructBasisFunctionsLevel0(axis, offset, NUM_SUPPORT);
 	//else 
-		constructBasisFunctionsLevel0(0, 0, NUM_SUPPORT);
+		constructBasisFunctionsLevel0(0, false, 0, NUM_SUPPORT);
 
 	for (int i = 1; i < level; i++) {
 		//if(isClampedBasis)
 		//	constructBasisFunctionsLevelK(i, axis, offset, NUM_SUPPORT);
 		//else
-			constructBasisFunctionsLevelK(i, 0, 0, NUM_SUPPORT);
+			constructBasisFunctionsLevelK(i, 0, false,  0, NUM_SUPPORT);
 		printf("Construction of basis level %d is done \n", i);
 	}
 
@@ -545,7 +544,7 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 		for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {			
 			if (it.value() > maxVal)
 			{
-				//if (isClampedBasis && globToLocMap(it.row() < 0)) continue;
+				///if (isClampedBasis && globToLocMap(it.row()) < 0) continue;
 				maxVal = it.value();
 				clusters[0](it.row()) = it.col();
 			}
@@ -573,7 +572,7 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 			for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {
 				if (it.value() > maxVal)
 				{
-					//if (isClampedBasis && globToLocMap(Sample(it.row()) < 0)) continue;
+					///if (isClampedBasis && globToLocMap(Sample(it.row()) < 0)) continue;
 					maxVal = it.value();
 					clusters[l](it.row()) = it.col();
 				}
@@ -597,7 +596,7 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 	Basis.setIdentity();
 	for (int i = 0; i < level; i++) {
 		Basis = Basis * U[i];
-		printf("Basis size: %dx%d | Loc Basis: %dx%d. \n", Basis.rows(), Basis.cols(), U[i].rows(), U[i].cols());
+		printf("Basis size: %dx%d (nnz: %d) | Loc Basis: %dx%d (nnz: %d). \n", Basis.rows(), Basis.cols(), Basis.nonZeros(), U[i].rows(), U[i].cols(), U[i].nonZeros());
 	}
 }
 
@@ -4131,7 +4130,7 @@ void MLEigSolver::constructBasisFunctionsCoarseOnly(int axis, double offset, dou
 }
 
 /* [Construct Basis Matrix] */
-void MLEigSolver::constructBasisFunctionsLevel0(int axis, double offset, double support)
+void MLEigSolver::constructBasisFunctionsLevel0(int axis, bool isClamped, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -4182,7 +4181,7 @@ void MLEigSolver::constructBasisFunctionsLevel0(int axis, double offset, double 
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= SubspaceSize[0]) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0, isClampedBasis, axis, offset,  UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0, isClamped, axis, offset,  UTriplet[tid], elementCounter[tid]);
 
 			// Ref level k
 			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, 0, Sample, SubspaceSize, UTriplet[tid], elementCounter[tid]);
@@ -4219,7 +4218,7 @@ void MLEigSolver::constructBasisFunctionsLevel0(int axis, double offset, double 
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[0].rows(), U[0].cols(), (double)(U[0].nonZeros() / (double)U[0].rows()));
 }
 
-void MLEigSolver::constructBasisFunctionsLevelK(int k, int axis, double offset, double support)
+void MLEigSolver::constructBasisFunctionsLevelK(int k, int axis, bool isClamped, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -4264,7 +4263,7 @@ void MLEigSolver::constructBasisFunctionsLevelK(int k, int axis, double offset, 
 		for (i = istart; i < (istart + ipts); i++) {
 			if (i >= SubspaceSize[k]) break;
 			/* Dijkstra basis function */
-			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize,0, isClampedBasis, axis, offset, UTriplet[tid], elementCounter[tid]);
+			ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[k], i, k, Sample, SubspaceSize,0, isClamped, axis, offset, UTriplet[tid], elementCounter[tid]);
 			
 			// Ref: Level 0
 			// ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], UTriplet[tid], elementCounter[tid]);
