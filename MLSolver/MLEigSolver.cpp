@@ -395,7 +395,7 @@ void MLEigSolver::constructBasisWithClamping(int axis, double clampSelection, do
 {	
 	double NUM_SUPPORT = support;
 	Eigen::VectorXd globToLocMap;
-	constructSelectorMatrix(axis, clampSelection, globToLocMap);
+	///constructSelectorMatrix(axis, clampSelection, globToLocMap);
 
 	if (problemType == Problem_Class::Laplace_Beltrami)
 	{
@@ -465,9 +465,53 @@ void MLEigSolver::constructBasisCoarseOnly(int axis, double offset, double suppo
 
 void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double support)
 {
+	Eigen::VectorXd globToLocMap;
+	//vector<int>		locToGlobMap; 
+	double xMin = V.col(axis).minCoeff();
+	double xMax = V.col(axis).maxCoeff();
+	double xBound = xMin + offset*(xMax - xMin);		// within this bound, the Hessian will be discarded
+
+	/* Selector Matrix and map */
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		globToLocMap.resize(V.rows());
+		//locToGlobMap.reserve(V.rows());
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		globToLocMap.resize(TV.rows());
+		//locToGlobMap.reserve(TV.rows());
+	}
+
+	globToLocMap.setConstant(-1);
+	int vCounter = 0;
+
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		for (int i = 0; i < V.rows(); i++) {
+			if (V(i, axis) >= xBound) {							// only select entries corresponding to selected vertices			
+				globToLocMap(i) = vCounter;
+				//locToGlobMap.push_back(i);
+				vCounter++;
+			}
+		}
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		for (int i = 0; i < TV.rows(); i++) {
+			if (TV(i, axis) >= xBound) {							// only select entries corresponding to selected vertices			
+				globToLocMap(i) = vCounter;
+				//locToGlobMap.push_back(i);
+				vCounter++;
+			}
+		}
+	}	
+	
 	/* Resizing the cluster */
 	cout << "Resizing the clusters \n";
-	clusters[0].resize(V.rows());
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		clusters[0].resize(V.rows());
+	}
+	else if (problemType == Problem_Class::Linear_Elasticity) {
+		clusters[0].resize(TV.rows());
+	}
+
 	for (int i = 1; i < level; i++) clusters[i].resize(SubspaceSize[i - 1]);
 
 	/* Setting up the radius on each level */
@@ -478,16 +522,16 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 	}
 
 	/* Construct geodesic disks on each level */
-	if(isClampedBasis)
-		constructBasisFunctionsLevel0(axis, offset, NUM_SUPPORT);
-	else 
+	//if(isClampedBasis)
+	//	constructBasisFunctionsLevel0(axis, offset, NUM_SUPPORT);
+	//else 
 		constructBasisFunctionsLevel0(0, 0, NUM_SUPPORT);
 
 	for (int i = 1; i < level; i++) {
-		if(isClampedBasis)
+		//if(isClampedBasis)
+		//	constructBasisFunctionsLevelK(i, axis, offset, NUM_SUPPORT);
+		//else
 			constructBasisFunctionsLevelK(i, 0, 0, NUM_SUPPORT);
-		else
-			constructBasisFunctionsLevelK(i, axis, offset, NUM_SUPPORT);
 		printf("Construction of basis level %d is done \n", i);
 	}
 
@@ -501,6 +545,7 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 		for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {			
 			if (it.value() > maxVal)
 			{
+				//if (isClampedBasis && globToLocMap(it.row() < 0)) continue;
 				maxVal = it.value();
 				clusters[0](it.row()) = it.col();
 			}
@@ -511,6 +556,7 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 	vector<Eigen::Triplet<double>> UTriplet; UTriplet.reserve(V.rows());
 	for (int i = 0; i < V.rows(); i++)
 	{
+		if (isClampedBasis && globToLocMap(i) < 0) continue;
 		UTriplet.push_back(Eigen::Triplet<double>(i, clusters[0](i), 1.0));
 	}
 	U[0].resize(0, 0); U[0].resize(V.rows(), SubspaceSize[0]);
@@ -527,6 +573,7 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 			for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {
 				if (it.value() > maxVal)
 				{
+					//if (isClampedBasis && globToLocMap(Sample(it.row()) < 0)) continue;
 					maxVal = it.value();
 					clusters[l](it.row()) = it.col();
 				}
@@ -537,6 +584,7 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 		UTriplet.reserve(SubspaceSize[l-1]);
 		for (int i = 0; i < SubspaceSize[l - 1]; i++)
 		{
+			if (isClampedBasis && globToLocMap(Sample(i)) < 0) continue;
 			UTriplet.push_back(Eigen::Triplet<double>(i, clusters[l](i), 1.0));
 		}
 		U[l].resize(0, 0); U[l].resize(SubspaceSize[l-1], SubspaceSize[l]);
@@ -567,25 +615,27 @@ void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double suppor
 
 void MLEigSolver::constructRestrictedProblem() {
 	if (problemType == Problem_Class::Laplace_Beltrami) {
-		if (isClampedBasis) {
-			printf("Clamped %d | Sel: %dx%d | Basis: %dx%d \n", isClampedBasis, SelMatrix.rows(), SelMatrix.cols(), Basis.rows(), Basis.cols());
-			Eigen::SparseMatrix<double> BS = SelMatrix * Basis;
-			S_ = BS.transpose() * S  * BS;
-			M_ = BS.transpose() * M  * BS;
-		}
-		else {
+		///if (isClampedBasis) {
+		///	printf("Clamped %d | Sel: %dx%d | Basis: %dx%d \n", isClampedBasis, SelMatrix.rows(), SelMatrix.cols(), Basis.rows(), Basis.cols());
+		///	Eigen::SparseMatrix<double> BS = SelMatrix * Basis;
+		///	S_ = BS.transpose() * S  * BS;
+		///	M_ = BS.transpose() * M  * BS;
+		///}
+		///else 
+		{
 			S_ = Basis.transpose() * S  * Basis;
 			M_ = Basis.transpose() * M  * Basis;
 		}		
 	}
 	else if (problemType == Problem_Class::Linear_Elasticity) {
 		printf("Dim check: ST:%dx%d | MT:%dx%d | Basis:%dx%d \n", ST.rows(), ST.cols(), MT.rows(), MT.cols(), Basis.rows(), Basis.cols());
-		if (isClampedBasis) {
-			Eigen::SparseMatrix<double> BS = SelMatrix * Basis;
-			S_ = BS.transpose() * ST  * BS;
-			M_ = BS.transpose() * MT  * BS;
-		}
-		else {
+		///if (isClampedBasis) {
+		///	Eigen::SparseMatrix<double> BS = SelMatrix * Basis;
+		///	S_ = BS.transpose() * ST  * BS;
+		///	M_ = BS.transpose() * MT  * BS;
+		///}
+		///else 
+		{
 			S_ = Basis.transpose() * ST  * Basis;
 			M_ = Basis.transpose() * MT  * Basis;
 		}
