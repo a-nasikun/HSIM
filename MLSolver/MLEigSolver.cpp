@@ -114,7 +114,7 @@ void MLEigSolver::computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, cons
 	//maxNeighDist[0] = distRatio * sqrt((double)V.rows() / (double)Sample.size()) * avgEdgeLength;
 	//maxNeighDist[0] = sqrt((surfaceArea*10.0) / (M_PI*SubspaceSize[0]));
 	//constructBasis();
-	constructBasisCoarseOnly();
+	constructBasisCoarseOnly(0, 0, 10.0);
 
 	// [4]	LOW-DIM PROBLEM
 	constructRestrictedProblem();
@@ -266,6 +266,60 @@ void MLEigSolver::constructSample()
 	printf("A set of %d samples is constructed \n", Sample.size());
 }
 
+void MLEigSolver::constructSelectorMatrix(int axis, double offset, Eigen::VectorXd globToLocMap)
+{
+	cout << "__ creating the selectro matrix and mapping \n";
+	/* Setting the bound */
+	double xMin = V.col(axis).minCoeff();
+	double xMax = V.col(axis).maxCoeff();
+	double xBound = xMin + offset*(xMax - xMin);		// within this bound, the Hessian will be discarded
+
+	
+	if(problemType==Problem_Class::Laplace_Beltrami)													/* Selector Matrix and map */
+		globToLocMap.resize(V.rows());
+	else if (problemType == Problem_Class::Linear_Elasticity)
+		globToLocMap.resize(TV.rows());
+	globToLocMap.setConstant(-1);
+
+	vector<Eigen::Triplet<double>> STriplet; 
+	
+	if (problemType == Problem_Class::Laplace_Beltrami)
+		STriplet.reserve(round((1.0 - offset)*V.rows()));
+	else if (problemType == Problem_Class::Linear_Elasticity)
+		STriplet.reserve(3 * round((1.0 - offset)*TV.rows()));
+
+	int vCounter = 0;
+	if (problemType == Problem_Class::Laplace_Beltrami) {
+		for (int i = 0; i < V.rows(); i++) {
+			if (V(i, axis) >= xBound) {							// only select entries corresponding to selected vertices
+				// entries for the selector matrix
+				STriplet.push_back(Eigen::Triplet<double>(i, vCounter, 1));
+				globToLocMap(i) = vCounter;
+				vCounter++;
+			}
+		}
+		SelMatrix.resize(V.rows(), vCounter);
+	} else if (problemType == Problem_Class::Linear_Elasticity) {
+		for (int i = 0; i < TV.rows(); i++) {
+			if (TV(i, axis) >= xBound) {							// only select entries corresponding to selected vertices
+																	// entries for the selector matrix
+				for (int j = 0; j<3; j++) {
+					STriplet.push_back(Eigen::Triplet<double>(3 * i + j, 3 * vCounter + j, 1));
+				}
+				// entries for the global to local map
+				globToLocMap(i) = vCounter;
+				vCounter++;
+			}
+		}
+		SelMatrix.resize(3 * TV.rows(), 3 * vCounter);
+	}	
+		
+	SelMatrix.setFromTriplets(STriplet.begin(), STriplet.end());
+	STriplet.clear(); STriplet.shrink_to_fit();
+
+	printf("Selector matrix is created: %dx%d \n", SelMatrix.rows(), SelMatrix.cols());
+}
+
 /* Constructing multi-level basis */
 void MLEigSolver::constructBasis()
 {
@@ -340,6 +394,8 @@ void MLEigSolver::constructBasis()
 void MLEigSolver::constructBasisWithClamping(int axis, double clampSelection, double support)
 {	
 	double NUM_SUPPORT = support;
+	Eigen::VectorXd globToLocMap;
+	constructSelectorMatrix(axis, clampSelection, globToLocMap);
 
 	if (problemType == Problem_Class::Laplace_Beltrami)
 	{
@@ -387,25 +443,27 @@ void MLEigSolver::constructBasisWithClamping(int axis, double clampSelection, do
 	}
 
 	Basis.setIdentity();
-
 	for (int i = 0; i < level; i++)
 		Basis = Basis * U[i];
 
 	//formPartitionOfUnity();
 
-	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
+	printf("Basis %dx%d | sparsity:  %.4f | (%d/%d) \n", Basis.rows(), Basis.cols(), (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
 }
 
-void MLEigSolver::constructBasisCoarseOnly()
+void MLEigSolver::constructBasisCoarseOnly(int axis, double offset, double support)
 {
-	constructBasisFunctionsCoarseOnly(0, 0, 10.0);
+	if (isClampedBasis)
+		constructBasisFunctionsCoarseOnly(axis, offset, support);
+	else
+		constructBasisFunctionsCoarseOnly(0, 0, support);
 
 	formPartitionOfUnity();
 
 	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
 }
 
-void MLEigSolver::constructNonSmoothBasis()
+void MLEigSolver::constructNonSmoothBasis(int axis, double offset, double support)
 {
 	/* Resizing the cluster */
 	cout << "Resizing the clusters \n";
@@ -413,16 +471,23 @@ void MLEigSolver::constructNonSmoothBasis()
 	for (int i = 1; i < level; i++) clusters[i].resize(SubspaceSize[i - 1]);
 
 	/* Setting up the radius on each level */
-	const double NUM_SUPPORT = 4.0;
+	const double NUM_SUPPORT = support;
 	for (int i = 0; i < level; i++) {
 		maxNeighDist[i] = sqrt((surfaceArea*NUM_SUPPORT) / (M_PI*SubspaceSize[i]));
 		printf("Radius %d is %.4f \n", i, maxNeighDist[i]);
 	}
 
 	/* Construct geodesic disks on each level */
-	constructBasisFunctionsLevel0(0, 0, NUM_SUPPORT);
+	if(isClampedBasis)
+		constructBasisFunctionsLevel0(axis, offset, NUM_SUPPORT);
+	else 
+		constructBasisFunctionsLevel0(0, 0, NUM_SUPPORT);
+
 	for (int i = 1; i < level; i++) {
-		constructBasisFunctionsLevelK(i, 0, 0, NUM_SUPPORT);
+		if(isClampedBasis)
+			constructBasisFunctionsLevelK(i, 0, 0, NUM_SUPPORT);
+		else
+			constructBasisFunctionsLevelK(i, axis, offset, NUM_SUPPORT);
 		printf("Construction of basis level %d is done \n", i);
 	}
 
@@ -486,9 +551,6 @@ void MLEigSolver::constructNonSmoothBasis()
 		Basis = Basis * U[i];
 		printf("Basis size: %dx%d | Loc Basis: %dx%d. \n", Basis.rows(), Basis.cols(), U[i].rows(), U[i].cols());
 	}
-
-
-
 }
 
 //void MLEigSolver::constructNonSmoothBasis()
@@ -505,13 +567,28 @@ void MLEigSolver::constructNonSmoothBasis()
 
 void MLEigSolver::constructRestrictedProblem() {
 	if (problemType == Problem_Class::Laplace_Beltrami) {
-		S_ = Basis.transpose() * S  * Basis;
-		M_ = Basis.transpose() * M  * Basis;
+		if (isClampedBasis) {
+			printf("Clamped %d | Sel: %dx%d | Basis: %dx%d \n", isClampedBasis, SelMatrix.rows(), SelMatrix.cols(), Basis.rows(), Basis.cols());
+			Eigen::SparseMatrix<double> BS = SelMatrix * Basis;
+			S_ = BS.transpose() * S  * BS;
+			M_ = BS.transpose() * M  * BS;
+		}
+		else {
+			S_ = Basis.transpose() * S  * Basis;
+			M_ = Basis.transpose() * M  * Basis;
+		}		
 	}
 	else if (problemType == Problem_Class::Linear_Elasticity) {
 		printf("Dim check: ST:%dx%d | MT:%dx%d | Basis:%dx%d \n", ST.rows(), ST.cols(), MT.rows(), MT.cols(), Basis.rows(), Basis.cols());
-		S_ = Basis.transpose() * ST  * Basis;
-		M_ = Basis.transpose() * MT  * Basis;
+		if (isClampedBasis) {
+			Eigen::SparseMatrix<double> BS = SelMatrix * Basis;
+			S_ = BS.transpose() * ST  * BS;
+			M_ = BS.transpose() * MT  * BS;
+		}
+		else {
+			S_ = Basis.transpose() * ST  * Basis;
+			M_ = Basis.transpose() * MT  * Basis;
+		}
 	}
 
 	printf("A set of reduced stiffness and mass matrix (each %dx%d) is constructed.\n", S_.rows(), M_.cols());

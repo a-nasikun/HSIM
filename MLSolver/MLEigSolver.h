@@ -40,10 +40,11 @@ public:
 	void constructLaplacianMatrix();
 	void constructSampleHierarchy(Eigen::VectorXd& n);		// Creating hierarchies when constructing the samples (multi-level), using farthest point sampling
 	void constructSample();									// Creating samples
+	void constructSelectorMatrix(int axis, double offset, Eigen::VectorXd globToLocMap);
 	void constructBasis();									// Constructing multi-level basis
 	void constructBasisWithClamping(int axis, double clampSelection, double support);						// Constructing multi-level basis with clamping on one side
-	void constructBasisCoarseOnly();						// Constructing 1-level basis (similar to our SGP)
-	void constructNonSmoothBasis();							// 1/0-weighted function, from SIGGRAPH Asia paper
+	void constructBasisCoarseOnly(int axis, double clampSelection, double support);						// Constructing 1-level basis (similar to our SGP)
+	void constructNonSmoothBasis(int axis, double clampSelection, double support);							// 1/0-weighted function, from SIGGRAPH Asia paper
 	void constructRestrictedProblem();
 	void solveRestrictedProblem();
 
@@ -183,6 +184,7 @@ public:
 	Eigen::SparseMatrix<double>		Basis;											// combined basis matrix (Basis = U0 * Uk * ....  U_{k-1} *  Uk)
 	Eigen::SparseMatrix<double>		DistanceTableSpM;								// stored vertex-to-vertex distance table
 	Eigen::SparseMatrix<double>		S_, M_, GTMf_;									// reduced stiffness, mass, and divergent matrix, respectively
+	Eigen::SparseMatrix<double>		SelMatrix;										// selector matrix for eigen computation
 	Eigen::MatrixXd					V;												// vertices position (triangles)
 	Eigen::MatrixXi					F;												// face matrix (indices of each vertex for each face)
 	Eigen::MatrixXd					TV, TB;											// rest-shape and barycentric positions of the tetaderal

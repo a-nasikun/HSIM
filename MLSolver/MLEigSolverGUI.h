@@ -391,7 +391,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					numOfSupport = atof(numSup);
 					clampRegion = atof(selScale);
 
-					ml_eigSolver.constructBasisCoarseOnly();
+					ml_eigSolver.constructBasisCoarseOnly(defAxis, clampRegion, numOfSupport);
 					useNonSmoothBasis = false;
 				}
 
@@ -404,7 +404,7 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 					numOfSupport = atof(numSup);
 					clampRegion = atof(selScale);
-					ml_eigSolver.constructNonSmoothBasis();
+					ml_eigSolver.constructNonSmoothBasis(defAxis, clampRegion, numOfSupport);
 					ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
 					useNonSmoothBasis = true; 
 				}
@@ -568,7 +568,11 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow > 0)
 					eigToShow--;
 
-				Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				if(ml_eigSolver.isClampedBasis)
+					Z = ml_eigSolver.SelMatrix * ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				else 
+					Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+
 				if(eigToShow>0)
 					igl::jet(Z, true, vColor);
 				else 
@@ -591,7 +595,10 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow < ml_eigSolver.reducedEigVals.rows())
 					eigToShow++;
 
-				Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				if (ml_eigSolver.isClampedBasis)
+					Z = ml_eigSolver.SelMatrix * ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				else
+					Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
 
 				printf("Color size: %d | V size: %d \n", vColor.rows(), viewer.data().V.rows());
 
@@ -600,7 +607,10 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Red##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
-				Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				if (ml_eigSolver.isClampedBasis)
+					Z = ml_eigSolver.SelMatrix * ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				else
+					Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
 				igl::jet(Z, true, vColor);
 				viewer.data().set_colors(vColor);
 			}
