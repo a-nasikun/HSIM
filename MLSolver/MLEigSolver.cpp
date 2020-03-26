@@ -3218,7 +3218,7 @@ void MLEigSolver::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	
 	/* First block */
 	cout << "First block! \n";
-	simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, 1e-4, eigenToCompute, 10, eigVectsTemp, eigValsTemp);
+	simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, false, 1e-4, eigenToCompute, 10, eigVectsTemp, eigValsTemp);
 	SIMeigVals.block(0, 0, blockSize, 1)			= eigValsTemp;
 	SIMeigVects.block(0, 0, V.rows(), blockSize)	= eigVectsTemp;
 
@@ -3234,7 +3234,7 @@ void MLEigSolver::SubspaceIterMethod(igl::opengl::glfw::Viewer &viewer)
 	cout << "Eigenvalues (all blocks): \n" << SIMeigVals << endl << endl;
 }
 
-void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int numModes, int maxIter)
+void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, bool isWithShift, double tol, int numModes, int maxIter)
 {
 	cout << "The Subspace Iteration Method \n";
 	chrono::high_resolution_clock::time_point	t0, t1;
@@ -3263,7 +3263,7 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 		}
 	}
 	else {
-		simpleSubspaceIterMethod(viewer, type, tol, numModes, maxIter, SIMeigVects, SIMeigVals);
+		simpleSubspaceIterMethod(viewer, type, isWithShift, tol, numModes, maxIter, SIMeigVects, SIMeigVals);
 	}
 
 	//simpleSubspaceIterMethodDiscardConverged(viewer, q, max_iter, SIMeigVects, SIMeigVals);
@@ -3282,7 +3282,7 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 	writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
-void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, double tol, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
+void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SIM_Type type, bool isWithShift, double tol, int width, int max_iter, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals)
 {
 	/* Initialization */
 	cout << "[1] SIM::Setup initialization of variables\n";
@@ -3365,7 +3365,16 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 	}
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-	factorization.compute(SS);
+	if (isWithShift) {
+		double myu = reducedEigVals((int) floor(0.4*q));
+		if (problemType == Problem_Class::Laplace_Beltrami)
+			factorization.compute(S - myu*M);
+		else if (problemType==Problem_Class::Linear_Elasticity)
+			factorization.compute(ST - myu*MT);
+	}
+	else {
+		factorization.compute(SS);
+	}
 	int k = 0;
 	cout << "__ num of subspace q: " << q << endl;
 	cout << "__ num of basis (in X): " << Xk.rows() << "x" << Xk.cols() << endl;
@@ -3977,6 +3986,7 @@ void MLEigSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::Ve
 		convRate(i) = sqrt(n1/n2);
 
 	}
+	printf("eigVals: %d | S: %dx%d | M: %dx%d \n", A.rows(), SK.rows(), SK.cols(), MK.rows(), MK.cols());
 }
 void MLEigSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
 {

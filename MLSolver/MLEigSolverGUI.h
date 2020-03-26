@@ -713,10 +713,12 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			ImGui::RadioButton("Multi-level", &SIMtype, 0);		//ImGui::SameLine();
 		}
 
+		static bool isShiftedSIM = false;
+		ImGui::Checkbox("with shift", &(isShiftedSIM));
 		if (ImGui::Button("Simplest Subspace", ImVec2(w, 0))) {
 			if ((SIMtype == 0 || SIMtype == 1) && ml_eigSolver.reducedEigVals.rows() < 1) return;
 
-			ml_eigSolver.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], tol, numOfModes, maxIter);
+			ml_eigSolver.simpleSubspaceIterMethod(viewer, typeMap[SIMtype], isShiftedSIM, tol, numOfModes, maxIter);
 			printf("Successfully computing the eigenvalues \n");
 			cout << "Eigenvalues: \n" << ml_eigSolver.SIMeigVals << endl; 
 			cout << "EigenVectors: \n" << ml_eigSolver.SIMeigVects.topRows(5) << endl; 
@@ -729,7 +731,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			for (int j = 0; j < wantedModes.size(); j++) {
 				for (int k = 0; k < 4; k++) {
 					double tolTol = thisTol / pow(10, k);
-					ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_MultiLevel,    tolTol, wantedModes[j], maxIter);
+					ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_MultiLevel, isShiftedSIM,   tolTol, wantedModes[j], maxIter);
 					///ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, tolTol, wantedModes[j], maxIter);
 					///ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Bathe,  tolTol, wantedModes[j], maxIter);
 				}
@@ -742,7 +744,7 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			for (int j = 0; j < wantedModes.size(); j++) {
 				for (int k = 0; k < 4; k++) {
 					double tolTol = thisTol / pow(10, k);
-					ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_WarmStart, tolTol, wantedModes[j], maxIter);
+					ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_WarmStart, isShiftedSIM, tolTol, wantedModes[j], maxIter);
 				}
 			}
 		}	
