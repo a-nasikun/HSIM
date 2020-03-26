@@ -3365,12 +3365,13 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 	}
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	double mu;
 	if (isWithShift) {
-		double myu = reducedEigVals((int) floor(0.4*q));
+		mu = reducedEigVals((int) floor(0.4*q));
 		if (problemType == Problem_Class::Laplace_Beltrami)
-			factorization.compute(S - myu*M);
+			factorization.compute(S - mu*M);
 		else if (problemType==Problem_Class::Linear_Elasticity)
-			factorization.compute(ST - myu*MT);
+			factorization.compute(ST - mu*MT);
 	}
 	else {
 		factorization.compute(SS);
@@ -3492,7 +3493,7 @@ void MLEigSolver::simpleSubspaceIterMethod(igl::opengl::glfw::Viewer &viewer, SI
 
 		cout << "Conv 2 \n" << conv2.head(width).transpose() << endl;
 		/** Type 3: */
-		checkConvergenceCat3(Q, Alpha, conv3);
+		checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
 		cout << "Conv 3 \n" << conv3.head(width).transpose() << endl;
 		
 		//cout << Alpha.transpose() << endl; 		
@@ -4004,18 +4005,19 @@ void MLEigSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::Ve
 	}
 }
 
-void MLEigSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate)
+void MLEigSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate)
 {
 	convRate.resize(A.rows());
 
-	for (int i = 0; i < A.rows(); i++)
+	for (int i = 0; i < A.rows(); ++i)
 	{
 		double a2 = A(i)*A(i);
 		double qTq = Q.col(i).transpose()*Q.col(i);
+		if (isWithShift) 
+			qTq += mu * (2*A(i)-mu);
 		double rat = a2 / qTq;
 		double conv = abs(1.0 - rat);
-		conv = sqrt(conv);
-		convRate(i) = conv;
+		convRate(i) = sqrt(conv);
 	}
 }
 

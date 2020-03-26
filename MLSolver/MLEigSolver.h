@@ -173,7 +173,7 @@ public:
 	void generateSampleBaseInitVectors(int m, Eigen::MatrixXd& Xk);
 	void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate);
 	void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::SparseMatrix<double>& MK, Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate);
-	void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, Eigen::VectorXd& convRate);
+	void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate);
 
 	
 public:

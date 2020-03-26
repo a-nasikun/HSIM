@@ -13,9 +13,13 @@
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 
+#include <Eigen/PardisoSupport>
+
 #include "MLEigSolver.h"
 
 enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
+void showDeformationModes(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd& Pos, const Eigen::VectorXd& EigVect, double eigScales);
+void showEigenFunctions(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& EigVect, int eigID);
 
 int					basisToShow		= 0;
 int					eigToShow		= 0;
@@ -32,7 +36,9 @@ static int			SIMtype			= 2;
 int					problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
 int					matType			= 0;					// material type (for hessian/linear elasticity)
 int					defAxis = 0;							// axis in selecting the partial eigenproblem
-double				clampRegion;
+double				clampRegion;							// percentage of the clampling
+int					eigScale		= 0.005;
+
 
 void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigSolver &ml_eigSolver) {
 	// MAIN WINDOW 	
@@ -557,6 +563,10 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				ml_eigSolver.visualizeBasis(viewer, basisToShow);
 			}
 			/* For Approx. Eigenvectors */
+			if (problemType == (int) Problem_Class::Linear_Elasticity) {
+				static char scale[25] = "0.05"; ImGui::InputText("Spatial Scaling", scale, 10);
+				eigScale = atof(scale);
+			}
 			ImGui::Text("Show EigVec");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##EigVec1", ImVec2((w-120.0f-3*p)/2.f, 0))) {		
@@ -571,16 +581,20 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				///if(ml_eigSolver.isClampedBasis)
 				///	Z = ml_eigSolver.SelMatrix * ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
 				///else 
-					Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				if (problemType == (int)Problem_Class::Laplace_Beltrami)
+					showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+				else if (problemType == (int)Problem_Class::Linear_Elasticity)
+					showDeformationModes(viewer, ml_eigSolver.TV, Z, eigScale);
 
-				if(eigToShow>0)
-					igl::jet(Z, true, vColor);
-				else 
-					igl::jet(Z, false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
-
-				printf("Color size: %d | V size: %d \n", vColor.rows(), viewer.data().V.rows());
-
-				viewer.data().set_colors(vColor);
+				//if(eigToShow>0)
+				//	igl::jet(Z, true, vColor);
+				//else 
+				//	igl::jet(Z, false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
+				//
+				//printf("Color size: %d | V size: %d \n", vColor.rows(), viewer.data().V.rows());
+				//
+				//viewer.data().set_colors(vColor);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", eigToShow);
@@ -598,21 +612,29 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				///if (ml_eigSolver.isClampedBasis)
 				///	Z = ml_eigSolver.SelMatrix * ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
 				///else
-					Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				if (problemType == (int)Problem_Class::Laplace_Beltrami)
+					showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+				else if (problemType == (int)Problem_Class::Linear_Elasticity)
+					showDeformationModes(viewer, ml_eigSolver.TV, Z, eigScale);
 
-				printf("Color size: %d | V size: %d \n", vColor.rows(), viewer.data().V.rows());
-
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
+				///printf("Color size: %d | V size: %d \n", vColor.rows(), viewer.data().V.rows());
+				///
+				///igl::jet(Z, true, vColor);
+				///viewer.data().set_colors(vColor);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Red##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
 				///if (ml_eigSolver.isClampedBasis)
 				///	Z = ml_eigSolver.SelMatrix * ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
 				///else
-					Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
+				Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+				if (problemType == (int)Problem_Class::Laplace_Beltrami)
+					showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+				else if (problemType == (int)Problem_Class::Linear_Elasticity)
+					showDeformationModes(viewer, ml_eigSolver.TV, Z, eigScale);
+				//igl::jet(Z, true, vColor);
+				//viewer.data().set_colors(vColor);
 			}
 
 			/* For Reference Eigenvectors */
@@ -628,11 +650,15 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					eigToShow--;
 
 				Z = ml_eigSolver.refEigVects.col(eigToShow);
-				if (eigToShow>0)
-					igl::jet(Z, true, vColor);
-				else
-					igl::jet(Z, false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
-				viewer.data().set_colors(vColor);
+				if (problemType == (int)Problem_Class::Laplace_Beltrami)
+					showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+				else if (problemType == (int)Problem_Class::Linear_Elasticity)
+					showDeformationModes(viewer, ml_eigSolver.TV, Z, eigScale);
+				//if (eigToShow>0)
+				//	igl::jet(Z, true, vColor);
+				//else
+				//	igl::jet(Z, false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
+				//viewer.data().set_colors(vColor);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", eigToShow);
@@ -648,14 +674,22 @@ void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					eigToShow++;
 
 				Z = ml_eigSolver.refEigVects.col(eigToShow);
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
+				if (problemType == (int)Problem_Class::Laplace_Beltrami)
+					showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+				else if (problemType == (int)Problem_Class::Linear_Elasticity)
+					showDeformationModes(viewer, ml_eigSolver.TV, Z, eigScale);
+				///igl::jet(Z, true, vColor);
+				///viewer.data().set_colors(vColor);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Ref##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
 				Z = ml_eigSolver.refEigVects.col(eigToShow);
-				igl::jet(Z, true, vColor);
-				viewer.data().set_colors(vColor);
+				if (problemType == (int)Problem_Class::Laplace_Beltrami)
+					showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+				else if (problemType == (int)Problem_Class::Linear_Elasticity)
+					showDeformationModes(viewer, ml_eigSolver.TV, Z, eigScale);
+				//igl::jet(Z, true, vColor);
+				//viewer.data().set_colors(vColor);
 			}
 
 			/* Overlays */
@@ -754,6 +788,15 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			ml_eigSolver.SubspaceIterMethodShift(viewer, tol, numOfModes, maxIter);
 		}
 
+		if (ImGui::Button("Check matrix", ImVec2(w, 0))) {
+			Eigen::SparseMatrix<double> SS = ml_eigSolver.ST;
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+			//spSolver.compute(MM);
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> ldltSolver;
+			ldltSolver.compute(SS);
+			cout << "Diag D: \n" << ldltSolver.vectorD() << endl;
+		}
+
 		if (ImGui::Button("Save EigVals#RIM", ImVec2(w/2.0, 0))) {
 			//writeDenseMatrixToFile(ml_eigSolver.SIMeigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(ml_eigSolver.SIMeigVals.rows()) + ".txt");
 			writeDenseMatrixToFile(ml_eigSolver.SIMeigValsStack, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(ml_eigSolver.SIMeigVals.rows()) + ".txt");
@@ -764,37 +807,50 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 
 		/* For Subspace Iteration Method Eigenvectors */
-
 		Eigen::MatrixXd vColor;
 		ImGui::Text("Show EigVec");
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("- 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {			
-
+		if (ImGui::Button("- 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
+			if (ml_eigSolver.SIMeigVects.cols() < 1) return;
 			if (eigToShow > 0)
 				eigToShow--;
-
 			
-			if (eigToShow>0)
-				igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
-			else
-				igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
-			viewer.data().set_colors(vColor);
+			if (problemType == (int)Problem_Class::Laplace_Beltrami)
+				showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+			else if (problemType == (int)Problem_Class::Linear_Elasticity)
+				showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
+			//if (eigToShow>0)
+			//	igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
+			//else
+			//	igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
+			//viewer.data().set_colors(vColor);
+
 		}
 		ImGui::SameLine(0, p);
 		ImGui::Text("[%d]", eigToShow);
 		ImGui::SameLine(0, p);
 
 		if (ImGui::Button("+ 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {	
-			if (eigToShow < ml_eigSolver.SIMeigVects.cols())
+			if (ml_eigSolver.SIMeigVects.cols() < 1) return;
+			if (eigToShow < (ml_eigSolver.SIMeigVects.cols()-1))
 				eigToShow++;
 			
-			igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
-			viewer.data().set_colors(vColor);
+			if (problemType == (int)Problem_Class::Laplace_Beltrami)
+				showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+			else if (problemType == (int)Problem_Class::Linear_Elasticity)
+				showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
+			//igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
+			//viewer.data().set_colors(vColor);
 		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("SIM##EigVecSIM", ImVec2((w - 50.0f - 3 * p) / 3.f, 0))) {			
-			igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
-			viewer.data().set_colors(vColor);
+		if (ImGui::Button("SIM##EigVecSIM", ImVec2((w - 50.0f - 3 * p) / 3.f, 0))) {		
+			if (problemType == (int)Problem_Class::Laplace_Beltrami)
+				showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+			else if (problemType == (int)Problem_Class::Linear_Elasticity)
+				showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
+
+			//igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
+			//viewer.data().set_colors(vColor);
 		}
 
 	}
@@ -985,6 +1041,38 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 		ImGui::End();
 	}
 }
+
+
+
+void showDeformationModes(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd& Pos, const Eigen::VectorXd& EigVect, double eigScales)
+{
+	Eigen::MatrixXd TVNew(Pos.rows(), Pos.cols());
+	TVNew.setZero();
+	for (unsigned int ti = 0; ti < Pos.rows(); ti++) {
+		TVNew(ti, 0) = EigVect(3 * ti + 0);
+		TVNew(ti, 1) = EigVect(3 * ti + 1);
+		TVNew(ti, 2) = EigVect(3 * ti + 2);
+	}
+		
+	viewer.data().set_vertices(Pos + eigScales*TVNew);
+	//viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
+	viewer.data().compute_normals();
+}
+
+void showEigenFunctions(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& EigVect, int eigID)
+{
+	Eigen::MatrixXd VColor;
+	if (eigID > 0)
+		igl::jet(EigVect, true, VColor);
+	else
+		igl::jet(EigVect, false, VColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
+
+	printf("Color size: %d | V size: %d \n", VColor.rows(), viewer.data().V.rows());
+
+	viewer.data().set_colors(VColor);
+}
+
+
 
 #endif // !FAST_SPECTRUM_GUI
 
