@@ -97,7 +97,6 @@ public:
 	void constructBasisFunctionsHessianLevelK(int k, int axis, double offset, double support);
 	void constructBasisFunctionsHessianCoarseOnly(int axis, double offset, double support);
 
-
 	/* Heat Method*/
 	void solveHeatMethod(igl::opengl::glfw::Viewer &viewer);
 	void solveHeatEquation(double tau, const Eigen::VectorXd& input, Eigen::VectorXd& output);
