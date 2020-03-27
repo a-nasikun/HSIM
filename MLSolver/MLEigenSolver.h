@@ -11,8 +11,8 @@
 
 using namespace std;
 
-enum class SIM_Type { SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
-enum class Problem_Class { Laplace_Beltrami, Linear_Elasticity };
+enum class SIMType { SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
+//enum class Problem_Class { Laplace_Beltrami, Linear_Elasticity };
 
 class MLEigenSolver
 {
@@ -20,7 +20,17 @@ public:
 	void readMesh(const string &meshFile);
 	void setInitialSystem(int n);
 	void initiateAdM();
-	void virtual constructMassMatrix() = 0;
+	void virtual constructMassMatrix();
+	void virtual constructStiffnessMatrix();
+
+	/* Some setters and getters */
+	Eigen::MatrixXd getV() const;
+	Eigen::MatrixXi getF() const;
+	void setV(const Eigen::MatrixXd& Vin);
+	void setF(const Eigen::MatrixXi& Fin);
+	Eigen::SparseMatrix<double> getStiffnessMatrix() const;
+	Eigen::SparseMatrix<double> getMassMatrix() const;
+	Eigen::SparseMatrix<double> getBasisMatrix() const;
 
 
 protected:

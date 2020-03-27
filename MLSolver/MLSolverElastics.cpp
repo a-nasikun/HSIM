@@ -5,6 +5,8 @@
 #include <igl/barycenter.h>
 #include <igl/volume.h>
 
+#include "Hessian.h"
+
 /**
 *  @brief Creating a tet-mesh from current surface (triangle) mesh.
 *
@@ -201,3 +203,88 @@ void MLSolverElastics::setLameParametersBox(int axis, double clampRatio, double 
 		}
 	}
 }
+
+void MLSolverElastics::constructStiffnessMatrix()
+{
+	cout << "Construction the hessian matrix \n";
+	S.resize(3*V.rows(), 3*V.rows());
+
+	/* Construct the HESSIAN for every TET-Mesh then DISTRIBUTE to each vertex entry */
+	vector<Eigen::Triplet<double>> KTriplet;
+	KTriplet.reserve(12 * 12 * F.rows());
+
+	chrono::high_resolution_clock::time_point	t0, t1, t2;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
+	/* Parallelizing the hessian construction */
+	vector<vector<Eigen::Triplet<double>>>		KiTriplet;
+	const int									NUM_OF_THREADS = 8; // omp_get_num_procs() / 2;
+	omp_set_num_threads(NUM_OF_THREADS);
+	KiTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc, i = 0;
+
+	//for (unsigned int i = 0; i < F.rows(); i++) {
+#pragma omp parallel private(i,tid, ntids,ipts,istart) // ADOLC_OPENMP //private(ADOLC_OPENMP) //
+	{
+		// dividing the stuff per chunk/block
+		iproc	= omp_get_num_procs();
+		tid		= omp_get_thread_num();
+		ntids	= omp_get_num_threads();
+		ipts	= (int)ceil(1.00*(double)F.rows() / (double)ntids);
+		istart	= tid * ipts;
+		if (tid == ntids - 1) ipts = F.rows() - istart;
+		if (ipts <= 0) ipts = 0;
+
+		KiTriplet[tid].reserve(12 * 12 * F.rows() / (ntids));
+
+		// Doing iteration per thread of the CPU
+		for (i = istart; i < (istart + ipts); i++)
+		{
+			/* __ Computing the hessian energy + energy value for each tet-mesh */
+			Eigen::MatrixXd Hess;
+			
+			computeHessian_Linear(Lame(i, 0), Lame(i, 1), V.row(F(i, 0)), V.row(F(i, 1)), V.row(F(i, 2)), V.row(F(i, 3)), Hess);
+			if (i == 0)
+				cout << "First hessian: \n" << Hess << endl;
+
+			/* Constructing the entries for the GLOBAL Hessian matrix */
+			for (unsigned int hi = 0; hi < 4; hi++) {				// for every COL block of the 12x12 matrix
+				for (unsigned int hj = 0; hj < 4; hj++) {			// for every ROW block of the 12x12 matrix					
+					for (unsigned int ti = 0; ti < 3; ti++) {
+						for (unsigned int tj = 0; tj < 3; tj++) {
+							KiTriplet[tid].push_back(Eigen::Triplet<double>(3 * F(i, hj) + tj, 3 * F(i, hi) + ti, 0.25*volume(i)*Hess(3 * hj + tj, 3 * hi + ti)));
+						}
+					}
+				}
+			}
+		}
+	}	// End of paralleization
+
+		// Collcting Entries
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += KiTriplet[j].size();
+	}
+
+	/* Combining the Triplet */
+	KTriplet.resize(totalElements);
+	//#pragma omp parallel 
+	{
+		for (int j = 0; j < NUM_OF_THREADS; j++) {
+			int tripSize = 0;
+			for (int k = 0; k < j; k++) {
+				tripSize += KiTriplet[k].size();
+			}
+			std::copy(KiTriplet[j].begin(), KiTriplet[j].end(), KTriplet.begin() + tripSize);
+		}
+	}
+
+	printf("Triplet size: %d |", KTriplet.size());
+	S.setFromTriplets(KTriplet.begin(), KTriplet.end());
+	printf("S: %dx%d \n", S.rows(), S.cols());
+}
+
+/* Some getters */
+Eigen::MatrixXi MLSolverElastics::getTF() const { return TF; }

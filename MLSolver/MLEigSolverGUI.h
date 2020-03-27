@@ -17,6 +17,10 @@
 
 #include "MLEigSolver.h"
 
+#include "MLEigenSolver.h"
+#include "MLSolverElastics.h"
+#include "MLSoverFunctions.h"
+
 enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
 void showDeformationModes(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd& Pos, const Eigen::VectorXd& EigVect, double eigScales);
 void showEigenFunctions(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& EigVect, int eigID);
@@ -39,6 +43,100 @@ int					defAxis = 0;							// axis in selecting the partial eigenproblem
 double				clampRegion;							// percentage of the clampling
 int					eigScale		= 0.005;
 
+void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver &eigenSolver) 
+{
+	// Variables For Viewer visualization
+	float	menuWindowLeft		= 800.f,
+			menuWindowWidth		= 200.f,
+			menuWindowHeight	= 475.f;
+
+	/* Material properties (for linear elasticity) */
+	static double	m1lame1 = 1.49977776131565*1e-9,
+					m1lame2 = 0.000333358026520483*1e-9,
+					m2lame1 = 19.8175675675676*1e-9,
+					m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
+
+	Eigen::MatrixXd		vColor;
+	Eigen::VectorXd		Z;
+
+	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	ImGui::Begin("Reduced Space", nullptr, ImGuiWindowFlags_NoSavedSettings);
+
+	float w = ImGui::GetContentRegionAvailWidth();
+	float p = ImGui::GetStyle().FramePadding.x;
+
+	// Main Algorithm
+	if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if (ImGui::Button("Load##Mesh1", ImVec2((w) / 2.f, 0))) {
+			// Load mesh + display the correct mesh
+			Eigen::MatrixXd tempV;// = viewer.data_list[0].V;
+			Eigen::MatrixXi tempF;// = viewer.data_list[0].F;
+
+								  // Load mesh + display the correct mesh
+			int numOfModel = viewer.data_list.size();
+			printf("mesh that we have  now: %d \n", viewer.data_list.size());
+
+			if (numOfModel > 0) {
+				tempV = viewer.data_list[0].V;
+				tempF = viewer.data_list[0].F;
+				viewer.data_list.clear();
+			}
+
+			viewer.open_dialog_load_mesh();
+
+			// if no mesh is selected, re-used the old one
+			if (viewer.data_list.size() < 1) {
+				cout << "data less than 1 \n";
+				viewer.append_mesh();
+				viewer.data().clear();
+				if (tempV.rows() > 0) {
+					viewer.data().set_mesh(tempV, tempF);
+					viewer.data().compute_normals();
+				}
+			}
+
+			if (viewer.data().V.rows() > 0) {
+				//eigenSolver.setV(viewer.data().V);
+				//eigenSolver.setF(viewer.data().F);
+
+				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
+
+				viewer.data().show_lines = false;
+				printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());
+				//viewer.data().set_mesh(V, F);
+				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+
+				boolShowSamples = false;
+				printf("mesh that we have  now: %d \n", viewer.data_list.size());
+			}
+		}
+		ImGui::SameLine(0, p);
+		if (ImGui::Button("Save##Mesh1", ImVec2((w - p) / 2.f, 0))) {
+			viewer.open_dialog_save_mesh();
+		}
+
+		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
+
+		ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
+		ImGui::RadioButton("Lin. Elasti.", &problemType, 1);
+
+		if (ImGui::Button("Set-up Problem", ImVec2((w - p) / 2.f, 0))) {
+			if (problemType == 0) {
+				eigenSolver = *(new MLSolverFunctions());
+			}else if(problemType == 1) {
+				eigenSolver = *(new MLSolverFunctions());
+				
+			}
+			eigenSolver.setV(viewer.data().V);
+			eigenSolver.setF(viewer.data().F);
+
+			printf("Mesh in eigensolver object: %dx%d \n", eigenSolver.getV().rows(), eigenSolver.getV().cols());
+		}
+		
+
+	}
+}
 
 void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigSolver &ml_eigSolver) {
 	// MAIN WINDOW 	

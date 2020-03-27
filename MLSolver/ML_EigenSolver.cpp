@@ -81,3 +81,15 @@ void MLEigenSolver::initiateAdM()
 	}
 
 }
+
+void MLEigenSolver::constructMassMatrix() {}
+void MLEigenSolver::constructStiffnessMatrix() {}
+
+/* Some getters */
+Eigen::MatrixXd MLEigenSolver::getV() const { return V; }
+Eigen::MatrixXi MLEigenSolver::getF() const { return F; }
+void MLEigenSolver::setV(const Eigen::MatrixXd& Vin) { V = Vin; }
+void MLEigenSolver::setF(const Eigen::MatrixXi& Fin) { F = Fin; }
+Eigen::SparseMatrix<double> MLEigenSolver::getStiffnessMatrix() const { return S; }
+Eigen::SparseMatrix<double> MLEigenSolver::getMassMatrix() const { return M; }
+Eigen::SparseMatrix<double> MLEigenSolver::getBasisMatrix() const { return Basis; }

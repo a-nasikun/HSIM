@@ -1,5 +1,6 @@
 #include "MLSoverFunctions.h"
 
+#include <igl/cotmatrix.h>
 #include <igl/doublearea.h>
 #include <igl/invert_diag.h>
 #include <igl/avg_edge_length.h>
@@ -26,4 +27,10 @@ void MLSolverFunctions::constructMassMatrix()
 	//igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
 	igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_VORONOI, M);
 	igl::invert_diag(M, Minv);
+}
+
+void MLSolverFunctions::constructStiffnessMatrix()
+{
+	igl::cotmatrix(V, F, S);
+	S = -S;
 }

@@ -12,13 +12,16 @@ public:
 	void setLameParametersConstant(double lame1, double lame2);
 	void setLameParametersSlices(int axis, int numSlices, double m1l1, double m1l2, double m2l1, double m2l2, Eigen::VectorXd& vColor);
 	void setLameParametersBox(int axis, double clampRatio, double m1l1, double m1l2, double m2l1, double m2l2, Eigen::VectorXd& vColor);
+	void virtual constructStiffnessMatrix();
 
+	/* Some getters */
+	Eigen::MatrixXi getTF() const;
 private:
 	Eigen::MatrixXi						TF;				// id of the faces of (elastics), for rendering purpose only;
 	Eigen::MatrixXd						VB;				// barycenters of each tetrahedron
 	Eigen::VectorXd						volume;			// volume of each tetrahedral mesh
 	Eigen::MatrixXd						Lame;			// Lame parameters of each tet-mesh
 
-}
+};
 
 #endif // !ML_SOLVER_ELASTICS
