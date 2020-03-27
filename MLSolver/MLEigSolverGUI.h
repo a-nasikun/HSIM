@@ -43,7 +43,7 @@ int					defAxis = 0;							// axis in selecting the partial eigenproblem
 double				clampRegion;							// percentage of the clampling
 int					eigScale		= 0.005;
 
-void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver &eigenSolver) 
+void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
 {
 	// Variables For Viewer visualization
 	float	menuWindowLeft		= 800.f,
@@ -123,17 +123,118 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 		if (ImGui::Button("Set-up Problem", ImVec2((w - p) / 2.f, 0))) {
 			if (problemType == 0) {
-				eigenSolver = *(new MLSolverFunctions());
+				delete eigenSolver;
+				eigenSolver = new MLSolverFunctions;
 			}else if(problemType == 1) {
-				eigenSolver = *(new MLSolverFunctions());
+				eigenSolver = new MLSolverElastics;
 				
 			}
-			eigenSolver.setV(viewer.data().V);
-			eigenSolver.setF(viewer.data().F);
+			eigenSolver->setV(viewer.data().V);
+			eigenSolver->setF(viewer.data().F);
 
-			printf("Mesh in eigensolver object: %dx%d \n", eigenSolver.getV().rows(), eigenSolver.getV().cols());
+			printf("Mesh in eigensolver object: %dx%d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols());
 		}
 		
+		static int axis = 0;
+		if (problemType == 1) {
+			if (ImGui::Button("Create Tet-Mesh", ImVec2((w), 0))) {
+				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
+					solver->createTetrahedralMesh();
+					solver->computeVolume();/* Set the parameters of the mesh for deformable objects */
+					viewer.data().clear();
+					viewer.data().set_mesh(solver->getV(), solver->getTF());
+				}			
+				
+				//viewer.selected_data_index = 0;
+				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
+				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+				viewer.data().invert_normals = true;
+
+				printf("mesh that we have  now: %d \n", viewer.data_list.size());
+			}
+
+			/* Visualizing the tetrahedral mesh */
+			if (ImGui::Button("Pick Axis", ImVec2((w) / 2.0, 0))) {
+				axis = (axis + 1) % 3;
+				if (axis == 0) cout << "X axis \n";
+				else if (axis == 1) cout << "Y axis \n";
+				else cout << "Z axis \n";
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Show Tet Mesh", ImVec2((w) / 2.0, 0))) {
+				viewer.data().invert_normals = false;
+				viewer.data().show_lines = true;
+
+				srand(time(NULL));
+				double t = (double)(rand() % 20 + 1) / 20.0;
+				//double t = 1.0;
+				cout << "The variable is: " << t << endl;
+				int id = axis;
+				Eigen::VectorXd v;
+				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
+					v = solver->getVB().col(id).array() - solver->getVB().col(id).minCoeff();
+					v /= v.col(0).maxCoeff();
+					
+					vector<int> s;
+					s.reserve(v.size());
+					for (unsigned int i = 0; i < v.size(); i++) {
+						if (v(i) < t) {
+							s.push_back(i);
+						}
+					}
+
+					Eigen::MatrixXd V_temp(s.size() * 4, 3);
+					Eigen::MatrixXi F_temp(s.size() * 4, 3);
+
+					for (unsigned i = 0; i < s.size(); ++i)
+					{
+						V_temp.row(i * 4 + 0) = solver->getV().row(solver->getF()(s[i], 0));
+						V_temp.row(i * 4 + 1) = solver->getV().row(solver->getF()(s[i], 1));
+						V_temp.row(i * 4 + 2) = solver->getV().row(solver->getF()(s[i], 2));
+						V_temp.row(i * 4 + 3) = solver->getV().row(solver->getF()(s[i], 3));
+
+						F_temp.row(i * 4 + 0) << (i * 4) + 0, (i * 4) + 1, (i * 4) + 3;			// CW
+						F_temp.row(i * 4 + 1) << (i * 4) + 0, (i * 4) + 2, (i * 4) + 1;
+						F_temp.row(i * 4 + 2) << (i * 4) + 3, (i * 4) + 2, (i * 4) + 0;
+						F_temp.row(i * 4 + 3) << (i * 4) + 1, (i * 4) + 2, (i * 4) + 3;
+					}
+					printf("Size of V_Temp; %dx%d | F=%dx%d \n", V_temp.rows(), V_temp.cols(), F_temp.rows(), F_temp.cols());
+
+					viewer.data().clear();
+					viewer.data().set_mesh(V_temp, F_temp);
+					viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+					viewer.data().set_face_based(true);
+				}
+
+				printf("mesh that we have  now: %d \n", viewer.data_list.size());
+			}
+
+
+			/* Set material propertries*/
+			enum class MaterialType { Homogen = 0, PiecewiseConstant_2 = 1, PiecewiseConstant_Multi = 2, PiecewiseLinear = 3 };
+			//int matType;
+			if (ImGui::CollapsingHeader("Elements material", ImGuiTreeNodeFlags_CollapsingHeader)) {
+				/* Radio button to select material type */
+				ImGui::RadioButton("Const", &matType, 0); ImGui::SameLine();
+				ImGui::RadioButton("2-Mat", &matType, 1); ImGui::SameLine();
+				ImGui::RadioButton("n-Mat", &matType, 2); ImGui::SameLine();
+				ImGui::RadioButton("Hetero", &matType, 3);
+
+				/* Setting up the lame parameters */
+				//static char lame1txt[15] = "1.499777761"; ImGui::InputText("Lame_1", lame1txt, 15);
+				//static char lame2txt[15] = "0.000333358"; ImGui::InputText("Lame_2", lame2txt, 15);					
+				static char lame1txt[32] = "1.49977776131565";			ImGui::InputText("L1_1", lame1txt, 32);
+				static char lame2txt[32] = "0.000333358026520483";		ImGui::InputText("L1_2", lame2txt, 32);
+				static char lame3txt[32] = "19.8175675675676";			ImGui::InputText("L2_1", lame3txt, 32);
+				static char lame4txt[32] = "0.875";						ImGui::InputText("L2_2", lame4txt, 32);
+				m1lame1 = atof(lame1txt)*1e-9;
+				m1lame2 = atof(lame2txt)*1e-9;
+				m2lame1 = atof(lame3txt)*1e-9;
+				m2lame2 = atof(lame4txt)*1e-9;
+			}
+
+			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+		}
 
 	}
 }

@@ -16,6 +16,7 @@ public:
 
 	/* Some getters */
 	Eigen::MatrixXi getTF() const;
+	Eigen::MatrixXd getVB() const;
 private:
 	Eigen::MatrixXi						TF;				// id of the faces of (elastics), for rendering purpose only;
 	Eigen::MatrixXd						VB;				// barycenters of each tetrahedron

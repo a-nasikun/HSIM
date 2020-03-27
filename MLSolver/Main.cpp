@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
 	string meshFile; 
 	MLEigSolver						ml_eigSolver;
-	MLEigenSolver					eigenSolver;
+	MLEigenSolver*					eigenSolver;
 
 
 	/* GUI FUNCTIONALITY */	

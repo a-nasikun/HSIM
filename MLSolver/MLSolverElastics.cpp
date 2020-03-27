@@ -288,3 +288,4 @@ void MLSolverElastics::constructStiffnessMatrix()
 
 /* Some getters */
 Eigen::MatrixXi MLSolverElastics::getTF() const { return TF; }
+Eigen::MatrixXd MLSolverElastics::getVB() const { return VB; }
