@@ -7,12 +7,14 @@ class MLSolverElastics : public MLEigenSolver
 {
 public:
 	void createTetrahedralMesh();
-	void computeVolume();
+	void computeVolume();	
 	void virtual constructMassMatrix();	
 	void setLameParametersConstant(double lame1, double lame2);
 	void setLameParametersSlices(int axis, int numSlices, double m1l1, double m1l2, double m2l1, double m2l2, Eigen::VectorXd& vColor);
 	void setLameParametersBox(int axis, double clampRatio, double m1l1, double m1l2, double m2l1, double m2l2, Eigen::VectorXd& vColor);
 	void virtual constructStiffnessMatrix();
+
+
 
 	/* Some getters */
 	Eigen::MatrixXi getTF() const;

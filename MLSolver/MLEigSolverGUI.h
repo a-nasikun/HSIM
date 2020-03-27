@@ -21,6 +21,8 @@
 #include "MLSolverElastics.h"
 #include "MLSoverFunctions.h"
 
+using namespace std;
+
 enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
 void showDeformationModes(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd& Pos, const Eigen::VectorXd& EigVect, double eigScales);
 void showEigenFunctions(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& EigVect, int eigID);
@@ -236,6 +238,273 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 		}
 
+		/* STEP BY STEP CONSTRUCTION */
+		static int numLevels = 3;
+
+		if (ImGui::CollapsingHeader("Program Step by Step", ImGuiTreeNodeFlags_DefaultOpen)) {
+			/* Set material propertries*/
+				double	m1lame1= 1.49977776131565*1e-9,
+						m1lame2= 0.000333358026520483*1e-9,
+						m2lame1= 19.8175675675676*1e-9,
+						m2lame2= 0.875*1e-9;		//maaterial 1 lame 1, etc.
+				int		numSlices;
+				static Eigen::VectorXd colorVect;
+
+				if (ImGui::CollapsingHeader("Elements material", ImGuiTreeNodeFlags_CollapsingHeader)) {
+					/* Radio button to select material type */
+					ImGui::RadioButton("Const", &matType, 0); ImGui::SameLine();
+					ImGui::RadioButton("2-Mat", &matType, 1); ImGui::SameLine();
+					ImGui::RadioButton("Slices", &matType, 2);
+					ImGui::RadioButton("Box", &matType, 3); ImGui::SameLine();
+					ImGui::RadioButton("n-Mat", &matType, 4); ImGui::SameLine();
+					ImGui::RadioButton("Hetero", &matType, 5);
+					if (matType == 2) {
+						static char numSlicesTxt[10] = "5";						ImGui::InputText("Num of slices", numSlicesTxt, 10);
+						numSlices = atoi(numSlicesTxt);
+					}
+
+					/* Setting up the lame parameters */				
+					static char lame1txt[32] = "1.49977776131565";			ImGui::InputText("L1_1", lame1txt, 32);
+					static char lame2txt[32] = "0.000333358026520483";		ImGui::InputText("L1_2", lame2txt, 32);
+					static char lame3txt[32] = "19.8175675675676";			ImGui::InputText("L2_1", lame3txt, 32);
+					static char lame4txt[32] = "0.875";						ImGui::InputText("L2_2", lame4txt, 32);
+					m1lame1 = atof(lame1txt)*1e-9;
+					m1lame2 = atof(lame2txt)*1e-9;
+					m2lame1 = atof(lame3txt)*1e-9;
+					m2lame2 = atof(lame4txt)*1e-9;
+				}
+
+			/* Setup stiffness Matrix */
+			if (ImGui::Button("[1] Construct Stiffness Matrix", ImVec2(w, 0))) {
+				if (eigenSolver->getV().rows() < 1) return;
+
+				eigenSolver->constructMassMatrix();
+				eigenSolver->initiateAdM();
+
+				/* Setting up materials parameters*/
+				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) 
+				{
+					switch (matType)
+					{
+						case 0:
+							cout << "MatType: " << matType << ", 1 constant materials" << endl;
+							solver->setLameParametersConstant(m1lame1, m1lame2);
+							break;
+
+							/* 2-Material (left-right) */
+						case 1:
+							cout << "MatType: " << matType << ", 2 materials in halves" << endl;
+							solver->setLameParametersSlices(defAxis, 2, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);						
+							break;
+
+							/* 2-Material, in slices */
+						case 2:
+							cout << "MatType: " << matType << ", 2 materials in slices" << endl;
+							solver->setLameParametersSlices(defAxis, numSlices, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);
+							break;
+
+						case 3:
+							cout << "MatType: " << matType << ", Outer box is different from inner. " << endl;
+							solver->setLameParametersBox(defAxis, clampRegion, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);
+							break;
+
+						default:
+							break;
+					}
+					igl::jet(colorVect, false, vColor);
+					viewer.data().set_colors(vColor);
+				}
+
+				eigenSolver->constructStiffnessMatrix();
+			}
+
+
+			/* For Hierarchy and Sampling */
+			static double levelRatio = 4.0;
+			static char lvlRatTxt[10] = "4.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
+			levelRatio = atof(lvlRatTxt);
+
+			if (ImGui::Button("[2] Sampling", ImVec2(w, 0))) {
+				if (eigenSolver->getMassMatrix().rows() < 1) return;
+
+				cout << "> Creating samples... " << endl;
+				chrono::high_resolution_clock::time_point	t0, t1;
+				chrono::duration<double>					duration;
+				t0 = chrono::high_resolution_clock::now();
+
+				vector<int> sampleLevels; sampleLevels.reserve(10);
+				int SAMPLE_LOW_BOUND = 1000;
+				int SAMPLE_CUT_OFF = 250;
+				int numSample = eigenSolver->getV().rows();
+
+				/* hard coded */
+				///numLevels = 4;
+				///sampleLevels.resize(numLevels);
+				///Eigen::VectorXd sampSize(numLevels);
+				///sampSize << 64000, 16000, 4000, 1000;
+				///ml_eigSolver.setInitialSystem(numLevels);
+
+				/* automated */
+				do {
+					numSample = (int)round(numSample / levelRatio);
+					if (numSample < SAMPLE_CUT_OFF) break;
+					sampleLevels.push_back(numSample);
+				} while (numSample > SAMPLE_LOW_BOUND);
+
+				/* Setting the number of levels */
+				numLevels = sampleLevels.size();
+				eigenSolver->setInitialSystem(numLevels);
+
+				Eigen::VectorXd sampSize(sampleLevels.size());
+				for (int ii = 0; ii < sampleLevels.size(); ++ii)
+					sampSize(ii) = sampleLevels[ii];
+
+				/* For 1 level (coarsest level) sampling only*/
+				eigenSolver->constructSampleHierarchy(sampSize);
+
+				t1 = chrono::high_resolution_clock::now();
+				duration = t1 - t0;
+				cout << "in " << duration.count() << " seconds." << endl;
+			}
+
+			///ImGui::Text("Show sample distance");
+			///for (int i = 0; i < ml_eigSolver.level; ++i)
+			///{
+			///	string disp = "Dist ";
+			///	disp += to_string(i);
+			///	char const* ca = disp.c_str();
+			///	if (ImGui::Button(ca, ImVec2(w / (double)ml_eigSolver.level - p, 0))) {
+			///		ml_eigSolver.visualizeGeodesicDistanceMultLevel(viewer, i);
+			///	} ImGui::SameLine(0, p);
+			///}
+			///ImGui::Spacing(); ImGui::Spacing();
+			///
+			////* For Basis */
+			///ImGui::Checkbox("Clamp Basis", &(ml_eigSolver.isClampedBasis));
+			///static double numOfSupport;
+			///static char numSup[15] = "40.0"; ImGui::InputText("Num of Supports", numSup, 6);
+			///static char selScale[10] = "0.01"; ImGui::InputText("Selection", selScale, 10);
+			///
+			///
+			///if (ImGui::Button("[3] Construct Basis", ImVec2(w, 0))) {
+			///	if (ml_eigSolver.Sample.size()<1) {
+			///		cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
+			///		return;
+			///	}
+			///
+			///	cout << "Constructing basis..." << endl;
+			///	chrono::high_resolution_clock::time_point	t0, t1;
+			///	chrono::duration<double>					duration;
+			///	t0 = chrono::high_resolution_clock::now();
+			///
+			///	numOfSupport = atof(numSup);
+			///	clampRegion = atof(selScale);
+			///
+			///	if (ml_eigSolver.isClampedBasis)
+			///		ml_eigSolver.constructBasisWithClamping(defAxis, clampRegion, numOfSupport);
+			///	else
+			///		ml_eigSolver.constructBasis();
+			///
+			///	useNonSmoothBasis = false;
+			///	//ml_eigSolver.testConstantFuncsProjection();
+			///
+			///	t1 = chrono::high_resolution_clock::now();
+			///	duration = t1 - t0;
+			///	cout << "in " << duration.count() << " seconds." << endl;
+			///}
+			///
+			///// Showing basis in different levels
+			///for (int i = 0; i < ml_eigSolver.level; i++)
+			///{
+			///	string disp = "Lvl. "; disp += to_string(i);
+			///	char const* ca = disp.c_str();
+			///	if (ImGui::Button(ca, ImVec2(w / (double)ml_eigSolver.level - p, 0))) {
+			///		ml_eigSolver.computeTempBasis(i);
+			///		ml_eigSolver.visualizeBasis(viewer, basisToShow);
+			///	}
+			///	if (i<(ml_eigSolver.level - 1)) ImGui::SameLine(0, p);
+			///}
+			///
+			///
+			///if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {
+			///	if (ml_eigSolver.Sample.size() < 1) {
+			///		cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
+			///		return;
+			///	}
+			///	numOfSupport = atof(numSup);
+			///	clampRegion = atof(selScale);
+			///
+			///	ml_eigSolver.constructBasisCoarseOnly(defAxis, clampRegion, numOfSupport);
+			///	useNonSmoothBasis = false;
+			///}
+			///
+			///// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
+			///if (ImGui::Button("[3] Non Smooth Basis", ImVec2(w, 0))) {
+			///	if (ml_eigSolver.Sample.size() < 1) {
+			///		cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
+			///		return;
+			///	}
+			///
+			///	numOfSupport = atof(numSup);
+			///	clampRegion = atof(selScale);
+			///	ml_eigSolver.constructNonSmoothBasis(defAxis, clampRegion, numOfSupport);
+			///	ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
+			///	useNonSmoothBasis = true;
+			///}
+			///
+			///for (int i = 0; i < ml_eigSolver.level; i++)
+			///{
+			///	string disp = "Cluster "; disp += to_string(i);
+			///	char const* ca = disp.c_str();
+			///	if (ImGui::Button(ca, ImVec2(w / (double)ml_eigSolver.level - p, 0))) {
+			///		if (i == 0)
+			///			ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
+			///		else
+			///			ml_eigSolver.visualizeClusterOfSamplesLevelK(viewer, i);
+			///	} ImGui::SameLine(0, p);
+			///}
+			///
+			///ImGui::Spacing(); ImGui::Spacing();
+			///
+			////* Solving Low-Dim Eigenproblem */
+			///if (ImGui::Button("[4] Solve Low-Dim Eigenproblem", ImVec2(w, 0))) {
+			///	if (ml_eigSolver.Basis.cols()<1 || ml_eigSolver.Sample.size()<1) {
+			///		cout << "Error! Make sure you execute previous steps before solving the Low-Dim Eigenproblem." << endl;
+			///		return;
+			///	}
+			///
+			///	cout << "Computing the restricted eigen problem" << endl;
+			///	chrono::high_resolution_clock::time_point	t0, t1;
+			///	chrono::duration<double>					duration;
+			///	t0 = chrono::high_resolution_clock::now();
+			///
+			///	ml_eigSolver.constructRestrictedProblem();
+			///	ml_eigSolver.solveRestrictedProblem();
+			///
+			///	t1 = chrono::high_resolution_clock::now();
+			///	duration = t1 - t0;
+			///	cout << "in " << duration.count() << " seconds." << endl;
+			///
+			///
+			///	//cout << "(approx) Eigenvector: \n " << ml_eigSolver.reducedEigVals << endl << endl; 
+			///
+			///	// Show the first non-zero eigenvectors
+			///	eigToShow = 1;
+			///	Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
+			///	igl::jet(Z, true, vColor);
+			///	viewer.data().set_colors(vColor);
+			///}
+			///
+			///if (ImGui::Button("Save EigVals#Approx", ImVec2(w / 2.0, 0))) {
+			///	int toStore = min(250, (int)ml_eigSolver.reducedEigVals.rows());
+			///	writeDenseMatrixToFile(ml_eigSolver.reducedEigVals.block(0, 0, toStore, 1), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_Red_" + to_string(toStore) + ".txt");
+			///}
+			///ImGui::SameLine(0, p);
+			///if (ImGui::Button("Save EigVect#Approx", ImVec2(w / 2.0, 0))) {
+			///	int toStore = 250;
+			///	writeDenseMatrixToFile(ml_eigSolver.Basis*ml_eigSolver.reducedEigVects.block(0, 0, ml_eigSolver.V.rows(), toStore), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Red_" + to_string(toStore) + ".txt");
+			///}
+		}
 	}
 }
 

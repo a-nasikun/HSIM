@@ -85,6 +85,36 @@ void MLEigenSolver::initiateAdM()
 void MLEigenSolver::constructMassMatrix() {}
 void MLEigenSolver::constructStiffnessMatrix() {}
 
+void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
+{
+	printf("> Sampling on % levels \n", samples.size());
+	for (int i = 0; i < samples.size(); ++i){
+		SubspaceSize[i] = samples(i);
+		printf("Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
+	}
+
+	SampleMap.resize(V.rows());
+	constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
+	cout << "Assigning level \n";
+	sampleLevel.resize(V.rows());
+
+	SampleMap.setConstant(-1);
+	sampleLevel.setConstant(-1);
+
+	// for level n-1
+	for (int i = 0; i < SubspaceSize[level - 1]; ++i){
+		sampleLevel(Sample(i))	= level - 1;
+		SampleMap(Sample(i))	= i;
+	}
+
+	for (int i = level - 1; i > 0; --i){
+		for (int j = SubspaceSize[i]; j < SubspaceSize[i - 1]; ++j){
+			sampleLevel(Sample(j))	= i - 1;
+			SampleMap(Sample(j))	= j;
+		}
+	}
+}
+
 /* Some getters */
 Eigen::MatrixXd MLEigenSolver::getV() const { return V; }
 Eigen::MatrixXi MLEigenSolver::getF() const { return F; }

@@ -23,6 +23,9 @@ public:
 	void virtual constructMassMatrix();
 	void virtual constructStiffnessMatrix();
 
+	void constructSampleHierarchy(const Eigen::VectorXd& samples);
+
+
 	/* Some setters and getters */
 	Eigen::MatrixXd getV() const;
 	Eigen::MatrixXi getF() const;
