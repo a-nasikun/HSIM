@@ -6,7 +6,8 @@
 class MLSolverFunctions : public MLEigenSolver
 {
 public:
-
+	void computeArea();
+	void virtual constructMassMatrix();
 
 private:
 	double			avgEdgeLength;						// average edge length (from the mesh)

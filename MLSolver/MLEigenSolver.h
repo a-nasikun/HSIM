@@ -17,11 +17,16 @@ enum class Problem_Class { Laplace_Beltrami, Linear_Elasticity };
 class MLEigenSolver
 {
 public:
+	void readMesh(const string &meshFile);
+	void setInitialSystem(int n);
+	void initiateAdM();
+	void virtual constructMassMatrix() = 0;
 
-private:
+
+protected:
 	/* Mesh-related variables */
-	Eigen::MatrixXd						V;					// coordinates of each vertices
-	Eigen::MatrixXi						F;					// id of the faces (functions) or tetrahedrons (elastics);
+	Eigen::MatrixXd						V;					// Coordinates of each vertices
+	Eigen::MatrixXi						F;					// Vertices ID of each face (functions) or tetrahedron (elastics);
 
 	/* System matrices */
 	Eigen::SparseMatrix<double>			S;					// stiffness matrix
