@@ -88,11 +88,11 @@ void MLEigenSolver::constructStiffnessMatrix() {}
 void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 {
 	printf("> Sampling on % levels \n", samples.size());
-	sampleSize = SubspaceSize[0];
 	for (int i = 0; i < samples.size(); ++i){
 		SubspaceSize[i] = samples(i);
 		printf("Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
 	}
+	sampleSize = SubspaceSize[0];
 
 	SampleMap.resize(V.rows());
 	constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
@@ -121,6 +121,8 @@ void MLEigenSolver::constructBasis(double support, int axis, double offset) {}
 void MLEigenSolver::constructBasisCoarseOnly(double support, int axis, double offset) {}
 
 void MLEigenSolver::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support) {}
+
+void MLEigenSolver::constructBasisNonSmooth(double support, int axis, double offset) {}
 
 void MLEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter) {}
 

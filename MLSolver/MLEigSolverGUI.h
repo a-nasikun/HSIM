@@ -405,32 +405,34 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			///}
 			
 			
-			if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {
+			if (ImGui::Button("[3] Coarse Basis only##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows()<1 || eigenSolver->getStiffnessMatrix().rows()<1 || eigenSolver->getSampleSize()<1) {
 					cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
 					return;
 				}
 				numOfSupport = atof(numSupTxt);
 				clampRegion = atof(clampRegionTxt);
+				eigenSolver->setClampBasis(isClampedBasis);
 			
-				eigenSolver->constructBasisCoarseOnly(defAxis, clampRegion, numOfSupport);
+				eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
 				useNonSmoothBasis = false;
 			}
 			
-			///// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
-			///if (ImGui::Button("[3] Non Smooth Basis", ImVec2(w, 0))) {
-			///	if (ml_eigSolver.Sample.size() < 1) {
-			///		cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
-			///		return;
-			///	}
-			///
-			///	numOfSupport = atof(numSup);
-			///	clampRegion = atof(selScale);
-			///	ml_eigSolver.constructNonSmoothBasis(defAxis, clampRegion, numOfSupport);
-			///	ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
-			///	useNonSmoothBasis = true;
-			///}
-			///
+			// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
+			if (ImGui::Button("[3] Non Smooth Basis##1", ImVec2(w, 0))) {
+				if (eigenSolver->getV().rows()<1 || eigenSolver->getStiffnessMatrix().rows()<1 || eigenSolver->getSampleSize()<1) {
+					cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
+					return;
+				}
+				numOfSupport = atof(numSupTxt);
+				clampRegion = atof(clampRegionTxt);
+				eigenSolver->setClampBasis(isClampedBasis);
+
+				eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
+				//ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
+				useNonSmoothBasis = true;
+			}
+			
 			///for (int i = 0; i < ml_eigSolver.level; i++)
 			///{
 			///	string disp = "Cluster "; disp += to_string(i);
@@ -442,6 +444,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			///			ml_eigSolver.visualizeClusterOfSamplesLevelK(viewer, i);
 			///	} ImGui::SameLine(0, p);
 			///}
+
 			///
 			///ImGui::Spacing(); ImGui::Spacing();
 			///
