@@ -19,7 +19,7 @@
 
 #include "MLEigenSolver.h"
 #include "MLSolverElastics.h"
-#include "MLSoverFunctions.h"
+#include "MLSolverFunctions.h"
 
 using namespace std;
 
@@ -58,7 +58,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					m2lame1 = 19.8175675675676*1e-9,
 					m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
 
-	Eigen::MatrixXd		vColor;
+	Eigen::MatrixXd		VColor;
 	Eigen::VectorXd		Z;
 
 	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
@@ -123,13 +123,14 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
 		ImGui::RadioButton("Lin. Elasti.", &problemType, 1);
 
-		if (ImGui::Button("Set-up Problem", ImVec2((w - p) / 2.f, 0))) {
-			if (problemType == 0) {
-				delete eigenSolver;
-				eigenSolver = new MLSolverFunctions;
+		if (ImGui::Button("Set-up Problem##1", ImVec2((w - p) / 2.f, 0))) {
+			if (viewer.data().V.rows() < 1) return;			
+
+			delete eigenSolver;	
+			if (problemType == 0) {			
+				eigenSolver = new MLSolverFunctions();
 			}else if(problemType == 1) {
-				eigenSolver = new MLSolverElastics;
-				
+				eigenSolver = new MLSolverElastics();		
 			}
 			eigenSolver->setV(viewer.data().V);
 			eigenSolver->setF(viewer.data().F);
@@ -211,71 +212,50 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				printf("mesh that we have  now: %d \n", viewer.data_list.size());
 			}
 
-
-			/* Set material propertries*/
-			enum class MaterialType { Homogen = 0, PiecewiseConstant_2 = 1, PiecewiseConstant_Multi = 2, PiecewiseLinear = 3 };
-			//int matType;
-			if (ImGui::CollapsingHeader("Elements material", ImGuiTreeNodeFlags_CollapsingHeader)) {
-				/* Radio button to select material type */
-				ImGui::RadioButton("Const", &matType, 0); ImGui::SameLine();
-				ImGui::RadioButton("2-Mat", &matType, 1); ImGui::SameLine();
-				ImGui::RadioButton("n-Mat", &matType, 2); ImGui::SameLine();
-				ImGui::RadioButton("Hetero", &matType, 3);
-
-				/* Setting up the lame parameters */
-				//static char lame1txt[15] = "1.499777761"; ImGui::InputText("Lame_1", lame1txt, 15);
-				//static char lame2txt[15] = "0.000333358"; ImGui::InputText("Lame_2", lame2txt, 15);					
-				static char lame1txt[32] = "1.49977776131565";			ImGui::InputText("L1_1", lame1txt, 32);
-				static char lame2txt[32] = "0.000333358026520483";		ImGui::InputText("L1_2", lame2txt, 32);
-				static char lame3txt[32] = "19.8175675675676";			ImGui::InputText("L2_1", lame3txt, 32);
-				static char lame4txt[32] = "0.875";						ImGui::InputText("L2_2", lame4txt, 32);
-				m1lame1 = atof(lame1txt)*1e-9;
-				m1lame2 = atof(lame2txt)*1e-9;
-				m2lame1 = atof(lame3txt)*1e-9;
-				m2lame2 = atof(lame4txt)*1e-9;
-			}
-
 			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 		}
 
 		/* STEP BY STEP CONSTRUCTION */
-		static int numLevels = 3;
+		static int numLevels;
 
-		if (ImGui::CollapsingHeader("Program Step by Step", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			/* Set material propertries*/
 				double	m1lame1= 1.49977776131565*1e-9,
 						m1lame2= 0.000333358026520483*1e-9,
 						m2lame1= 19.8175675675676*1e-9,
 						m2lame2= 0.875*1e-9;		//maaterial 1 lame 1, etc.
 				int		numSlices;
-				static Eigen::VectorXd colorVect;
+				static	Eigen::VectorXd colorVect;
+				static bool	isClampedBasis = false; 
+				
+				if (problemType == 1) {
+					if (ImGui::CollapsingHeader("Elements material##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
+						/* Radio button to select material type */
+						ImGui::RadioButton("Const", &matType, 0); ImGui::SameLine();
+						ImGui::RadioButton("2-Mat", &matType, 1); ImGui::SameLine();
+						ImGui::RadioButton("Slices", &matType, 2);
+						ImGui::RadioButton("Box", &matType, 3); ImGui::SameLine();
+						ImGui::RadioButton("n-Mat", &matType, 4); ImGui::SameLine();
+						ImGui::RadioButton("Hetero", &matType, 5);
+						if (matType == 2) {
+							static char numSlicesTxt[10] = "5";						ImGui::InputText("Num of slices", numSlicesTxt, 10);
+							numSlices = atoi(numSlicesTxt);
+						}
 
-				if (ImGui::CollapsingHeader("Elements material", ImGuiTreeNodeFlags_CollapsingHeader)) {
-					/* Radio button to select material type */
-					ImGui::RadioButton("Const", &matType, 0); ImGui::SameLine();
-					ImGui::RadioButton("2-Mat", &matType, 1); ImGui::SameLine();
-					ImGui::RadioButton("Slices", &matType, 2);
-					ImGui::RadioButton("Box", &matType, 3); ImGui::SameLine();
-					ImGui::RadioButton("n-Mat", &matType, 4); ImGui::SameLine();
-					ImGui::RadioButton("Hetero", &matType, 5);
-					if (matType == 2) {
-						static char numSlicesTxt[10] = "5";						ImGui::InputText("Num of slices", numSlicesTxt, 10);
-						numSlices = atoi(numSlicesTxt);
+						/* Setting up the lame parameters */
+						static char lame1txt[32] = "1.49977776131565";			ImGui::InputText("L1_1", lame1txt, 32);
+						static char lame2txt[32] = "0.000333358026520483";		ImGui::InputText("L1_2", lame2txt, 32);
+						static char lame3txt[32] = "19.8175675675676";			ImGui::InputText("L2_1", lame3txt, 32);
+						static char lame4txt[32] = "0.875";						ImGui::InputText("L2_2", lame4txt, 32);
+						m1lame1 = atof(lame1txt)*1e-9;
+						m1lame2 = atof(lame2txt)*1e-9;
+						m2lame1 = atof(lame3txt)*1e-9;
+						m2lame2 = atof(lame4txt)*1e-9;
 					}
-
-					/* Setting up the lame parameters */				
-					static char lame1txt[32] = "1.49977776131565";			ImGui::InputText("L1_1", lame1txt, 32);
-					static char lame2txt[32] = "0.000333358026520483";		ImGui::InputText("L1_2", lame2txt, 32);
-					static char lame3txt[32] = "19.8175675675676";			ImGui::InputText("L2_1", lame3txt, 32);
-					static char lame4txt[32] = "0.875";						ImGui::InputText("L2_2", lame4txt, 32);
-					m1lame1 = atof(lame1txt)*1e-9;
-					m1lame2 = atof(lame2txt)*1e-9;
-					m2lame1 = atof(lame3txt)*1e-9;
-					m2lame2 = atof(lame4txt)*1e-9;
 				}
 
 			/* Setup stiffness Matrix */
-			if (ImGui::Button("[1] Construct Stiffness Matrix", ImVec2(w, 0))) {
+				if (ImGui::Button("[1] Construct Stiffness Matrix##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1) return;
 
 				eigenSolver->constructMassMatrix();
@@ -311,8 +291,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 						default:
 							break;
 					}
-					igl::jet(colorVect, false, vColor);
-					viewer.data().set_colors(vColor);
+					igl::jet(colorVect, false, VColor);
+					viewer.data().set_colors(VColor);
 				}
 
 				eigenSolver->constructStiffnessMatrix();
@@ -324,8 +304,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			static char lvlRatTxt[10] = "4.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 			levelRatio = atof(lvlRatTxt);
 
-			if (ImGui::Button("[2] Sampling", ImVec2(w, 0))) {
-				if (eigenSolver->getMassMatrix().rows() < 1) return;
+			if (ImGui::Button("[2] Sampling##1", ImVec2(w, 0))) {
+				if (eigenSolver->getV().rows()<1 || eigenSolver->getMassMatrix().rows() < 1) return;
 
 				cout << "> Creating samples... " << endl;
 				chrono::high_resolution_clock::time_point	t0, t1;
@@ -367,77 +347,76 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				cout << "in " << duration.count() << " seconds." << endl;
 			}
 
-			///ImGui::Text("Show sample distance");
-			///for (int i = 0; i < ml_eigSolver.level; ++i)
-			///{
-			///	string disp = "Dist ";
-			///	disp += to_string(i);
-			///	char const* ca = disp.c_str();
-			///	if (ImGui::Button(ca, ImVec2(w / (double)ml_eigSolver.level - p, 0))) {
-			///		ml_eigSolver.visualizeGeodesicDistanceMultLevel(viewer, i);
-			///	} ImGui::SameLine(0, p);
-			///}
-			///ImGui::Spacing(); ImGui::Spacing();
-			///
-			////* For Basis */
-			///ImGui::Checkbox("Clamp Basis", &(ml_eigSolver.isClampedBasis));
-			///static double numOfSupport;
-			///static char numSup[15] = "40.0"; ImGui::InputText("Num of Supports", numSup, 6);
-			///static char selScale[10] = "0.01"; ImGui::InputText("Selection", selScale, 10);
-			///
-			///
-			///if (ImGui::Button("[3] Construct Basis", ImVec2(w, 0))) {
-			///	if (ml_eigSolver.Sample.size()<1) {
-			///		cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
-			///		return;
-			///	}
-			///
-			///	cout << "Constructing basis..." << endl;
-			///	chrono::high_resolution_clock::time_point	t0, t1;
-			///	chrono::duration<double>					duration;
-			///	t0 = chrono::high_resolution_clock::now();
-			///
-			///	numOfSupport = atof(numSup);
-			///	clampRegion = atof(selScale);
-			///
-			///	if (ml_eigSolver.isClampedBasis)
-			///		ml_eigSolver.constructBasisWithClamping(defAxis, clampRegion, numOfSupport);
-			///	else
-			///		ml_eigSolver.constructBasis();
-			///
-			///	useNonSmoothBasis = false;
-			///	//ml_eigSolver.testConstantFuncsProjection();
-			///
-			///	t1 = chrono::high_resolution_clock::now();
-			///	duration = t1 - t0;
-			///	cout << "in " << duration.count() << " seconds." << endl;
-			///}
-			///
+			
+			ImGui::Text("Show sample dist");
+			for (int i = 0; i < numLevels; ++i)
+			{
+				string disp = "Dist ";
+				disp += to_string(i);
+				char const* ca = disp.c_str();
+				if (ImGui::Button(ca, ImVec2(w / (double)numLevels - p, 0))) {
+					eigenSolver->visualizeGeodesicDistanceMultLevel(viewer, i);
+				} ImGui::SameLine(0, p);
+			}
+			ImGui::Spacing(); ImGui::Spacing();
+			
+			/* For Basis */
+			ImGui::Checkbox("Clamp Basis##1", &isClampedBasis);
+			static double numOfSupport;
+			static char numSupTxt[15] = "40.0"; ImGui::InputText("Num of Supports", numSupTxt, 6);
+			static char clampRegionTxt[10] = "0.01"; ImGui::InputText("Selection", clampRegionTxt, 10);
+			
+			
+			if (ImGui::Button("[3] Construct Basis##1", ImVec2(w, 0))) {
+				if(eigenSolver->getV().rows()<1 || eigenSolver->getStiffnessMatrix().rows()<1){
+					cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
+					return;
+				}
+			
+				cout << "Constructing basis..." << endl;
+				chrono::high_resolution_clock::time_point	t0, t1;
+				chrono::duration<double>					duration;
+				t0 = chrono::high_resolution_clock::now();
+			
+				eigenSolver->setClampBasis(isClampedBasis);
+				numOfSupport = atof(numSupTxt);
+				clampRegion = atof(clampRegionTxt);
+			
+				eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);				
+			
+				useNonSmoothBasis = false;
+				//ml_eigSolver.testConstantFuncsProjection();
+			
+				t1 = chrono::high_resolution_clock::now();
+				duration = t1 - t0;
+				cout << "in " << duration.count() << " seconds." << endl;
+			}
+			
 			///// Showing basis in different levels
-			///for (int i = 0; i < ml_eigSolver.level; i++)
+			///for (int i = 0; i < eigenSolver->getLevel(); ++i)
 			///{
 			///	string disp = "Lvl. "; disp += to_string(i);
 			///	char const* ca = disp.c_str();
-			///	if (ImGui::Button(ca, ImVec2(w / (double)ml_eigSolver.level - p, 0))) {
+			///	if (ImGui::Button(ca, ImVec2(w / (double)eigenSolver->getLevel() - p, 0))) {
 			///		ml_eigSolver.computeTempBasis(i);
 			///		ml_eigSolver.visualizeBasis(viewer, basisToShow);
 			///	}
 			///	if (i<(ml_eigSolver.level - 1)) ImGui::SameLine(0, p);
 			///}
-			///
-			///
-			///if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {
-			///	if (ml_eigSolver.Sample.size() < 1) {
-			///		cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
-			///		return;
-			///	}
-			///	numOfSupport = atof(numSup);
-			///	clampRegion = atof(selScale);
-			///
-			///	ml_eigSolver.constructBasisCoarseOnly(defAxis, clampRegion, numOfSupport);
-			///	useNonSmoothBasis = false;
-			///}
-			///
+			
+			
+			if (ImGui::Button("[3] Coarse Basis only", ImVec2(w, 0))) {
+				if (eigenSolver->getV().rows()<1 || eigenSolver->getStiffnessMatrix().rows()<1 || eigenSolver->getSampleSize()<1) {
+					cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
+					return;
+				}
+				numOfSupport = atof(numSupTxt);
+				clampRegion = atof(clampRegionTxt);
+			
+				eigenSolver->constructBasisCoarseOnly(defAxis, clampRegion, numOfSupport);
+				useNonSmoothBasis = false;
+			}
+			
 			///// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
 			///if (ImGui::Button("[3] Non Smooth Basis", ImVec2(w, 0))) {
 			///	if (ml_eigSolver.Sample.size() < 1) {

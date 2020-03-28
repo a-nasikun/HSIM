@@ -2,7 +2,7 @@
 
 #include "MLEigenSolver.h"
 #include "MLSolverElastics.h"
-#include "MLSoverFunctions.h"
+#include "MLSolverFunctions.h"
 #include "MLEigSolverGUI.h"
 #include <igl/unproject_onto_mesh.h>
 
@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
 	string meshFile; 
 	MLEigSolver						ml_eigSolver;
-	MLEigenSolver*					eigenSolver;
+	MLEigenSolver*	eigenSolver = new MLEigenSolver();
 
 
 	/* GUI FUNCTIONALITY */	

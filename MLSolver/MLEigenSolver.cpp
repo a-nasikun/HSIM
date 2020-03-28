@@ -88,6 +88,7 @@ void MLEigenSolver::constructStiffnessMatrix() {}
 void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 {
 	printf("> Sampling on % levels \n", samples.size());
+	sampleSize = SubspaceSize[0];
 	for (int i = 0; i < samples.size(); ++i){
 		SubspaceSize[i] = samples(i);
 		printf("Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
@@ -115,6 +116,85 @@ void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 	}
 }
 
+void MLEigenSolver::constructBasis(double support, int axis, double offset) {}
+
+void MLEigenSolver::constructBasisCoarseOnly(double support, int axis, double offset) {}
+
+void MLEigenSolver::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support) {}
+
+void MLEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter) {}
+
+void MLEigenSolver::formPartitionOfUnityMultiLevel()
+{
+	cout << "Partition of unity \n";
+	/* Temporary variables */
+	vector<Eigen::Triplet<double>>		diagTrip;
+	Eigen::SparseMatrix<double>			DiagNormMatrix;
+	Eigen::VectorXd						rowSum;
+
+	for (int i = 0; i < level; i++)
+	{
+		rowSum.resize(U[i].rows());
+		rowSum.setZero();
+		DiagNormMatrix.resize(U[i].rows(), U[i].rows());
+		diagTrip.reserve(U[i].nonZeros());
+
+		/* Getting the sum of every non-zero elements in a row */
+		for (int k = 0; k < U[i].outerSize(); ++k) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(U[i], k); it; ++it) {
+				rowSum(it.row()) += it.value();
+			}
+		}
+
+		/* Get the diagonal matrix, reciprocal of the total sum per row */
+		for (int k = 0; k < rowSum.size(); k++) {
+			diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+		}
+		DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
+
+		/* Form partition of unity */
+		U[i] = DiagNormMatrix * U[i];
+
+		diagTrip.clear();
+		diagTrip.shrink_to_fit();
+	}
+}
+
+void MLEigenSolver::formPartitionOfUnity()
+{
+	cout << "> Partition of unity \n";
+	/* Temporary variables */
+	vector<Eigen::Triplet<double>>		diagTrip;
+	Eigen::SparseMatrix<double>			DiagNormMatrix;
+	Eigen::VectorXd						rowSum = Eigen::VectorXd::Zero(Basis.rows());
+	DiagNormMatrix.resize(Basis.rows(), Basis.rows());
+	diagTrip.reserve(Basis.nonZeros());
+
+	/* Getting the sum of every non-zero elements in a row */
+	for (int k = 0; k < Basis.outerSize(); ++k) {
+		for (Eigen::SparseMatrix<double>::InnerIterator it(Basis, k); it; ++it) {
+			rowSum(it.row()) += it.value();
+		}
+	}
+
+	/* Get the diagonal matrix, reciprocal of the total sum per row */
+	for (int i = 0; i < rowSum.size(); i++) {
+		diagTrip.push_back(Eigen::Triplet<double>(i, i, 1.0 / rowSum(i)));
+	}
+	DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
+
+	/* Form partition of unity */
+	Basis = DiagNormMatrix * Basis;
+}
+
+/* Visualization tools */
+void MLEigenSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const
+{
+	Eigen::MatrixXd VColor;
+	igl::jet(geoDist[k], true, VColor);
+	viewer.data().set_colors(VColor);
+}
+
 /* Some getters */
 Eigen::MatrixXd MLEigenSolver::getV() const { return V; }
 Eigen::MatrixXi MLEigenSolver::getF() const { return F; }
@@ -123,3 +203,7 @@ void MLEigenSolver::setF(const Eigen::MatrixXi& Fin) { F = Fin; }
 Eigen::SparseMatrix<double> MLEigenSolver::getStiffnessMatrix() const { return S; }
 Eigen::SparseMatrix<double> MLEigenSolver::getMassMatrix() const { return M; }
 Eigen::SparseMatrix<double> MLEigenSolver::getBasisMatrix() const { return Basis; }
+bool MLEigenSolver::getClampBasis() const { return isClampedBasis; }
+void MLEigenSolver::setClampBasis(bool isClamped) { isClampedBasis = isClamped; }
+int MLEigenSolver::getLevel() const { return level; }
+int MLEigenSolver::getSampleSize() const { return sampleSize; }

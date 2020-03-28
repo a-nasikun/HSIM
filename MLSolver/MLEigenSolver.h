@@ -23,8 +23,16 @@ public:
 	void virtual constructMassMatrix();
 	void virtual constructStiffnessMatrix();
 
-	void constructSampleHierarchy(const Eigen::VectorXd& samples);
-
+	void constructSampleHierarchy(const Eigen::VectorXd& samples);	// Constructing multi-level samples
+	void virtual constructBasis(double support, int axis=0, double offset = 0.0);											// Constructing multi-level basis
+	void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0);
+	void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support);	
+	void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);
+	void formPartitionOfUnityMultiLevel();
+	void formPartitionOfUnity();
+	
+	/* Visualization tools */
+	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const;
 
 	/* Some setters and getters */
 	Eigen::MatrixXd getV() const;
@@ -34,7 +42,10 @@ public:
 	Eigen::SparseMatrix<double> getStiffnessMatrix() const;
 	Eigen::SparseMatrix<double> getMassMatrix() const;
 	Eigen::SparseMatrix<double> getBasisMatrix() const;
-
+	bool getClampBasis() const;
+	void setClampBasis(bool isClamped);
+	int getLevel() const; 
+	int getSampleSize() const; 
 
 protected:
 	/* Mesh-related variables */

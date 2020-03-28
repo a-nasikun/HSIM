@@ -394,7 +394,7 @@ void MLEigSolver::constructBasis()
 void MLEigSolver::constructBasisWithClamping(int axis, double clampSelection, double support)
 {	
 	double NUM_SUPPORT = support;
-	Eigen::VectorXd globToLocMap;
+	//Eigen::VectorXd globToLocMap;
 	///constructSelectorMatrix(axis, clampSelection, globToLocMap);
 
 	if (problemType == Problem_Class::Laplace_Beltrami)
