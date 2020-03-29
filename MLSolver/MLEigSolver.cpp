@@ -203,7 +203,7 @@ void MLEigSolver::constructLaplacianMatrix(){
 
 void MLEigSolver::constructSampleHierarchy(Eigen::VectorXd& n)
 {
-	printf("Sampling on % level \n", level);
+	printf("Sampling on %d level \n", level);
 	for (int i = 0; i < level; i++)
 	{
 		SubspaceSize[i] = n(i);

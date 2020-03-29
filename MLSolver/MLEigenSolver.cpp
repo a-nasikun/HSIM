@@ -87,16 +87,16 @@ void MLEigenSolver::constructStiffnessMatrix() {}
 
 void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 {
-	printf("> Sampling on % levels \n", samples.size());
+	printf("____Sampling on %d levels \n", samples.size());
 	for (int i = 0; i < samples.size(); ++i){
 		SubspaceSize[i] = samples(i);
-		printf("Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
+		printf("______Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
 	}
 	sampleSize = SubspaceSize[0];
 
 	SampleMap.resize(V.rows());
 	constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
-	cout << "Assigning level \n";
+	cout << "___Assigning level \n";
 	sampleLevel.resize(V.rows());
 
 	SampleMap.setConstant(-1);
@@ -189,6 +189,21 @@ void MLEigenSolver::formPartitionOfUnity()
 	Basis = DiagNormMatrix * Basis;
 }
 
+void MLEigenSolver::solveRestrictedProblem()
+{
+	cout << "> Creating the reduced system matrices.\n";
+	Eigen::SparseMatrix<double> S_, M_;			//reduced stiffness and mass matrix
+	S_ = Basis.transpose()*S*Basis;
+	M_ = Basis.transpose()*M*Basis;
+	printf("__S red %.4f (%d nnz)\n", (double)S_.nonZeros() / (double)S_.rows(), S_.nonZeros());
+	printf("__M red %.4f (%d nnz)\n", (double)M_.nonZeros() / (double)M_.rows(), M_.nonZeros());
+
+	cout << "> Computing the reduced eigenproblem (in GPU). \n";
+	computeEigenGPU(S_, M_, EigVectsReduced, EigValsReduced);
+
+	EigVectsReduced = Basis * EigVectsReduced;
+}
+
 /* Visualization tools */
 void MLEigenSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const
 {
@@ -209,3 +224,52 @@ bool MLEigenSolver::getClampBasis() const { return isClampedBasis; }
 void MLEigenSolver::setClampBasis(bool isClamped) { isClampedBasis = isClamped; }
 int MLEigenSolver::getLevel() const { return level; }
 int MLEigenSolver::getSampleSize() const { return sampleSize; }
+
+/* Getters of the eigen-values + vectors*/
+const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsRef() const			{ return EigVectsRef; }
+const Eigen::VectorXd& MLEigenSolver::getEigenVectorsRef(int id) const		
+{ 
+	if		(id >= EigVectsRef.cols())	return EigVectsRef.col(EigValsRef.rows()-1);
+	else if	(id< 0)						return EigVectsRef.col(0);
+
+	return EigVectsRef.col(id); 
+}
+const Eigen::VectorXd& MLEigenSolver::getEigenValuesRef() const				{ return EigValsRef; }
+const double MLEigenSolver::getEigenValueRef(int id) const					
+{ 
+	if		(id >= EigValsRef.rows())	return EigValsRef(EigValsRef.rows()-1);
+	else if	(id< 0)						return EigValsRef(0);
+
+	return EigValsRef(id); 
+}
+const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsReduced() const		{ return EigVectsReduced; }
+const Eigen::VectorXd& MLEigenSolver::getEigenVectorsReduced(int id) const
+{
+	if (id >= EigVectsReduced.cols())	return EigVectsReduced.col(EigValsReduced.rows()-1);
+	else if (id< 0)						return EigVectsReduced.col(0);
+
+	return EigVectsReduced.col(id); 
+}
+const Eigen::VectorXd& MLEigenSolver::getEigenValuesReduced() const			{ return EigValsReduced; }
+const double MLEigenSolver::getEigenValueReduced(int id) const
+{
+	if (id >= EigValsReduced.rows())	return EigValsReduced(EigValsReduced.rows() - 1);
+	else if (id< 0)						return EigValsReduced(0);
+
+	return EigValsReduced(id); 
+}
+const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsSIM() const			{ return EigVectsSIM; }
+const Eigen::VectorXd& MLEigenSolver::getEigenVectorsSIM(int id) const
+{
+	if (id >= EigVectsSIM.cols())		return EigVectsSIM.col(EigValsSIM.rows()-1);
+	else if (id< 0)						return EigVectsSIM.col(0);
+	return EigVectsSIM.col(id); 
+}
+const Eigen::VectorXd& MLEigenSolver::getEigenValuesSIM() const				{ return EigValsSIM; }
+const double MLEigenSolver::getEigenValueSIM(int id) const
+{
+	if (id >= EigValsSIM.rows())		return EigValsSIM(EigValsSIM.rows() - 1);
+	else if (id< 0)						return EigValsSIM(0);
+
+	return EigValsSIM(id); 
+}

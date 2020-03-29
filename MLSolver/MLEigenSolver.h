@@ -31,6 +31,7 @@ public:
 	void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);
 	void formPartitionOfUnityMultiLevel();
 	void formPartitionOfUnity();
+	void solveRestrictedProblem();
 	
 	/* Visualization tools */
 	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const;
@@ -47,6 +48,18 @@ public:
 	void setClampBasis(bool isClamped);
 	int getLevel() const; 
 	int getSampleSize() const; 
+	const Eigen::MatrixXd& getEigenVectorsRef() const;
+	const Eigen::VectorXd& getEigenVectorsRef(int id) const;
+	const Eigen::VectorXd& getEigenValuesRef() const;
+	const double getEigenValueRef(int id) const;
+	const Eigen::MatrixXd& getEigenVectorsReduced() const;
+	const Eigen::VectorXd& getEigenVectorsReduced(int id) const;
+	const Eigen::VectorXd& getEigenValuesReduced() const;
+	const double getEigenValueReduced(int id) const;
+	const Eigen::MatrixXd& getEigenVectorsSIM() const;
+	const Eigen::VectorXd& getEigenVectorsSIM(int id) const;
+	const Eigen::VectorXd& getEigenValuesSIM() const;
+	const double getEigenValueSIM(int id) const;
 
 protected:
 	/* Mesh-related variables */

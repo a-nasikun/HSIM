@@ -448,34 +448,36 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			///
 			///ImGui::Spacing(); ImGui::Spacing();
 			///
-			////* Solving Low-Dim Eigenproblem */
-			///if (ImGui::Button("[4] Solve Low-Dim Eigenproblem", ImVec2(w, 0))) {
-			///	if (ml_eigSolver.Basis.cols()<1 || ml_eigSolver.Sample.size()<1) {
-			///		cout << "Error! Make sure you execute previous steps before solving the Low-Dim Eigenproblem." << endl;
-			///		return;
-			///	}
-			///
-			///	cout << "Computing the restricted eigen problem" << endl;
-			///	chrono::high_resolution_clock::time_point	t0, t1;
-			///	chrono::duration<double>					duration;
-			///	t0 = chrono::high_resolution_clock::now();
-			///
-			///	ml_eigSolver.constructRestrictedProblem();
-			///	ml_eigSolver.solveRestrictedProblem();
-			///
-			///	t1 = chrono::high_resolution_clock::now();
-			///	duration = t1 - t0;
-			///	cout << "in " << duration.count() << " seconds." << endl;
-			///
-			///
-			///	//cout << "(approx) Eigenvector: \n " << ml_eigSolver.reducedEigVals << endl << endl; 
-			///
-			///	// Show the first non-zero eigenvectors
-			///	eigToShow = 1;
-			///	Z = ml_eigSolver.Basis * ml_eigSolver.reducedEigVects.col(eigToShow);
-			///	igl::jet(Z, true, vColor);
-			///	viewer.data().set_colors(vColor);
-			///}
+			/* Solving Low-Dim Eigenproblem */
+			if (ImGui::Button("[4] Solve Reduced Eigenproblem##1", ImVec2(w, 0))) {
+				if(eigenSolver->getV().rows()<1 || eigenSolver->getMassMatrix().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1 ){
+					cout << "Error! Make sure you execute previous steps before solving the Low-Dim Eigenproblem." << endl;
+					return;
+				}
+			
+				cout << "Computing the restricted eigen problem" << endl;
+				chrono::high_resolution_clock::time_point	t0, t1;
+				chrono::duration<double>					duration;
+				t0 = chrono::high_resolution_clock::now();
+			
+				eigenSolver->solveRestrictedProblem();
+			
+				t1 = chrono::high_resolution_clock::now();
+				duration = t1 - t0;
+				cout << "in " << duration.count() << " seconds." << endl;
+				eigToShow = 3; 
+			
+				cout << "Showing id: " << eigToShow << endl; 
+				if (problemType == 0) {
+					cout << "Eigen functions. \n";
+					printf("Pos: %dx%d | vectors: %dx%d | id: %d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols(), eigenSolver->getEigenVectorsReduced().rows(), eigenSolver->getEigenVectorsReduced().cols(), eigToShow);
+					showEigenFunctions(viewer, eigenSolver->getEigenVectorsReduced(eigToShow), eigToShow);
+				}
+				else if (problemType == 1) {
+					cout << "Vibration modes \n";
+					showDeformationModes(viewer, eigenSolver->getV(), eigenSolver->getEigenVectorsReduced(eigToShow), eigScale);
+				}			
+			}
 			///
 			///if (ImGui::Button("Save EigVals#Approx", ImVec2(w / 2.0, 0))) {
 			///	int toStore = min(250, (int)ml_eigSolver.reducedEigVals.rows());
@@ -1512,6 +1514,9 @@ void showDeformationModes(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 void showEigenFunctions(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& EigVect, int eigID)
 {
 	Eigen::MatrixXd VColor;
+
+	printf("Visual: Pos: %dx%d |vector: %d | ID: %d \n", viewer.data().V.rows(), viewer.data().V.cols(), EigVect.rows(), eigID);
+
 	if (eigID > 0)
 		igl::jet(EigVect, true, VColor);
 	else
