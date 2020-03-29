@@ -687,6 +687,68 @@ void MLSolverElastics::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, c
 	D.setConstant(numeric_limits<double>::infinity());
 }
 
+/* Visualization Tools*/
+void MLSolverElastics::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const
+{
+	Eigen::MatrixXd TVNew(V.rows(), V.cols());
+	TVNew.setZero();
+
+	if (isClampedBasis) {
+		Eigen::VectorXd BUp = SelMatrix * Basis.col(id);
+		for (unsigned int ti = 0; ti < V.rows(); ti++) {
+			TVNew(ti, 0) = BUp(3 * ti + 0);
+			TVNew(ti, 1) = BUp(3 * ti + 1);
+			TVNew(ti, 2) = BUp(3 * ti + 2);
+		}
+	}
+	else {
+		for (unsigned int ti = 0; ti < V.rows(); ti++) {
+			TVNew(ti, 0) = Basis.coeff(3 * ti + 0, id);
+			TVNew(ti, 1) = Basis.coeff(3 * ti + 1, id);
+			TVNew(ti, 2) = Basis.coeff(3 * ti + 2, id);
+		}
+	}
+
+	//cout << "TV new: " << TVNew.row(0) << " vs TV old: " << simulation.TV.row(0) << endl;
+
+	viewer.data().clear();
+	viewer.data().set_mesh(scale*TVNew + V, TF);
+}
+
+void MLSolverElastics::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const
+{
+	Eigen::MatrixXd TVNew(V.rows(), V.cols());
+	Eigen::VectorXd EigVectTemp;
+	TVNew.setZero();
+
+
+	switch (eigType)
+	{
+	case EigenVectorType::EIGEN_REFERENCE:
+		EigVectTemp = EigVectsRef.col(id);
+		break;
+	case EigenVectorType::EIGEN_REDUCED:
+		EigVectTemp = EigVectsReduced.col(id);
+		break;
+	case EigenVectorType::EIGEN_SIM:
+		EigVectTemp = EigVectsSIM.col(id);
+		break;
+	default:
+		break;
+	}
+		
+	for (unsigned int ti = 0; ti < V.rows(); ti++) {
+		TVNew(ti, 0) = EigVectTemp.coeff(3 * ti + 0, id);
+		TVNew(ti, 1) = EigVectTemp.coeff(3 * ti + 1, id);
+		TVNew(ti, 2) = EigVectTemp.coeff(3 * ti + 2, id);
+	}
+	
+	viewer.data().set_vertices(scale*TVNew);
+	viewer.data().compute_normals();
+	//viewer.data().clear();
+	//viewer.data().set_mesh(scale*TVNew + V, TF);
+}
+
 /* Some getters */
 Eigen::MatrixXi MLSolverElastics::getTF() const { return TF; }
 Eigen::MatrixXd MLSolverElastics::getVB() const { return VB; }

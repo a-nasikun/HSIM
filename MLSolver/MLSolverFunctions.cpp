@@ -417,3 +417,40 @@ void MLSolverFunctions::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, 
 	}
 	D.setConstant(numeric_limits<double>::infinity());
 }
+
+/* Visualization Tools*/
+void MLSolverFunctions::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const
+{
+	Eigen::MatrixXd VColor;
+	Eigen::VectorXd funcCols = Basis.col(id);
+	igl::jet(funcCols, true, VColor);
+	viewer.data().set_colors(VColor);
+}
+
+void MLSolverFunctions::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const
+{
+	cout << "Visualizing the eigenvector of id " << id << endl; 
+	Eigen::VectorXd vColor;
+	Eigen::MatrixXd VColor;
+	//printf("Visual: Pos: %dx%d |vector: %d | ID: %d \n", viewer.data().V.rows(), viewer.data().V.cols(), EigVect.rows(), eigID);
+
+	switch (eigType)
+	{
+	case EigenVectorType::EIGEN_REFERENCE:
+		vColor = EigVectsRef.col(id);
+		break;
+	case EigenVectorType::EIGEN_REDUCED:
+		vColor = EigVectsReduced.col(id);
+		break;
+	case EigenVectorType::EIGEN_SIM:
+		vColor = EigVectsSIM.col(id);
+		break;
+
+	default:
+		break;
+	}
+
+	igl::jet(vColor, id > 0, VColor);
+	viewer.data().set_colors(VColor);
+}
+

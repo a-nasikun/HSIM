@@ -39,11 +39,11 @@ static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
 string				model			= "Sphere40k";
 static int			SIMtype			= 2;
-int					problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
-int					matType			= 0;					// material type (for hessian/linear elasticity)
-int					defAxis = 0;							// axis in selecting the partial eigenproblem
-double				clampRegion;							// percentage of the clampling
-int					eigScale		= 0.005;
+static int			problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
+static int			matType			= 0;					// material type (for hessian/linear elasticity)
+static int			defAxis = 0;							// axis in selecting the partial eigenproblem
+static double		clampRegion;							// percentage of the clampling
+static int			eigScale		= 1.005;
 
 void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
 {
@@ -465,18 +465,21 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
-				eigToShow = 3; 
-			
-				cout << "Showing id: " << eigToShow << endl; 
-				if (problemType == 0) {
-					cout << "Eigen functions. \n";
-					printf("Pos: %dx%d | vectors: %dx%d | id: %d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols(), eigenSolver->getEigenVectorsReduced().rows(), eigenSolver->getEigenVectorsReduced().cols(), eigToShow);
-					showEigenFunctions(viewer, eigenSolver->getEigenVectorsReduced(eigToShow), eigToShow);
-				}
-				else if (problemType == 1) {
-					cout << "Vibration modes \n";
-					showDeformationModes(viewer, eigenSolver->getV(), eigenSolver->getEigenVectorsReduced(eigToShow), eigScale);
-				}			
+
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+
+				//eigToShow = 3; 
+				//
+				//cout << "Showing id: " << eigToShow << endl; 
+				//if (problemType == 0) {
+				//	cout << "Eigen functions. \n";
+				//	printf("Pos: %dx%d | vectors: %dx%d | id: %d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols(), eigenSolver->getEigenVectorsReduced().rows(), eigenSolver->getEigenVectorsReduced().cols(), eigToShow);
+				//	showEigenFunctions(viewer, eigenSolver->getEigenVectorsReduced(eigToShow), eigToShow);
+				//}
+				//else if (problemType == 1) {
+				//	cout << "Vibration modes \n";
+				//	showDeformationModes(viewer, eigenSolver->getV(), eigenSolver->getEigenVectorsReduced(eigToShow), eigScale);
+				//}			
 			}
 			///
 			///if (ImGui::Button("Save EigVals#Approx", ImVec2(w / 2.0, 0))) {
@@ -488,6 +491,167 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			///	int toStore = 250;
 			///	writeDenseMatrixToFile(ml_eigSolver.Basis*ml_eigSolver.reducedEigVects.block(0, 0, ml_eigSolver.V.rows(), toStore), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Red_" + to_string(toStore) + ".txt");
 			///}
+
+			/* VISUALIZATION WINDOW */
+			if (ImGui::CollapsingHeader("Visualization##MLEigSolver1", ImGuiTreeNodeFlags_DefaultOpen)) {
+				/* For Sampling */
+				if (ImGui::Button("Show Samples##1", ImVec2((w), 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1) {
+						cout << "Error! Make sure you compute new samples before viewing them." << endl;
+						return;
+					}
+
+					boolShowSamples = !boolShowSamples;
+					if (boolShowSamples) {
+						visualizeSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize());
+					} else {
+						viewer.data().points.resize(0, 6);
+					}
+					viewer.data().point_size = 10.0f;
+				}
+								
+				/* For Basis */
+				if (problemType == 1) {
+					static char scale[25] = "1.05"; ImGui::InputText("Spatial Scaling", scale, 10);
+					eigScale = atof(scale);
+				}
+				ImGui::Text("Show Basis ");
+				ImGui::SameLine(0, p);
+				if (ImGui::Button("-1##Basis1", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 ||  eigenSolver->getBasisMatrix().rows()<1) {
+						cout << "Error! Make sure you have computed basis function on the current model." << endl;
+						return;
+					}
+
+					if (basisToShow > 0) basisToShow--;
+
+					if (boolShowSamples) {
+						boolShowSamples = false;
+						viewer.data().points.resize(0, 6);
+					}
+
+					eigenSolver->visualizeBasis(viewer, basisToShow, eigScale);
+				}
+				ImGui::SameLine(0, p);
+				ImGui::Text("[%d]", basisToShow);
+				ImGui::SameLine(0, p);
+
+				if (ImGui::Button("+ 1##Basis1", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1) {
+						cout << "Error! Make sure you have computed basis function on the current model." << endl;
+						return;
+					}
+
+					if (basisToShow < (eigenSolver->getBasisMatrix().cols()-1))
+						basisToShow++;
+
+					if (boolShowSamples) {
+						boolShowSamples = false;
+						viewer.data().points.resize(0, 6);
+					}
+
+					eigenSolver->visualizeBasis(viewer, basisToShow, eigScale);
+				}
+				ImGui::SameLine(0, p);
+				if (ImGui::Button("Rand1", ImVec2((w - 85.0f - 5.0*p) * 2 / 4.f, 0))) {
+					if(eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1) {
+						cout << "Error! Make sure you have computed basis function on the current model." << endl;
+						return;
+					}
+
+					srand(time(NULL));
+					basisToShow = rand() % eigenSolver->getBasisMatrix().cols();
+
+					if (boolShowSamples) {
+						boolShowSamples = false;
+						viewer.data().points.resize(0, 6);
+					}
+
+					eigenSolver->visualizeBasis(viewer, basisToShow, eigScale);
+				}
+				/* For Approx. Eigenvectors */				
+				ImGui::Text("Show EigVec");
+				ImGui::SameLine(0, p);
+				if (ImGui::Button("- 1##EigVec1", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1 || eigenSolver->getEigenValuesReduced().rows()<1) {
+						cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+						return;
+					}
+
+					if (eigToShow > 0)
+						eigToShow--;
+
+					eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+				}
+				ImGui::SameLine(0, p);
+				ImGui::Text("[%d]", eigToShow);
+				ImGui::SameLine(0, p);
+
+				if (ImGui::Button("+ 1##EigVec1", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1 || eigenSolver->getEigenValuesReduced().rows()<1) {
+						cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+						return;
+					}
+
+					if (eigToShow < (eigenSolver->getEigenValuesReduced().rows()-1))
+						eigToShow++;
+					
+					eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);					
+				}
+				ImGui::SameLine(0, p);
+				if (ImGui::Button("Red##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1 || eigenSolver->getEigenValuesReduced().rows()<1) {
+						cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+						return;
+					}
+
+					eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+				}
+
+				/* For Reference Eigenvectors */
+				ImGui::Text("Show Refer.");
+				ImGui::SameLine(0, p);
+				if (ImGui::Button("- 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1 || eigenSolver->getEigenValuesRef().rows()<1) {
+						cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+						return;
+					}
+
+					if (eigToShow >0)
+						eigToShow--;
+
+					eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
+				}
+				ImGui::SameLine(0, p);
+				ImGui::Text("[%d]", eigToShow);
+				ImGui::SameLine(0, p);
+
+				if (ImGui::Button("+ 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1 || eigenSolver->getEigenValuesRef().rows()<1) {
+						cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+						return;
+					}
+
+
+					if (eigToShow < (eigenSolver->getEigenValuesRef().rows() - 1))
+						eigToShow++;
+
+					eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
+				}
+				ImGui::SameLine(0, p);
+				if (ImGui::Button("Ref##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
+					if (eigenSolver->getV().rows()<1 || eigenSolver->getSampleSize()<1 || eigenSolver->getBasisMatrix().rows()<1 || eigenSolver->getEigenValuesRef().rows()<1) {
+						cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+						return;
+					}
+
+					eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
+				}
+
+				/* Overlays */
+				ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));
+				ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
+			}
 		}
 	}
 }

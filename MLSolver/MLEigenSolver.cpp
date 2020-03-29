@@ -212,6 +212,9 @@ void MLEigenSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer
 	viewer.data().set_colors(VColor);
 }
 
+void MLEigenSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const {}
+void MLEigenSolver::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const {}
+
 /* Some getters */
 Eigen::MatrixXd MLEigenSolver::getV() const { return V; }
 Eigen::MatrixXi MLEigenSolver::getF() const { return F; }
@@ -224,6 +227,8 @@ bool MLEigenSolver::getClampBasis() const { return isClampedBasis; }
 void MLEigenSolver::setClampBasis(bool isClamped) { isClampedBasis = isClamped; }
 int MLEigenSolver::getLevel() const { return level; }
 int MLEigenSolver::getSampleSize() const { return sampleSize; }
+const Eigen::VectorXi& MLEigenSolver::getSample() const { return Sample; }
+const vector<int>& MLEigenSolver::getSubspaceSize() const { return SubspaceSize; }
 
 /* Getters of the eigen-values + vectors*/
 const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsRef() const			{ return EigVectsRef; }

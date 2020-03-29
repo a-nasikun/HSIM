@@ -19,7 +19,10 @@ public:
 	void virtual constructBasisNonSmooth(double support, int axis = 0, double offset = 0.0);
 	void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support);
 	void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);
-
+	
+	/* Visualization Tools*/
+	void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale = 1.0) const;
+	void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale = 1.0) const;
 
 	/* Some getters */
 	Eigen::MatrixXi getTF() const;

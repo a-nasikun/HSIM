@@ -11,12 +11,15 @@
 
 using namespace std;
 
-enum class SIMType { SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
+
 //enum class Problem_Class { Laplace_Beltrami, Linear_Elasticity };
 
 class MLEigenSolver
 {
 public:
+	enum class EigenVectorType	{ EIGEN_REFERENCE, EIGEN_REDUCED, EIGEN_SIM };
+	enum class SIMType			{ SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
+
 	void readMesh(const string &meshFile);
 	void setInitialSystem(int n);
 	void initiateAdM();
@@ -35,6 +38,8 @@ public:
 	
 	/* Visualization tools */
 	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const;
+	void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale=1.0) const;
+	void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType,  double scale=1.0) const;
 
 	/* Some setters and getters */
 	Eigen::MatrixXd getV() const;
@@ -48,6 +53,9 @@ public:
 	void setClampBasis(bool isClamped);
 	int getLevel() const; 
 	int getSampleSize() const; 
+	const Eigen::VectorXi& getSample() const;
+	const vector<int>& getSubspaceSize() const;
+
 	const Eigen::MatrixXd& getEigenVectorsRef() const;
 	const Eigen::VectorXd& getEigenVectorsRef(int id) const;
 	const Eigen::VectorXd& getEigenValuesRef() const;
@@ -60,6 +68,8 @@ public:
 	const Eigen::VectorXd& getEigenVectorsSIM(int id) const;
 	const Eigen::VectorXd& getEigenValuesSIM() const;
 	const double getEigenValueSIM(int id) const;
+
+	
 
 protected:
 	/* Mesh-related variables */
