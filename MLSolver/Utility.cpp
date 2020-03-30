@@ -145,12 +145,11 @@ void writeDenseMatrixToFile(const Eigen::MatrixXd& M, const string& filename)
 	else cout << "Unable to open file";
 }
 
-void generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
+void generateRandomMatrix(int m, int n, Eigen::MatrixXd& Mat)
 {
 	Eigen::MatrixXd MTemp(m, n);
 	Eigen::MatrixXd Id(m, n); Id.setIdentity();
-	M.resize(m, n);
-	//MTemp.setIdentity();
+	Mat.resize(m, n);
 
 	/* Random number generator */
 	std::random_device rd;								// Will be used to obtain a seed for the random number engine
@@ -158,7 +157,7 @@ void generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
 
 	std::uniform_int_distribution<> dist(0, m);			// From 0 to F.rows()-1
 
-													   /* Filling out each element by random numbers */
+	/* Filling out each element by random numbers */
 	for (int j = 0; j < n; j++) {						// column
 		for (int i = 0; i < m; i++) {					// row
 			double randNum = (double)dist(gen);
@@ -168,14 +167,12 @@ void generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
 	}
 
 	/* Use as it is */
-	M = MTemp;
+	Mat = MTemp;
 
 	/* Regular normalization */
 	//for (int j = 0; j < n; j++) {
 	//	M.col(j) = MTemp.col(j).normalized();
 	//}
-
-
 
 	/* QR orthonormalized*/
 	//cout << "Householder QR :";
@@ -186,9 +183,33 @@ void generateRandomMatrix(int m, int n, Eigen::MatrixXd& M)
 	//cout << "its rank:" << qr.rank() << endl;
 	//M = qr.householderQ()*Id;
 
-	cout << " done\n";
+	cout << "Block: \n" << Mat.topLeftCorner(20, min(n, 10)) << endl;
+}
 
-	cout << "Block: \n" << M.topLeftCorner(20, min(n, 10)) << endl;
+void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat)
+{
+	/* Initiating the Bathe's proposed inite vectors */
+	Mat.resize(m, n);
+	Eigen::VectorXd e(m); e.setZero();	
+	Mat.col(0) = M.diagonal();
 
-	/* Normalization*/
+	for (int i = 1; i < (n-1); ++i) {
+		e(i) = 1.0;
+		Mat.col(i) = e;
+		e(i) = 0.0;
+	}
+
+	/* Last column **
+	** Filling out each element by random numbers */
+	std::random_device rd;								// Will be used to obtain a seed for the random number engine
+	std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
+	std::uniform_int_distribution<> dist(0, m);			// From 0 to F.rows()-1
+	
+	for (int i = 0; i < m; ++i) {					// row
+		double randNum = (double)dist(gen);
+		Mat(i, n-1) = 2.0 * (randNum / (double)m - 0.5);
+	}
+	double mNorm = Mat.col(n-1).transpose()*M*Mat.col(n-1);
+	mNorm = (double) 1.0 / sqrt(mNorm);
+	Mat.col(n-1) = mNorm * Mat.col(n-1);
 }

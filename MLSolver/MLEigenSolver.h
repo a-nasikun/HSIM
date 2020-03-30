@@ -26,6 +26,7 @@ public:
 	void virtual constructMassMatrix();
 	void virtual constructStiffnessMatrix();
 
+	/* Construction of the subspace and/or hierarchy */
 	void constructSampleHierarchy(const Eigen::VectorXd& samples);	// Constructing multi-level samples
 	void virtual constructBasis(double support, int axis=0, double offset = 0.0);											// Constructing multi-level basis
 	void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0);
@@ -35,7 +36,14 @@ public:
 	void formPartitionOfUnityMultiLevel();
 	void formPartitionOfUnity();
 	void solveRestrictedProblem();
-	
+
+	/* Subspace Iteration methods */
+	void performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter = 10, double tol = 1e-4, bool isWithShift = false);
+	void performSIMwithWarmStart(SIMType type, int numEigs, int maxIter = 10, double tol = 1e-4, bool isWithShift = false);
+	void performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter = 10, double tol=1e-4, bool isWithShift = false);
+	void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const;
+	void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate) const;
+
 	/* Visualization tools */
 	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const;
 	void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale=1.0) const;

@@ -9,9 +9,9 @@
 /* [MAIN FUNCTION THAT CALLS EVERYTHING ELSE] */
 int main(int argc, char *argv[])
 {
-	string meshFile; 
+	string							meshFile; 
 	MLEigSolver						ml_eigSolver;
-	MLEigenSolver*	eigenSolver = new MLEigenSolver();
+	MLEigenSolver*					eigenSolver = new MLEigenSolver();
 
 
 	/* GUI FUNCTIONALITY */	
@@ -26,16 +26,13 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
 	meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_5k.obj";
 
-	//ml_eigSolver.setInitialSystem(1);
-	//ml_eigSolver.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
 	ml_eigSolver.readMesh(meshFile, ml_eigSolver.V, ml_eigSolver.F);
-	//ml_eigSolver.getV(V);
-	//ml_eigSolver.getF(F);
-	//if (V.rows() < 1) viewer.data_list.clear();
 			
 	menu.callback_draw_viewer_window = [&]()
 	{
 		reducedSpaceMenu(viewer, menu, eigenSolver);
+		SIMMenu(viewer, menu, eigenSolver);
+
 		fastSpectrumMenu(viewer, menu, ml_eigSolver);
 		applicationMenu(viewer, menu, ml_eigSolver);
 		subspaceMenu(viewer, menu, ml_eigSolver);

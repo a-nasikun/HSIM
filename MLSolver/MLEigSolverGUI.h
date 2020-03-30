@@ -48,7 +48,7 @@ static int			eigScale		= 1.005;
 void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
 {
 	// Variables For Viewer visualization
-	float	menuWindowLeft		= 800.f,
+	float	menuWindowLeft		= 50.f,
 			menuWindowWidth		= 200.f,
 			menuWindowHeight	= 475.f;
 
@@ -217,8 +217,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 	}
 
 		/* STEP BY STEP CONSTRUCTION */
-		
-
 		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			/* Set material propertries*/
 			double	m1lame1 = 1.49977776131565*1e-9,
@@ -656,9 +654,162 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			/* Overlays */
 			ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));
 			ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
-		}
+		}		
 		
+		ImGui::End();
+}
+
+void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) {
+	// Variables For Viewer visualization
+	float	menuWindowLeft		= 475.f,
+			menuWindowWidth		= 200.f,
+			menuWindowHeight	= 675.f;
 	
+	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	ImGui::Begin("Subspace Iteration Method##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
+
+	float w = ImGui::GetContentRegionAvailWidth();
+	float p = ImGui::GetStyle().FramePadding.x;
+
+	static int SIMType = 2;
+
+	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
+		/* some parameters */
+		static int		numOfModes	= 5;
+		static int		maxIter		= 5;
+		static double	tol			= 1e-4;
+		/* Type of the SIM to be computed*/
+		std::map<int, MLEigenSolver::SIMType>			typeMap;
+		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(0, MLEigenSolver::SIMType::SIM_MultiLevel));
+		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(1, MLEigenSolver::SIMType::SIM_1level_WarmStart));
+		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(2, MLEigenSolver::SIMType::SIM_1level_Random));
+		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(3, MLEigenSolver::SIMType::SIM_1level_Bathe));
+
+		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
+			static char numModesTxt[10] = "5"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
+			static char maxIterTxt[10] = "5"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
+			static char tolTxt[10] = "0.0001"; ImGui::InputText("Tolerance", tolTxt, 10);
+			numOfModes	= atoi(numModesTxt);
+			maxIter		= atoi(maxIterTxt);
+			tol			= atof(tolTxt);
+
+			ImGui::RadioButton("Random init",	&SIMType, 2);			ImGui::SameLine();
+			ImGui::RadioButton("Bathe init",	&SIMType, 3);			//ImGui::SameLine();
+			ImGui::RadioButton("SGP init",		&SIMType, 1);			ImGui::SameLine();
+			ImGui::RadioButton("Multi-level",	&SIMType, 0);			//ImGui::SameLine();
+		}
+
+		static bool isShiftedSIM = false;
+		ImGui::Checkbox("with shift", &(isShiftedSIM));
+		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
+			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
+			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+
+			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM);
+
+			printf("Successfully computing the eigenvalues \n");
+			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM() << endl;
+			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
+		}
+
+		///if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
+		///	double thisTol = 1e-2;
+		///	vector<int> wantedModes{ 50, 100, 250 };
+		///	//vector<int> wantedModes{ 250 };
+		///	for (int j = 0; j < wantedModes.size(); j++) {
+		///		for (int k = 0; k < 4; k++) {
+		///			double tolTol = thisTol / pow(10, k);
+		///			ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_MultiLevel, isShiftedSIM, tolTol, wantedModes[j], maxIter);
+		///			///ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, tolTol, wantedModes[j], maxIter);
+		///			///ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Bathe,  tolTol, wantedModes[j], maxIter);
+		///		}
+		///	}
+		///}
+		///
+		///if (ImGui::Button("Scripted experiment (2)", ImVec2(w, 0))) {
+		///	double thisTol = 1e-2;
+		///	vector<int> wantedModes{ 50, 100, 250 };
+		///	for (int j = 0; j < wantedModes.size(); j++) {
+		///		for (int k = 0; k < 4; k++) {
+		///			double tolTol = thisTol / pow(10, k);
+		///			ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_WarmStart, isShiftedSIM, tolTol, wantedModes[j], maxIter);
+		///		}
+		///	}
+		///}
+		///
+		///if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
+		///	//ml_eigSolver.SubspaceIterMethod(viewer);
+		///	ml_eigSolver.SubspaceIterMethodShift(viewer, tol, numOfModes, maxIter);
+		///}
+		///
+		///if (ImGui::Button("Check matrix", ImVec2(w, 0))) {
+		///	Eigen::SparseMatrix<double> SS = ml_eigSolver.ST;
+		///	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
+		///	//spSolver.compute(MM);
+		///	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> ldltSolver;
+		///	ldltSolver.compute(SS);
+		///	cout << "Diag D: \n" << ldltSolver.vectorD() << endl;
+		///}
+		///
+		///if (ImGui::Button("Save EigVals#RIM", ImVec2(w / 2.0, 0))) {
+		///	//writeDenseMatrixToFile(ml_eigSolver.SIMeigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(ml_eigSolver.SIMeigVals.rows()) + ".txt");
+		///	writeDenseMatrixToFile(ml_eigSolver.SIMeigValsStack, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(ml_eigSolver.SIMeigVals.rows()) + ".txt");
+		///}
+		///ImGui::SameLine(0, p);
+		///if (ImGui::Button("Save EigVect#RIM", ImVec2(w / 2.0, 0))) {
+		///	writeDenseMatrixToFile(ml_eigSolver.SIMeigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_SIM_" + to_string(ml_eigSolver.SIMeigVects.cols()) + ".txt");
+		///}
+		///
+		////* For Subspace Iteration Method Eigenvectors */
+		///Eigen::MatrixXd vColor;
+		///ImGui::Text("Show EigVec");
+		///ImGui::SameLine(0, p);
+		///if (ImGui::Button("- 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
+		///	if (ml_eigSolver.SIMeigVects.cols() < 1) return;
+		///	if (eigToShow > 0)
+		///		eigToShow--;
+		///
+		///	if (problemType == (int)Problem_Class::Laplace_Beltrami)
+		///		showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+		///	else if (problemType == (int)Problem_Class::Linear_Elasticity)
+		///		showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
+		///	//if (eigToShow>0)
+		///	//	igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
+		///	//else
+		///	//	igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
+		///	//viewer.data().set_colors(vColor);
+		///
+		///}
+		///ImGui::SameLine(0, p);
+		///ImGui::Text("[%d]", eigToShow);
+		///ImGui::SameLine(0, p);
+		///
+		///if (ImGui::Button("+ 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
+		///	if (ml_eigSolver.SIMeigVects.cols() < 1) return;
+		///	if (eigToShow < (ml_eigSolver.SIMeigVects.cols() - 1))
+		///		eigToShow++;
+		///
+		///	if (problemType == (int)Problem_Class::Laplace_Beltrami)
+		///		showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+		///	else if (problemType == (int)Problem_Class::Linear_Elasticity)
+		///		showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
+		///	//igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
+		///	//viewer.data().set_colors(vColor);
+		///}
+		///ImGui::SameLine(0, p);
+		///if (ImGui::Button("SIM##EigVecSIM", ImVec2((w - 50.0f - 3 * p) / 3.f, 0))) {
+		///	if (problemType == (int)Problem_Class::Laplace_Beltrami)
+		///		showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
+		///	else if (problemType == (int)Problem_Class::Linear_Elasticity)
+		///		showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
+		///
+		///	//igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
+		///	//viewer.data().set_colors(vColor);
+		///}
+
+	}
+	ImGui::End();
 }
 
 void fastSpectrumMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigSolver &ml_eigSolver) {
@@ -1332,7 +1483,6 @@ void subspaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 	float	menuWindowLeft		= 375.f,
 			menuWindowWidth		= 200.f,
 			menuWindowHeight	= 475.f;
-
 	
 	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
 	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
