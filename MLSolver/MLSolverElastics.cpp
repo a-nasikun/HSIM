@@ -738,12 +738,12 @@ void MLSolverElastics::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, i
 	}
 		
 	for (unsigned int ti = 0; ti < V.rows(); ti++) {
-		TVNew(ti, 0) = EigVectTemp.coeff(3 * ti + 0, id);
-		TVNew(ti, 1) = EigVectTemp.coeff(3 * ti + 1, id);
-		TVNew(ti, 2) = EigVectTemp.coeff(3 * ti + 2, id);
+		TVNew(ti, 0) = EigVectTemp(3 * ti + 0);
+		TVNew(ti, 1) = EigVectTemp(3 * ti + 1);
+		TVNew(ti, 2) = EigVectTemp(3 * ti + 2);
 	}
 	
-	viewer.data().set_vertices(scale*TVNew);
+	viewer.data().set_vertices(V+scale*TVNew);
 	viewer.data().compute_normals();
 	//viewer.data().clear();
 	//viewer.data().set_mesh(scale*TVNew + V, TF);
