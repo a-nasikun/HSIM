@@ -142,6 +142,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		if (problemType == 1) {
 			if (ImGui::Button("Create Tet-Mesh", ImVec2((w), 0))) {
 				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
+					if (solver->getF().cols() == 4) return;
 					solver->createTetrahedralMesh();
 					solver->computeVolume();/* Set the parameters of the mesh for deformable objects */
 					viewer.data().clear();
@@ -364,8 +365,14 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Checkbox("Clamp Basis##1", &isClampedBasis);
 			static double numOfSupport;
 			static char numSupTxt[15] = "40.0"; ImGui::InputText("Num of Supports", numSupTxt, 6);
-			static char clampRegionTxt[10] = "0.01"; ImGui::InputText("Selection", clampRegionTxt, 10);
-
+						
+			if (isClampedBasis) {
+				ImGui::RadioButton("X", &defAxis, 0); ImGui::SameLine();
+				ImGui::RadioButton("Y", &defAxis, 1); ImGui::SameLine();
+				ImGui::RadioButton("Z", &defAxis, 2); ImGui::SameLine();
+				static char clampRegionTxt[10] = "0.01"; ImGui::InputText("Selection", clampRegionTxt, 10);
+				clampRegion = atof(clampRegionTxt);
+			}
 
 			if (ImGui::Button("[3] Construct Basis##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) {
@@ -380,7 +387,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				eigenSolver->setClampBasis(isClampedBasis);
 				numOfSupport = atof(numSupTxt);
-				clampRegion = atof(clampRegionTxt);
 
 				eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
 
@@ -411,7 +417,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					return;
 				}
 				numOfSupport = atof(numSupTxt);
-				clampRegion = atof(clampRegionTxt);
 				eigenSolver->setClampBasis(isClampedBasis);
 
 				eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
@@ -425,7 +430,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					return;
 				}
 				numOfSupport = atof(numSupTxt);
-				clampRegion = atof(clampRegionTxt);
 				eigenSolver->setClampBasis(isClampedBasis);
 
 				eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
@@ -467,7 +471,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
 
-				//eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 
 				//eigToShow = 3; 
 				//
@@ -494,7 +498,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			///}
 		}
 
-			/* VISUALIZATION WINDOW */
+		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
+
+		/* VISUALIZATION WINDOW */
 		if (ImGui::CollapsingHeader("Visualization##MLEigSolver1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			/* For Sampling */
 			if (ImGui::Button("Show Samples##1", ImVec2((w), 0))) {
@@ -573,9 +579,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->visualizeBasis(viewer, basisToShow, eigScale);
 			}
 			/* For Approx. Eigenvectors */
-			ImGui::Text("Show EigVec");
+			ImGui::Text("Reduced");
 			ImGui::SameLine(0, p);
-			if (ImGui::Button("- 1##EigVec1", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
+			if (ImGui::Button("- 1##EigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesReduced().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
@@ -590,7 +596,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Text("[%d]", eigToShow);
 			ImGui::SameLine(0, p);
 
-			if (ImGui::Button("+ 1##EigVec1", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
+			if (ImGui::Button("+ 1##EigVec1", ImVec2((w-120.0-3 * p) / 2.f, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesReduced().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
@@ -602,7 +608,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 			}
 			ImGui::SameLine(0, p);
-			if (ImGui::Button("Red##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
+			if (ImGui::Button("Red##EigVec1", ImVec2((w-85.0-3 * p) / 3.f, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesReduced().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
@@ -612,10 +618,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 
 			/* For Reference Eigenvectors */
-			ImGui::Text("Show Refer.");
+			ImGui::Text("Reference");
 			ImGui::SameLine(0, p);
-			if (ImGui::Button("- 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
+			if (ImGui::Button("- 1##RefEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -629,8 +635,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Text("[%d]", eigToShow);
 			ImGui::SameLine(0, p);
 
-			if (ImGui::Button("+ 1##RefEigVec1", ImVec2((w - 150.0f - 3 * p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
+			if (ImGui::Button("+ 1##RefEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -642,8 +648,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
 			}
 			ImGui::SameLine(0, p);
-			if (ImGui::Button("Ref##EigVec1", ImVec2((w - 150.0f - 3 * p) / 3.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
+			if (ImGui::Button("Ref##EigVec1", ImVec2((w-85.0-3*p) / 3.f, 0))) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -651,8 +657,48 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
 			}
 
+			/* For SIM Eigenvectors */
+			ImGui::Text("SIM Eigs.");
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("- 1##SIMEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+					return;
+				}
+
+				if (eigToShow > 0)
+					eigToShow--;
+
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
+			}
+			ImGui::SameLine(0, p);
+			ImGui::Text("[%d]", eigToShow);
+			ImGui::SameLine(0, p);
+
+			if (ImGui::Button("+ 1##SIMEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+					return;
+				}
+
+				if (eigToShow < (eigenSolver->getEigenValuesSIM().rows() - 1))
+					eigToShow++;
+
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("SIM##EigVec1", ImVec2((w-85.0-3* p) / 3.f, 0))) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+					return;
+				}
+
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
+			}
+
 			/* Overlays */
 			ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));
+			ImGui::SameLine();
 			ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
 		}		
 		
@@ -673,6 +719,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	float p = ImGui::GetStyle().FramePadding.x;
 
 	static int SIMType = 2;
+	static bool isClampedEigen = false; 
 
 	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
 		/* some parameters */
@@ -760,54 +807,71 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		///if (ImGui::Button("Save EigVect#RIM", ImVec2(w / 2.0, 0))) {
 		///	writeDenseMatrixToFile(ml_eigSolver.SIMeigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_SIM_" + to_string(ml_eigSolver.SIMeigVects.cols()) + ".txt");
 		///}
-		///
-		////* For Subspace Iteration Method Eigenvectors */
-		///Eigen::MatrixXd vColor;
-		///ImGui::Text("Show EigVec");
-		///ImGui::SameLine(0, p);
-		///if (ImGui::Button("- 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
-		///	if (ml_eigSolver.SIMeigVects.cols() < 1) return;
-		///	if (eigToShow > 0)
-		///		eigToShow--;
-		///
-		///	if (problemType == (int)Problem_Class::Laplace_Beltrami)
-		///		showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
-		///	else if (problemType == (int)Problem_Class::Linear_Elasticity)
-		///		showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
-		///	//if (eigToShow>0)
-		///	//	igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
-		///	//else
-		///	//	igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), false, vColor);		// for zero-th eigenvector, it doesn't make sense to scale, since they're supposed to be constant
-		///	//viewer.data().set_colors(vColor);
-		///
-		///}
-		///ImGui::SameLine(0, p);
-		///ImGui::Text("[%d]", eigToShow);
-		///ImGui::SameLine(0, p);
-		///
-		///if (ImGui::Button("+ 1##EigVecSIM", ImVec2((w - 120.0f - 3 * p) / 2.f, 0))) {
-		///	if (ml_eigSolver.SIMeigVects.cols() < 1) return;
-		///	if (eigToShow < (ml_eigSolver.SIMeigVects.cols() - 1))
-		///		eigToShow++;
-		///
-		///	if (problemType == (int)Problem_Class::Laplace_Beltrami)
-		///		showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
-		///	else if (problemType == (int)Problem_Class::Linear_Elasticity)
-		///		showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
-		///	//igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
-		///	//viewer.data().set_colors(vColor);
-		///}
-		///ImGui::SameLine(0, p);
-		///if (ImGui::Button("SIM##EigVecSIM", ImVec2((w - 50.0f - 3 * p) / 3.f, 0))) {
-		///	if (problemType == (int)Problem_Class::Laplace_Beltrami)
-		///		showEigenFunctions(viewer, ml_eigSolver.SIMeigVects.col(eigToShow), eigToShow);
-		///	else if (problemType == (int)Problem_Class::Linear_Elasticity)
-		///		showDeformationModes(viewer, ml_eigSolver.TV, ml_eigSolver.SIMeigVects.col(eigToShow), eigScale);
-		///
-		///	//igl::jet(ml_eigSolver.SIMeigVects.col(eigToShow), true, vColor);
-		///	//viewer.data().set_colors(vColor);
-		///}
+		///	
 
+	}
+
+	ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
+
+	/* [REFERENCE] Eigenvectors */
+	static int solverType = 0; // 0: Matlab, 1: Spectra, 2: CUDA (GPU)
+	if (ImGui::CollapsingHeader("Compute Ref. Eigen", ImGuiTreeNodeFlags_DefaultOpen)) {
+		/* Type of the SIM to be computed*/
+		std::map<int, MLEigenSolver::EigenSolverType>			solverTypeMap;
+		solverTypeMap.insert(std::pair<int, MLEigenSolver::EigenSolverType>(0, MLEigenSolver::EigenSolverType::EIG_SOLVER_MATLAB));
+		solverTypeMap.insert(std::pair<int, MLEigenSolver::EigenSolverType>(1, MLEigenSolver::EigenSolverType::EIG_SOLVER_SPECTRA));
+		solverTypeMap.insert(std::pair<int, MLEigenSolver::EigenSolverType>(2, MLEigenSolver::EigenSolverType::EIG_SOLVER_CUDA));
+
+		static char numEig[6] = "100"; ImGui::InputText("Num eigenpairs", numEig, 6);
+
+		ImGui::RadioButton("Matlab", &solverType, 0); ImGui::SameLine();
+		ImGui::RadioButton("Spectra", &solverType, 1); ImGui::SameLine();
+		ImGui::RadioButton("CUDA", &solverType, 2);
+
+		ImGui::Checkbox("Clamped Eigen", &isClampedEigen);
+		if (isClampedEigen) {
+
+			ImGui::RadioButton("X", &defAxis, 0); ImGui::SameLine();
+			ImGui::RadioButton("Y", &defAxis, 1); ImGui::SameLine();
+			ImGui::RadioButton("Z", &defAxis, 2); ImGui::SameLine();
+			static char selScale[10] = "0.01"; ImGui::InputText("Selection", selScale, 10);
+			clampRegion = atof(selScale);
+		}
+
+		if (ImGui::Button("Compute Reference##1", ImVec2(w, 0))) {
+			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
+
+			eigToCompute = atoi(numEig);			
+			cout << "> Computing reference eigenproblem ";
+
+			chrono::high_resolution_clock::time_point	t0, t1;
+			chrono::duration<double>					duration;
+			t0 = chrono::high_resolution_clock::now();
+
+			if (!isClampedEigen) {
+				eigenSolver->computeRefEigenProblem(eigToCompute, solverTypeMap[solverType]);
+			}
+			else {
+				eigenSolver->computeRefEigenProblemWithSelector(eigToCompute, solverTypeMap[solverType], defAxis, clampRegion);
+			}
+
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << " in " << duration.count() << " seconds." << endl;
+
+			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
+		}
+
+		if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {
+			// read from file 
+		}
+		if (ImGui::Button("Save EigVals#REF", ImVec2(w / 2, 0))) {
+			writeDenseMatrixToFile(eigenSolver->getEigenValuesRef(), "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
+		}
+		ImGui::SameLine(0, p);
+		if (ImGui::Button("Save EigVect#REF", ImVec2(w / 2, 0))) {
+			writeDenseMatrixToFile(eigenSolver->getEigenVectorsRef(), "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
+		}
 	}
 	ImGui::End();
 }

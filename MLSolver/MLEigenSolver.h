@@ -19,6 +19,7 @@ class MLEigenSolver
 public:
 	enum class EigenVectorType	{ EIGEN_REFERENCE, EIGEN_REDUCED, EIGEN_SIM };
 	enum class SIMType			{ SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
+	enum class EigenSolverType	{ EIG_SOLVER_MATLAB, EIG_SOLVER_CUDA, EIG_SOLVER_SPECTRA };
 
 	void readMesh(const string &meshFile);
 	void setInitialSystem(int n);
@@ -43,6 +44,10 @@ public:
 	void performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter = 10, double tol=1e-4, bool isWithShift = false);
 	void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const;
 	void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate) const;
+
+	/* Computing the reference eigenproblem */
+	void computeRefEigenProblem(int numEigs, const EigenSolverType& solverType);
+	void computeRefEigenProblemWithSelector(int numEigs, const EigenSolverType& solverType, int axis=0, double offset=0.0);
 
 	/* Visualization tools */
 	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const;

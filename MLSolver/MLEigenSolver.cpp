@@ -298,7 +298,7 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	double mu;
 	if (isWithShift) {
-		if(EigValsReduced.rows()<1)			// if no information about shifting is available, use no shift
+		if (EigValsReduced.rows() < 1)			// if no information about shifting is available, use no shift
 			factorization.compute(SS);
 		else {
 			mu = EigValsReduced((int)floor(0.4*q));
@@ -511,6 +511,110 @@ void MLEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::
 		double conv = abs(1.0 - rat);
 		convRate(i) = sqrt(conv);
 	}
+}
+
+/* Computing the reference eigenproblem */
+void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& solverType)
+{
+	switch (solverType)
+	{
+	case EigenSolverType::EIG_SOLVER_MATLAB:
+		computeEigenMatlab(S, M, numEigs, EigVectsRef, EigValsRef, "");
+		break;
+	case EigenSolverType::EIG_SOLVER_SPECTRA:
+		computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef);
+		break;
+	case EigenSolverType::EIG_SOLVER_CUDA:
+		if ( M.rows()>7500 ) {
+			cout << "We think the problem is too big to be solved in GPU! \nConsider other solver for this problem.\n";
+			return;
+		}
+		computeEigenGPU(S, M, EigVectsRef, EigValsRef);
+		break;
+
+	default:
+		break;
+	}
+}
+
+void MLEigenSolver::computeRefEigenProblemWithSelector(int numEigs, const EigenSolverType& solverType, int axis, double offset)
+{
+	cout << "____ Creating selector matrix \n";
+	double xMin;
+	double xMax;
+	double xScale;
+	double xBound;		// within this bound, the system will be discarded
+
+	xMin	= V.col(axis).minCoeff();
+	xMax	= V.col(axis).maxCoeff();
+	xScale	= offset;
+	xBound	= xMin + xScale*(xMax - xMin);
+
+	/* Create selector matrix */
+	vector<Eigen::Triplet<double>> STriplet;
+	int vCounter = 0;
+
+	/* Selector matrix for eigen-Functions */
+	if (F.cols()==3 && S.rows()==V.rows()) {
+		STriplet.reserve(round((1.0 - xScale)*V.rows()));
+		for (int i = 0; i < V.rows(); ++i) {
+			if (V(i, axis) >= xBound) {
+				STriplet.push_back(Eigen::Triplet<double>(i, vCounter, 1.0));
+				vCounter++;
+			}
+		}
+		SelMatrix.resize(V.rows(), vCounter);
+	}
+	/* Selector Matrix for vibration modes of elestics */
+	else if (F.cols()==4 && S.rows()==3*V.rows()) {
+		STriplet.reserve(3 * round((1.0 - xScale)*V.rows()));
+		for (int i = 0; i < V.rows(); ++i) {
+			if (V(i, axis) >= xBound) {							// only select entries corresponding to selected vertices
+				for (int j = 0; j < 3; j++) {
+					STriplet.push_back(Eigen::Triplet<double>(3 * i + j, 3 * vCounter + j, 1));
+				}
+				vCounter++;
+			}
+		}
+		SelMatrix.resize(3*V.rows(), 3*vCounter);
+	}
+	SelMatrix.setFromTriplets(STriplet.begin(), STriplet.end());
+	STriplet.clear(); STriplet.shrink_to_fit();
+
+	/* Reduced problem */
+	Eigen::SparseMatrix<double>		SLoc;
+	Eigen::SparseMatrix<double>		MLoc;
+	Eigen::MatrixXd					EigVectsLoc;
+	cout << "____Setting up the reduced problem \n";
+	SLoc = SelMatrix.transpose()*S*SelMatrix;
+	MLoc = SelMatrix.transpose()*M*SelMatrix;
+
+	cout << "____Computing the eigenproblem with selector. \n";
+	switch (solverType)
+	{
+	case EigenSolverType::EIG_SOLVER_MATLAB:
+		computeEigenMatlab(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef, "");
+		break;
+	case EigenSolverType::EIG_SOLVER_SPECTRA:
+		computeEigenSpectraSparse(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef);
+		break;
+	case EigenSolverType::EIG_SOLVER_CUDA:
+		if (MLoc.rows()>7500) {
+			cout << "We think the problem is too big to be solved in GPU! \nConsider other solver for this problem.\n";
+			return;
+		}
+		computeEigenGPU(SLoc, MLoc, EigVectsLoc, EigValsRef);
+		break;
+
+	default:
+		break;
+	}
+
+	/* Lift it up to the full space */
+	cout << "____Lifting to the original size\n";
+	EigVectsRef = SelMatrix*EigVectsLoc;
+	printf("Size of eigenvectors: %dx%d \n", EigVectsRef.rows(), EigVectsRef.cols());
+
 }
 
 /* Visualization tools */
