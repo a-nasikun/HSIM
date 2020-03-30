@@ -10,7 +10,6 @@
 int main(int argc, char *argv[])
 {
 	string							meshFile; 
-	MLEigSolver						ml_eigSolver;
 	MLEigenSolver*					eigenSolver = new MLEigenSolver();
 
 
@@ -25,17 +24,14 @@ int main(int argc, char *argv[])
 	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
 	meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_5k.obj";
-
-	ml_eigSolver.readMesh(meshFile, ml_eigSolver.V, ml_eigSolver.F);
+	eigenSolver->readMesh(meshFile);
 			
 	menu.callback_draw_viewer_window = [&]()
 	{
 		reducedSpaceMenu(viewer, menu, eigenSolver);
 		SIMMenu(viewer, menu, eigenSolver);
+		//ImGui::ShowDemoWindow();
 
-		fastSpectrumMenu(viewer, menu, ml_eigSolver);
-		applicationMenu(viewer, menu, ml_eigSolver);
-		subspaceMenu(viewer, menu, ml_eigSolver);
 	};
 	/* END OF GUI FUNCTIONALITY */
 
@@ -55,7 +51,7 @@ int main(int argc, char *argv[])
 		{
 		case '0':
 			viewer.data().clear();
-			viewer.data().set_mesh(ml_eigSolver.V, ml_eigSolver.F);
+			viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
 			viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 			break;
 		case 'n':
@@ -66,11 +62,11 @@ int main(int argc, char *argv[])
 
 			//if (selectFace) {
 			if (igl::unproject_onto_mesh(Eigen::Vector2f(xMouse, yMouse), viewer.core.view,
-				viewer.core.proj, viewer.core.viewport, ml_eigSolver.V, ml_eigSolver.F, selectedFace, bc))
+				viewer.core.proj, viewer.core.viewport, eigenSolver->getV(), eigenSolver->getF(), selectedFace, bc))
 			{
 				// paint hit red
-				printf("Selected face is %d [%d, %d, %d]", selectedFace, ml_eigSolver.F(selectedFace,0), ml_eigSolver.F(selectedFace,1), ml_eigSolver.F(selectedFace,2));
-				Eigen::MatrixXd C = Eigen::MatrixXd::Constant(ml_eigSolver.F.rows(), 3, 1);
+				printf("Selected face is %d [%d, %d, %d]", selectedFace, eigenSolver->getF()(selectedFace,0), eigenSolver->getF()(selectedFace,1), eigenSolver->getF()(selectedFace,2));
+				Eigen::MatrixXd C = Eigen::MatrixXd::Constant(eigenSolver->getF().rows(), 3, 1);
 				C.row(selectedFace) << 1, 0, 0;
 				viewer.data().set_colors(C);
 				//viewer.data().add_points(vectorFields.FC.row(selectedFace), Eigen::RowVector3d(0.0, 0.1, 0.0));
@@ -91,7 +87,7 @@ int main(int argc, char *argv[])
 	};
 
 	viewer.callback_init			= [&](igl::opengl::glfw::Viewer &viewer){return false;};
-	viewer.data().set_mesh(ml_eigSolver.V, ml_eigSolver.F);
+	viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
 	viewer.callback_key_down		= key_down;
 
 	Eigen::Vector4f					bgCol(0.5f, 0.4f, 0.9f, 0.2f);
