@@ -24,8 +24,6 @@
 using namespace std;
 
 enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
-void showDeformationModes(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd& Pos, const Eigen::VectorXd& EigVect, double eigScales);
-void showEigenFunctions(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& EigVect, int eigID);
 
 int					basisToShow		= 0;
 int					eigToShow		= 0;
@@ -613,6 +611,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
+				if (eigToShow >= eigenSolver->getEigenValuesReduced().rows()) {
+					cout << "Error! Index out of bound\n";
+					return;
+				}
 
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 			}
@@ -653,6 +655,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
+				if (eigToShow >= eigenSolver->getEigenValuesRef().rows()) {
+					cout << "Error! Index out of bound\n";
+					return;
+				}
 
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
 			}
@@ -690,6 +696,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			if (ImGui::Button("SIM##EigVec1", ImVec2((w-85.0-3* p) / 3.f, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
+					return;
+				}
+				if (eigToShow >= eigenSolver->getEigenValuesSIM().rows()) {
+					cout << "Error! Index out of bound\n";
 					return;
 				}
 
@@ -752,7 +762,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
-
+						
 			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM);
 
 			printf("Successfully computing the eigenvalues \n");

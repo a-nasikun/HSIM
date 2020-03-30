@@ -225,7 +225,10 @@ void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 	if (type == SIMType::SIM_MultiLevel) {
 		performMultiLevelSIM(S, M, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
 	} else {
-		performSIMwithWarmStart(type, numEigs, maxIter, tol, isWithShift);
+		if (isWithShift)
+			performSIMwithShift_Draft(type, numEigs, maxIter, tol, isWithShift);
+		else
+			performSIMwithWarmStart(type, numEigs, maxIter, tol, isWithShift);
 	}
 
 	printf("Size of eigenvalues: %d | eigVectors: %dx%d \n", EigValsSIM.rows(), EigVectsSIM.rows(), EigVectsSIM.cols());
@@ -370,6 +373,131 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 		convergenceCheck = (k >= maxIter|| (conv2(numEigs-1)<tol));
 	} while (!convergenceCheck);
 
+
+	EigVectsSIM = Xk;
+	EigValsSIM = Alpha;
+}
+
+void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift)
+{
+	/* Initialization */
+	cout << "____[1] SIM::Setup initialization of variables\n";
+	int					q = max(2 * numEigs, numEigs + 8);
+	Eigen::MatrixXd		Xk;
+	const int			Imax = 5;
+	int					k = 0;
+	int					factCounter = 0;
+
+	/* Selecting the appropriate subspace iteration method */
+	bool isNormalized = false;
+	switch (type)
+	{
+	case SIMType::SIM_1level_WarmStart:
+		cout << "_______SUBSPACE ITERATION METHOD with a Warm Start.\n";
+		Xk = Basis * EigVectsReduced.block(0, 0, Basis.cols(), q);
+		break;
+	case SIMType::SIM_1level_Random:
+		cout << "_______SUBSPACE ITERATION METHOD with Random initialization Vectors (normalized).\n";
+		generateRandomMatrix(S.rows(), q, Xk);
+
+		/* M-normalized per column */
+		for (int i = 0; i < q; i++) {
+			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			mNorm = (double) 1.0 / sqrt(mNorm);
+			Xk.col(i) = mNorm * Xk.col(i);
+		}
+		break;
+	case SIMType::SIM_1level_Bathe:
+		cout << "________SUBSPACE ITERATION METHOD with Bathe's proposed initialization Vectors (normalized).\n";
+		generateBatheInitVectors(M.rows(), q, M, Xk);
+
+		/* M-normalized per column */
+		if (isNormalized) {
+			for (int i = 0; i < q; i++) {
+				double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+				mNorm = (double) 1.0 / sqrt(mNorm);
+				Xk.col(i) = mNorm * Xk.col(i);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	bool isConverged = false;
+	Eigen::VectorXd Alpha; Alpha = EigValsReduced;
+	double mu;
+	Eigen::MatrixXd XbarK;
+	XbarK.resize(S.rows(), q);
+	XbarK.setZero();
+
+	Eigen::MatrixXd Mproj, Sproj;
+	Eigen::MatrixXd Q;
+
+	Eigen::VectorXd conv2, conv3;
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	//Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
+	do {
+		printf("Iteration: %d \n", k+1);
+
+		/* Stage II: Shifting and Sturm's check */
+		mu = Alpha((int)floor(0.2*q));		// should be 0.4 (but I wanna check for it's half, meaning 0.4 of the eigenvalues of interests)
+		factorization.compute(S - mu*M);
+		//factorization.vectorD();		// for sturm's check
+		factCounter++;
+
+		printf("__> Factorization %d with shift of %.10f \n", factCounter, mu);
+
+		/* Stage III: Iterations */
+		for (int i = 0; i < Imax; ++i) {
+			for (int j = 0; j < q; ++j) {						// easily parallelizeable
+				Eigen::VectorXd v;
+				if (type == SIMType::SIM_1level_Bathe && j == 0) {
+					v = Xk.col(j);				// use the input as "MxXi" directly
+				} else {
+					v = M * (Xk.col(j));
+				}
+				XbarK.col(j) = factorization.solve(v);
+			}
+
+			/* Projection of M and K*/
+			printf("________setting up reduced matrix M and S. ");
+			Sproj = XbarK.transpose()*S*XbarK;
+			Mproj = XbarK.transpose()*M*XbarK;
+			printf("________Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+
+			/* Reduced eigenvalue problem */
+			printf("________solve reduced eigenvalue problem. ");
+			computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+			//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
+			//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
+			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
+
+			printf("________lifting up/prolongation.");
+			Xk = XbarK*Q;
+
+			/* Convergence Check*
+			** Type 2: */
+			checkConvergenceCat2(Xk, Alpha, M, S, conv2);
+			cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+			/** Type 3: */
+			checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
+			cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
+
+			//cout << Alpha.transpose() << endl; 		
+
+			EigValsSIMStack.col(k) = Alpha.block(0, 0, numEigs - 1, 1);
+			convergenceStacks.col(k) = conv2.block(0, 0, numEigs - 1, 1);			
+
+			k++;
+			if (k >= maxIter || (conv2(numEigs - 1) < tol)) {
+				isConverged = true;
+				break;
+			}
+		}
+
+
+	} while (!isConverged);
 
 	EigVectsSIM = Xk;
 	EigValsSIM = Alpha;

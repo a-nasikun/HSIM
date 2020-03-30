@@ -51,7 +51,11 @@ int main(int argc, char *argv[])
 		{
 		case '0':
 			viewer.data().clear();
-			viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
+			if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
+				viewer.data().set_mesh(solver->getV(), solver->getTF());
+			} else 
+				viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
+
 			viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 			break;
 		case 'n':
