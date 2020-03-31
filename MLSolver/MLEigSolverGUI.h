@@ -41,7 +41,7 @@ static int			problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Li
 static int			matType			= 0;					// material type (for hessian/linear elasticity)
 static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
-static int			eigScale		= 1.005;
+static double		eigScale		= 1.005;
 
 void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
 {

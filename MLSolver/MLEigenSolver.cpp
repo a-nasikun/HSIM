@@ -384,7 +384,7 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 	cout << "____[1] SIM::Setup initialization of variables\n";
 	int					q = max(2 * numEigs, numEigs + 8);
 	Eigen::MatrixXd		Xk;
-	const int			Imax = 5;
+	const int			Imax = 4;
 	int					k = 0;
 	int					factCounter = 0;
 
@@ -435,21 +435,64 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 	Eigen::MatrixXd Q;
 
 	Eigen::VectorXd conv2, conv3;
-	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-	//Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
-	do {
-		printf("Iteration: %d \n", k+1);
+	
+	int firstNZ = 0;
+	if (F.cols() == 3)		firstNZ = 1;	// Function Laplacian
+	else if (F.cols() == 4) firstNZ = 6;	// Hessian
+	int						lastConvergedId = firstNZ-1;
 
+	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
+	do {
+		int dCounter = 0;
 		/* Stage II: Shifting and Sturm's check */
-		mu = Alpha((int)floor(0.2*q));		// should be 0.4 (but I wanna check for it's half, meaning 0.4 of the eigenvalues of interests)
-		factorization.compute(S - mu*M);
-		//factorization.vectorD();		// for sturm's check
+		/* At the beginning, no shift */
+		if (k == 0) {
+			//Eigen::SparseMatrix<double> Id;
+			//double eps = 1e-6;
+			//Id.resize(S.rows(), S.cols());
+			//Id.setIdentity();
+			//Id = eps*Id;
+			//factorization.compute(S + Id);
+			mu = Alpha(3) ;
+			factorization.compute(S - mu*M);
+
+			
+		}
+		/* for later factorization */
+		else {
+			/* [1] Bathe's proposal */
+			cout << "___Bathe's shift proposal \n";
+			mu = (Alpha(lastConvergedId) + Alpha(lastConvergedId - 1)) / 2.0;
+			if		(mu <= (Alpha(lastConvergedId) + 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId) + 0.001*Alpha(firstNZ);
+			else if (mu >= (Alpha(lastConvergedId) - 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId) - 0.001*Alpha(firstNZ);
+			
+
+			/* [2] Itoh and Wilson => can cause singularity*/
+
+			/* [3] Gong */
+
+			//mu = Alpha((int)floor(0.2*q));		// should be 0.4 (but I wanna check for it's half, meaning 0.4 of the eigenvalues of interests)
+			factorization.compute(S - mu*M);
+			//factorization.vectorD();		// for sturm's check
+		}
 		factCounter++;
 
-		printf("__> Factorization %d with shift of %.10f \n", factCounter, mu);
+		cout << "Head: " << factorization.vectorD().head(10).transpose() << endl;
+		cout << "Tail: " << factorization.vectorD().tail(10).transpose() << endl;
+
+		for (int i = 0; i < S.rows(); ++i) {
+			if (factorization.vectorD()(i) < 0) dCounter++;
+		}
+		cout << "Counter: " << dCounter << endl; 
+
+
+		cout << "__> Factorization " << factCounter << " with shift of " << mu << endl; 
 
 		/* Stage III: Iterations */
 		for (int i = 0; i < Imax; ++i) {
+			printf("Iteration: %d \n", k+1);
+
 			for (int j = 0; j < q; ++j) {						// easily parallelizeable
 				Eigen::VectorXd v;
 				if (type == SIMType::SIM_1level_Bathe && j == 0) {
@@ -496,6 +539,18 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 			}
 		}
 
+		/* Check convergence */
+		for (int i = lastConvergedId; i < conv2.rows(); ++i) {
+			cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
+			if (conv2(i) > tol)
+			{
+				lastConvergedId = i;
+				if (lastConvergedId < (numEigs - 1)) 
+					isConverged = false;
+			}
+			else break;
+		}
+		cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl; 
 
 	} while (!isConverged);
 
