@@ -373,6 +373,8 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 		convergenceCheck = (k >= maxIter|| (conv2(numEigs-1)<tol));
 	} while (!convergenceCheck);
 
+	convergenceStacks.conservativeResize(Eigen::NoChange, k);
+	EigValsSIMStack.conservativeResize(Eigen::NoChange, k);
 
 	EigVectsSIM = Xk;
 	EigValsSIM = Alpha;
@@ -435,12 +437,18 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 	Eigen::MatrixXd Q;
 
 	Eigen::VectorXd conv2, conv3;
-	
-	int firstNZ = 0;
-	if (F.cols() == 3)		firstNZ = 1;	// Function Laplacian
-	else if (F.cols() == 4) firstNZ = 6;	// Hessian
-	int						lastConvergedId = firstNZ-1;
 
+	int						firstNZ = 0;
+	int						lastConvergedId;
+	if (F.cols() == 3) {			/* FUNCTION */
+		firstNZ			= 1;		// first non-zero eigenvalues on the reduced/subspace Function Laplacian
+		lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
+	}
+	else if (F.cols() == 4) {		/* HESSIAN */
+		firstNZ			= 3;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
+		lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
+	}
+	
 	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 	do {
@@ -454,15 +462,13 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 			//Id.setIdentity();
 			//Id = eps*Id;
 			//factorization.compute(S + Id);
-			mu = Alpha(3) ;
-			factorization.compute(S - mu*M);
-
-			
+			mu = Alpha(firstNZ) ;
+			factorization.compute(S - mu*M);			
 		}
 		/* for later factorization */
 		else {
 			/* [1] Bathe's proposal */
-			cout << "___Bathe's shift proposal \n";
+			cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
 			mu = (Alpha(lastConvergedId) + Alpha(lastConvergedId - 1)) / 2.0;
 			if		(mu <= (Alpha(lastConvergedId) + 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId) + 0.001*Alpha(firstNZ);
 			else if (mu >= (Alpha(lastConvergedId) - 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId) - 0.001*Alpha(firstNZ);
@@ -481,11 +487,22 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 		cout << "Head: " << factorization.vectorD().head(10).transpose() << endl;
 		cout << "Tail: " << factorization.vectorD().tail(10).transpose() << endl;
 
+		
+		vector<int> negDiagStdVect; negDiagStdVect.reserve(100);
 		for (int i = 0; i < S.rows(); ++i) {
-			if (factorization.vectorD()(i) < 0) dCounter++;
+			if (factorization.vectorD()(i) < 0) {
+				negDiagStdVect.push_back(i);
+				dCounter++;
+			}
 		}
+		
+		//Eigen::VectorXd a(negDiagStdVect.data());
+		Eigen::VectorXi negDiags = Eigen::Map<Eigen::VectorXi, Eigen::Unaligned>(negDiagStdVect.data(), negDiagStdVect.size());
+		
+		//Eigen::VectorXd negDiags(negDiagStdVect.data(), dCounter);
+		cout << "diag with negative ids: \n" << negDiags.transpose() << endl;
+		//cout << "diag with negative ids: \n" << a.transpose() << endl;
 		cout << "Counter: " << dCounter << endl; 
-
 
 		cout << "__> Factorization " << factCounter << " with shift of " << mu << endl; 
 
@@ -504,19 +521,19 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 			}
 
 			/* Projection of M and K*/
-			printf("________setting up reduced matrix M and S. ");
+			//printf("________setting up reduced matrix M and S. ");
 			Sproj = XbarK.transpose()*S*XbarK;
 			Mproj = XbarK.transpose()*M*XbarK;
-			printf("________Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+			//printf("________Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
 
 			/* Reduced eigenvalue problem */
-			printf("________solve reduced eigenvalue problem. ");
+			//printf("________solve reduced eigenvalue problem. ");
 			computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
 			//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
 			//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
-			printf("________lifting up/prolongation.");
+			//printf("________lifting up/prolongation.");
 			Xk = XbarK*Q;
 
 			/* Convergence Check*
@@ -527,10 +544,10 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 			checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
 			cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 
-			//cout << Alpha.transpose() << endl; 		
+			cout << Alpha.head(numEigs).transpose() << endl; 		
 
-			EigValsSIMStack.col(k) = Alpha.block(0, 0, numEigs - 1, 1);
-			convergenceStacks.col(k) = conv2.block(0, 0, numEigs - 1, 1);			
+			EigValsSIMStack.col(k) = Alpha.block(0, 0, numEigs-1, 1);
+			convergenceStacks.col(k) = conv2.block(0, 0, numEigs-1, 1);			
 
 			k++;
 			if (k >= maxIter || (conv2(numEigs - 1) < tol)) {
@@ -540,9 +557,9 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 		}
 
 		/* Check convergence */
-		for (int i = lastConvergedId; i < conv2.rows(); ++i) {
+		for (int i = lastConvergedId; i < numEigs; ++i) {
 			cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
-			if (conv2(i) > tol)
+			if (conv2(i) < tol)
 			{
 				lastConvergedId = i;
 				if (lastConvergedId < (numEigs - 1)) 
@@ -553,6 +570,9 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 		cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl; 
 
 	} while (!isConverged);
+
+	convergenceStacks.conservativeResize(Eigen::NoChange, k);
+	EigValsSIMStack.conservativeResize(Eigen::NoChange, k);
 
 	EigVectsSIM = Xk;
 	EigValsSIM = Alpha;

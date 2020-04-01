@@ -470,6 +470,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				cout << "in " << duration.count() << " seconds." << endl;
 
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+				cout << eigenSolver->getEigenValuesReduced().head(min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
 
 				//eigToShow = 3; 
 				//
@@ -484,6 +485,18 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				//	showDeformationModes(viewer, eigenSolver->getV(), eigenSolver->getEigenVectorsReduced(eigToShow), eigScale);
 				//}			
 			}
+
+			static char numRedEigTxt[32] = "20";	
+			if (ImGui::Button("Print reduced eigenvals##1", ImVec2(w/2.0-p, 0))) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesReduced().rows()<1) {
+					cout << "Error! Make sure you execute previous steps before solving the Low-Dim Eigenproblem." << endl;
+					return;
+				}
+				static int numRedEigs = atoi(numRedEigTxt);
+				cout << "Red eigenvalues" << eigenSolver->getEigenValuesReduced().head(min(numRedEigs, (int)eigenSolver->getEigenValuesReduced().rows())) << endl;
+			}
+			ImGui::SameLine();
+			ImGui::InputText("#eigs", numRedEigTxt, 32);
 			///
 			///if (ImGui::Button("Save EigVals#Approx", ImVec2(w / 2.0, 0))) {
 			///	int toStore = min(250, (int)ml_eigSolver.reducedEigVals.rows());
