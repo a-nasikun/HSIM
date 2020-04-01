@@ -687,6 +687,65 @@ void MLSolverElastics::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, c
 	D.setConstant(numeric_limits<double>::infinity());
 }
 
+void MLSolverElastics::injectRigidModes()
+{
+	const int NUM_RIGID_MODES = 6;
+	Eigen::MatrixXd RigidModes(M.rows(), NUM_RIGID_MODES);
+
+	/* Adding 6DoF rigid deformations
+	** [1] the first 3 translations */
+	for (int i = 0; i < V.rows(); ++i) {
+		for (int j = 0; j < V.cols(); ++j) {
+			RigidModes(3 * i + j, j) = 1.0;
+		}
+	}
+
+	/* [2] the 3 linearized rotations */
+	for (int i = 0; i < V.rows(); ++i) {
+		RigidModes(3*i+1, 3) =  V(i,2);
+		RigidModes(3*i+2, 3) = -V(i,1);
+		RigidModes(3*i  , 4) =  V(i,2);
+		RigidModes(3*i+2, 4) = -V(i,0);
+		RigidModes(3*i  , 5) =  V(i,1);
+		RigidModes(3*i+1, 5) = -V(i,0);
+	}
+
+	for (int i = 0; i < NUM_RIGID_MODES; ++i) {
+		double mNorm = RigidModes.col(i).transpose() * M * RigidModes.col(i);
+		mNorm = (double) 1.0 / sqrt(mNorm);
+		RigidModes.col(i) = mNorm * RigidModes.col(i);
+	}
+
+	Eigen::MatrixXd M1 = RigidModes.transpose()*M*RigidModes;
+	Eigen::MatrixXd S1 = RigidModes.transpose()*S*RigidModes;
+	Eigen::MatrixXd A1(NUM_RIGID_MODES, NUM_RIGID_MODES);
+
+	Eigen::LDLT<Eigen::MatrixXd> denseSolver;
+	denseSolver.compute(M1);
+	for (int i = 0; i < NUM_RIGID_MODES; ++i) {
+		A1.col(i) = denseSolver.solve(S1.col(i));
+	}
+
+	/* eigensolver */
+	Eigen::MatrixXd Q1; 
+	Eigen::VectorXd A2;
+	computeEigenGPUDense(S1, M1, Q1, A2);
+
+	cout << "A: \n" << A1 << endl;
+	cout << "A1: \n" << A2 << endl;
+	cout << "Modes: \n" << RigidModes.topLeftCorner(10, 6) << endl; 
+	cout << "Modes 2: \n" << Q1 << endl; 
+
+	for (int i = 0; i < NUM_RIGID_MODES; ++i) {
+		double mNorm = RigidModes.col(i).transpose() * M * RigidModes.col(i);
+		cout << "id: " << i << ": " << mNorm << endl;
+	}
+	//Eigen::MatrixXd Diag(NUM_RIGID_MODES, NUM_RIGID_MODES); Diag.setIdentity();
+	RigidModes = RigidModes*Q1*A2.asDiagonal();
+	cout << "Modes: \n" << RigidModes.topLeftCorner(10, 6) << endl;
+
+}
+
 /* Visualization Tools*/
 void MLSolverElastics::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const
 {
