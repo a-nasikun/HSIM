@@ -399,9 +399,12 @@ void MLSolverElastics::constructBasisCoarseOnly(double support, int axis, double
 	duration = t2 - t1;
 	cout << "in " << duration.count() << " seconds" << endl;
 
-	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double)(Basis.nonZeros() / (double)Basis.rows()));
+	///injectRigidModesInBasis();
 
 	formPartitionOfUnity();
+
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double)(Basis.nonZeros() / (double)Basis.rows()));
+
 }
 
 void MLSolverElastics::constructBasisNonSmooth(double support, int axis, double offset)
@@ -687,34 +690,76 @@ void MLSolverElastics::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, c
 	D.setConstant(numeric_limits<double>::infinity());
 }
 
-void MLSolverElastics::injectRigidModes()
+void MLSolverElastics::injectRigidModesInBasis()
 {
 	const int NUM_RIGID_MODES = 6;
+	const int initSize = Basis.cols();
+	vector<Eigen::Triplet<double>> BTriplet;
+	BTriplet.reserve(Basis.nonZeros() + 4*Basis.rows());
+
+
+	/* Getting the values from old basis */
+	for (int k = 0; k < Basis.outerSize(); ++k) {
+		for (Eigen::SparseMatrix<double>::InnerIterator it(Basis, k); it; ++it) {
+			BTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+		}
+	}
+
+	/* Adding 6DoF rigid deformations
+	** [1] the first 3 translations */
+	for (int id = 0; id < 3; id++)
+	{
+		for (int i = 0; i < V.rows(); i++) {
+			for (int j = 0; j < 3; ++j) {
+				BTriplet.push_back(Eigen::Triplet<double>(3 * i + j, initSize+j, 1.0));
+			}
+		}
+	}
+	/*[2] the 3 linearized rotations */
+	for (int i = 0; i < V.rows(); i++) {
+		BTriplet.push_back(Eigen::Triplet<double>(3 * i + 1, initSize + 3,  V(i, 2)));	// x-axis is fixed
+		BTriplet.push_back(Eigen::Triplet<double>(3 * i + 2, initSize + 3, -V(i, 1)));
+		BTriplet.push_back(Eigen::Triplet<double>(3 * i + 0, initSize + 4,  V(i, 2)));	// y-axis is fixed
+		BTriplet.push_back(Eigen::Triplet<double>(3 * i + 2, initSize + 4, -V(i, 0)));
+		BTriplet.push_back(Eigen::Triplet<double>(3 * i + 0, initSize + 5,  V(i, 1)));	// z-axis is fixed
+		BTriplet.push_back(Eigen::Triplet<double>(3 * i + 1, initSize + 5, -V(i, 0)));
+	}
+
+	/* [3] Combining them as a new basis matrix */
+	Basis.resize(Basis.rows(), initSize + NUM_RIGID_MODES);
+	Basis.data().clear();
+	Basis.setFromTriplets(BTriplet.begin(), BTriplet.end());
+
+}
+
+void MLSolverElastics::injectRigidModes()
+{
+	const int NUM_RIGID_MODES = 3;
 	Eigen::MatrixXd RigidModes(M.rows(), NUM_RIGID_MODES);
 
 	/* Adding 6DoF rigid deformations
 	** [1] the first 3 translations */
-	for (int i = 0; i < V.rows(); ++i) {
-		for (int j = 0; j < V.cols(); ++j) {
-			RigidModes(3 * i + j, j) = 1.0;
-		}
-	}
+	//for (int i = 0; i < V.rows(); ++i) {
+	//	for (int j = 0; j < V.cols(); ++j) {
+	//		RigidModes(3 * i + j, j) = 1.0;
+	//	}
+	//}
 
 	/* [2] the 3 linearized rotations */
 	for (int i = 0; i < V.rows(); ++i) {
-		RigidModes(3*i+1, 3) =  V(i,2);
-		RigidModes(3*i+2, 3) = -V(i,1);
-		RigidModes(3*i  , 4) =  V(i,2);
-		RigidModes(3*i+2, 4) = -V(i,0);
-		RigidModes(3*i  , 5) =  V(i,1);
-		RigidModes(3*i+1, 5) = -V(i,0);
+		RigidModes(3*i+1, 3-3) =  V(i,2);
+		RigidModes(3*i+2, 3-3) = -V(i,1);
+		RigidModes(3*i  , 4-3) =  V(i,2);
+		RigidModes(3*i+2, 4-3) = -V(i,0);
+		RigidModes(3*i  , 5-3) =  V(i,1);
+		RigidModes(3*i+1, 5-3) = -V(i,0);
 	}
 
-	for (int i = 0; i < NUM_RIGID_MODES; ++i) {
-		double mNorm = RigidModes.col(i).transpose() * M * RigidModes.col(i);
-		mNorm = (double) 1.0 / sqrt(mNorm);
-		RigidModes.col(i) = mNorm * RigidModes.col(i);
-	}
+	///for (int i = 0; i < NUM_RIGID_MODES; ++i) {
+	///	double mNorm = RigidModes.col(i).transpose() * M * RigidModes.col(i);
+	///	mNorm = (double) 1.0 / sqrt(mNorm);
+	///	RigidModes.col(i) = mNorm * RigidModes.col(i);
+	///}
 
 	Eigen::MatrixXd M1 = RigidModes.transpose()*M*RigidModes;
 	Eigen::MatrixXd S1 = RigidModes.transpose()*S*RigidModes;
@@ -733,7 +778,7 @@ void MLSolverElastics::injectRigidModes()
 
 	cout << "A: \n" << A1 << endl;
 	cout << "A1: \n" << A2 << endl;
-	cout << "Modes: \n" << RigidModes.topLeftCorner(10, 6) << endl; 
+	cout << "Modes: \n" << RigidModes.topLeftCorner(10, NUM_RIGID_MODES) << endl; 
 	cout << "Modes 2: \n" << Q1 << endl; 
 
 	for (int i = 0; i < NUM_RIGID_MODES; ++i) {
@@ -741,8 +786,18 @@ void MLSolverElastics::injectRigidModes()
 		cout << "id: " << i << ": " << mNorm << endl;
 	}
 	//Eigen::MatrixXd Diag(NUM_RIGID_MODES, NUM_RIGID_MODES); Diag.setIdentity();
-	RigidModes = RigidModes*Q1*A2.asDiagonal();
-	cout << "Modes: \n" << RigidModes.topLeftCorner(10, 6) << endl;
+	RigidModes = RigidModes*Q1;/// *A2.cwiseSqrt().asDiagonal();
+	cout << "Modes: \n" << RigidModes.topLeftCorner(10, NUM_RIGID_MODES) << endl;
+
+	const int initSize = EigVectsReduced.cols();
+	EigVectsReduced.conservativeResize(Eigen::NoChange,  initSize + NUM_RIGID_MODES);
+	EigValsReduced.conservativeResize(initSize + NUM_RIGID_MODES);
+
+	EigVectsReduced.topRightCorner(EigVectsReduced.rows(), initSize) = EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), initSize);
+	EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), NUM_RIGID_MODES) = RigidModes;
+
+	EigValsReduced.tail(initSize) = EigValsReduced.head(initSize);
+	EigValsReduced.head(NUM_RIGID_MODES) = A2;
 
 }
 

@@ -389,6 +389,8 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 	const int			Imax = 4;
 	int					k = 0;
 	int					factCounter = 0;
+	EigVectsSIM.resize(S.rows(), numEigs);
+	EigValsSIM.resize(numEigs);
 
 	/* Selecting the appropriate subspace iteration method */
 	bool isNormalized = false;
@@ -445,7 +447,7 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 		lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
 	}
 	else if (F.cols() == 4) {		/* HESSIAN */
-		firstNZ			= 3;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
+		firstNZ			= 6;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
 		lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
 	}
 	
@@ -484,14 +486,15 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 		}
 		factCounter++;
 
-		cout << "Head: " << factorization.vectorD().head(10).transpose() << endl;
-		cout << "Tail: " << factorization.vectorD().tail(10).transpose() << endl;
+		///cout << "Head: " << factorization.vectorD().head(10).transpose() << endl;
+		///cout << "Tail: " << factorization.vectorD().tail(10).transpose() << endl;
 
-		
+		cout << "Negative entries: ";
 		vector<int> negDiagStdVect; negDiagStdVect.reserve(100);
 		for (int i = 0; i < S.rows(); ++i) {
 			if (factorization.vectorD()(i) < 0) {
 				negDiagStdVect.push_back(i);
+				cout << i << ": " << factorization.vectorD()(i) << " |";
 				dCounter++;
 			}
 		}
@@ -559,14 +562,15 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 		/* Check convergence */
 		for (int i = lastConvergedId; i < numEigs; ++i) {
 			cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
-			if (conv2(i) < tol)
-			{
+			if (conv2(i) < tol)	{
 				lastConvergedId = i;
-				if (lastConvergedId < (numEigs - 1)) 
-					isConverged = false;
 			}
 			else break;
 		}
+
+		if ((k<maxIter) && (lastConvergedId < (numEigs - 1)))
+			isConverged = false;
+
 		cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl; 
 
 	} while (!isConverged);
@@ -574,8 +578,8 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 	convergenceStacks.conservativeResize(Eigen::NoChange, k);
 	EigValsSIMStack.conservativeResize(Eigen::NoChange, k);
 
-	EigVectsSIM = Xk;
-	EigValsSIM = Alpha;
+	///EigVectsSIM = Xk;
+	///EigValsSIM = Alpha;
 }
 
 void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift)

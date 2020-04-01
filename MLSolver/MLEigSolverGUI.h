@@ -474,8 +474,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver))
 				{
-					solver->injectRigidModes();
+					///solver->injectRigidModes();
 				}
+
+				cout << eigenSolver->getEigenValuesReduced().head(min(20, (int)eigenSolver->getEigenValuesReduced().rows()));
 				//eigToShow = 3; 
 				//
 				//cout << "Showing id: " << eigToShow << endl; 
