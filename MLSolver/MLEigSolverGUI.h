@@ -472,10 +472,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 				cout << eigenSolver->getEigenValuesReduced().head(min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
 
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver))
-				{
-					solver->injectRigidModes();
-				}
+				///if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver))
+				///{
+				///	solver->injectRigidModes();
+				///}
 
 				cout << eigenSolver->getEigenValuesReduced().head(min(20, (int)eigenSolver->getEigenValuesReduced().rows()));
 				//eigToShow = 3; 

@@ -223,7 +223,10 @@ void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 
 	/* Performing the SIM according to user selected methods */
 	if (type == SIMType::SIM_MultiLevel) {
-		performMultiLevelSIM(S, M, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+		if (isWithShift)
+			performMultiLevelSIM_withShift_Draft(S, M, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+		else 
+			performMultiLevelSIM(S, M, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
 	} else {
 		if (isWithShift)
 			performSIMwithShift_Draft(type, numEigs, maxIter, tol, isWithShift);
@@ -683,6 +686,169 @@ void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen:
 		}
 	}
 	
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	cout << "...in " << duration.count() << " seconds." << endl;
+}
+
+void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift)
+{
+	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
+	printf("____[1] level: %d \n", k);
+	int		q = max(2 * numEigs, numEigs + 8);
+	const int Imax = 4;
+	int iterCount = 0;
+	int factCounter = 0;
+
+	/* 4: RECURSION */
+	if (k == level)			// check if this already in the lowest/coarsest subspace
+	{
+		XkL = EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), q);
+		AkL = EigValsReduced.head(q);
+		printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
+	}
+	// RECURSIVE for level k < max_level
+	else
+	{
+		/* 1: RESTRICTION */
+		printf("____<1> Restriction: ");
+		Eigen::SparseMatrix<double> SK, MK;
+		if (k == 0) {
+			SK = SL; MK = ML;
+		}
+		else {
+			SK = U[k - 1].transpose()*SL*U[k - 1];
+			MK = U[k - 1].transpose()*ML*U[k - 1];
+		}
+
+		printf("____<2> Going deeper => \n ################");
+		if(isWithShift)
+			performMultiLevelSIM_withShift_Draft(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift);
+		else 
+			performMultiLevelSIM(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift);
+		printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
+
+		/* [3] SUBSPACE ITERATION METHOD */
+		XkL = U[k] * XkL;
+		printf("____<3> Lifting, Init vectors: %dx%d \n", XkL.rows(), XkL.cols());
+
+		/* Adding a small number on the diagonal, for robustness */		
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		
+		//printf("____<4> Embedding a small-valued diagonal matrix \n");
+
+		/* Temporary variables */
+		bool convergenceCheck;
+		Eigen::MatrixXd XbarK(XkL.rows(), q); XbarK.setZero();
+		Eigen::MatrixXd Mproj, Sproj;
+		Eigen::MatrixXd Q;
+		//Eigen::VectorXd Alpha;
+		Eigen::VectorXd conv2, conv3;
+		double mu;
+
+		int						firstNZ = 0;
+		int						lastConvergedId;
+		if (F.cols() == 3) {			/* FUNCTION */
+			firstNZ = 1;		// first non-zero eigenvalues on the reduced/subspace Function Laplacian
+			lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
+		}
+		else if (F.cols() == 4) {		/* HESSIAN */
+			firstNZ = 6;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
+			lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
+		}
+
+
+		/* Iterating*/
+		printf("____<5> Subspace iteration.\n");
+		do {
+			if (iterCount == 0) {
+				mu = AkL(3);
+				factorization.compute(SK - mu*MK);
+			}
+			else {
+				/* [1] Bathe's proposal */
+				cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
+				mu = (AkL(lastConvergedId) + AkL(lastConvergedId - 1)) / 2.0;
+				if (mu <= (AkL(lastConvergedId) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId) + 0.001*AkL(firstNZ);
+				else if (mu >= (AkL(lastConvergedId) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId) - 0.001*AkL(firstNZ);
+				factorization.compute(SK - mu*MK);
+			}
+			factCounter++;
+			cout << "__> Factorization " << factCounter << " with shift of " << mu << endl;
+
+			/* Stage III: Iterations */
+			for (int i = 0; i < Imax; ++i) {
+				printf("Iteration: %d \n", iterCount + 1);
+
+				for (int j = 0; j < q; ++j) {						// easily parallelizeable
+					Eigen::VectorXd v;
+					v = MK * (XkL.col(j));
+					XbarK.col(j) = factorization.solve(v);
+				}
+
+				/* Projection of M and K*/
+				printf("________setting up reduced matrix M and S. ");
+				Sproj = XbarK.transpose()*SK*XbarK;
+				Mproj = XbarK.transpose()*MK*XbarK;
+
+				printf("________solve reduced eigenvalue problem. ");
+				computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+
+				printf("________lifting up/prolongation.");
+				XkL = XbarK*Q;
+
+				/* Convergence Check*
+				** Type 2: */
+				checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
+				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+				/** Type 3: */
+				checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
+				cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
+
+				cout << AkL.head(numEigs).transpose() << endl;
+
+				if (k == 0) {
+					EigValsSIMStack.col(k) = AkL.block(0, 0, numEigs - 1, 1);
+					convergenceStacks.col(k) = conv2.block(0, 0, numEigs - 1, 1);
+				}
+
+				iterCount++;
+				if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
+					convergenceCheck = true;
+					break;
+				}
+			}
+
+			/* Check convergence */
+			for (int i = lastConvergedId; i < numEigs; ++i) {
+				cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
+				if (conv2(i) < tol) {
+					lastConvergedId = i;
+				}
+				else break;
+			}
+
+			if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
+				convergenceCheck = false;
+
+			cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
+
+		} while (!convergenceCheck);
+
+		printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
+
+
+		/* Print some data when it's on the finest level */
+		if (k == 0) {
+			cout << "____<7> Storing the convergence data. \n";
+			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
+			EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
+		}
+	}
+
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
 	cout << "...in " << duration.count() << " seconds." << endl;

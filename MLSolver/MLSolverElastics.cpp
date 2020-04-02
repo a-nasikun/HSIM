@@ -821,6 +821,12 @@ void MLSolverElastics::injectRigidModes()
 	cout << "Top old vects: \n" << TempVects.topLeftCorner(6, 6) << endl;
 	cout << "Top new vects: \n" << EigVectsReduced.topLeftCorner(6, 6) << endl;	
 
+	Eigen::VectorXd Sv = S*RigidModes.col(0);
+	Eigen::VectorXd Mv = M*RigidModes.col(0);
+	cout << "S*v: " << Sv.head(20).transpose() << endl;
+	cout << "M*v: " << Mv.head(20).transpose() << endl;
+	cout << "Ratio: " << Sv.head(20).cwiseQuotient(Mv.head(20)) << endl;
+
 }
 
 /* Visualization Tools*/
