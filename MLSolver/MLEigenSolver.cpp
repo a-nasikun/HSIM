@@ -151,6 +151,11 @@ void MLEigenSolver::formPartitionOfUnityMultiLevel()
 
 		/* Get the diagonal matrix, reciprocal of the total sum per row */
 		for (int k = 0; k < rowSum.size(); k++) {
+			// if the sum of the row is very small, then do not do anything on this row
+			if (abs(rowSum(k)) < (10.0*std::numeric_limits<double>::epsilon())) {
+				diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
+				//cout << "Row: " << k << ", value:" << rowSum(k) << endl;
+			}
 			diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
 		}
 		DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
@@ -205,6 +210,8 @@ void MLEigenSolver::solveRestrictedProblem()
 	EigVectsReduced = Basis * EigVectsReduced;
 }
 
+void MLEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset) {}
+
 /* Subspace Iteration methods */
 void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift)
 {
@@ -221,17 +228,31 @@ void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 	convergenceStacks.resize(numEigs, maxIter);
 	convergenceStacks.setZero();
 
+	Eigen::SparseMatrix<double> MSel, SSel;
+	if (isClampedBasis) {
+		int axis = 0;
+		double offset = 0.1;
+		Eigen::SparseMatrix<double> SelM;
+		constructSelectorMatrixFullSize(SelM, axis, offset);
+		MSel = SelM.transpose()*M*SelM;
+		SSel = SelM.transpose()*S*SelM;
+	}
+	else {
+		MSel = M;
+		SSel = S;
+	}
+
 	/* Performing the SIM according to user selected methods */
 	if (type == SIMType::SIM_MultiLevel) {
 		if (isWithShift)
-			performMultiLevelSIM_withShift_Draft(S, M, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+			performMultiLevelSIM_withShift_Draft(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
 		else 
-			performMultiLevelSIM(S, M, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+			performMultiLevelSIM(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
 	} else {
 		if (isWithShift)
-			performSIMwithShift_Draft(type, numEigs, maxIter, tol, isWithShift);
+			performSIMwithShift_Draft(type, SSel, MSel, numEigs, maxIter, tol, isWithShift);
 		else
-			performSIMwithWarmStart(type, numEigs, maxIter, tol, isWithShift);
+			performSIMwithWarmStart(type, SSel, MSel, numEigs, maxIter, tol, isWithShift);
 	}
 
 	printf("Size of eigenvalues: %d | eigVectors: %dx%d \n", EigValsSIM.rows(), EigVectsSIM.rows(), EigVectsSIM.cols());
@@ -248,7 +269,7 @@ void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 	writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
-void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift)
+void MLEigenSolver::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift)
 {
 	/* Initialization */
 	cout << "____[1] SIM::Setup initialization of variables\n";
@@ -269,19 +290,19 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
-			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			double mNorm = Xk.col(i).transpose() * ML * Xk.col(i);
 			mNorm = (double) 1.0 / sqrt(mNorm);
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
 		break;
 	case SIMType::SIM_1level_Bathe:
 		cout << "________SUBSPACE ITERATION METHOD with Bathe's proposed initialization Vectors (normalized).\n";
-		generateBatheInitVectors(M.rows(), q, M, Xk);
+		generateBatheInitVectors(M.rows(), q, ML, Xk);
 
 		/* M-normalized per column */
 		if (isNormalized) {
 			for (int i = 0; i < q; i++) {
-				double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+				double mNorm = Xk.col(i).transpose() * ML * Xk.col(i);
 				mNorm = (double) 1.0 / sqrt(mNorm);
 				Xk.col(i) = mNorm * Xk.col(i);
 			}
@@ -299,7 +320,7 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 	Id.resize(S.rows(), S.cols());
 	Id.setIdentity();
 	Id = eps*Id;
-	SS = S + Id;		// Adding epsilon to the diagonal
+	SS = SL + Id;		// Adding epsilon to the diagonal
 
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	double mu;
@@ -308,7 +329,7 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 			factorization.compute(SS);
 		else {
 			mu = EigValsReduced((int)floor(0.4*q));
-			factorization.compute(S - mu*M);
+			factorization.compute(SL - mu*ML);
 		}
 	}
 	else {
@@ -338,15 +359,15 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 				v = Xk.col(i);				// use the input as "MxXi" directly
 			}
 			else {
-				v = M * (Xk.col(i));
+				v = ML * (Xk.col(i));
 			}
 			XbarK.col(i) = factorization.solve(v);
 		}
 
 		/* Projection of M and K*/
 		printf("________setting up reduced matrix M and S. ");		
-		Sproj = XbarK.transpose()*S*XbarK;
-		Mproj = XbarK.transpose()*M*XbarK;
+		Sproj = XbarK.transpose()*SL*XbarK;
+		Mproj = XbarK.transpose()*ML*XbarK;
 		printf("________Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
 
 		/* Reduced eigenvalue problem */
@@ -361,7 +382,7 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 
 		/* Convergence Check*
 		** Type 2: */
-		checkConvergenceCat2(Xk, Alpha, M, S, conv2);
+		checkConvergenceCat2(Xk, Alpha, ML, S, conv2);
 		cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 		/** Type 3: */
 		checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
@@ -383,7 +404,7 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, int numEigs, int maxIt
 	EigValsSIM = Alpha;
 }
 
-void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift)
+void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift)
 {
 	/* Initialization */
 	cout << "____[1] SIM::Setup initialization of variables\n";
@@ -402,6 +423,7 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 	case SIMType::SIM_1level_WarmStart:
 		cout << "_______SUBSPACE ITERATION METHOD with a Warm Start.\n";
 		Xk = Basis * EigVectsReduced.block(0, 0, Basis.cols(), q);
+		cout << "Getting approximation \n";
 		break;
 	case SIMType::SIM_1level_Random:
 		cout << "_______SUBSPACE ITERATION METHOD with Random initialization Vectors (normalized).\n";
@@ -409,19 +431,19 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
-			double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+			double mNorm = Xk.col(i).transpose() * ML * Xk.col(i);
 			mNorm = (double) 1.0 / sqrt(mNorm);
 			Xk.col(i) = mNorm * Xk.col(i);
 		}
 		break;
 	case SIMType::SIM_1level_Bathe:
 		cout << "________SUBSPACE ITERATION METHOD with Bathe's proposed initialization Vectors (normalized).\n";
-		generateBatheInitVectors(M.rows(), q, M, Xk);
+		generateBatheInitVectors(M.rows(), q, ML, Xk);
 
 		/* M-normalized per column */
 		if (isNormalized) {
 			for (int i = 0; i < q; i++) {
-				double mNorm = Xk.col(i).transpose() * M * Xk.col(i);
+				double mNorm = Xk.col(i).transpose() * ML * Xk.col(i);
 				mNorm = (double) 1.0 / sqrt(mNorm);
 				Xk.col(i) = mNorm * Xk.col(i);
 			}
@@ -444,16 +466,19 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 	Eigen::VectorXd conv2, conv3;
 
 	int						firstNZ = 0;
-	int						lastConvergedId;
-	if (F.cols() == 3) {			/* FUNCTION */
-		firstNZ			= 1;		// first non-zero eigenvalues on the reduced/subspace Function Laplacian
-		lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
+	int						lastConvergedId = 0;
+
+	if (!isClampedBasis)
+	{
+		if (F.cols() == 3) {			/* FUNCTION */
+			firstNZ = 1;		// first non-zero eigenvalues on the reduced/subspace Function Laplacian
+			lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
+		}
+		else if (F.cols() == 4) {		/* HESSIAN */
+			firstNZ = 6;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
+			lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
+		}
 	}
-	else if (F.cols() == 4) {		/* HESSIAN */
-		firstNZ			= 6;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
-		lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
-	}
-	
 	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 	//Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 	do {
@@ -467,8 +492,10 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 			//Id.setIdentity();
 			//Id = eps*Id;
 			//factorization.compute(S + Id);
-			mu = Alpha(firstNZ) ;
-			factorization.compute(S - mu*M);			
+			mu = Alpha(firstNZ/2) ;
+			cout << "Factorizing ";
+			factorization.compute(SL - mu*ML);			
+			cout << " done\n";
 		}
 		/* for later factorization */
 		else {
@@ -484,7 +511,7 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 			/* [3] Gong */
 
 			//mu = Alpha((int)floor(0.2*q));		// should be 0.4 (but I wanna check for it's half, meaning 0.4 of the eigenvalues of interests)
-			factorization.compute(S - mu*M);
+			factorization.compute(SL - mu*ML);
 			//factorization.vectorD();		// for sturm's check
 		}
 		factCounter++;
@@ -521,15 +548,15 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 				if (type == SIMType::SIM_1level_Bathe && j == 0) {
 					v = Xk.col(j);				// use the input as "MxXi" directly
 				} else {
-					v = M * (Xk.col(j));
+					v = ML * (Xk.col(j));
 				}
 				XbarK.col(j) = factorization.solve(v);
 			}
 
 			/* Projection of M and K*/
 			//printf("________setting up reduced matrix M and S. ");
-			Sproj = XbarK.transpose()*S*XbarK;
-			Mproj = XbarK.transpose()*M*XbarK;
+			Sproj = XbarK.transpose()*SL*XbarK;
+			Mproj = XbarK.transpose()*ML*XbarK;
 			//printf("________Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
 
 			/* Reduced eigenvalue problem */
@@ -544,7 +571,7 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 
 			/* Convergence Check*
 			** Type 2: */
-			checkConvergenceCat2(Xk, Alpha, M, S, conv2);
+			checkConvergenceCat2(Xk, Alpha, ML, SL, conv2);
 			cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 			/** Type 3: */
 			checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
@@ -750,22 +777,23 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 		double mu;
 
 		int						firstNZ = 0;
-		int						lastConvergedId;
-		if (F.cols() == 3) {			/* FUNCTION */
-			firstNZ = 1;		// first non-zero eigenvalues on the reduced/subspace Function Laplacian
-			lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
+		int						lastConvergedId = 0;
+		if (!isClampedBasis) {
+			if (F.cols() == 3) {			/* FUNCTION */
+				firstNZ = 1;		// first non-zero eigenvalues on the reduced/subspace Function Laplacian
+				lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
+			}
+			else if (F.cols() == 4) {		/* HESSIAN */
+				firstNZ = 6;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
+				lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
+			}
 		}
-		else if (F.cols() == 4) {		/* HESSIAN */
-			firstNZ = 6;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
-			lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
-		}
-
 
 		/* Iterating*/
 		printf("____<5> Subspace iteration.\n");
 		do {
 			if (iterCount == 0) {
-				mu = AkL(3);
+				mu = AkL(firstNZ/2);
 				factorization.compute(SK - mu*MK);
 			}
 			else {

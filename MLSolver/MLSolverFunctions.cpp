@@ -418,6 +418,31 @@ void MLSolverFunctions::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, 
 	D.setConstant(numeric_limits<double>::infinity());
 }
 
+void MLSolverFunctions::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset)
+{
+	SelMat.resize(M.rows(), M.cols());
+	vector<Eigen::Triplet<double>> STriplet;
+	STriplet.reserve(M.nonZeros());
+
+	/* Setting the bound */
+	double xBound;
+	if (isClampedBasis) {
+		double xMin = V.col(axis).minCoeff();
+		double xMax = V.col(axis).maxCoeff();
+		xBound = xMin + offset*(xMax - xMin);		// within this bound, the elements will be discarded
+	}
+
+	for (int i = 0; i < V.rows(); i++) {
+		if (V(i, axis) >= xBound) {							// only select entries corresponding to selected vertices
+			// entries for the selector matrix			
+			STriplet.push_back(Eigen::Triplet<double>(i,i, 1.0));
+		}
+	}
+
+	SelMat.setFromTriplets(STriplet.begin(), STriplet.end());
+	printf("__Dim of this selector matrix: %dx%d \n", SelMat.rows(), SelMat.cols());
+}
+
 /* Visualization Tools*/
 void MLSolverFunctions::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const
 {
