@@ -735,7 +735,7 @@ void MLSolverElastics::injectRigidModesInBasis()
 void MLSolverElastics::injectRigidModes()
 {
 	const int NUM_RIGID_MODES = 3;
-	Eigen::MatrixXd RigidModes(M.rows(), NUM_RIGID_MODES);
+	Eigen::MatrixXd RigidModes(M.rows(), NUM_RIGID_MODES); RigidModes.setZero();
 
 	/* Adding 6DoF rigid deformations
 	** [1] the first 3 translations */
@@ -776,6 +776,8 @@ void MLSolverElastics::injectRigidModes()
 	Eigen::VectorXd A2;
 	computeEigenGPUDense(S1, M1, Q1, A2);
 
+	cout << "S: \n" << S1 << endl;
+	cout << "M: \n" << M1 << endl;
 	cout << "A: \n" << A1 << endl;
 	cout << "A1: \n" << A2 << endl;
 	cout << "Modes: \n" << RigidModes.topLeftCorner(10, NUM_RIGID_MODES) << endl; 
@@ -786,18 +788,38 @@ void MLSolverElastics::injectRigidModes()
 		cout << "id: " << i << ": " << mNorm << endl;
 	}
 	//Eigen::MatrixXd Diag(NUM_RIGID_MODES, NUM_RIGID_MODES); Diag.setIdentity();
-	RigidModes = RigidModes*Q1;/// *A2.cwiseSqrt().asDiagonal();
+	//RigidModes = RigidModes*Q1;/// *A2.cwiseSqrt().asDiagonal();
 	cout << "Modes: \n" << RigidModes.topLeftCorner(10, NUM_RIGID_MODES) << endl;
 
 	const int initSize = EigVectsReduced.cols();
-	EigVectsReduced.conservativeResize(Eigen::NoChange,  initSize + NUM_RIGID_MODES);
-	EigValsReduced.conservativeResize(initSize + NUM_RIGID_MODES);
+	//EigVectsReduced.conservativeResize(Eigen::NoChange,  initSize + NUM_RIGID_MODES);
+	//EigValsReduced.conservativeResize(initSize + NUM_RIGID_MODES);
+	//
+	//EigVectsReduced.topRightCorner(EigVectsReduced.rows(), initSize) = EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), initSize);
+	//EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), NUM_RIGID_MODES) = RigidModes;
+	//
+	//EigValsReduced.tail(initSize) = EigValsReduced.head(initSize);
+	//EigValsReduced.head(NUM_RIGID_MODES) = A2;
 
-	EigVectsReduced.topRightCorner(EigVectsReduced.rows(), initSize) = EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), initSize);
-	EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), NUM_RIGID_MODES) = RigidModes;
+	Eigen::MatrixXd TempVects = EigVectsReduced;
+	Eigen::VectorXd TempVals = EigValsReduced;
 
-	EigValsReduced.tail(initSize) = EigValsReduced.head(initSize);
-	EigValsReduced.head(NUM_RIGID_MODES) = A2;
+	EigVectsReduced.resize(0, 0);
+	EigValsReduced.resize(0);
+
+	EigVectsReduced.resize(M.rows(), initSize + NUM_RIGID_MODES);
+	EigValsReduced.resize(initSize + NUM_RIGID_MODES);
+
+	EigVectsReduced.topLeftCorner(M.rows(), NUM_RIGID_MODES) = TempVects.topLeftCorner(M.rows(), NUM_RIGID_MODES);
+	EigVectsReduced.block(0, NUM_RIGID_MODES, M.rows(), NUM_RIGID_MODES) = RigidModes;
+	EigVectsReduced.topRightCorner(M.rows(), initSize - NUM_RIGID_MODES) = TempVects.topRightCorner(M.rows(), initSize - NUM_RIGID_MODES);
+	
+	EigValsReduced << TempVals.head(NUM_RIGID_MODES), A2, TempVals.tail(initSize-NUM_RIGID_MODES);
+
+	cout << "Top old vals: \n" << TempVals.head(6) << endl;
+	cout << "Top new vals: \n" << EigValsReduced.head(6) << endl;
+	cout << "Top old vects: \n" << TempVects.topLeftCorner(6, 6) << endl;
+	cout << "Top new vects: \n" << EigVectsReduced.topLeftCorner(6, 6) << endl;	
 
 }
 

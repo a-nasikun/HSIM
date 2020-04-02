@@ -451,8 +451,8 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 		lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
 	}
 	
-	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	//Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 	do {
 		int dCounter = 0;
 		/* Stage II: Shifting and Sturm's check */
@@ -489,23 +489,23 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 		///cout << "Head: " << factorization.vectorD().head(10).transpose() << endl;
 		///cout << "Tail: " << factorization.vectorD().tail(10).transpose() << endl;
 
-		cout << "Negative entries: ";
-		vector<int> negDiagStdVect; negDiagStdVect.reserve(100);
-		for (int i = 0; i < S.rows(); ++i) {
-			if (factorization.vectorD()(i) < 0) {
-				negDiagStdVect.push_back(i);
-				cout << i << ": " << factorization.vectorD()(i) << " |";
-				dCounter++;
-			}
-		}
-		
-		//Eigen::VectorXd a(negDiagStdVect.data());
-		Eigen::VectorXi negDiags = Eigen::Map<Eigen::VectorXi, Eigen::Unaligned>(negDiagStdVect.data(), negDiagStdVect.size());
-		
-		//Eigen::VectorXd negDiags(negDiagStdVect.data(), dCounter);
-		cout << "diag with negative ids: \n" << negDiags.transpose() << endl;
-		//cout << "diag with negative ids: \n" << a.transpose() << endl;
-		cout << "Counter: " << dCounter << endl; 
+		///cout << "Negative entries: ";
+		///vector<int> negDiagStdVect; negDiagStdVect.reserve(100);
+		///for (int i = 0; i < S.rows(); ++i) {
+		///	if (factorization.vectorD()(i) < 0) {
+		///		negDiagStdVect.push_back(i);
+		///		cout << i << ": " << factorization.vectorD()(i) << " |";
+		///		dCounter++;
+		///	}
+		///}
+		///
+		/////Eigen::VectorXd a(negDiagStdVect.data());
+		///Eigen::VectorXi negDiags = Eigen::Map<Eigen::VectorXi, Eigen::Unaligned>(negDiagStdVect.data(), negDiagStdVect.size());
+		///
+		/////Eigen::VectorXd negDiags(negDiagStdVect.data(), dCounter);
+		///cout << "diag with negative ids: \n" << negDiags.transpose() << endl;
+		/////cout << "diag with negative ids: \n" << a.transpose() << endl;
+		///cout << "Counter: " << dCounter << endl; 
 
 		cout << "__> Factorization " << factCounter << " with shift of " << mu << endl; 
 
@@ -578,8 +578,8 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, int numEigs, int max
 	convergenceStacks.conservativeResize(Eigen::NoChange, k);
 	EigValsSIMStack.conservativeResize(Eigen::NoChange, k);
 
-	///EigVectsSIM = Xk;
-	///EigValsSIM = Alpha;
+	EigVectsSIM = Xk;
+	EigValsSIM = Alpha;
 }
 
 void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift)
