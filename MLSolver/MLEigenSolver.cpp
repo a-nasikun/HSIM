@@ -213,7 +213,7 @@ void MLEigenSolver::solveRestrictedProblem()
 void MLEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset) {}
 
 /* Subspace Iteration methods */
-void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift)
+void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset)
 {
 	cout << "> The Subspace Iteration Method \n";
 	chrono::high_resolution_clock::time_point	t0, t1;
@@ -230,8 +230,6 @@ void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 
 	Eigen::SparseMatrix<double> MSel, SSel;
 	if (isClampedBasis) {
-		int axis = 0;
-		double offset = 0.1;
 		Eigen::SparseMatrix<double> SelM;
 		constructSelectorMatrixFullSize(SelM, axis, offset);
 		MSel = SelM.transpose()*M*SelM;
@@ -245,12 +243,12 @@ void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 	/* Performing the SIM according to user selected methods */
 	if (type == SIMType::SIM_MultiLevel) {
 		if (isWithShift)
-			performMultiLevelSIM_withShift_Draft(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+			performMultiLevelSIM_withShift_Draft(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
 		else 
 			performMultiLevelSIM(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
 	} else {
 		if (isWithShift)
-			performSIMwithShift_Draft(type, SSel, MSel, numEigs, maxIter, tol, isWithShift);
+			performSIMwithShift_Draft(type, SSel, MSel, numEigs, maxIter, tol, isWithShift, shiftType);
 		else
 			performSIMwithWarmStart(type, SSel, MSel, numEigs, maxIter, tol, isWithShift);
 	}
@@ -263,9 +261,9 @@ void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 
 	/* Write the convergence information to an external file. */
 	string modelName = "Bar-Rectangle_" + to_string(V.rows()) + "_" + to_string(V.cols());
-	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift? "shift_"+ to_string((int)shiftType)+"_" : "" ) + to_string(tol) + ".txt";
 	writeDenseMatrixToFile(EigValsSIMStack, fileConv);
-	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + to_string(tol) + ".txt";
+	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
 	writeDenseMatrixToFile(convergenceStacks, fileEigs);
 }
 
@@ -404,7 +402,7 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<do
 	EigValsSIM = Alpha;
 }
 
-void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift)
+void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
 {
 	/* Initialization */
 	cout << "____[1] SIM::Setup initialization of variables\n";
@@ -500,18 +498,37 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 		/* for later factorization */
 		else {
 			/* [1] Bathe's proposal */
-			cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
-			mu = (Alpha(lastConvergedId) + Alpha(lastConvergedId - 1)) / 2.0;
-			if		(mu <= (Alpha(lastConvergedId) + 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId) + 0.001*Alpha(firstNZ);
-			else if (mu >= (Alpha(lastConvergedId) - 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId) - 0.001*Alpha(firstNZ);
-			
+			switch (shiftType)
+			{
+			case MLEigenSolver::ShiftType::SHIFT_BATHE:
+				cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
+				mu = (Alpha(lastConvergedId) + Alpha(lastConvergedId - 1)) / 2.0;
+				if (mu <= (Alpha(lastConvergedId) + 0.001*Alpha(firstNZ)))			mu = Alpha(lastConvergedId) + 0.001*Alpha(firstNZ) + std::numeric_limits<double>::epsilon();
+				else if (mu >= (Alpha(lastConvergedId) - 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId) - 0.001*Alpha(firstNZ) - std::numeric_limits<double>::epsilon();
+				factorization.compute(SL - mu*ML);
+				break;
 
-			/* [2] Itoh and Wilson => can cause singularity*/
+			case MLEigenSolver::ShiftType::SHIFT_ITOH_WILSON:
+				/* [2] Itoh and Wilson's proposal */
+				cout << "___Itoh and Wilson's shift proposal | shifting on index " << lastConvergedId << endl;
+				mu = Alpha(lastConvergedId) + 0.9*(Alpha(lastConvergedId + 1) - Alpha(lastConvergedId));
+				if ((Alpha(lastConvergedId + 1) - Alpha(lastConvergedId)) <= 0.001*Alpha(lastConvergedId))
+					mu = 0.99*Alpha(lastConvergedId);
+				factorization.compute(SL - mu*ML);
+				break;
 
-			/* [3] Gong */
+			case MLEigenSolver::ShiftType::SHIFT_GONG:
+				/* [3] Gong's proposal */
+				cout << "___Gong's shift proposal | shifting on index " << lastConvergedId << endl;
+				mu = (Alpha(lastConvergedId + 1) + Alpha(lastConvergedId + 2)) / 2.0;
+				if (mu <= (Alpha(lastConvergedId + 1) + 0.001*Alpha(firstNZ)))			mu = Alpha(lastConvergedId + 1) + 0.001*Alpha(firstNZ) + std::numeric_limits<double>::epsilon();
+				else if (mu >= (Alpha(lastConvergedId + 2) - 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId + 2) - 0.001*Alpha(firstNZ) - std::numeric_limits<double>::epsilon();
+				factorization.compute(SL - mu*ML);
+				break;
 
-			//mu = Alpha((int)floor(0.2*q));		// should be 0.4 (but I wanna check for it's half, meaning 0.4 of the eigenvalues of interests)
-			factorization.compute(SL - mu*ML);
+			default:
+				break;
+			}
 			//factorization.vectorD();		// for sturm's check
 		}
 		factCounter++;
@@ -718,7 +735,7 @@ void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen:
 	cout << "...in " << duration.count() << " seconds." << endl;
 }
 
-void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift)
+void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
 {
 	chrono::high_resolution_clock::time_point	t0, t1;
 	chrono::duration<double>					duration;
@@ -798,11 +815,37 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 			}
 			else {
 				/* [1] Bathe's proposal */
-				cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
-				mu = (AkL(lastConvergedId) + AkL(lastConvergedId - 1)) / 2.0;
-				if (mu <= (AkL(lastConvergedId) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId) + 0.001*AkL(firstNZ);
-				else if (mu >= (AkL(lastConvergedId) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId) - 0.001*AkL(firstNZ);
-				factorization.compute(SK - mu*MK);
+				switch (shiftType)
+				{
+				case MLEigenSolver::ShiftType::SHIFT_BATHE:
+					cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
+					mu = (AkL(lastConvergedId) + AkL(lastConvergedId - 1)) / 2.0;
+					if (mu <= (AkL(lastConvergedId) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
+					else if (mu >= (AkL(lastConvergedId) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
+					factorization.compute(SK - mu*MK);
+					break;
+
+				case MLEigenSolver::ShiftType::SHIFT_ITOH_WILSON:
+					/* [2] Itoh and Wilson's proposal */
+					cout << "___Itoh and Wilson's shift proposal | shifting on index " << lastConvergedId << endl;
+					mu = AkL(lastConvergedId) + 0.9*(AkL(lastConvergedId + 1) - AkL(lastConvergedId));
+					if ((AkL(lastConvergedId + 1) - AkL(lastConvergedId)) <= 0.001*AkL(lastConvergedId))
+						mu = 0.99*AkL(lastConvergedId);
+					factorization.compute(SK - mu*MK);
+					break;
+
+				case MLEigenSolver::ShiftType::SHIFT_GONG:
+					/* [3] Gong's proposal */
+					cout << "___Gong's shift proposal | shifting on index " << lastConvergedId << endl;
+					mu = (AkL(lastConvergedId + 1) + AkL(lastConvergedId + 2)) / 2.0;
+					if (mu <= (AkL(lastConvergedId + 1) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId + 1) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
+					else if (mu >= (AkL(lastConvergedId + 2) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId + 2) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
+					factorization.compute(SK - mu*MK);
+					break;
+
+				default:
+					break;
+				}
 			}
 			factCounter++;
 			cout << "__> Factorization " << factCounter << " with shift of " << mu << endl;

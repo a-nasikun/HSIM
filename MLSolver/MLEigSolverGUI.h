@@ -748,6 +748,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	float p = ImGui::GetStyle().FramePadding.x;
 
 	static int SIMType = 2;
+	static int shiftType = 0;
 	static bool isClampedEigen = false; 
 
 	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -761,6 +762,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(1, MLEigenSolver::SIMType::SIM_1level_WarmStart));
 		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(2, MLEigenSolver::SIMType::SIM_1level_Random));
 		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(3, MLEigenSolver::SIMType::SIM_1level_Bathe));
+
+		/* Type of shifting approach */
+		std::map<int, MLEigenSolver::ShiftType>			shiftMap;
+		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(0, MLEigenSolver::ShiftType::SHIFT_BATHE));
+		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(1, MLEigenSolver::ShiftType::SHIFT_ITOH_WILSON));
+		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(2, MLEigenSolver::ShiftType::SHIFT_GONG));
 
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
 			static char numModesTxt[10] = "5"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
@@ -778,11 +785,17 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		static bool isShiftedSIM = false;
 		ImGui::Checkbox("with shift", &(isShiftedSIM));
+		if (isShiftedSIM) {
+			ImGui::RadioButton("Bathe##Shift",		&shiftType, 0);			ImGui::SameLine();
+			ImGui::RadioButton("Wilson##ItohShift", &shiftType, 1);			ImGui::SameLine();
+			ImGui::RadioButton("Gong##Shift",		&shiftType, 2);
+		}
+
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 						
-			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM);
+			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
 
 			printf("Successfully computing the eigenvalues \n");
 			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM() << endl;
