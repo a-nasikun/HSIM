@@ -748,8 +748,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	float w = ImGui::GetContentRegionAvailWidth();
 	float p = ImGui::GetStyle().FramePadding.x;
 
-	static int SIMType = 2;
-	static int shiftType = 0;
+	static int SIMType = 0;			// 0: M-L, 1: SGP, 2:random, 3: Bathe
+	static int shiftType = 3;		// 0: Bathe, 1: Itoh/Wilson, 2: Gong, 3: Zhao
 	static bool isClampedEigen = false; 
 
 	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -769,6 +769,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(0, MLEigenSolver::ShiftType::SHIFT_BATHE));
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(1, MLEigenSolver::ShiftType::SHIFT_ITOH_WILSON));
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(2, MLEigenSolver::ShiftType::SHIFT_GONG));
+		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(3, MLEigenSolver::ShiftType::SHIFT_ZHAO));
 
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
 			static char numModesTxt[10] = "5"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
@@ -788,8 +789,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		ImGui::Checkbox("with shift", &(isShiftedSIM));
 		if (isShiftedSIM) {
 			ImGui::RadioButton("Bathe##Shift",		&shiftType, 0);			ImGui::SameLine();
-			ImGui::RadioButton("Wilson##ItohShift", &shiftType, 1);			ImGui::SameLine();
-			ImGui::RadioButton("Gong##Shift",		&shiftType, 2);
+			ImGui::RadioButton("Wilson##ItohShift", &shiftType, 1);			
+			ImGui::RadioButton("Gong##Shift",		&shiftType, 2);			ImGui::SameLine();
+			ImGui::RadioButton("Zhao##Shift",		&shiftType, 3);
 		}
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {

@@ -483,23 +483,27 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 		int dCounter = 0;
 		/* Stage II: Shifting and Sturm's check */
 		/* At the beginning, no shift */
-		if (k == 0) {
-			//Eigen::SparseMatrix<double> Id;
-			//double eps = 1e-6;
-			//Id.resize(S.rows(), S.cols());
-			//Id.setIdentity();
-			//Id = eps*Id;
-			//factorization.compute(S + Id);
-			mu = Alpha(firstNZ/2) ;
-			cout << "Factorizing ";
-			factorization.compute(SL - mu*ML);			
-			cout << " done\n";
-		}
-		/* for later factorization */
-		else {
+		//if (k == 0) {
+		//	//Eigen::SparseMatrix<double> Id;
+		//	//double eps = 1e-6;
+		//	//Id.resize(S.rows(), S.cols());
+		//	//Id.setIdentity();
+		//	//Id = eps*Id;
+		//	//factorization.compute(S + Id);
+		//	mu = Alpha(firstNZ/2) ;
+		//	cout << "Factorizing ";
+		//	factorization.compute(SL - mu*ML);			
+		//	cout << " done\n";
+		//}
+		///* for later factorization */
+		//else 
+		{
+			double zhaoParam = 0.4;
+			int zhaoShiftId;
 			/* [1] Bathe's proposal */
 			switch (shiftType)
 			{
+
 			case MLEigenSolver::ShiftType::SHIFT_BATHE:
 				cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
 				mu = (Alpha(lastConvergedId) + Alpha(lastConvergedId - 1)) / 2.0;
@@ -523,6 +527,15 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 				mu = (Alpha(lastConvergedId + 1) + Alpha(lastConvergedId + 2)) / 2.0;
 				if (mu <= (Alpha(lastConvergedId + 1) + 0.001*Alpha(firstNZ)))			mu = Alpha(lastConvergedId + 1) + 0.001*Alpha(firstNZ) + std::numeric_limits<double>::epsilon();
 				else if (mu >= (Alpha(lastConvergedId + 2) - 0.001*Alpha(firstNZ)))		mu = Alpha(lastConvergedId + 2) - 0.001*Alpha(firstNZ) - std::numeric_limits<double>::epsilon();
+				factorization.compute(SL - mu*ML);
+				break;
+
+			case MLEigenSolver::ShiftType::SHIFT_ZHAO:
+				/* [4] Zhao's proposal */
+				if (k == 0) zhaoParam = 0.1; 
+				zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
+				mu = Alpha(zhaoShiftId);
+				cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId << endl;
 				factorization.compute(SL - mu*ML);
 				break;
 
@@ -822,6 +835,8 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 			//else 
 			{
 				/* [1] Bathe's proposal */
+				double zhaoParam = 0.4;
+				int zhaoShiftId;
 				switch (shiftType)
 				{
 				case MLEigenSolver::ShiftType::SHIFT_BATHE:
@@ -855,6 +870,15 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 					if (mu <= (AkL(lastConvergedId + 1) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId + 1) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
 					else if (mu >= (AkL(lastConvergedId + 2) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId + 2) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
 					//factorization.compute(SK - mu*MK);
+					break;
+
+				case MLEigenSolver::ShiftType::SHIFT_ZHAO:
+					/* [4] Zhao's proposal */
+					
+					if (iterCount == 0) zhaoParam = 0.1;
+					zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
+					mu = AkL(zhaoShiftId);
+					cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId << endl;
 					break;
 
 				default:

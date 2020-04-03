@@ -20,7 +20,7 @@ public:
 	enum class EigenVectorType	{ EIGEN_REFERENCE, EIGEN_REDUCED, EIGEN_SIM };
 	enum class SIMType			{ SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
 	enum class EigenSolverType	{ EIG_SOLVER_MATLAB, EIG_SOLVER_CUDA, EIG_SOLVER_SPECTRA };
-	enum class ShiftType		{ SHIFT_BATHE, SHIFT_ITOH_WILSON, SHIFT_GONG };
+	enum class ShiftType		{ SHIFT_BATHE, SHIFT_ITOH_WILSON, SHIFT_GONG, SHIFT_ZHAO };
 
 	void readMesh(const string &meshFile);
 	void setInitialSystem(int n);
