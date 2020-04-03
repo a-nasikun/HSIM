@@ -100,6 +100,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				//eigenSolver.setV(viewer.data().V);
 				//eigenSolver.setF(viewer.data().F);
 
+				scaleMesh(viewer.data().V, viewer.data().F);
 				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
 
 				viewer.data().show_lines = false;
@@ -802,6 +803,19 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
 		}
 
+		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
+			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
+			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+
+			int progType = 1;
+			vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> testedShift{ 0,1,2 };
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int k = 0; k < testedShift.size(); ++k) {
+					eigenSolver->performSubspaceIterationMethod(typeMap[progType], wantedModes[j], maxIter, tol, true, shiftMap[testedShift[k]], defAxis, clampRegion);
+				}
+			}			
+		}
 		///if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
 		///	double thisTol = 1e-2;
 		///	vector<int> wantedModes{ 50, 100, 250 };
