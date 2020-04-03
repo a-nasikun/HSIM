@@ -746,6 +746,7 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 	const int Imax = 4;
 	int iterCount = 0;
 	int factCounter = 0;
+	int status=0;
 
 	/* 4: RECURSION */
 	if (k == level)			// check if this already in the lowest/coarsest subspace
@@ -770,7 +771,7 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 
 		printf("____<2> Going deeper => \n ################");
 		if(isWithShift)
-			performMultiLevelSIM_withShift_Draft(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift);
+			performMultiLevelSIM_withShift_Draft(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
 		else 
 			performMultiLevelSIM(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift);
 		printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
@@ -791,7 +792,7 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 		Eigen::MatrixXd Q;
 		//Eigen::VectorXd Alpha;
 		Eigen::VectorXd conv2, conv3;
-		double mu;
+		double mu=0;
 
 		int						firstNZ = 0;
 		int						lastConvergedId = 0;
@@ -809,20 +810,33 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 		/* Iterating*/
 		printf("____<5> Subspace iteration.\n");
 		do {
-			if (iterCount == 0) {
-				mu = AkL(firstNZ/2);
-				factorization.compute(SK - mu*MK);
-			}
-			else {
+			//if (iterCount == 0) {
+			//	//mu = AkL(firstNZ/2);
+			//	//factorization.compute(SK - mu*MK);
+			//	Eigen::SparseMatrix<double> Id;
+			//	double eps = 1e-10;
+			//	Id.resize(SK.rows(), SK.cols());
+			//	Id.setIdentity();
+			//	factorization.compute(SK + eps*Id);
+			//}
+			//else 
+			{
 				/* [1] Bathe's proposal */
 				switch (shiftType)
 				{
 				case MLEigenSolver::ShiftType::SHIFT_BATHE:
 					cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
-					mu = (AkL(lastConvergedId) + AkL(lastConvergedId - 1)) / 2.0;
-					if (mu <= (AkL(lastConvergedId) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
-					else if (mu >= (AkL(lastConvergedId) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
-					factorization.compute(SK - mu*MK);
+					if (iterCount == 0) {
+						mu = (AkL(lastConvergedId));
+						if (mu <= (AkL(lastConvergedId) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
+						else if (mu >= (AkL(lastConvergedId) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
+					}
+					else {
+						mu = (AkL(lastConvergedId) + AkL(lastConvergedId - 1)) / 2.0;
+						if (mu <= (AkL(lastConvergedId) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
+						else if (mu >= (AkL(lastConvergedId) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
+					}
+					//factorization.compute(SK - mu*MK);
 					break;
 
 				case MLEigenSolver::ShiftType::SHIFT_ITOH_WILSON:
@@ -831,7 +845,7 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 					mu = AkL(lastConvergedId) + 0.9*(AkL(lastConvergedId + 1) - AkL(lastConvergedId));
 					if ((AkL(lastConvergedId + 1) - AkL(lastConvergedId)) <= 0.001*AkL(lastConvergedId))
 						mu = 0.99*AkL(lastConvergedId);
-					factorization.compute(SK - mu*MK);
+					//factorization.compute(SK - mu*MK);
 					break;
 
 				case MLEigenSolver::ShiftType::SHIFT_GONG:
@@ -840,13 +854,15 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 					mu = (AkL(lastConvergedId + 1) + AkL(lastConvergedId + 2)) / 2.0;
 					if (mu <= (AkL(lastConvergedId + 1) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId + 1) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
 					else if (mu >= (AkL(lastConvergedId + 2) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId + 2) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
-					factorization.compute(SK - mu*MK);
+					//factorization.compute(SK - mu*MK);
 					break;
 
 				default:
 					break;
 				}
 			}
+			//if (status != 0) mu *= 10;
+			factorization.compute(SK - mu*MK);
 			factCounter++;
 			cout << "__> Factorization " << factCounter << " with shift of " << mu << endl;
 
@@ -866,7 +882,13 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 				Mproj = XbarK.transpose()*MK*XbarK;
 
 				printf("________solve reduced eigenvalue problem. ");
-				computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+				status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+				cout << "__STATUS: " << status << endl; 
+				if (status != 0) {
+					cout << "___!! COmputation of eigenvalues failed! \n";
+					cout << "____Status: " << status << endl;
+					break;
+				}
 
 				printf("________lifting up/prolongation.");
 				XkL = XbarK*Q;
@@ -882,8 +904,8 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 				cout << AkL.head(numEigs).transpose() << endl;
 
 				if (k == 0) {
-					EigValsSIMStack.col(k) = AkL.block(0, 0, numEigs - 1, 1);
-					convergenceStacks.col(k) = conv2.block(0, 0, numEigs - 1, 1);
+					EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
+					convergenceStacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
 				}
 
 				iterCount++;
@@ -892,6 +914,8 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 					break;
 				}
 			}
+
+			if (conv2.size() < 1) continue;
 
 			/* Check convergence */
 			for (int i = lastConvergedId; i < numEigs; ++i) {

@@ -136,7 +136,7 @@ void computeEigenGPU(Eigen::SparseMatrix<double> &S_, Eigen::SparseMatrix<double
 	cudaDeviceReset();
 }
 
-void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
+int computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
 	cusolverDnHandle_t	cusolverH = NULL;
 	cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;
@@ -249,6 +249,8 @@ void computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixX
 	if (d_work) cudaFree(d_work);
 	if (cusolverH) cusolverDnDestroy(cusolverH);
 	cudaDeviceReset();
+
+	return ((int) cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4); 
 }
 
 ///void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
