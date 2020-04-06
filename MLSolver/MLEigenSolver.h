@@ -86,7 +86,8 @@ public:
 	const Eigen::VectorXd& getEigenValuesSIM() const;
 	const double getEigenValueSIM(int id) const;
 
-	void LBSTest(igl::opengl::glfw::Viewer &viewer, int id, double trans, int transAxis, double angle, int rotAxis);
+	void LBSTest_pos(igl::opengl::glfw::Viewer &viewer, int numBasis, int id, double trans, int transAxis, double angle, int rotAxis);
+	void LBSTest_vel(igl::opengl::glfw::Viewer &viewer, int numBasis, int id, double trans, int transAxis, double angle, int rotAxis);
 
 protected:
 	/* Mesh-related variables */

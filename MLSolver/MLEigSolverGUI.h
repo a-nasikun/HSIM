@@ -741,7 +741,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		static int		transAxis = 0;
 		static double	rotVal = 45.0;
 		static int		rotAxis = 0;
+		static int		numHandles = 5;
 
+		static char numHandlesTxt[32] = "5";			ImGui::InputText("Num Handles", numHandlesTxt, 32);
 		static char transValTxt[32] = "0.5";			ImGui::InputText("Translation", transValTxt, 32);		
 		ImGui::RadioButton("X##trans1", &transAxis, 0); ImGui::SameLine();
 		ImGui::RadioButton("Y##trans1", &transAxis, 1); ImGui::SameLine();
@@ -752,11 +754,18 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		ImGui::RadioButton("Y##rot1", &rotAxis, 1); ImGui::SameLine();
 		ImGui::RadioButton("Z##rot1", &rotAxis, 2);
 
-		if (ImGui::Button("Test LBS", ImVec2(w, 0))) {
+		if (ImGui::Button("LBS Pos", ImVec2((w-p)/2.0, 0))) {
 			transVal = atof(transValTxt);
 			rotVal = atof(rotValTxt);
-			eigenSolver->LBSTest(viewer, 0, transVal, transAxis, rotVal, rotAxis);
-
+			numHandles = atoi(numHandlesTxt);
+			eigenSolver->LBSTest_pos(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("LBS Vel", ImVec2((w - p) / 2.0, 0))) {
+			transVal = atof(transValTxt);
+			rotVal = atof(rotValTxt);
+			numHandles = atoi(numHandlesTxt);
+			eigenSolver->LBSTest_vel(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
 		}
 
 		if (ImGui::Button("Reset Mesh", ImVec2(w, 0))) {

@@ -1243,104 +1243,150 @@ const double MLEigenSolver::getEigenValueSIM(int id) const
 	return EigValsSIM(id); 
 }
 
-void MLEigenSolver::LBSTest(igl::opengl::glfw::Viewer &viewer, int id, double trans, int transAxis, double angle, int rotAxis)
+void MLEigenSolver::LBSTest_pos(igl::opengl::glfw::Viewer &viewer, int numBasis, int id, double trans, int transAxis, double angle, int rotAxis)
 {
-	cout << "Set up angles and translateion \n";
-	double c1 = cos(angle / 180.0 * M_PI);
-	double s1 = sin(angle / 180.0 * M_PI);
+	if (id >= V.rows()) id = 0;
+	cout << "Set up angles and translation \n";
+	double c1;
+	double s1;
 	Eigen::MatrixXd Q(3, 4); Q.setZero();
-	Eigen::VectorXd qBar(12);
-	Eigen::SparseMatrix<double> UU(3*V.rows(), 12);
+	Eigen::VectorXd qBar(12), q(12*numBasis);
+	Eigen::SparseMatrix<double> UU(3*V.rows(), 12*numBasis);
 	vector<Eigen::Triplet<double>> UTrip;
-	UTrip.reserve(12 * V.rows());
+	UTrip.reserve(12 * numBasis* V.rows());
 
 	cout << "Set up affine transformaiton matrix \n";
-	switch (rotAxis)
+	for (int k = 0; k < numBasis; ++k)
 	{
-	case 0:
-		Q(0, 0) = 1.0;
-		Q(1, 1) = c1;
-		Q(1, 2) = -s1;
-		Q(2, 1) = s1;
-		Q(2, 2) = c1;
-		break;
-	case 1:
-		Q(1, 1) = 1.0;
-		Q(2, 2) = c1;
-		Q(2, 0) = -s1;
-		Q(0, 2) = s1;
-		Q(0, 0) = c1;
-		break;
-	case 2:
-		Q(2, 2) = 1.0;
-		Q(0, 0) = c1;
-		Q(0, 1) = -s1;
-		Q(1, 0) = s1;
-		Q(1, 1) = c1;
-		break;
-	default:
-		break;
+		srand(time(NULL));
+		c1 = cos(k*angle / 180.0 * M_PI);
+		s1 = sin(k*angle / 180.0 * M_PI);
+
+		//switch (rotAxis)
+		switch (k%3)
+		{
+		case 0:
+			Q(0, 0) = 1.0;
+			Q(1, 1) = c1;
+			Q(1, 2) = -s1;
+			Q(2, 1) = s1;
+			Q(2, 2) = c1;
+			break;
+		case 1:
+			Q(1, 1) = 1.0;
+			Q(2, 2) = c1;
+			Q(2, 0) = -s1;
+			Q(0, 2) = s1;
+			Q(0, 0) = c1;
+			break;
+		case 2:
+			Q(2, 2) = 1.0;
+			Q(0, 0) = c1;
+			Q(0, 1) = -s1;
+			Q(1, 0) = s1;
+			Q(1, 1) = c1;
+			break;
+		default:
+			break;
+		}
+		cout << "Transform affine matrix to vector. \n";
+		// translation element
+		Q(transAxis, k%3) = (1+k%3) * trans;
+		qBar(0) = Q(0, 0);
+		qBar(1) = Q(1, 0);
+		qBar(2) = Q(2, 0);
+		qBar(3) = Q(0, 1);
+		qBar(4) = Q(1, 1);
+		qBar(5) = Q(2, 1);
+		qBar(6) = Q(0, 2);
+		qBar(7) = Q(1, 2);
+		qBar(8) = Q(2, 2);
+		qBar(9) = Q(0, 3);
+		qBar(10) = Q(1, 3);
+		qBar(11) = Q(2, 3);
+
+		q.block(12 * k, 0, 12, 1) = qBar;
 	}
-	cout << "Transform affine matrix to vector. \n";
-	// translation element
-	Q(transAxis, 3) = trans;
-	qBar(0) = Q(0, 0);
-	qBar(1) = Q(1, 0);
-	qBar(2) = Q(2, 0);
-	qBar(3) = Q(0, 1);
-	qBar(4) = Q(1, 1);
-	qBar(5) = Q(2, 1);
-	qBar(6) = Q(0, 2);
-	qBar(7) = Q(1, 2);
-	qBar(8) = Q(2, 2);
-	qBar(9)  = Q(0, 3);
-	qBar(10) = Q(1, 3);
-	qBar(11) = Q(2, 3);
 
 
 	/* Dijkstra distance */
 	cout << "Set up distance \n";
-	Eigen::VectorXd dist, weight;
+	Eigen::VectorXd dist;
+	Eigen::VectorXd handleId(numBasis);
+	handleId(0) = id;
+	Eigen::MatrixXd weight(V.rows(), numBasis);
+	weight.setZero();
 	dist.resize(V.rows());
 	dist.setConstant(std::numeric_limits<double>::infinity());
 	printf("Size: V: %d | AdV: %d | dist: %d \n", V.rows(), AdM.size(), dist.rows());
-	ComputeDijkstra(V, id, AdM, dist);
-	weight.resize(dist.size());
-	weight.setZero();
-	double maxDist = dist.maxCoeff();
+
+	double maxDist;
+
+	Eigen::VectorXi::Index maxIndex;
+	for (int k = 0; k < numBasis; ++k) {
+		ComputeDijkstra(V, handleId(k), AdM, dist);
+		if (k < (numBasis - 1)) {
+			dist.maxCoeff(&maxIndex);
+			handleId(k + 1) = maxIndex;
+		}
+
+		if (k == 0) {
+			maxDist = dist.maxCoeff() / 2;
+		}
+	}
 
 	cout << "Set up weight \n";
 	double			aCoef = 2.0 / (pow(maxDist, 3));
 	double			bCoef = -3.0 / (pow(maxDist, 2));
-	for (int i = 0; i < V.rows(); ++i) {
-		if(weight(i)<=maxDist)
-		weight(i) = aCoef*pow(dist(i),3) + bCoef*pow(dist(i),2) + 1.0;
+	cout << "Handles: " << handleId.transpose() << endl;
+
+	dist.setConstant(std::numeric_limits<double>::infinity());
+	for (int k = 0; k < numBasis; ++k) {
+		ComputeDijkstra(V, handleId(k), AdM, dist);
+		for (int i = 0; i < V.rows(); ++i) {
+			if (dist(i) <= maxDist)
+				weight(i,k) = aCoef*pow(dist(i), 3) + bCoef*pow(dist(i), 2) + 1.0;
+		}
+		dist.setConstant(std::numeric_limits<double>::infinity());
 	}
 
-	cout << "Set up the vectors of basis \n";
-	/* Setting up the subspace UU*/
+	/* Partition of unity of the weight */
+	cout << "partition of unity\n";
+	cout << "_PreV: " << weight.row(0) << endl;
 	for (int i = 0; i < V.rows(); ++i) {
-		if (dist(i) > maxDist) continue;
-		/* For the first 3 vertex coordinates (i.e. x, y, and z) */
-		for (int j = 0; j < 3; ++j) {
-			double val = V(i, j);
-			UTrip.push_back(Eigen::Triplet<double>(3*i,	  3*j,   weight(i)*val));
-			UTrip.push_back(Eigen::Triplet<double>(3*i+1, 3*j+1, weight(i)*val));
-			UTrip.push_back(Eigen::Triplet<double>(3*i+2, 3*j+2, weight(i)*val));
+		double rowSum = weight.row(i).sum();
+		Eigen::VectorXd rowSumVector(numBasis);
+		rowSumVector.setConstant(rowSum);
+		weight.row(i) = weight.row(i).cwiseQuotient(rowSumVector);
+	}
+	cout << "_Post: " << weight.row(0) << endl;
+	
+	for (int k = 0; k < numBasis; ++k) {
+		cout << "Set up the vectors of basis \n";
+		/* Setting up the subspace UU*/
+		for (int i = 0; i < V.rows(); ++i) {
+			//if (dist(i) > maxDist) continue;
+			/* For the first 3 vertex coordinates (i.e. x, y, and z) */
+			for (int j = 0; j < 3; ++j) {
+				double val = V(i, j);
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 0, 12 * k + 3 * j + 0, weight(i, k)*val));
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 1, 12 * k + 3 * j + 1, weight(i, k)*val));
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 2, 12 * k + 3 * j + 2, weight(i, k)*val));
+			}
+			/* For the the translation/last column */
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 0, 12 * k + 9, weight(i, k)));
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 1, 12 * k + 10, weight(i, k)));
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 2, 12 * k + 11, weight(i, k)));
 		}
-		/* For the the translation/last column */
-		UTrip.push_back(Eigen::Triplet<double>(3*i,   9,  weight(i)));
-		UTrip.push_back(Eigen::Triplet<double>(3*i+1, 10, weight(i)));
-		UTrip.push_back(Eigen::Triplet<double>(3*i+2, 11, weight(i)));
 	}
 	cout << "Set up basis matrix \n";
 	UU.setFromTriplets(UTrip.begin(), UTrip.end());
-
+	
 	/* Setting position */
 	Eigen::VectorXd pos;
 	Eigen::MatrixXd Pos;
 	cout << "Compute new position \n";
-	pos = UU*qBar;
+	pos = UU*q;
 
 	cout << "Transform the new position \n";
 	Pos.resize(V.rows(), V.cols());
@@ -1350,11 +1396,185 @@ void MLEigenSolver::LBSTest(igl::opengl::glfw::Viewer &viewer, int id, double tr
 		}
 	}
 
+	cout << "Init pos: " << V.row(0) << endl;
+	cout << "After: " << Pos.row(0) << endl;
+
 	Eigen::MatrixXd VCol;
-	igl::jet(weight, true, VCol);
+	igl::jet(-weight.col(0), true, VCol);
 	cout << "Show vertices \n";
 	viewer.data().set_vertices(Pos);
 	viewer.data().compute_normals();
-	viewer.data().add_points(Pos.row(id), Eigen::RowVector3d(1.0, 0.1, 0.1));
 	viewer.data().set_colors(VCol);
+
+	viewer.data().points.resize(0,6);
+	for(int i=0; i<numBasis; i++)
+		viewer.data().add_points(Pos.row(handleId(i)), Eigen::RowVector3d(1.0, 0.1, 0.1));
+}
+
+void MLEigenSolver::LBSTest_vel(igl::opengl::glfw::Viewer &viewer, int numBasis, int id, double trans, int transAxis, double angle, int rotAxis)
+{
+	if (id >= V.rows()) id = 0;
+	cout << "Set up angles and translation \n";
+	double c1;
+	double s1;
+	Eigen::MatrixXd Q(3, 4); Q.setZero();
+	Eigen::VectorXd qBar(12), q(12 * numBasis);
+	Eigen::SparseMatrix<double> UU(3 * V.rows(), 12 * numBasis);
+	vector<Eigen::Triplet<double>> UTrip;
+	UTrip.reserve(12 * numBasis* V.rows());
+
+	cout << "Set up affine transformaiton matrix \n";
+	for (int k = 0; k < numBasis; ++k)
+	{
+		srand(time(NULL));
+		c1 = cos(k*angle / 180.0 * M_PI);
+		s1 = sin(k*angle / 180.0 * M_PI);
+
+		//switch (rotAxis)
+		switch (k % 3)
+		{
+		case 0:
+			Q(0, 0) = 1.0;
+			Q(1, 1) = c1;
+			Q(1, 2) = -s1;
+			Q(2, 1) = s1;
+			Q(2, 2) = c1;
+			break;
+		case 1:
+			Q(1, 1) = 1.0;
+			Q(2, 2) = c1;
+			Q(2, 0) = -s1;
+			Q(0, 2) = s1;
+			Q(0, 0) = c1;
+			break;
+		case 2:
+			Q(2, 2) = 1.0;
+			Q(0, 0) = c1;
+			Q(0, 1) = -s1;
+			Q(1, 0) = s1;
+			Q(1, 1) = c1;
+			break;
+		default:
+			break;
+		}
+		cout << "Transform affine matrix to vector. \n";
+		// translation element
+		Q(transAxis, k % 3) = (1 + k % 3) * trans;
+		qBar(0) = Q(0, 0);
+		qBar(1) = Q(1, 0);
+		qBar(2) = Q(2, 0);
+		qBar(3) = Q(0, 1);
+		qBar(4) = Q(1, 1);
+		qBar(5) = Q(2, 1);
+		qBar(6) = Q(0, 2);
+		qBar(7) = Q(1, 2);
+		qBar(8) = Q(2, 2);
+		qBar(9) = Q(0, 3);
+		qBar(10) = Q(1, 3);
+		qBar(11) = Q(2, 3);
+
+		q.block(12 * k, 0, 12, 1) = qBar;
+	}
+
+
+	/* Dijkstra distance */
+	cout << "Set up distance \n";
+	Eigen::VectorXd dist;
+	Eigen::VectorXd handleId(numBasis);
+	handleId(0) = id;
+	Eigen::MatrixXd weight(V.rows(), numBasis);
+	weight.setZero();
+	dist.resize(V.rows());
+	dist.setConstant(std::numeric_limits<double>::infinity());
+	printf("Size: V: %d | AdV: %d | dist: %d \n", V.rows(), AdM.size(), dist.rows());
+
+	double maxDist;
+
+	Eigen::VectorXi::Index maxIndex;
+	for (int k = 0; k < numBasis; ++k) {
+		ComputeDijkstra(V, handleId(k), AdM, dist);
+		if (k < (numBasis - 1)) {
+			dist.maxCoeff(&maxIndex);
+			handleId(k + 1) = maxIndex;
+		}
+
+		if (k == 0) {
+			maxDist = dist.maxCoeff() / 2;
+		}
+	}
+
+	cout << "Set up weight \n";
+	double			aCoef = 2.0 / (pow(maxDist, 3));
+	double			bCoef = -3.0 / (pow(maxDist, 2));
+	cout << "Handles: " << handleId.transpose() << endl;
+
+	dist.setConstant(std::numeric_limits<double>::infinity());
+	for (int k = 0; k < numBasis; ++k) {
+		ComputeDijkstra(V, handleId(k), AdM, dist);
+		for (int i = 0; i < V.rows(); ++i) {
+			if (dist(i) <= maxDist)
+				weight(i, k) = aCoef*pow(dist(i), 3) + bCoef*pow(dist(i), 2) + 1.0;
+		}
+		dist.setConstant(std::numeric_limits<double>::infinity());
+	}
+
+	/* Partition of unity of the weight */
+	cout << "partition of unity\n";
+	cout << "_PreV: " << weight.row(0) << endl;
+	for (int i = 0; i < V.rows(); ++i) {
+		double rowSum = weight.row(i).sum();
+		Eigen::VectorXd rowSumVector(numBasis);
+		rowSumVector.setConstant(rowSum);
+		weight.row(i) = weight.row(i).cwiseQuotient(rowSumVector);
+	}
+	cout << "_Post: " << weight.row(0) << endl;
+
+	for (int k = 0; k < numBasis; ++k) {
+		cout << "Set up the vectors of basis \n";
+		/* Setting up the subspace UU*/
+		for (int i = 0; i < V.rows(); ++i) {
+			//if (dist(i) > maxDist) continue;
+			/* For the first 3 vertex coordinates (i.e. x, y, and z) */
+			for (int j = 0; j < 3; ++j) {
+				double val = V(i, j);
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 0, 12 * k + 3 * j + 0, (weight(i, k)-1.0/(double)numBasis)*val));
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 1, 12 * k + 3 * j + 1, (weight(i, k)-1.0/(double)numBasis)*val));
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 2, 12 * k + 3 * j + 2, (weight(i, k)-1.0/(double)numBasis)*val));
+			}
+			/* For the the translation/last column */
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 0, 12 * k + 9 , (weight(i, k)-1.0/(double)numBasis)));
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 1, 12 * k + 10, (weight(i, k)-1.0/(double)numBasis)));
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 2, 12 * k + 11, (weight(i, k)-1.0/(double)numBasis)));
+		}
+	}
+	cout << "Set up basis matrix \n";
+	UU.setFromTriplets(UTrip.begin(), UTrip.end());
+
+	/* Setting position */
+	Eigen::VectorXd pos;
+	Eigen::MatrixXd Pos;
+	cout << "Compute new position \n";
+	pos = UU*q;
+
+	cout << "Transform the new position \n";
+	Pos.resize(V.rows(), V.cols());
+	for (int i = 0; i < V.rows(); ++i) {
+		for (int j = 0; j < V.cols(); ++j) {
+			Pos(i, j) = pos(3 * i + j);
+		}
+	}
+
+	cout << "Init pos: " << V.row(0) << endl;
+	cout << "After: " << V.row(0)+ Pos.row(0) << endl;
+
+	Eigen::MatrixXd VCol;
+	igl::jet(-weight.col(0), true, VCol);
+	cout << "Show vertices \n";
+	viewer.data().set_vertices(Pos+V);
+	viewer.data().compute_normals();
+	viewer.data().set_colors(VCol);
+
+	viewer.data().points.resize(0, 6);
+	for (int i = 0; i<numBasis; i++)
+		viewer.data().add_points(Pos.row(handleId(i)), Eigen::RowVector3d(1.0, 0.1, 0.1));
 }
