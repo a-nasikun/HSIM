@@ -32,7 +32,7 @@
 
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
-void computeEigenGPU(Eigen::SparseMatrix<double> &S_, Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
+int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
 	cusolverDnHandle_t	cusolverH = NULL;
 	cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;
@@ -134,6 +134,8 @@ void computeEigenGPU(Eigen::SparseMatrix<double> &S_, Eigen::SparseMatrix<double
 	if (d_work) cudaFree(d_work);
 	if (cusolverH) cusolverDnDestroy(cusolverH);
 	cudaDeviceReset();
+
+	return ((int)cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4);
 }
 
 int computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)

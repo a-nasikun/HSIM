@@ -407,6 +407,100 @@ void MLSolverElastics::constructBasisCoarseOnly(double support, int axis, double
 
 }
 
+void MLSolverElastics::constructBasisCoarseOnly_LBS(double support, int axis, double offset)
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "___Basis construction (Coarse only)... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	int coarseSample = SubspaceSize[level - 1];
+	double				  maxDist;
+	double				  totalVolume = volume.sum();
+	maxDist = cbrt((3.0*3.0*support*totalVolume) / (4.0*coarseSample * M_PI));
+	printf("Sample: %d with dist of %.5f total volume: %.4f \n", coarseSample, maxDist, totalVolume);
+
+	vector<vector<Eigen::Triplet<double>>>	UTriplet;
+	vector<Eigen::Triplet<double>>			AllTriplet;
+	int				eCounter = 0;
+	double			aCoef = 2.0 / (pow(maxDist, 3));
+	double			bCoef = -3.0 / (pow(maxDist, 2));
+	int				i = 0;
+
+	const int		NUM_OF_THREADS = omp_get_num_procs();
+	omp_set_num_threads(NUM_OF_THREADS);
+	UTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc;
+
+	vector<int> elementCounter;
+	elementCounter.resize(NUM_OF_THREADS);
+	int totalElementInsertions = 0;
+
+	/* Manually break the chunck for parallelization */
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
+	{
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)coarseSample / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = coarseSample - istart;
+		if (ipts <= 0) ipts = 0;
+
+		// Instantiate D once, used for all Dijkstra
+		Eigen::VectorXd				D(V.rows());
+		D.setConstant(numeric_limits<double>::infinity());
+		//for (int i = 0; i < V.rows(); i++) {
+		//	D(i) = numeric_limits<double>::infinity();
+		//}
+
+		// LBS = requires 4x3 (=12) DoFs on each vertex
+		UTriplet[tid].reserve(4 * 3 * 2 * round((double)ipts / (double)coarseSample) * support * V.rows());
+
+		for (i = istart; i < (istart + ipts); i++) {
+			if (i >= coarseSample) break;
+			/* Dijkstra basis function */
+			//ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0, isClamped, axis, offset, UTriplet[tid], elementCounter[tid]);
+			constructDijkstraDisk_LBS(Sample(i), D, aCoef, bCoef, maxDist, i, 0, axis, offset, UTriplet[tid], elementCounter[tid]);
+		}
+	} /* End of OpenMP parallelization */
+
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += UTriplet[j].size();
+		totalElementInsertions += elementCounter[j];
+	}
+
+	/* Combining the Triplet */
+	AllTriplet.resize(totalElements);
+#pragma omp parallel for
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		int tripSize = 0;
+		for (int k = 0; k < j; k++) {
+			tripSize += UTriplet[k].size();
+		}
+		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
+	}
+	//Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	Basis.resize(3 * V.rows(), 12 * coarseSample);
+	Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+
+	///injectRigidModesInBasis();
+
+	formPartitionOfUnity();
+
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double)(Basis.nonZeros() / (double)Basis.rows()));
+
+}
+
 void MLSolverElastics::constructBasisNonSmooth(double support, int axis, double offset)
 {
 	Eigen::VectorXd globToLocMap;
@@ -682,6 +776,96 @@ void MLSolverElastics::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, c
 				double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
 				for (int j = 0; j < 3; j++) {
 					UTriplet.push_back(Eigen::Triplet<double>(3*i+j, 3*col+j, val));
+				}
+			}
+		}
+	}
+	D.setConstant(numeric_limits<double>::infinity());
+}
+
+void MLSolverElastics::constructDijkstraDisk_LBS(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter)
+{
+	priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
+
+	/* Setting the bound */
+	double xBound;
+	if (isClampedBasis) {
+		double xMin = V.col(axis).minCoeff();
+		double xMax = V.col(axis).maxCoeff();
+		xBound = xMin + offset*(xMax - xMin);		// within this bound, the elements will be discarded
+	}
+
+	int elCounter = 1;
+
+	// Computing distance for initial sample points S
+	D(s1) = 0.0f;
+	VertexPair vp{ s1,D(s1) };
+	DistPQueue.push(vp);
+
+	double distFromCenter = numeric_limits<double>::infinity();
+
+	// For other vertices in mesh
+	do {
+		if (DistPQueue.size() == 0) break;
+		VertexPair vp1 = DistPQueue.top();
+		distFromCenter = vp1.distance;
+		DistPQueue.pop();
+
+		// Updating the distance for neighbors of vertex of lowest distance in priority queue
+		auto const& elem = AdM[vp1.vId];
+		for (auto it = elem.begin(); it != elem.end(); ++it) {
+			/* Regular dijkstra */
+			double dist;
+			dist = (V.row(*it) - V.row(vp1.vId)).norm();
+			double tempDist = vp1.distance + dist;
+
+			/* Correct distance using Euclidean Distance */
+			//double tempDist = (V.row(s1) - V.row(*it)).norm();
+
+			/* updating the distance */
+			if (tempDist < D(*it)) {
+				D(*it) = tempDist;
+				VertexPair vp2{ *it,tempDist };
+				DistPQueue.push(vp2);
+			}
+		}
+	} while (distFromCenter <= maxDist);
+
+	if (k == 0) {
+		for (int i = 0; i < V.rows(); ++i) {
+			double aVal = D(i);
+			if (aVal <= maxDist) {
+				if (isClampedBasis && V(i, axis) < xBound) continue;
+
+				/* Polynomial mapping (3rd Order) */
+				double weight = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
+				/* LBS weight: 3x12 matrix for each block *
+				** V^T kronecker delta with 3x3 Identity matrix	*/
+				// [1] related to vertex coordinates: (col 1-9)
+				for (int l = 0; l < 3; ++l) {			// for each vertex' coordinate (i.e. x, y, and z)
+					double vertVal = V(i, l);
+					for (int j = 0; j < 3; j++) {		// 3 rows on each vertex
+						UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12*col + 3*l + j, (weight-1.0)*vertVal));
+					}
+				}
+
+				// [1] the additional identity matrix (col: 10-12)
+				for (int j = 0; j < 3; j++) {		// 3 rows on each vertex
+						UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12*col + 9 + j, (weight-1.0)));
+					}
+			}
+		}
+	}
+	else {
+		for (int i = 0; i < SubspaceSize[k - 1]; ++i) {
+			double aVal = D(Sample(i));
+			if (aVal <= maxDist) {
+				if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
+
+				/* Polynomial mapping (3rd Order) */
+				double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+				for (int j = 0; j < 3; j++) {
+					UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 3 * col + j, val));
 				}
 			}
 		}

@@ -225,7 +225,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
 			int		numSlices;
 			static	Eigen::VectorXd colorVect;
-			static bool	isClampedBasis = false;
+			static bool	isClampedBasis = true;
 			static int numLevels;
 
 			if (problemType == 1) {
@@ -419,6 +419,11 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->setClampBasis(isClampedBasis);
 
 				eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
+				//if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
+				//	solver->constructBasisCoarseOnly_LBS(numOfSupport, defAxis, clampRegion);
+				//}
+				//else return; 
+
 				useNonSmoothBasis = false;
 			}
 
@@ -732,6 +737,32 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
 		}		
 		
+		static double	transVal = 0;
+		static int		transAxis = 0;
+		static double	rotVal = 45.0;
+		static int		rotAxis = 0;
+
+		static char transValTxt[32] = "0.5";			ImGui::InputText("Translation", transValTxt, 32);		
+		ImGui::RadioButton("X##trans1", &transAxis, 0); ImGui::SameLine();
+		ImGui::RadioButton("Y##trans1", &transAxis, 1); ImGui::SameLine();
+		ImGui::RadioButton("Z##trans1", &transAxis, 2);
+
+		static char rotValTxt[32] = "45";			ImGui::InputText("Rot. Angle", rotValTxt, 32);
+		ImGui::RadioButton("X##rot1", &rotAxis, 0); ImGui::SameLine();
+		ImGui::RadioButton("Y##rot1", &rotAxis, 1); ImGui::SameLine();
+		ImGui::RadioButton("Z##rot1", &rotAxis, 2);
+
+		if (ImGui::Button("Test LBS", ImVec2(w, 0))) {
+			transVal = atof(transValTxt);
+			rotVal = atof(rotValTxt);
+			eigenSolver->LBSTest(viewer, 0, transVal, transAxis, rotVal, rotAxis);
+
+		}
+
+		if (ImGui::Button("Reset Mesh", ImVec2(w, 0))) {
+			viewer.data().set_vertices(eigenSolver->getV());
+		}
+
 		ImGui::End();
 }
 

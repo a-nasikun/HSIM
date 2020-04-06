@@ -197,15 +197,28 @@ void MLEigenSolver::formPartitionOfUnity()
 
 void MLEigenSolver::solveRestrictedProblem()
 {
+	double eps = 1e-16;
+	Eigen::SparseMatrix<double> Id(Basis.cols(), Basis.cols());
+	Id.setIdentity();
+	
+
 	cout << "> Creating the reduced system matrices.\n";
 	Eigen::SparseMatrix<double> S_, M_;			//reduced stiffness and mass matrix
 	S_ = Basis.transpose()*S*Basis;
 	M_ = Basis.transpose()*M*Basis;
+
 	printf("__S red %.4f (%d nnz)\n", (double)S_.nonZeros() / (double)S_.rows(), S_.nonZeros());
 	printf("__M red %.4f (%d nnz)\n", (double)M_.nonZeros() / (double)M_.rows(), M_.nonZeros());
 
 	cout << "> Computing the reduced eigenproblem (in GPU). \n";
-	computeEigenGPU(S_, M_, EigVectsReduced, EigValsReduced);
+
+	int status;
+
+	do {
+		eps *= 10;
+		status = computeEigenGPU(S_+eps*Id, M_, EigVectsReduced, EigValsReduced);
+		cout << "Shift: " << eps << endl;
+	} while (status != 0);
 
 	EigVectsReduced = Basis * EigVectsReduced;
 }
@@ -273,6 +286,8 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<do
 	cout << "____[1] SIM::Setup initialization of variables\n";
 	int					q = max(2*numEigs, numEigs+ 8);
 	Eigen::MatrixXd		Xk;
+	double eps = 1e-2 * std::numeric_limits<double>::epsilon();
+	int status; 
 
 	/* Selecting the appropriate subspace iteration method */
 	bool isNormalized = false;
@@ -314,7 +329,9 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<do
 	cout << "____[2] Factorizing the system matrix. \n";
 	Eigen::SparseMatrix<double> SS;
 	Eigen::SparseMatrix<double> Id;
-	double eps = 1e-6;
+	//double eps = 1e-6;
+	
+	cout << "Eps: " << eps << endl;
 	Id.resize(S.rows(), S.cols());
 	Id.setIdentity();
 	Id = eps*Id;
@@ -370,7 +387,13 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<do
 
 		/* Reduced eigenvalue problem */
 		printf("________solve reduced eigenvalue problem. ");
-		computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		if (status != 0) {
+			eps *= 10;
+			factorization.compute(SL + eps*Id);
+
+			continue;
+		}
 		//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
 		//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 		//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
@@ -411,6 +434,8 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 	const int			Imax = 4;
 	int					k = 0;
 	int					factCounter = 0;
+	double				eps = 1e-2*std::numeric_limits<double>::epsilon();
+	int					status;
 	EigVectsSIM.resize(S.rows(), numEigs);
 	EigValsSIM.resize(numEigs);
 
@@ -469,7 +494,7 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 	if (!isClampedBasis)
 	{
 		if (F.cols() == 3) {			/* FUNCTION */
-			firstNZ = 1;		// first non-zero eigenvalues on the reduced/subspace Function Laplacian
+			firstNZ = 1;				// first non-zero eigenvalues on the reduced/subspace Function Laplacian
 			lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
 		}
 		else if (F.cols() == 4) {		/* HESSIAN */
@@ -483,20 +508,23 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 		int dCounter = 0;
 		/* Stage II: Shifting and Sturm's check */
 		/* At the beginning, no shift */
-		//if (k == 0) {
-		//	//Eigen::SparseMatrix<double> Id;
-		//	//double eps = 1e-6;
-		//	//Id.resize(S.rows(), S.cols());
-		//	//Id.setIdentity();
-		//	//Id = eps*Id;
-		//	//factorization.compute(S + Id);
-		//	mu = Alpha(firstNZ/2) ;
-		//	cout << "Factorizing ";
-		//	factorization.compute(SL - mu*ML);			
-		//	cout << " done\n";
-		//}
-		///* for later factorization */
-		//else 
+		if (k == 0) {
+			Eigen::SparseMatrix<double> Id;
+			//double eps = 1e-8;
+			//double eps = 1e10 * std::numeric_limits<double>::epsilon();
+			eps *= 10;
+			Id.resize(S.rows(), S.cols());
+			Id.setIdentity();
+			Id = eps*Id;
+			factorization.compute(S + Id);
+			cout << "__First iter, no shift \n";
+			//mu = Alpha(firstNZ/2) ;
+			//cout << "Factorizing ";
+			//factorization.compute(SL - mu*ML);			
+			//cout << " done\n";
+		}
+		/* for later factorization */
+		else 
 		{
 			double zhaoParam = 0.4;
 			int zhaoShiftId;
@@ -532,7 +560,7 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 
 			case MLEigenSolver::ShiftType::SHIFT_ZHAO:
 				/* [4] Zhao's proposal */
-				if (k == 0) zhaoParam = 0.1; 
+				//if (k == 0) zhaoParam = 0.1; 
 				zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
 				mu = Alpha(zhaoShiftId);
 				cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId << endl;
@@ -567,7 +595,7 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 		/////cout << "diag with negative ids: \n" << a.transpose() << endl;
 		///cout << "Counter: " << dCounter << endl; 
 
-		cout << "__> Factorization " << factCounter << " with shift of " << mu << endl; 
+		cout << "__> Factorization " << factCounter << " with shift of " << ((k==0)? eps : mu) << endl; 
 
 		/* Stage III: Iterations */
 		for (int i = 0; i < Imax; ++i) {
@@ -591,10 +619,14 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 
 			/* Reduced eigenvalue problem */
 			//printf("________solve reduced eigenvalue problem. ");
-			computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+			status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
 			//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
 			//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
+			if (status != 0) {
+				cout << "ERROR! Cannot compute eigenproblem \n";
+				break;
+			}
 
 			//printf("________lifting up/prolongation.");
 			Xk = XbarK*Q;
@@ -613,11 +645,17 @@ void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<
 			convergenceStacks.col(k) = conv2.block(0, 0, numEigs-1, 1);			
 
 			k++;
+			/* kinda ignore the first iteration */
+			if (k == 1) break;
+
 			if (k >= maxIter || (conv2(numEigs - 1) < tol)) {
 				isConverged = true;
 				break;
 			}
 		}
+
+		if (k == 0) continue;
+		if (conv2.size() < 1) continue;
 
 		/* Check convergence */
 		for (int i = lastConvergedId; i < numEigs; ++i) {
@@ -650,6 +688,8 @@ void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen:
 	
 	printf("____[1] level: %d \n", k);
 	int		q = max(2*numEigs, numEigs+8);
+	double eps = 1e-1 * std::numeric_limits<double>::epsilon();
+	int status; 
 
 	/* 4: RECURSION */
 	if (k == level)			// check if this already in the lowest/coarsest subspace
@@ -681,15 +721,17 @@ void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen:
 		/* Adding a small number on the diagonal, for robustness */
 		Eigen::SparseMatrix<double> SS;
 		Eigen::SparseMatrix<double> Id; Id.resize(SK.rows(), SK.cols()); Id.setIdentity();
-		double eps = 1e-6;
+		//double eps = 1e-6;
+		
 		Id = eps*Id;
 		SS = SK + Id;		// Adding epsilon to the diagonal
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 		factorization.compute(SS);
+		cout << "SS: \n" << SS.topLeftCorner(12, 6) << endl; 
 		printf("____<4> Embedding a small-valued diagonal matrix \n");
 
 		/* Temporary variables */
-		bool convergenceCheck;
+		bool convergenceCheck = false;
 		Eigen::MatrixXd XbarK(XkL.rows(), q); XbarK.setZero();
 		Eigen::MatrixXd Mproj, Sproj;
 		Eigen::MatrixXd Q;
@@ -702,6 +744,7 @@ void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen:
 		int iterCount = 0;
 		do {
 			/* Set up the iteration matrix */
+			cout << "___Factorizing \n";
 			for (int i = 0; i < q; i++) {						// easily parallelizeable
 				Eigen::VectorXd v;
 				v = MK * (XkL.col(i));
@@ -713,7 +756,16 @@ void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen:
 			Mproj = XbarK.transpose()*MK*XbarK;
 
 			/* Computing the eigenproblem in reduced space*/
-			computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			if (status != 0) {
+				cout << status << "Cannot resolve eigenproblem with shifting " << eps << endl;
+				eps *= 10;
+				SS = SK + eps*Id;
+				factorization.compute(SS);
+				cout << "Increase the shift to " << eps << endl; 
+				continue;
+			}
+
 			//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
@@ -806,6 +858,7 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 		//Eigen::VectorXd Alpha;
 		Eigen::VectorXd conv2, conv3;
 		double mu=0;
+		double eps = 1e-5*std::numeric_limits<double>::epsilon();
 
 		int						firstNZ = 0;
 		int						lastConvergedId = 0;
@@ -823,16 +876,18 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 		/* Iterating*/
 		printf("____<5> Subspace iteration.\n");
 		do {
-			//if (iterCount == 0) {
-			//	//mu = AkL(firstNZ/2);
-			//	//factorization.compute(SK - mu*MK);
-			//	Eigen::SparseMatrix<double> Id;
-			//	double eps = 1e-10;
-			//	Id.resize(SK.rows(), SK.cols());
-			//	Id.setIdentity();
-			//	factorization.compute(SK + eps*Id);
-			//}
-			//else 
+			if (iterCount == 0) {
+				//mu = AkL(firstNZ/2);
+				//factorization.compute(SK - mu*MK);
+				Eigen::SparseMatrix<double> Id;
+				//double eps = 1e-10;
+				eps *= 10;
+				cout << "__epsilon added on first iter : " << eps << endl; 
+				Id.resize(SK.rows(), SK.cols());
+				Id.setIdentity();
+				factorization.compute(SK + eps*Id);
+			}
+			else 
 			{
 				/* [1] Bathe's proposal */
 				double zhaoParam = 0.4;
@@ -875,7 +930,7 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 				case MLEigenSolver::ShiftType::SHIFT_ZHAO:
 					/* [4] Zhao's proposal */
 					
-					if (iterCount == 0) zhaoParam = 0.1;
+					//if (iterCount == 0) zhaoParam = 0.1;
 					zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
 					mu = AkL(zhaoShiftId);
 					cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId << endl;
@@ -884,11 +939,11 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 				default:
 					break;
 				}
+				//if (status != 0) mu *= 10;
+				factorization.compute(SK - mu*MK);
 			}
-			//if (status != 0) mu *= 10;
-			factorization.compute(SK - mu*MK);
 			factCounter++;
-			cout << "__> Factorization " << factCounter << " with shift of " << mu << endl;
+			cout << "__> Factorization " << factCounter << " with shift of " << ((iterCount==0) ? eps : mu) << endl;
 
 			/* Stage III: Iterations */
 			for (int i = 0; i < Imax; ++i) {
@@ -933,6 +988,10 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 				}
 
 				iterCount++;
+
+				/* Ignore the first iteration */
+				if (iterCount == 1) break;
+
 				if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
 					convergenceCheck = true;
 					break;
@@ -1182,4 +1241,120 @@ const double MLEigenSolver::getEigenValueSIM(int id) const
 	else if (id< 0)						return EigValsSIM(0);
 
 	return EigValsSIM(id); 
+}
+
+void MLEigenSolver::LBSTest(igl::opengl::glfw::Viewer &viewer, int id, double trans, int transAxis, double angle, int rotAxis)
+{
+	cout << "Set up angles and translateion \n";
+	double c1 = cos(angle / 180.0 * M_PI);
+	double s1 = sin(angle / 180.0 * M_PI);
+	Eigen::MatrixXd Q(3, 4); Q.setZero();
+	Eigen::VectorXd qBar(12);
+	Eigen::SparseMatrix<double> UU(3*V.rows(), 12);
+	vector<Eigen::Triplet<double>> UTrip;
+	UTrip.reserve(12 * V.rows());
+
+	cout << "Set up affine transformaiton matrix \n";
+	switch (rotAxis)
+	{
+	case 0:
+		Q(0, 0) = 1.0;
+		Q(1, 1) = c1;
+		Q(1, 2) = -s1;
+		Q(2, 1) = s1;
+		Q(2, 2) = c1;
+		break;
+	case 1:
+		Q(1, 1) = 1.0;
+		Q(2, 2) = c1;
+		Q(2, 0) = -s1;
+		Q(0, 2) = s1;
+		Q(0, 0) = c1;
+		break;
+	case 2:
+		Q(2, 2) = 1.0;
+		Q(0, 0) = c1;
+		Q(0, 1) = -s1;
+		Q(1, 0) = s1;
+		Q(1, 1) = c1;
+		break;
+	default:
+		break;
+	}
+	cout << "Transform affine matrix to vector. \n";
+	// translation element
+	Q(transAxis, 3) = trans;
+	qBar(0) = Q(0, 0);
+	qBar(1) = Q(1, 0);
+	qBar(2) = Q(2, 0);
+	qBar(3) = Q(0, 1);
+	qBar(4) = Q(1, 1);
+	qBar(5) = Q(2, 1);
+	qBar(6) = Q(0, 2);
+	qBar(7) = Q(1, 2);
+	qBar(8) = Q(2, 2);
+	qBar(9)  = Q(0, 3);
+	qBar(10) = Q(1, 3);
+	qBar(11) = Q(2, 3);
+
+
+	/* Dijkstra distance */
+	cout << "Set up distance \n";
+	Eigen::VectorXd dist, weight;
+	dist.resize(V.rows());
+	dist.setConstant(std::numeric_limits<double>::infinity());
+	printf("Size: V: %d | AdV: %d | dist: %d \n", V.rows(), AdM.size(), dist.rows());
+	ComputeDijkstra(V, id, AdM, dist);
+	weight.resize(dist.size());
+	weight.setZero();
+	double maxDist = dist.maxCoeff();
+
+	cout << "Set up weight \n";
+	double			aCoef = 2.0 / (pow(maxDist, 3));
+	double			bCoef = -3.0 / (pow(maxDist, 2));
+	for (int i = 0; i < V.rows(); ++i) {
+		if(weight(i)<=maxDist)
+		weight(i) = aCoef*pow(dist(i),3) + bCoef*pow(dist(i),2) + 1.0;
+	}
+
+	cout << "Set up the vectors of basis \n";
+	/* Setting up the subspace UU*/
+	for (int i = 0; i < V.rows(); ++i) {
+		if (dist(i) > maxDist) continue;
+		/* For the first 3 vertex coordinates (i.e. x, y, and z) */
+		for (int j = 0; j < 3; ++j) {
+			double val = V(i, j);
+			UTrip.push_back(Eigen::Triplet<double>(3*i,	  3*j,   weight(i)*val));
+			UTrip.push_back(Eigen::Triplet<double>(3*i+1, 3*j+1, weight(i)*val));
+			UTrip.push_back(Eigen::Triplet<double>(3*i+2, 3*j+2, weight(i)*val));
+		}
+		/* For the the translation/last column */
+		UTrip.push_back(Eigen::Triplet<double>(3*i,   9,  weight(i)));
+		UTrip.push_back(Eigen::Triplet<double>(3*i+1, 10, weight(i)));
+		UTrip.push_back(Eigen::Triplet<double>(3*i+2, 11, weight(i)));
+	}
+	cout << "Set up basis matrix \n";
+	UU.setFromTriplets(UTrip.begin(), UTrip.end());
+
+	/* Setting position */
+	Eigen::VectorXd pos;
+	Eigen::MatrixXd Pos;
+	cout << "Compute new position \n";
+	pos = UU*qBar;
+
+	cout << "Transform the new position \n";
+	Pos.resize(V.rows(), V.cols());
+	for (int i = 0; i < V.rows(); ++i) {
+		for (int j = 0; j < V.cols(); ++j) {
+			Pos(i, j) = pos(3*i+j);
+		}
+	}
+
+	Eigen::MatrixXd VCol;
+	igl::jet(weight, true, VCol);
+	cout << "Show vertices \n";
+	viewer.data().set_vertices(Pos);
+	viewer.data().compute_normals();
+	viewer.data().add_points(Pos.row(id), Eigen::RowVector3d(1.0, 0.1, 0.1));
+	viewer.data().set_colors(VCol);
 }
