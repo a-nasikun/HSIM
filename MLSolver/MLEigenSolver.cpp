@@ -1458,6 +1458,11 @@ void MLEigenSolver::LBSTest_vel(igl::opengl::glfw::Viewer &viewer, int numBasis,
 			break;
 		}
 		cout << "Transform affine matrix to vector. \n";
+		Eigen::MatrixXd Id(3, 4);
+		Id.setIdentity();
+		Q = Q - Id;
+
+
 		// translation element
 		Q(transAxis, k % 3) = (1 + k % 3) * trans;
 		qBar(0) = Q(0, 0);
@@ -1537,14 +1542,14 @@ void MLEigenSolver::LBSTest_vel(igl::opengl::glfw::Viewer &viewer, int numBasis,
 			/* For the first 3 vertex coordinates (i.e. x, y, and z) */
 			for (int j = 0; j < 3; ++j) {
 				double val = V(i, j);
-				UTrip.push_back(Eigen::Triplet<double>(3 * i + 0, 12 * k + 3 * j + 0, (weight(i, k)-1.0/(double)numBasis)*val));
-				UTrip.push_back(Eigen::Triplet<double>(3 * i + 1, 12 * k + 3 * j + 1, (weight(i, k)-1.0/(double)numBasis)*val));
-				UTrip.push_back(Eigen::Triplet<double>(3 * i + 2, 12 * k + 3 * j + 2, (weight(i, k)-1.0/(double)numBasis)*val));
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 0, 12 * k + 3 * j + 0, (weight(i, k))*val));
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 1, 12 * k + 3 * j + 1, (weight(i, k))*val));
+				UTrip.push_back(Eigen::Triplet<double>(3 * i + 2, 12 * k + 3 * j + 2, (weight(i, k))*val));
 			}
 			/* For the the translation/last column */
-			UTrip.push_back(Eigen::Triplet<double>(3 * i + 0, 12 * k + 9 , (weight(i, k)-1.0/(double)numBasis)));
-			UTrip.push_back(Eigen::Triplet<double>(3 * i + 1, 12 * k + 10, (weight(i, k)-1.0/(double)numBasis)));
-			UTrip.push_back(Eigen::Triplet<double>(3 * i + 2, 12 * k + 11, (weight(i, k)-1.0/(double)numBasis)));
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 0, 12 * k + 9 , (weight(i, k))));
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 1, 12 * k + 10, (weight(i, k))));
+			UTrip.push_back(Eigen::Triplet<double>(3 * i + 2, 12 * k + 11, (weight(i, k))));
 		}
 	}
 	cout << "Set up basis matrix \n";
