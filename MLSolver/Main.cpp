@@ -94,10 +94,12 @@ int main(int argc, char *argv[])
 	viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
 	viewer.callback_key_down		= key_down;
 
-	Eigen::Vector4f					bgCol(0.5f, 0.4f, 0.9f, 0.2f);
+	//Eigen::Vector4f				bgCol(0.5f, 0.4f, 0.9f, 0.2f);
 	//Eigen::Vector4f				bgCol(0.95f, 0.95f, 0.95f, 1.0f);
+	Eigen::Vector4f					bgCol(1.f, 1.f, 1.f, 1.f);
 	viewer.core.background_color	= bgCol;	
 	viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
+	//viewer.data().set_colors(Eigen::RowVector3d(0.96666666, 0.96666666, 0.96666666));
 	viewer.data().point_size		= 10.0f;
 	viewer.data().line_width		= 0.5f; 	
 	return viewer.launch();

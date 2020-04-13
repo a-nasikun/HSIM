@@ -495,7 +495,7 @@ void MLSolverElastics::constructBasisCoarseOnly_LBS(double support, int axis, do
 
 	///injectRigidModesInBasis();
 
-	formPartitionOfUnity();
+	///formPartitionOfUnity();
 
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double)(Basis.nonZeros() / (double)Basis.rows()));
 
@@ -845,13 +845,13 @@ void MLSolverElastics::constructDijkstraDisk_LBS(const int s1, Eigen::VectorXd &
 				for (int l = 0; l < 3; ++l) {			// for each vertex' coordinate (i.e. x, y, and z)
 					double vertVal = V(i, l);
 					for (int j = 0; j < 3; j++) {		// 3 rows on each vertex
-						UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12*col + 3*l + j, (weight-1.0)*vertVal));
+						UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12*col + 3*l + j, (weight)*vertVal));
 					}
 				}
 
 				// [1] the additional identity matrix (col: 10-12)
 				for (int j = 0; j < 3; j++) {		// 3 rows on each vertex
-						UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12*col + 9 + j, (weight-1.0)));
+						UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12*col + 9 + j, (weight)));
 					}
 			}
 		}

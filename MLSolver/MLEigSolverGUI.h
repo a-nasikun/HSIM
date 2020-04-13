@@ -315,6 +315,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				vector<int> sampleLevels; sampleLevels.reserve(10);
 				int SAMPLE_LOW_BOUND = 1000;
 				int SAMPLE_CUT_OFF = 250;
+				if (problemType == 1) {
+					SAMPLE_LOW_BOUND = 250;
+					SAMPLE_CUT_OFF = 50;
+				}
 				int numSample = eigenSolver->getV().rows();
 
 				/* hard coded */
@@ -418,11 +422,11 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				numOfSupport = atof(numSupTxt);
 				eigenSolver->setClampBasis(isClampedBasis);
 
-				eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
-				//if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-				//	solver->constructBasisCoarseOnly_LBS(numOfSupport, defAxis, clampRegion);
-				//}
-				//else return; 
+				//eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
+				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
+					solver->constructBasisCoarseOnly_LBS(numOfSupport, defAxis, clampRegion);
+				}
+				else return; 
 
 				useNonSmoothBasis = false;
 			}
@@ -771,6 +775,15 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		if (ImGui::Button("Reset Mesh", ImVec2(w, 0))) {
 			viewer.data().set_vertices(eigenSolver->getV());
 		}
+
+		if (ImGui::Button("Lighter", ImVec2((w-p) / 2.f, 0))) {
+			viewer.data().line_width *= 0.5f;
+		}
+		ImGui::SameLine(0, p);
+		if (ImGui::Button("Bolder", ImVec2((w-p) / 2.f, 0))) {
+			viewer.data().line_width *= 2.0f;
+		}
+
 
 		ImGui::End();
 }
