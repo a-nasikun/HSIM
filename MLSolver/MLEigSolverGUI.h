@@ -391,8 +391,13 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->setClampBasis(isClampedBasis);
 				numOfSupport = atof(numSupTxt);
 
-				eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
-
+				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
+					cout << "LBS Basis \n";
+					solver->constructBasis_LBS(numOfSupport, defAxis, clampRegion);
+				}
+				else {
+					eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
+				}
 				useNonSmoothBasis = false;
 				//ml_eigSolver.testConstantFuncsProjection();
 

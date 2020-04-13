@@ -208,17 +208,25 @@ void MLEigenSolver::solveRestrictedProblem()
 	M_ = Basis.transpose()*M*Basis;
 
 	printf("__S red %.4f (%d nnz)\n", (double)S_.nonZeros() / (double)S_.rows(), S_.nonZeros());
+	cout << S_.topLeftCorner(10, 10) << endl;
 	printf("__M red %.4f (%d nnz)\n", (double)M_.nonZeros() / (double)M_.rows(), M_.nonZeros());
+	cout << M_.topLeftCorner(10, 10) << endl;
 
 	cout << "> Computing the reduced eigenproblem (in GPU). \n";
 
 	int status;
+	int iter = 0;
 
-	do {
-		eps *= 10;
-		status = computeEigenGPU(S_+eps*Id, M_, EigVectsReduced, EigValsReduced);
-		cout << "Shift: " << eps << endl;
-	} while (status != 0);
+	do {		
+		if(iter==0)
+			status = computeEigenGPU(S_, M_, EigVectsReduced, EigValsReduced);
+		else {
+			eps *= 10;
+			status = computeEigenGPU(S_+eps*Id, M_, EigVectsReduced, EigValsReduced);
+			cout << "Shift: " << eps << endl;
+		}
+		iter++;
+	} while (status != 0 && iter<10);
 
 	EigVectsReduced = Basis * EigVectsReduced;
 }

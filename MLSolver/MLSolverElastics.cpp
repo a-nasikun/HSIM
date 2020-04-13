@@ -314,6 +314,34 @@ void MLSolverElastics::constructBasis(double support, int axis, double offset)
 
 }
 
+
+void MLSolverElastics::constructBasis_LBS(double support, int axis, double offset)
+{
+	double			totalVolume = 0.0;
+	for (int i = 0; i < F.rows(); i++) totalVolume += (volume(i));
+
+	maxNeighDist[0] = cbrt((3.0*3.0*support*totalVolume) / (4.0*SubspaceSize[0] * M_PI));
+	printf("Radius %d is %.4f\n", 0, maxNeighDist[0]);
+	for (int i = 1; i < level; i++) {
+		maxNeighDist[i] = cbrt(SubspaceSize[i - 1] / (double)SubspaceSize[i]) * maxNeighDist[i - 1];
+		printf("Radius %d is %.4f\n", i, maxNeighDist[i]);
+	}
+
+	for (int i = 0; i < level; i++) {
+		constructRadialBasisFunctions_LBS(i, axis, isClampedBasis, offset, support);
+		printf("basis level %d: done \n", i);
+	}
+
+	formPartitionOfUnityMultiLevel();
+	Basis.resize(3 * V.rows(), 3 * V.rows());
+	Basis.setIdentity();
+	for (int i = 0; i < level; i++)
+		Basis = Basis * U[i];
+
+	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
+
+}
+
 void MLSolverElastics::constructBasisCoarseOnly(double support, int axis, double offset)
 {
 	// For Timing
@@ -418,7 +446,7 @@ void MLSolverElastics::constructBasisCoarseOnly_LBS(double support, int axis, do
 	int coarseSample = SubspaceSize[level - 1];
 	double				  maxDist;
 	double				  totalVolume = volume.sum();
-	maxDist = cbrt((3.0*3.0*support*totalVolume) / (4.0*coarseSample * M_PI));
+	maxDist = cbrt((4*3.0*3.0*support*totalVolume) / (4.0*coarseSample * M_PI));
 	printf("Sample: %d with dist of %.5f total volume: %.4f \n", coarseSample, maxDist, totalVolume);
 
 	vector<vector<Eigen::Triplet<double>>>	UTriplet;
@@ -495,7 +523,7 @@ void MLSolverElastics::constructBasisCoarseOnly_LBS(double support, int axis, do
 
 	///injectRigidModesInBasis();
 
-	///formPartitionOfUnity();
+	formPartitionOfUnity();
 
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double)(Basis.nonZeros() / (double)Basis.rows()));
 
@@ -704,6 +732,96 @@ void MLSolverElastics::constructRadialBasisFunctions(int k, int axis, bool isCla
 
 }
 
+void MLSolverElastics::constructRadialBasisFunctions_LBS(int k, int axis, bool isClamped, double offset, double support)
+{
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "___Basis construction [LBS] (level " << k << " )... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	vector<vector<Eigen::Triplet<double>>>	UTriplet;
+	vector<Eigen::Triplet<double>>			AllTriplet;
+	int				eCounter = 0;
+	double			aCoef = 2.0 / (pow(maxNeighDist[k], 3));
+	double			bCoef = -3.0 / (pow(maxNeighDist[k], 2));
+	int				i = 0;
+
+	const int		NUM_OF_THREADS = omp_get_num_procs();
+	omp_set_num_threads(NUM_OF_THREADS);
+	UTriplet.resize(NUM_OF_THREADS);
+
+	int tid, ntids, ipts, istart, iproc;
+
+	vector<int> elementCounter;
+	elementCounter.resize(NUM_OF_THREADS);
+	int totalElementInsertions = 0;
+
+	/* Manually break the chunck for parallelization */
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
+	{
+		iproc = omp_get_num_procs();
+		tid = omp_get_thread_num();
+		ntids = omp_get_num_threads();
+		ipts = (int)ceil(1.00*(double)SubspaceSize[k] / (double)ntids);
+		istart = tid * ipts;
+		if (tid == ntids - 1) ipts = SubspaceSize[k] - istart;
+		if (ipts <= 0) ipts = 0;
+
+		// Instantiate D once, used for all Dijkstra
+		Eigen::VectorXd				D(V.rows());
+		D.setConstant(numeric_limits<double>::infinity());
+		//for (int i = 0; i < V.rows(); i++) {
+		//	D(i) = numeric_limits<double>::infinity();
+		//}
+
+		if (k == 0)
+			UTriplet[tid].reserve(4*3 * 2 * round((double)ipts / (double)SubspaceSize[0]) * support * V.rows());
+		else
+			UTriplet[tid].reserve(4*3 * 2 * round((double)ipts / (double)SubspaceSize[0]) * support * SubspaceSize[k - 1]);
+
+		for (i = istart; i < (istart + ipts); i++) {
+			if (i >= SubspaceSize[k]) break;
+			/* Dijkstra basis function */
+			//ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0, isClamped, axis, offset, UTriplet[tid], elementCounter[tid]);
+			constructDijkstraDisk_LBS(Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid], elementCounter[tid]);
+		}
+	} /* End of OpenMP parallelization */
+
+	int totalElements = 0;
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		totalElements += UTriplet[j].size();
+		totalElementInsertions += elementCounter[j];
+	}
+
+	/* Combining the Triplet */
+	AllTriplet.resize(totalElements);
+#pragma omp parallel for
+	for (int j = 0; j < NUM_OF_THREADS; j++) {
+		int tripSize = 0;
+		for (int k = 0; k < j; k++) {
+			tripSize += UTriplet[k].size();
+		}
+		std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
+	}
+	//Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	if (k == 0)
+		U[0].resize(3 * V.rows(), 12 * SubspaceSize[k]);
+	else
+		U[k].resize(12 * SubspaceSize[k - 1], 12 * SubspaceSize[k]);
+
+	U[k].setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+
+	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
+
+}
+
 void MLSolverElastics::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter)
 {
 	priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
@@ -848,11 +966,10 @@ void MLSolverElastics::constructDijkstraDisk_LBS(const int s1, Eigen::VectorXd &
 						UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12*col + 3*l + j, (weight)*vertVal));
 					}
 				}
-
 				// [1] the additional identity matrix (col: 10-12)
 				for (int j = 0; j < 3; j++) {		// 3 rows on each vertex
-						UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12*col + 9 + j, (weight)));
-					}
+					UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 12 * col + 9 + j, (weight)));
+				}
 			}
 		}
 	}
@@ -864,8 +981,8 @@ void MLSolverElastics::constructDijkstraDisk_LBS(const int s1, Eigen::VectorXd &
 
 				/* Polynomial mapping (3rd Order) */
 				double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
-				for (int j = 0; j < 3; j++) {
-					UTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 3 * col + j, val));
+				for (int j = 0; j < 12; ++j) {
+					UTriplet.push_back(Eigen::Triplet<double>(12 * i + j, 12 * col + j, val));
 				}
 			}
 		}
@@ -898,6 +1015,95 @@ void MLSolverElastics::constructSelectorMatrixFullSize(Eigen::SparseMatrix<doubl
 
 	SelMat.setFromTriplets(STriplet.begin(), STriplet.end());
 	printf("__Dim of this selector matrix: %dx%d \n", SelMat.rows(), SelMat.cols());
+}
+
+void MLSolverElastics::formPartitionOfUnity()
+{
+
+	cout << "> Partition of unity on Elastics materials is called. \n";
+	/* Temporary variables */
+	vector<Eigen::Triplet<double>>		diagTrip;
+	Eigen::SparseMatrix<double>			DiagNormMatrix;
+	Eigen::VectorXd						rowSum = Eigen::VectorXd::Zero(Basis.rows());
+	DiagNormMatrix.resize(Basis.rows(), Basis.rows());
+	diagTrip.reserve(Basis.nonZeros());
+
+	/* Getting the sum of every non-zero elements in a row */
+	for (int i = 0; i < SubspaceSize[level-1]; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			int k = 12*i + 9+j;
+			for (Eigen::SparseMatrix<double>::InnerIterator it(Basis, k); it; ++it) {
+				rowSum(it.row()) += it.value();
+			}
+		}
+	}
+
+	/* Get the diagonal matrix, reciprocal of the total sum per row */
+	for (int i = 0; i < rowSum.size(); i++) {
+		diagTrip.push_back(Eigen::Triplet<double>(i, i, 1.0 / rowSum(i)));
+	}
+	DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
+
+	/* Form partition of unity */
+	Basis = DiagNormMatrix * Basis;
+}
+
+void MLSolverElastics::formPartitionOfUnityMultiLevel()
+{
+	cout << "Partition of unity (on Elastics model) \n";
+	/* Temporary variables */
+	vector<Eigen::Triplet<double>>		diagTrip;
+	Eigen::SparseMatrix<double>			DiagNormMatrix;
+	Eigen::VectorXd						rowSum;
+
+	for (int i = 0; i < level; i++)
+	{
+		rowSum.resize(U[i].rows());
+		rowSum.setZero();
+		DiagNormMatrix.resize(U[i].rows(), U[i].rows());
+		diagTrip.reserve(U[i].nonZeros());
+
+		/* Getting the sum of every non-zero elements in a row */
+		if (i == 0) {
+			// Special treatment for level 0 (only deal with the last 3 columns on each block)
+			for (int m = 0; m < SubspaceSize[0]; ++m) {
+				for (int j = 0; j < 3; ++j) {
+					int k = 12 * m + 9+j;
+					for (Eigen::SparseMatrix<double>::InnerIterator it(U[0], k); it; ++it) {
+						rowSum(it.row()) += it.value();
+					}
+				}
+			}
+		}
+		else {
+			// regular partition of unity on other levels
+			for (int k = 0; k < U[i].outerSize(); ++k) {
+				for (Eigen::SparseMatrix<double>::InnerIterator it(U[i], k); it; ++it) {
+					rowSum(it.row()) += it.value();
+				}
+			}
+		}
+
+		/* Get the diagonal matrix, reciprocal of the total sum per row */
+		for (int k = 0; k < rowSum.size(); k++) {
+			// if the sum of the row is very small, then do not do anything on this row
+			if (abs(rowSum(k)) < (std::numeric_limits<double>::epsilon())) {
+				diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
+				cout <<"<"<< i <<  ">Row: " << k << ", value:" << rowSum(k) << endl;
+				continue;
+			} 
+			diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+		}
+		DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
+
+		/* Form partition of unity */
+		U[i] = DiagNormMatrix * U[i];
+		printf("Partition of unity level %d | Diag: %dx%d | U_k=%dx%d (%.5f) \n", i, DiagNormMatrix.rows(), DiagNormMatrix.cols(), U[i].rows(), U[i].cols(), (double) U[i].nonZeros() / U[i].rows());
+		cout << "Diag: \n" << DiagNormMatrix.topLeftCorner(6, 6) << endl;
+
+		diagTrip.clear();
+		diagTrip.shrink_to_fit();
+	}
 }
 
 
