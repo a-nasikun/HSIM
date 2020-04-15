@@ -847,6 +847,7 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 			performMultiLevelSIM_withShift_Draft(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
 		else 
 			performMultiLevelSIM(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift);
+
 		printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
 
 		/* [3] SUBSPACE ITERATION METHOD */
@@ -859,7 +860,7 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 		//printf("____<4> Embedding a small-valued diagonal matrix \n");
 
 		/* Temporary variables */
-		bool convergenceCheck;
+		bool convergenceCheck = false;
 		Eigen::MatrixXd XbarK(XkL.rows(), q); XbarK.setZero();
 		Eigen::MatrixXd Mproj, Sproj;
 		Eigen::MatrixXd Q;
@@ -872,11 +873,11 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 		int						lastConvergedId = 0;
 		if (!isClampedBasis) {
 			if (F.cols() == 3) {			/* FUNCTION */
-				firstNZ = 1;		// first non-zero eigenvalues on the reduced/subspace Function Laplacian
+				firstNZ = 1;				// first non-zero eigenvalues on the reduced/subspace Function Laplacian
 				lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
 			}
 			else if (F.cols() == 4) {		/* HESSIAN */
-				firstNZ = 6;		// first non-zero eigenvalues on the reduced/subspace (Hessian)
+				firstNZ = 6;				// first non-zero eigenvalues on the reduced/subspace (Hessian)
 				lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
 			}
 		}
@@ -974,7 +975,9 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 				if (status != 0) {
 					cout << "___!! COmputation of eigenvalues failed! \n";
 					cout << "____Status: " << status << endl;
-					break;
+					i = Imax;
+					continue;
+					//break;
 				}
 
 				printf("________lifting up/prolongation.");
@@ -1006,7 +1009,15 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 				}
 			}
 
-			if (conv2.size() < 1) continue;
+			std::cout << "Convergence: " << convergenceCheck << endl;
+			if (conv2.size() < 1) {
+				std::cout << "The convergence check has not been done yet \n";
+				continue; 
+			}
+			if (status!=0) {
+				std::cout << "Cannot solve reduced eigenproblem \n";
+				continue;
+			}
 
 			/* Check convergence */
 			for (int i = lastConvergedId; i < numEigs; ++i) {
