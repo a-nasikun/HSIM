@@ -885,16 +885,31 @@ void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<dou
 		/* Iterating*/
 		printf("____<5> Subspace iteration.\n");
 		do {
+			
 			if (iterCount == 0) {
-				//mu = AkL(firstNZ/2);
-				//factorization.compute(SK - mu*MK);
-				Eigen::SparseMatrix<double> Id;
-				//double eps = 1e-10;
-				eps *= 10;
-				cout << "__epsilon added on first iter : " << eps << endl; 
-				Id.resize(SK.rows(), SK.cols());
-				Id.setIdentity();
-				factorization.compute(SK + eps*Id);
+				std::cout << "MK: \n" << MK.topLeftCorner(6, 6) << std::endl;
+				std::cout << "SK: \n" << SK.topLeftCorner(6, 6) << std::endl;
+				if (factCounter == 0)
+				{
+					std::cout << "__First iter, shift to the left of approximation \n";
+					Eigen::VectorXd headEigVal(6);
+					headEigVal << abs(AkL(0)), abs(AkL(1)), abs(AkL(2)), abs(AkL(3)), abs(AkL(4)), abs(AkL(5));
+					mu = 0.5 * headEigVal.cwiseAbs().minCoeff();
+					mu = min(mu, 1e-8*std::numeric_limits<double>::epsilon());
+					factorization.compute(SK - mu*MK);
+					std::cout << "__mu=" << mu << std::endl;
+				}
+				else {
+					//mu = AkL(firstNZ/2);
+					//factorization.compute(SK - mu*MK);
+					Eigen::SparseMatrix<double> Id;
+					//double eps = 1e-10;
+					eps *= 10;
+					cout << "__epsilon added on first iter : " << eps << endl;
+					Id.resize(SK.rows(), SK.cols());
+					Id.setIdentity();
+					factorization.compute(SK + eps*Id);
+				}
 			}
 			else 
 			{
@@ -1197,6 +1212,38 @@ void MLEigenSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer
 
 void MLEigenSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const {}
 void MLEigenSolver::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const {}
+void MLEigenSolver::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer)
+{
+	Eigen::MatrixXd VColor;
+	Eigen::VectorXd vcolor(V.rows());
+	for (int i = 0; i < V.rows(); i++)
+	{
+		vcolor(i) = (double)clusters[0](i) / (double)V.rows();
+	}
+
+	igl::jet(vcolor, true, VColor);
+	viewer.data().set_colors(VColor);
+}
+
+void MLEigenSolver::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k)
+{
+	viewer.data().points.resize(0, 6);
+	Eigen::MatrixXd VColor;
+	Eigen::VectorXd fcolor(SubspaceSize[k]);
+
+
+	//cout << "Set color for level " << k << endl;
+	for (int i = 0; i < SubspaceSize[k]; i++) fcolor(i) = (double)i; // / (double)clusters[k].size();
+
+	igl::jet(fcolor, true, VColor);
+
+	//cout << "Iterate to set color for each sample vertex \n";
+	for (int i = 0; i < SubspaceSize[k - 1]; i++)
+	{
+		//printf("Point %d (Sample %d) belongs to cluster %d \n", Sample(i), i, clusters[k](i));
+		viewer.data().add_points(V.row(Sample(i)), VColor.row(clusters[k](i)));
+	}
+}
 
 /* Some getters */
 Eigen::MatrixXd MLEigenSolver::getV() const { return V; }

@@ -445,26 +445,31 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				numOfSupport = atof(numSupTxt);
 				eigenSolver->setClampBasis(isClampedBasis);
 
-				eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
+				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
+					solver->constructBasisNonSmooth_LBS(numOfSupport, defAxis, clampRegion);
+				}
+				else 
+				{
+					eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
+				}
 				//ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
 				useNonSmoothBasis = true;
 			}
 
-			///for (int i = 0; i < ml_eigSolver.level; i++)
-			///{
-			///	string disp = "Cluster "; disp += to_string(i);
-			///	char const* ca = disp.c_str();
-			///	if (ImGui::Button(ca, ImVec2(w / (double)ml_eigSolver.level - p, 0))) {
-			///		if (i == 0)
-			///			ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
-			///		else
-			///			ml_eigSolver.visualizeClusterOfSamplesLevelK(viewer, i);
-			///	} ImGui::SameLine(0, p);
-			///}
-
-			///
-			///ImGui::Spacing(); ImGui::Spacing();
-			///
+			for (int i = 0; i < numLevels; i++)
+			{
+				string disp = "Cluster "; disp += to_string(i);
+				char const* ca = disp.c_str();
+				if (ImGui::Button(ca, ImVec2(w / (double)numLevels - p, 0))) {
+					if (i == 0)
+						eigenSolver->visualizeClusterOfSamplesLevel0(viewer);
+					else
+						eigenSolver->visualizeClusterOfSamplesLevelK(viewer, i);
+				} ImGui::SameLine(0, p);
+			}
+						
+			ImGui::Spacing(); ImGui::Spacing();
+			
 
 			/* Solving Low-Dim Eigenproblem */
 			if (ImGui::Button("[4] Solve Reduced Eigenproblem##1", ImVec2(w, 0))) {

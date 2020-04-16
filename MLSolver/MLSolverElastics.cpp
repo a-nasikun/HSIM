@@ -579,10 +579,10 @@ void MLSolverElastics::constructBasisNonSmooth(double support, int axis, double 
 		for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {
 			if (it.value() > maxVal)
 			{
-				if (it.col() % 3 != 0) continue;
+				if (it.col() % 3 != 0) continue;		// if the col is not multiple of 3, skip
 				///if (isClampedBasis && globToLocMap(it.row()) < 0) continue;
 				maxVal = it.value();
-				clusters[0](it.row()/3) = it.col()/3;
+				clusters[0](it.row()/3) = it.col()/3;	// the vertex of id it.row()/3 belongs to cluster it.col()/3
 			}
 		}
 	}
@@ -640,6 +640,122 @@ void MLSolverElastics::constructBasisNonSmooth(double support, int axis, double 
 		Basis = Basis * U[i];
 		printf("Basis size: %dx%d (nnz: %d) | Loc Basis: %dx%d (nnz: %d). \n", Basis.rows(), Basis.cols(), Basis.nonZeros(), U[i].rows(), U[i].cols(), U[i].nonZeros());
 	}
+}
+void MLSolverElastics::constructBasisNonSmooth_LBS(double support, int axis, double offset)
+{
+	Eigen::VectorXd globToLocMap;
+	double xBound;
+
+	if (isClampedBasis) {
+		double xMin = V.col(axis).minCoeff();
+		double xMax = V.col(axis).maxCoeff();
+		xBound = xMin + offset*(xMax - xMin);		// within this bound, the Hessian will be discarded
+
+		globToLocMap.resize(V.rows());
+		globToLocMap.setConstant(-1);
+
+		int vCounter = 0;
+		for (int i = 0; i < V.rows(); i++) {
+			if (V(i, axis) >= xBound) {							// only select entries corresponding to selected vertices			
+				globToLocMap(i) = vCounter;
+				vCounter++;
+			}
+		}
+	}
+
+	clusters[0].resize(V.rows());
+	for (int i = 1; i < level; ++i)
+		clusters[i].resize(SubspaceSize[i - 1]);
+
+	double			totalVolume = 0.0;
+	for (int i = 0; i < F.rows(); i++) totalVolume += (volume(i));
+
+	maxNeighDist[0] = cbrt((3.0*3.0*support*totalVolume) / (4.0*SubspaceSize[0] * M_PI));
+	printf("Radius %d is %.4f\n", 0, maxNeighDist[0]);
+	for (int i = 1; i < level; i++) {
+		maxNeighDist[i] = cbrt(SubspaceSize[i - 1] / (double)SubspaceSize[i]) * maxNeighDist[i - 1];
+		printf("Radius %d is %.4f\n", i, maxNeighDist[i]);
+	}
+
+	for (int i = 0; i < level; i++) {
+		constructRadialBasisFunctions_LBS(i, axis, isClampedBasis, offset, support);
+		printf("basis level %d: done \n", i);
+	}
+
+	/* Construct clusters on each level, then create basis out of it */
+	/* 1. For level 0, use the value on the 9-th index only *
+	**    using the transpose of the basis matrix. */
+	cout << "Clustering level 0\n";
+	Eigen::SparseMatrix<double, Eigen::RowMajor> UTemp = U[0];
+	for (int k = 0; k < UTemp.outerSize(); k += 3) {		// index of the row, multiple of 3 (there are 3|V| entries
+		double maxVal = std::numeric_limits<double>::lowest();
+		for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {
+			if (it.value() > maxVal)
+			{
+				if (it.col() % 12 != 9) continue;
+				///if (isClampedBasis && globToLocMap(it.row()) < 0) continue;
+				maxVal = it.value();
+				clusters[0](it.row() / 3) = it.col() / 12;
+			}
+		}
+	}
+
+	///* New basis */
+	//cout << "Set up new basis \n";
+	//vector<Eigen::Triplet<double>> UTriplet;
+	//UTriplet.reserve(3 * V.rows());
+	//for (int i = 0; i < V.rows(); i++)
+	//{
+	//	if (isClampedBasis && globToLocMap(i) < 0) continue;
+	//	for (int k = 0; k<3; k++)
+	//		UTriplet.push_back(Eigen::Triplet<double>(3 * i + k, 3 * clusters[0](i) + k, 1.0));
+	//}
+	//U[0].resize(0, 0); U[0].resize(3 * V.rows(), 3 * SubspaceSize[0]);
+	//U[0].setFromTriplets(UTriplet.begin(), UTriplet.end());
+	//UTriplet.clear(); UTriplet.shrink_to_fit();
+
+	/* 1. For level k */
+	vector<Eigen::Triplet<double>> UTriplet;
+	for (int l = 1; l < level; l++)
+	{
+		printf("Clustering level %d \n", l);
+		UTemp = U[l];
+		for (int k = 0; k < UTemp.outerSize(); k += 12) {
+			double maxVal = std::numeric_limits<double>::lowest();
+			for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {
+				if (it.value() > maxVal)
+				{
+					if (it.col() % 12 != 0) continue;
+					///if (isClampedBasis && globToLocMap(Sample(it.row()) < 0)) continue;
+					maxVal = it.value();
+					clusters[l](it.row() / 12) = it.col() / 12;
+				}
+			}
+		}
+
+		cout << "Set up new basis \n";
+		UTriplet.reserve(12 * SubspaceSize[l - 1]);
+		for (int i = 0; i < SubspaceSize[l - 1]; i++)
+		{
+			if (isClampedBasis && globToLocMap(Sample(i)) < 0) {
+				cout << "This happens | ";  continue;
+			}
+			for (int j = 0; j<12; ++j)
+				UTriplet.push_back(Eigen::Triplet<double>(12 * i + j, 12 * clusters[l](i) + j, 1.0));
+		}
+		U[l].resize(0, 0); U[l].resize(12 * SubspaceSize[l - 1], 12 * SubspaceSize[l]);
+		U[l].setFromTriplets(UTriplet.begin(), UTriplet.end());
+		UTriplet.clear(); UTriplet.shrink_to_fit();
+	} //  End of clustering
+
+	  //Basis = U[0];
+	Basis.resize(3 * V.rows(), 3 * V.rows());
+	Basis.setIdentity();
+	for (int i = 0; i < level; i++) {
+		Basis = Basis * U[i];
+		printf("Basis size: %dx%d (nnz: %d) | Loc Basis: %dx%d (nnz: %d). \n", Basis.rows(), Basis.cols(), Basis.nonZeros(), U[i].rows(), U[i].cols(), U[i].nonZeros());
+	}
+	formPartitionOfUnityMultiLevel();
 }
 
 void MLSolverElastics::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
