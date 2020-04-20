@@ -996,10 +996,4 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	}
 	ImGui::End();
 }
-
-
-
-
-
 #endif // !FAST_SPECTRUM_GUI
-

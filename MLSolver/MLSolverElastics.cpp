@@ -681,6 +681,7 @@ void MLSolverElastics::constructBasisNonSmooth_LBS(double support, int axis, dou
 		constructRadialBasisFunctions_LBS(i, axis, isClampedBasis, offset, support);
 		printf("basis level %d: done \n", i);
 	}
+	///formPartitionOfUnityMultiLevel();
 
 	/* Construct clusters on each level, then create basis out of it */
 	/* 1. For level 0, use the value on the 9-th index only *
@@ -701,21 +702,42 @@ void MLSolverElastics::constructBasisNonSmooth_LBS(double support, int axis, dou
 	}
 
 	///* New basis */
-	//cout << "Set up new basis \n";
-	//vector<Eigen::Triplet<double>> UTriplet;
-	//UTriplet.reserve(3 * V.rows());
-	//for (int i = 0; i < V.rows(); i++)
-	//{
-	//	if (isClampedBasis && globToLocMap(i) < 0) continue;
-	//	for (int k = 0; k<3; k++)
-	//		UTriplet.push_back(Eigen::Triplet<double>(3 * i + k, 3 * clusters[0](i) + k, 1.0));
-	//}
-	//U[0].resize(0, 0); U[0].resize(3 * V.rows(), 3 * SubspaceSize[0]);
-	//U[0].setFromTriplets(UTriplet.begin(), UTriplet.end());
-	//UTriplet.clear(); UTriplet.shrink_to_fit();
+	cout << "Set up new basis \n";
+	vector<Eigen::Triplet<double>> UTriplet;
+	UTriplet.reserve((12)*(3*V.rows()));
+	for (int i = 0; i < V.rows(); i++)
+	{
+		if (isClampedBasis && globToLocMap(i) < 0) continue;
+		int parentVertex = clusters[0](i);
+		///for (int j = 0; j < 4; ++j) {			// for every 'column'
+		///	for (int k = 0; k < 3; ++k) {		// for every 'row'
+		///		UTriplet.push_back(Eigen::Triplet<double>(3*i+k, 12*parentVertex+j*3+k, U[0].coeff(3*Sample(parentVertex)+k, 12*parentVertex+j*3+k)));
+		///	}
+		///}
+		
+		// for every 'column' on the Affine transformation (3x9 matrix)
+		for (int j = 0; j < 9; ++j) {			
+			// for every 'row'
+			for (int k = 0; k < 3; ++k) {		
+				//UTriplet.push_back(Eigen::Triplet<double>(3*i+k, 12*parentVertex+j, U[0].coeff(3*Sample(parentVertex)+k, 12*parentVertex+j)));
+				UTriplet.push_back(Eigen::Triplet<double>(3*i+k, 12*parentVertex+j, U[0].coeff(3*i+k, 12*parentVertex+j)));
+			}
+		}
+		// translation space
+		for (int k = 0; k < 3; ++k) {
+			UTriplet.push_back(Eigen::Triplet<double>(3*i+k, 12*parentVertex+9+k, U[0].coeff(3*Sample(parentVertex)+k, 12*parentVertex+9+k)));
+		}
+
+
+		//for (int k = 0; k<3; k++)
+		//	UTriplet.push_back(Eigen::Triplet<double>(3 * i + k, 3 * clusters[0](i) + k, 1.0));
+	}
+	U[0].resize(0, 0); U[0].resize(3 * V.rows(), 12 * SubspaceSize[0]);
+	U[0].setFromTriplets(UTriplet.begin(), UTriplet.end());
+	UTriplet.clear(); UTriplet.shrink_to_fit();
 
 	/* 1. For level k */
-	vector<Eigen::Triplet<double>> UTriplet;
+	//vector<Eigen::Triplet<double>> UTriplet;
 	for (int l = 1; l < level; l++)
 	{
 		printf("Clustering level %d \n", l);
@@ -755,7 +777,8 @@ void MLSolverElastics::constructBasisNonSmooth_LBS(double support, int axis, dou
 		Basis = Basis * U[i];
 		printf("Basis size: %dx%d (nnz: %d) | Loc Basis: %dx%d (nnz: %d). \n", Basis.rows(), Basis.cols(), Basis.nonZeros(), U[i].rows(), U[i].cols(), U[i].nonZeros());
 	}
-	formPartitionOfUnityMultiLevel();
+
+	///formPartitionOfUnityMultiLevel();
 }
 
 void MLSolverElastics::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
