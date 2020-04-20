@@ -432,8 +432,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				
 				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
 					solver->constructBasisCoarseOnly_LBS(numOfSupport, defAxis, clampRegion);
-				}
+				} 
+				else {
 					eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
+				}
 
 				useNonSmoothBasis = false;
 			}

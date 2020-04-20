@@ -778,7 +778,7 @@ void MLSolverElastics::constructBasisNonSmooth_LBS(double support, int axis, dou
 		printf("Basis size: %dx%d (nnz: %d) | Loc Basis: %dx%d (nnz: %d). \n", Basis.rows(), Basis.cols(), Basis.nonZeros(), U[i].rows(), U[i].cols(), U[i].nonZeros());
 	}
 
-	///formPartitionOfUnityMultiLevel();
+	formPartitionOfUnityMultiLevel();
 }
 
 void MLSolverElastics::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
@@ -1168,18 +1168,26 @@ void MLSolverElastics::formPartitionOfUnity()
 	diagTrip.reserve(Basis.nonZeros());
 
 	/* Getting the sum of every non-zero elements in a row */
+	//std::cout << "Getting the sum of every non-zero elements in a row \n" << std::endl; 
+	//std::cout << "Num of elements: " << SubspaceSize[level - 1] << std::endl; 
 	for (int i = 0; i < SubspaceSize[level-1]; ++i) {
+		//printf("Id: %d of [%d] |", i, SubspaceSize[level - 1]);
 		for (int j = 0; j < 3; ++j) {
 			int k = 12*i + 9+j;
 			for (Eigen::SparseMatrix<double>::InnerIterator it(Basis, k); it; ++it) {
 				rowSum(it.row()) += it.value();
 			}
 		}
-	}
+	} 
+	std::cout << std::endl; 
 
+	//std::cout << "Creating a diagonal matrix. \n" << std::endl;
 	/* Get the diagonal matrix, reciprocal of the total sum per row */
-	for (int i = 0; i < rowSum.size(); i++) {
-		diagTrip.push_back(Eigen::Triplet<double>(i, i, 1.0 / rowSum(i)));
+	for (int i = 0; i < rowSum.size(); ++i) {
+		if(abs(rowSum(i))<10.0*std::numeric_limits<double>::epsilon())
+			diagTrip.push_back(Eigen::Triplet<double>(i, i, 1.0));
+		else 
+			diagTrip.push_back(Eigen::Triplet<double>(i, i, 1.0 / rowSum(i)));
 	}
 	DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
 
@@ -1195,7 +1203,7 @@ void MLSolverElastics::formPartitionOfUnityMultiLevel()
 	Eigen::SparseMatrix<double>			DiagNormMatrix;
 	Eigen::VectorXd						rowSum;
 
-	for (int i = 0; i < level; i++)
+	for (int i = 0; i < level; ++i)
 	{
 		rowSum.resize(U[i].rows());
 		rowSum.setZero();
@@ -1226,12 +1234,12 @@ void MLSolverElastics::formPartitionOfUnityMultiLevel()
 		/* Get the diagonal matrix, reciprocal of the total sum per row */
 		for (int k = 0; k < rowSum.size(); k++) {
 			// if the sum of the row is very small, then do not do anything on this row
-			if (abs(rowSum(k)) < (std::numeric_limits<double>::epsilon())) {
+			if (abs(rowSum(k)) < (10.0*std::numeric_limits<double>::epsilon())) {
 				diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
 				cout <<"<"<< i <<  ">Row: " << k << ", value:" << rowSum(k) << endl;
-				continue;
 			} 
-			diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+			else 
+				diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
 		}
 		DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
 
@@ -1384,6 +1392,7 @@ void MLSolverElastics::injectRigidModes()
 	cout << "Ratio: " << Sv.head(20).cwiseQuotient(Mv.head(20)) << endl;
 
 }
+
 
 /* Visualization Tools*/
 void MLSolverElastics::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const

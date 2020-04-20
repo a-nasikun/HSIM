@@ -263,16 +263,22 @@ void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 
 	/* Performing the SIM according to user selected methods */
 	if (type == SIMType::SIM_MultiLevel) {
-		if (isWithShift)
-			//performMultiLevelSIM_withShift_Draft(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
-			performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
-		else 
+		if (isWithShift) {
+			if (F.cols() == 4)
+				performMultiLevelSIM_withShift_Draft(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
+			else if (F.cols() == 3)
+				performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
+		}
+		else {
 			performMultiLevelSIM(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+		}
 	} else {
-		if (isWithShift)
+		if (isWithShift) {
 			performSIMwithShift_Draft(type, SSel, MSel, numEigs, maxIter, tol, isWithShift, shiftType);
-		else
+		}
+		else {
 			performSIMwithWarmStart(type, SSel, MSel, numEigs, maxIter, tol, isWithShift);
+		}
 	}
 
 	printf("Size of eigenvalues: %d | eigVectors: %dx%d \n", EigValsSIM.rows(), EigVectsSIM.rows(), EigVectsSIM.cols());
@@ -295,8 +301,10 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<do
 	cout << "____[1] SIM::Setup initialization of variables\n";
 	int					q = max(2*numEigs, numEigs+ 8);
 	Eigen::MatrixXd		Xk;
-	double eps = 1e-2 * std::numeric_limits<double>::epsilon();
-	int status; 
+	int					status=1; 
+	double eps;
+	if(F.cols()==4) eps = 1e-2 * std::numeric_limits<double>::epsilon();
+	else			eps = 1e6 * std::numeric_limits<double>::epsilon();
 
 	/* Selecting the appropriate subspace iteration method */
 	bool isNormalized = false;
@@ -400,7 +408,7 @@ void MLEigenSolver::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<do
 		if (status != 0) {
 			eps *= 10;
 			factorization.compute(SL + eps*Id);
-
+			std::cout << "___shifting by \n" << eps << std::endl;
 			continue;
 		}
 		//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
