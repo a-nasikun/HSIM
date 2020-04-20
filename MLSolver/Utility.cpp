@@ -214,7 +214,7 @@ void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M,
 	Mat.col(n-1) = mNorm * Mat.col(n-1);
 }
 
-void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
+void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio)
 {
 	cout << "> Scaling the mesh to have a unit length \n";
 	Eigen::Vector3d minV;
@@ -222,7 +222,9 @@ void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
 	Eigen::Vector3d length;
 	Eigen::MatrixXd MatSubs(V.rows(), V.cols());
 	Eigen::MatrixXd MatAdd(V.rows(), V.cols());
-	double scaleFactor;
+	double maxVal;
+	double scalingRatio = scaleRatio; //dia-meter, not radius
+	
 
 	/* Get the min and max coefficients */
 	for (int i = 0; i < V.cols(); i++)
@@ -233,13 +235,13 @@ void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
 		MatSubs.col(i).setConstant(minV(i));
 	}
 
-	scaleFactor = length.maxCoeff();
+	maxVal = length.maxCoeff();
 
 	/* Translate to the Origin */
 	V = V - MatSubs;
 
 	/* Scale w.r.t the longest axis */
-	V = V * (1.0 / scaleFactor);
+	V = V * (scalingRatio / maxVal);
 
 	for (int i = 0; i < V.cols(); i++) {
 		maxV(i) = V.col(i).maxCoeff();
@@ -255,6 +257,6 @@ void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
 		maxV(i) = V.col(i).maxCoeff();
 		length(i) = maxV(i) - minV(i);
 	}
-	scaleFactor = length.maxCoeff();
-	cout << "____after scaling: " << scaleFactor << endl;
+	maxVal = length.maxCoeff();
+	cout << "____after scaling: " << maxVal << endl;
 }

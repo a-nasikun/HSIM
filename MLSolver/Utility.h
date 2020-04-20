@@ -41,7 +41,7 @@ void writeDenseMatrixToFile(const Eigen::MatrixXd& M, const string& filename);
 
 void generateRandomMatrix(int m, int n, Eigen::MatrixXd& Mat);
 void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat);
-void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F);
+void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio=1.0);
 
 
 #endif // !UTILITY_H

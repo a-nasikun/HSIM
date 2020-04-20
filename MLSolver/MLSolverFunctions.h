@@ -16,6 +16,8 @@ public:
 	void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support);
 	void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);
 	void virtual constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis = 0, double offset = 0.0);
+	
+	void performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter = 10, double tol = 1e-4, bool isWithShift = true, const ShiftType& shiftType = ShiftType::SHIFT_BATHE);
 
 	/* Visualization Tools*/
 	void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale = 1.0) const;

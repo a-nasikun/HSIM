@@ -5,6 +5,8 @@
 #include <igl/invert_diag.h>
 #include <igl/avg_edge_length.h>
 
+#include <Eigen/PardisoSupport>
+
 #include <queue>
 
 void MLSolverFunctions::computeArea()
@@ -441,6 +443,257 @@ void MLSolverFunctions::constructSelectorMatrixFullSize(Eigen::SparseMatrix<doub
 
 	SelMat.setFromTriplets(STriplet.begin(), STriplet.end());
 	printf("__Dim of this selector matrix: %dx%d \n", SelMat.rows(), SelMat.cols());
+}
+
+void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
+{
+	std::cout << "Functions" << std::endl;
+
+	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
+	printf("____[1] level: %d \n", k);
+	int		q = max(2 * numEigs, numEigs + 8);
+	
+	int iterCount = 0;
+	int factCounter = 0;
+	int status = 0;
+
+	/* 4: RECURSION */
+	if (k == level)			// check if this already in the lowest/coarsest subspace
+	{
+		XkL = EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), q);
+		AkL = EigValsReduced.head(q);
+		printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
+	}
+	// RECURSIVE for level k < max_level
+	else
+	{
+		/* 1: RESTRICTION */
+		printf("____<1> Restriction: ");
+		Eigen::SparseMatrix<double> SK, MK;
+		if (k == 0) {
+			SK = SL; MK = ML;
+		}
+		else {
+			SK = U[k - 1].transpose()*SL*U[k - 1];
+			MK = U[k - 1].transpose()*ML*U[k - 1];
+		}
+
+		printf("____<2> Going deeper => \n ################");
+		performMultiLevelSIM_withShiftOnce(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);		
+
+		printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
+
+		/* [3] SUBSPACE ITERATION METHOD */
+		XkL = U[k] * XkL;
+		printf("____<3> Lifting, Init vectors: %dx%d \n", XkL.rows(), XkL.cols());
+
+		/* Adding a small number on the diagonal, for robustness */
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+
+		//printf("____<4> Embedding a small-valued diagonal matrix \n");
+
+		/* Temporary variables */
+		bool isConverged = false;
+		Eigen::MatrixXd XbarK(XkL.rows(), q); XbarK.setZero();
+		Eigen::MatrixXd Mproj, Sproj;
+		Eigen::MatrixXd Q;
+		//Eigen::VectorXd Alpha;
+		Eigen::VectorXd conv2, conv3;		
+
+		int						firstNZ = 0;
+		int						lastConvergedId = 0;
+		if (!isClampedBasis) {
+			if (F.cols() == 3) {			/* FUNCTION */
+				firstNZ = 1;				// first non-zero eigenvalues on the reduced/subspace Function Laplacian
+				lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
+			}
+		}
+		double mu = AkL(firstNZ);
+
+		/* Iterating*/
+		printf("____<5> Subspace iteration.\n");
+		do {
+			//if (iterCount == 0) {
+			//	std::cout << "MK: \n" << MK.topLeftCorner(6, 6) << std::endl;
+			//	std::cout << "SK: \n" << SK.topLeftCorner(6, 6) << std::endl;
+			//	if (factCounter == 0)
+			//	{
+			//		std::cout << "__First iter, shift to the left of approximation \n";
+			//		Eigen::VectorXd headEigVal(6);
+			//		headEigVal << abs(AkL(0)), abs(AkL(1)), abs(AkL(2)), abs(AkL(3)), abs(AkL(4)), abs(AkL(5));
+			//		mu = 0.5 * headEigVal.cwiseAbs().minCoeff();
+			//		mu = min(mu, 1e-8*std::numeric_limits<double>::epsilon());
+			//		factorization.compute(SK - mu*MK);
+			//		std::cout << "__mu=" << mu << std::endl;
+			//	}
+			//	else {
+			//		//mu = AkL(firstNZ/2);
+			//		//factorization.compute(SK - mu*MK);
+			//		Eigen::SparseMatrix<double> Id;
+			//		//double eps = 1e-10;
+			//		eps *= 10;
+			//		cout << "__epsilon added on first iter : " << eps << endl;
+			//		Id.resize(SK.rows(), SK.cols());
+			//		Id.setIdentity();
+			//		factorization.compute(SK + eps*Id);
+			//	}
+			//}
+			//else
+			{
+				/* [1] Bathe's proposal */
+				double zhaoParam = 0.4;
+				int zhaoShiftId;
+				switch (shiftType)
+				{
+				case MLEigenSolver::ShiftType::SHIFT_BATHE:
+					cout << "___Bathe's shift proposal | shifting on index " << lastConvergedId << endl;
+					if (iterCount == 0) {
+						mu = (AkL(lastConvergedId));
+						if (mu <= (AkL(lastConvergedId) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
+						else if (mu >= (AkL(lastConvergedId) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
+					}
+					else {
+						mu = (AkL(lastConvergedId) + AkL(lastConvergedId - 1)) / 2.0;
+						if (mu <= (AkL(lastConvergedId) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
+						else if (mu >= (AkL(lastConvergedId) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
+					}
+					//factorization.compute(SK - mu*MK);
+					break;
+
+				case MLEigenSolver::ShiftType::SHIFT_ITOH_WILSON:
+					/* [2] Itoh and Wilson's proposal */
+					cout << "___Itoh and Wilson's shift proposal | shifting on index " << lastConvergedId << endl;
+					mu = AkL(lastConvergedId) + 0.9*(AkL(lastConvergedId + 1) - AkL(lastConvergedId));
+					if ((AkL(lastConvergedId + 1) - AkL(lastConvergedId)) <= 0.001*AkL(lastConvergedId))
+						mu = 0.99*AkL(lastConvergedId);
+					//factorization.compute(SK - mu*MK);
+					break;
+
+				case MLEigenSolver::ShiftType::SHIFT_GONG:
+					/* [3] Gong's proposal */
+					cout << "___Gong's shift proposal | shifting on index " << lastConvergedId << endl;
+					mu = (AkL(lastConvergedId + 1) + AkL(lastConvergedId + 2)) / 2.0;
+					if (mu <= (AkL(lastConvergedId + 1) + 0.001*AkL(firstNZ)))			mu = AkL(lastConvergedId + 1) + 0.001*AkL(firstNZ) + std::numeric_limits<double>::epsilon();
+					else if (mu >= (AkL(lastConvergedId + 2) - 0.001*AkL(firstNZ)))		mu = AkL(lastConvergedId + 2) - 0.001*AkL(firstNZ) - std::numeric_limits<double>::epsilon();
+					//factorization.compute(SK - mu*MK);
+					break;
+
+				case MLEigenSolver::ShiftType::SHIFT_ZHAO:
+					/* [4] Zhao's proposal */
+
+					//if (iterCount == 0) zhaoParam = 0.1;
+					zhaoShiftId = lastConvergedId + (int)floor(zhaoParam*(numEigs - lastConvergedId));
+					mu = AkL(zhaoShiftId);
+					cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId << endl;
+					break;
+
+				default:
+					break;
+				}
+				//if (status != 0) mu *= 10;
+				factorization.compute(SK - mu*MK);
+			}
+			factCounter++;
+			std::cout << "__> Factorization " << factCounter << " with shift of " << mu << std::endl;
+
+			/* Stage III: Iterations */
+			//for (int i = 0; i < Imax; ++i) {
+				printf("Iteration: %d \n", iterCount + 1);
+
+				for (int j = 0; j < q; ++j) {						// easily parallelizeable
+					Eigen::VectorXd v;
+					v = MK * (XkL.col(j));
+					XbarK.col(j) = factorization.solve(v);
+				}
+
+				/* Projection of M and K*/
+				printf("________setting up reduced matrix M and S. ");
+				Sproj = XbarK.transpose()*SK*XbarK;
+				Mproj = XbarK.transpose()*MK*XbarK;
+
+				printf("________solve reduced eigenvalue problem. ");
+				status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+				cout << "__STATUS: " << status << endl;
+				if (status != 0) {
+					cout << "___!! COmputation of eigenvalues failed! \n";
+					cout << "____Status: " << status << endl;
+					//i = Imax;
+					continue;
+					//break;
+				}
+
+				printf("________lifting up/prolongation.");
+				XkL = XbarK*Q;
+
+				/* Convergence Check*
+				** Type 2: */
+				checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
+				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+				/** Type 3: */
+				checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
+				cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
+
+				cout << AkL.head(numEigs).transpose() << endl;
+
+				if (k == 0) {
+					EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
+					convergenceStacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+				}
+
+				iterCount++;
+
+				/* Ignore the first iteration */
+				//if (iterCount == 1) break;
+
+				if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
+					isConverged = true;
+					break;
+				}
+			//}
+
+			std::cout << "Convergence: " << isConverged << endl;
+			//if (conv2.size() < 1) {
+			//	std::cout << "The convergence check has not been done yet \n";
+			//	continue;
+			//}
+			if (status != 0) {
+				std::cout << "Cannot solve reduced eigenproblem \n";
+				continue;
+			}
+
+			/* Check convergence */
+			for (int i = lastConvergedId; i < numEigs; ++i) {
+				cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
+				if (conv2(i) < tol) {
+					lastConvergedId = i;
+				}
+				else break;
+			}
+
+			if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
+				isConverged = false;
+
+			cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
+
+		} while (!isConverged);
+
+		printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
+
+
+		/* Print some data when it's on the finest level */
+		if (k == 0) {
+			cout << "____<7> Storing the convergence data. \n";
+			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
+			EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
+		}
+	}
+
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	cout << "...in " << duration.count() << " seconds." << endl;
 }
 
 /* Visualization Tools*/

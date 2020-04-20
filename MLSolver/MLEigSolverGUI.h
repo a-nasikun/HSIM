@@ -66,6 +66,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 	float w = ImGui::GetContentRegionAvailWidth();
 	float p = ImGui::GetStyle().FramePadding.x;
 
+	static bool isShowAxis = false;
+
 	// Main Algorithm
 	if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::Button("Load##Mesh1", ImVec2((w) / 2.f, 0))) {
@@ -100,7 +102,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				//eigenSolver.setV(viewer.data().V);
 				//eigenSolver.setF(viewer.data().F);
 
-				scaleMesh(viewer.data().V, viewer.data().F);
+				scaleMesh(viewer.data().V, viewer.data().F, 2.0);
 				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
 
 				viewer.data().show_lines = false;
@@ -427,11 +429,11 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				numOfSupport = atof(numSupTxt);
 				eigenSolver->setClampBasis(isClampedBasis);
 
-				//eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
+				
 				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
 					solver->constructBasisCoarseOnly_LBS(numOfSupport, defAxis, clampRegion);
 				}
-				else return; 
+					eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
 
 				useNonSmoothBasis = false;
 			}
@@ -750,6 +752,31 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::SameLine();
 			ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
 		}		
+
+		/* Axis*/
+		if (ImGui::Button("Show axis", ImVec2((w), 0))) {
+			isShowAxis = !isShowAxis;
+			if (isShowAxis) {
+				double maxAxis = eigenSolver->getV().maxCoeff();
+				std::cout << "Max Coef: " << maxAxis << std::endl;
+				//viewer.data().line_width = 0.5f;
+				viewer.data().add_edges(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(maxAxis, 0, 0), Eigen::RowVector3d(1.0, 0, 0));
+				viewer.data().add_edges(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(0, maxAxis, 0), Eigen::RowVector3d(0, 1.0, 0));
+				viewer.data().add_edges(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(0, 0, maxAxis), Eigen::RowVector3d(0, 0, 1.0));
+				//viewer.data().line_width = 4.5f;
+
+				std::stringstream l1;
+				l1 << maxAxis;
+				viewer.data().add_label(Eigen::RowVector3d(maxAxis, 0, 0), l1.str());
+				//viewer.data().line_width = 0.5f;
+			}
+			else {
+				Eigen::MatrixXd Vtemp = viewer.data().V;
+				Eigen::MatrixXi Ftemp = viewer.data().F;
+				viewer.data().clear();
+				viewer.data().set_mesh(Vtemp, Ftemp);
+			}
+		}
 		
 		static double	transVal = 0;
 		static int		transAxis = 0;
@@ -859,8 +886,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
-			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
-						
+			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
+			
 			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
 
 			printf("Successfully computing the eigenvalues \n");
