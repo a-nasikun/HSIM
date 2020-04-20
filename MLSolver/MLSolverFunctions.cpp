@@ -463,7 +463,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 	/* 4: RECURSION */
 	if (k == level)			// check if this already in the lowest/coarsest subspace
 	{
-		XkL = EigVectsReduced.topLeftCorner(EigVectsReduced.rows(), q);
+		XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
 		AkL = EigValsReduced.head(q);
 		printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
 	}

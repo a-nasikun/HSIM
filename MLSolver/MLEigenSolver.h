@@ -116,6 +116,7 @@ protected:
 	bool								isClampedBasis;		// toogling if the basis is a clamped version
 	Eigen::MatrixXd						EigVectsRef;		// reference eigenvectors
 	Eigen::MatrixXd						EigVectsReduced;	// approximated eigenvectors
+	Eigen::MatrixXd						EigVectsReducedNonLifted;	// approximated eigenvectors, not Lifted
 	Eigen::VectorXd						EigValsRef;			// reference eigenvalues
 	Eigen::VectorXd						EigValsReduced;		// approximated eigenvalues
 	Eigen::MatrixXd						EigVectsSIM;		// matrix storing eigenvectors, after Subspace Iteration Method (SIM)
