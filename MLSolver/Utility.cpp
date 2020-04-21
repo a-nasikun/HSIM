@@ -124,26 +124,7 @@ double checkAccuracy(const Eigen::SparseMatrix<double>& M, const Eigen::VectorXd
 	return sqrt(abs(energy1 / energy2));
 }
 
-void writeDenseMatrixToFile(const Eigen::MatrixXd& M, const string& filename)
-{
-	ofstream myfile(filename.c_str());
 
-	if (myfile.is_open()){
-		cout << "Writing Matrix file to text ";
-		printf("of %dx%d size \n", M.rows(), M.cols());
-		myfile << "#Cols=" << M.cols() << "\n";
-
-		for (int i = 0; i < M.rows(); i++){
-			for (int j = 0; j < M.cols(); j++){
-				myfile << M(i, j) << "\t";
-			}
-			myfile << "\n";
-		}
-		cout << "The file writing is done\n";
-		myfile.close();
-	}
-	else cout << "Unable to open file";
-}
 
 void generateRandomMatrix(int m, int n, Eigen::MatrixXd& Mat)
 {

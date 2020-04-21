@@ -227,7 +227,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
 			int		numSlices;
 			static	Eigen::VectorXd colorVect;
-			static bool	isClampedBasis = true;
+			static bool	isClampedBasis = false;
 			static int numLevels;
 
 			if (problemType == 1) {
@@ -369,7 +369,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			/* For Basis */
 			ImGui::Checkbox("Clamp Basis##1", &isClampedBasis);
 			static double numOfSupport;
-			static char numSupTxt[15] = "40.0"; ImGui::InputText("Num of Supports", numSupTxt, 6);
+			static char numSupTxt[15] = "5.0"; ImGui::InputText("Num of Supports", numSupTxt, 6);
 						
 			if (isClampedBasis) {
 				ImGui::RadioButton("X", &defAxis, 0); ImGui::SameLine();
@@ -864,8 +864,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(3, MLEigenSolver::ShiftType::SHIFT_ZHAO));
 
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
-			static char numModesTxt[10] = "5"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
-			static char maxIterTxt[10] = "5"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
+			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
+			static char maxIterTxt[10] = "20"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
 			static char tolTxt[10] = "0.0001"; ImGui::InputText("Tolerance", tolTxt, 10);
 			numOfModes	= atoi(numModesTxt);
 			maxIter		= atoi(maxIterTxt);
@@ -897,19 +897,83 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
 		}
 
-		if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
+		if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
-			int progType = 1;
-			vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> testedShift{ 0,1,2 };
+			/*  Testing on : 
+			*	(1) random, (2) Bathe 
+			*	(3) ML without shift
+			*   (4) ML with shift-once
+			*/
+
+			int maxIters = 50;	
+			//vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> wantedModes{ 50, 100 };
+			vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5};
+
 			for (int j = 0; j < wantedModes.size(); ++j) {
-				for (int k = 0; k < testedShift.size(); ++k) {
-					eigenSolver->performSubspaceIterationMethod(typeMap[progType], wantedModes[j], maxIter, tol, true, shiftMap[testedShift[k]], defAxis, clampRegion);
+				for(int k=0; k<wantedTols.size(); ++k){
+					// ML-with shift
+					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+					// ML no shift
+					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					// random
+					eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					/// // bathe init vector
+					///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 				}
 			}			
 		}
+
+		if (ImGui::Button("Scripted (2)--non-smooth", ImVec2(w, 0))) {
+			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
+			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+
+			/*  Testing on :
+			*	(5) NL non smooth (with shift)
+			*	(6) ML non smooth (without shift)
+			*/
+
+			int maxIters = 50;
+			//vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> wantedModes{ 50, 100 };
+			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
+
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int k = 0; k<wantedTols.size(); ++k) {
+					// ML-with shift (non-smooth)
+					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+					// ML no shift (non-smooth)
+					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+				}
+			}
+		}
+
+		if (ImGui::Button("Scripted (3)--SGP", ImVec2(w, 0))) {
+			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
+			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+
+			/*  Testing on :
+			*	(7) SGP as warm start
+			*/
+
+			int maxIters = 50;
+			//vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> wantedModes{ 50, 100 };
+			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
+
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int k = 0; k<wantedTols.size(); ++k) {
+					// ML-with shift (non-smooth)
+					eigenSolver->performSubspaceIterationMethod(typeMap[1], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
+					// random
+					eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+
+				}
+			}
+		}
+
 		///if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
 		///	double thisTol = 1e-2;
 		///	vector<int> wantedModes{ 50, 100, 250 };

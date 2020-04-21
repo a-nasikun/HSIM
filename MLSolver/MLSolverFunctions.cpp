@@ -459,8 +459,10 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 	//EigVectsSIM.resize()
 	EigValsSIMStack.resize(numEigs, maxIter);
 	EigValsSIMStack.setZero();
-	convergenceStacks.resize(numEigs, maxIter);
-	convergenceStacks.setZero();
+	convergence2Stacks.resize(numEigs, maxIter);
+	convergence2Stacks.setZero();
+	convergence3Stacks.resize(numEigs, maxIter);
+	convergence3Stacks.setZero();
 
 	Eigen::SparseMatrix<double> MSel, SSel;
 	if (isClampedBasis) {
@@ -476,6 +478,8 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 
 	/* Performing the SIM according to user selected methods */
 	if (type == SIMType::SIM_MultiLevel) {
+		timingPerLevel.resize(level);
+		itersPerLevel.resize(level);
 		if (isWithShift) {
 			performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
 		}
@@ -484,6 +488,8 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 		}
 	}
 	else {
+		timingPerLevel.resize(1);
+		itersPerLevel.resize(1);
 		if (isWithShift) {
 			performSIMwithShift_Draft(type, SSel, MSel, numEigs, maxIter, tol, isWithShift, shiftType);
 		}
@@ -499,20 +505,29 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 	cout << "...in " << duration.count() << " seconds." << endl;
 
 	/* Write the convergence information to an external file. */
-	string modelName = "Bar-Rectangle_" + to_string(V.rows()) + "_" + to_string(V.cols());
-	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
+	string modelName = "Sphere_" + to_string(V.rows()) + "_" + to_string(F.cols());
+	string fileConv = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";	
+	writeDenseMatrixToFile(itersPerLevel, fileConv);
+	writeDenseMatrixToFile(timingPerLevel, fileConv);
 	writeDenseMatrixToFile(EigValsSIMStack, fileConv);
-	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_ConvergenceStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
-	writeDenseMatrixToFile(convergenceStacks, fileEigs);
+	string fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_Convergence2Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
+	writeDenseMatrixToFile(convergence2Stacks, fileEigs);
+	fileEigs = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_Convergence3Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
+	writeDenseMatrixToFile(convergence3Stacks, fileEigs);
 }
 
 void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift)
 {
+	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
 	/* Initialization */
 	cout << "____[1] SIM::Setup initialization of variables\n";
 	int					q = max(2 * numEigs, numEigs + 8);
 	Eigen::MatrixXd		Xk;
 	int					status = 1;
+	int					lastConvergedId = 1;
 	double eps;
 	if (F.cols() == 4) eps = 1e-2 * std::numeric_limits<double>::epsilon();
 	else			eps = 1e6 * std::numeric_limits<double>::epsilon();
@@ -581,7 +596,7 @@ void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatri
 
 	/* Iteration for eigenproblem */
 	cout << "____[3] Iterating steps. \n";
-	bool convergenceCheck;
+	bool convergenceCheck = false;
 	Eigen::MatrixXd XbarK;
 	XbarK.resize(S.rows(), q);
 	XbarK.setZero();
@@ -594,6 +609,7 @@ void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatri
 
 	do {
 		printf("________ (%d) iteration \n", k + 1);
+		std::cout << "____Last converged ID: " << lastConvergedId << std::endl;
 		printf("________ setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
 
 		for (int i = 0; i < q; ++i) {						// easily parallelizeable
@@ -626,35 +642,72 @@ void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatri
 		//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 		//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
-		printf("________lifting up/prolongation.");
+		printf("________lifting up/prolongation.\n");
 		Xk = XbarK*Q;
 
 		/* Convergence Check*
 		** Type 2: */
 		checkConvergenceCat2(Xk, Alpha, ML, S, conv2);
-		cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+		//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+		cout << "Conv 2 \n" << conv2(1) << " " << conv2(numEigs/2) << " " << conv2(numEigs-1) << endl;
+
 		/** Type 3: */
 		checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
-		cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
+		//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
+		cout << "Conv 3 \n" << conv3(1) << " " << conv3(numEigs/2) << " " << conv3(numEigs-1) << endl;
 
 		//cout << Alpha.transpose() << endl; 		
 
 		EigValsSIMStack.col(k) = Alpha.block(0, 0, numEigs - 1, 1);
-		convergenceStacks.col(k) = conv2.block(0, 0, numEigs - 1, 1);
+		convergence2Stacks.col(k) = conv2.block(0, 0, numEigs - 1, 1);
+		convergence3Stacks.col(k) = conv3.block(0, 0, numEigs - 1, 1);
 
 		k++;
-		convergenceCheck = (k >= maxIter || (conv2(numEigs - 1)<tol));
+		//convergenceCheck = (k >= maxIter || (conv2(numEigs - 1)<tol));
+
+		if (k >= maxIter || (conv2(numEigs - 1) < tol))
+		{
+			convergenceCheck = true;
+		}
+		/* Check convergence */
+		for (int i = lastConvergedId; i < numEigs; ++i) {
+			if (conv2(i) < tol) {
+				///std::cout << "Checking convergence ID " << i << ": " << conv2(i) << std::endl; 
+				lastConvergedId = i;
+			}
+			else {
+				break;
+			}
+		}
+		
+
+		if ((k<maxIter) && (lastConvergedId < (numEigs - 1)))
+			convergenceCheck = false;
+
 	} while (!convergenceCheck);
 
-	convergenceStacks.conservativeResize(Eigen::NoChange, k);
+	convergence2Stacks.conservativeResize(Eigen::NoChange, k);
+	convergence3Stacks.conservativeResize(Eigen::NoChange, k);
 	EigValsSIMStack.conservativeResize(Eigen::NoChange, k);
 
 	EigVectsSIM = Xk;
 	EigValsSIM = Alpha;
+
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	timingPerLevel(0) = duration.count();
+	itersPerLevel(0) = k;
+
 }
 
 void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
-{
+{	
+	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
 	/* Initialization */
 	cout << "____[1] SIM::Setup initialization of variables\n";
 	int					q = max(2 * numEigs, numEigs + 8);
@@ -871,7 +924,8 @@ void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMat
 			cout << Alpha.head(numEigs).transpose() << endl;
 
 			EigValsSIMStack.col(k) = Alpha.block(0, 0, numEigs - 1, 1);
-			convergenceStacks.col(k) = conv2.block(0, 0, numEigs - 1, 1);
+			convergence2Stacks.col(k) = conv2.block(0, 0, numEigs - 1, 1);
+			convergence3Stacks.col(k) = conv3.block(0, 0, numEigs - 1, 1);
 
 			k++;
 			/* kinda ignore the first iteration */
@@ -902,15 +956,24 @@ void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMat
 
 	} while (!isConverged);
 
-	convergenceStacks.conservativeResize(Eigen::NoChange, k);
+	convergence2Stacks.conservativeResize(Eigen::NoChange, k);
+	convergence3Stacks.conservativeResize(Eigen::NoChange, k);
 	EigValsSIMStack.conservativeResize(Eigen::NoChange, k);
 
 	EigVectsSIM = Xk;
 	EigValsSIM = Alpha;
+
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	timingPerLevel(0) = duration.count();
+	itersPerLevel(0) = k;
 }
 
 void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift)
 {
+	
 	chrono::high_resolution_clock::time_point	t0, t1;
 	chrono::duration<double>					duration;
 	t0 = chrono::high_resolution_clock::now();
@@ -919,6 +982,7 @@ void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Ei
 	int		q = max(2 * numEigs, numEigs + 8);
 	double eps = 1e6 * std::numeric_limits<double>::epsilon();
 	int status;
+	int lastConvergedId = 1;
 
 	/* 4: RECURSION */
 	if (k == level)			// check if this already in the lowest/coarsest subspace
@@ -1023,11 +1087,26 @@ void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Ei
 			/* Store the eigenvalues and convergence rate if it's on the finest level */
 			if (k == 0) {
 				EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-				convergenceStacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+				convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+				convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
 			}
 
 			iterCount++;
-			convergenceCheck = (iterCount >= maxIter || (conv2(numEigs - 1)<tol));
+			if (iterCount >= maxIter || (conv2(numEigs - 1) < tol))
+			{
+				convergenceCheck = true;
+			}
+			/* Check convergence */
+			for (int i = lastConvergedId; i < numEigs; ++i) {
+				///cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
+				if (conv2(i) < tol) {
+					lastConvergedId = i;
+				}
+				else break;
+			}
+
+			if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
+				convergenceCheck = false;
 
 		} while (!convergenceCheck);
 		//printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
@@ -1036,14 +1115,19 @@ void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Ei
 		/* Print some data when it's on the finest level */
 		if (k == 0) {
 			cout << "____<5> Storing convergence data. \n";
-			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
+			convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
+			convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
 			EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 		}
+		itersPerLevel(k) = iterCount;
 	}
 
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
 	cout << "...in " << duration.count() << " seconds." << endl;
+	if (k < level) {
+		timingPerLevel(k) = duration.count();
+	}
 }
 
 void MLSolverFunctions::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
@@ -1248,7 +1332,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix
 
 				if (k == 0) {
 					EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-					convergenceStacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+					convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+					convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
 				}
 
 				iterCount++;
@@ -1294,7 +1379,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix
 		/* Print some data when it's on the finest level */
 		if (k == 0) {
 			cout << "____<7> Storing the convergence data. \n";
-			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
+			convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
+			convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
 			EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 		}
 	}
@@ -1302,6 +1388,10 @@ void MLSolverFunctions::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
 	cout << "...in " << duration.count() << " seconds." << endl;
+	if (k < level) {
+		timingPerLevel(k) = duration.count();
+		itersPerLevel(k) = iterCount;
+	}
 }
 
 void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
@@ -1445,7 +1535,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 
 			if (k == 0) {
 				EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-				convergenceStacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+				convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+				convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
 			}
 
 			iterCount++;
@@ -1481,7 +1572,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 		/* Print some data when it's on the finest level */
 		if (k == 0) {
 			cout << "____<7> Storing the convergence data. \n";
-			convergenceStacks.conservativeResize(Eigen::NoChange, iterCount);
+			convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
+			convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
 			EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 		}
 	}
@@ -1489,6 +1581,10 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
 	cout << "...in " << duration.count() << " seconds." << endl;
+	if (k < level) {
+		timingPerLevel(k) = duration.count();
+		itersPerLevel(k) = iterCount;
+	}
 }
 
 /* Visualization Tools*/

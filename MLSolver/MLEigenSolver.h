@@ -122,7 +122,10 @@ protected:
 	Eigen::MatrixXd						EigVectsSIM;		// matrix storing eigenvectors, after Subspace Iteration Method (SIM)
 	Eigen::VectorXd						EigValsSIM;			// vector stroing eigenvalues,  after Subspace Iteration Method (SIM)
 	Eigen::MatrixXd						EigValsSIMStack;	// Stack of eigenvalues, from multiple iterations
-	Eigen::MatrixXd						convergenceStacks;	// Stack of convergence rate, from multiple iterations
+	Eigen::MatrixXd						convergence2Stacks;	// Stack of convergence rate (convergence criteria2), from multiple iterations
+	Eigen::MatrixXd						convergence3Stacks;	// Stack of convergence rate (convergence criteria2), from multiple iterations
+	Eigen::VectorXd						timingPerLevel;		// Timing (in secs) for every level (in multi-level)
+	Eigen::VectorXi						itersPerLevel;		// Number of iterations per every level (in multi-level)
 
 	/* [MULTI-GRID STUFF]*/
 	int									level;				// the total number of hierarchy/levels on multigrid
