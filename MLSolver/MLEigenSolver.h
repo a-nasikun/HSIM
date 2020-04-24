@@ -137,6 +137,9 @@ protected:
 	Eigen::VectorXi						sampleLevel;		// to indicate if a vertex is picked as a sample; if yes, at which highest level k
 
 
+public:
+	// TEst variable
+	double zhaoShiftParam;
 
 
 };

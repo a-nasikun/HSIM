@@ -879,22 +879,27 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		static bool isShiftedSIM = false;
 		ImGui::Checkbox("with shift", &(isShiftedSIM));
+		static double zhaoShiftParam = 0.25;
 		if (isShiftedSIM) {
 			ImGui::RadioButton("Bathe##Shift",		&shiftType, 0);			ImGui::SameLine();
 			ImGui::RadioButton("Wilson##ItohShift", &shiftType, 1);			
 			ImGui::RadioButton("Gong##Shift",		&shiftType, 2);			ImGui::SameLine();
 			ImGui::RadioButton("Zhao##Shift",		&shiftType, 3);
+			static char zhaoTxt[10] = "0.25";		ImGui::InputText("Zhao shift", zhaoTxt, 10);
+			zhaoShiftParam = atof(zhaoTxt);
 		}
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
 			
+			eigenSolver->zhaoShiftParam = zhaoShiftParam;
+			std::cout << "Shift param = " << zhaoShiftParam << std::endl; 
 			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
 
 			printf("Successfully computing the eigenvalues \n");
-			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM() << endl;
-			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
+			///cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM() << endl;
+			///cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
 		}
 
 		if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
@@ -919,7 +924,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					// ML no shift
 					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// random
-					eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					/// // bathe init vector
 					///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 				}
@@ -935,6 +940,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*	(6) ML non smooth (without shift)
 			*/
 
+			eigenSolver->zhaoShiftParam = 0.15;
 			int maxIters = 50;
 			//vector<int> wantedModes{ 50, 100, 250 };
 			vector<int> wantedModes{ 50, 100 };
@@ -974,55 +980,66 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			}
 		}
 
-		///if (ImGui::Button("Scripted experiment (1)", ImVec2(w, 0))) {
-		///	double thisTol = 1e-2;
-		///	vector<int> wantedModes{ 50, 100, 250 };
-		///	//vector<int> wantedModes{ 250 };
-		///	for (int j = 0; j < wantedModes.size(); j++) {
-		///		for (int k = 0; k < 4; k++) {
-		///			double tolTol = thisTol / pow(10, k);
-		///			ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_MultiLevel, isShiftedSIM, tolTol, wantedModes[j], maxIter);
-		///			///ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Random, tolTol, wantedModes[j], maxIter);
-		///			///ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_Bathe,  tolTol, wantedModes[j], maxIter);
-		///		}
-		///	}
-		///}
-		///
-		///if (ImGui::Button("Scripted experiment (2)", ImVec2(w, 0))) {
-		///	double thisTol = 1e-2;
-		///	vector<int> wantedModes{ 50, 100, 250 };
-		///	for (int j = 0; j < wantedModes.size(); j++) {
-		///		for (int k = 0; k < 4; k++) {
-		///			double tolTol = thisTol / pow(10, k);
-		///			ml_eigSolver.simpleSubspaceIterMethod(viewer, SIM_Type::SIM_1level_WarmStart, isShiftedSIM, tolTol, wantedModes[j], maxIter);
-		///		}
-		///	}
-		///}
-		///
-		///if (ImGui::Button("Block Subspace", ImVec2(w, 0))) {
-		///	//ml_eigSolver.SubspaceIterMethod(viewer);
-		///	ml_eigSolver.SubspaceIterMethodShift(viewer, tol, numOfModes, maxIter);
-		///}
-		///
-		///if (ImGui::Button("Check matrix", ImVec2(w, 0))) {
-		///	Eigen::SparseMatrix<double> SS = ml_eigSolver.ST;
-		///	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolver;
-		///	//spSolver.compute(MM);
-		///	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> ldltSolver;
-		///	ldltSolver.compute(SS);
-		///	cout << "Diag D: \n" << ldltSolver.vectorD() << endl;
-		///}
-		///
-		///if (ImGui::Button("Save EigVals#RIM", ImVec2(w / 2.0, 0))) {
-		///	//writeDenseMatrixToFile(ml_eigSolver.SIMeigVals, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(ml_eigSolver.SIMeigVals.rows()) + ".txt");
-		///	writeDenseMatrixToFile(ml_eigSolver.SIMeigValsStack, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_SIM_" + to_string(ml_eigSolver.SIMeigVals.rows()) + ".txt");
-		///}
-		///ImGui::SameLine(0, p);
-		///if (ImGui::Button("Save EigVect#RIM", ImVec2(w / 2.0, 0))) {
-		///	writeDenseMatrixToFile(ml_eigSolver.SIMeigVects, "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_SIM_" + to_string(ml_eigSolver.SIMeigVects.cols()) + ".txt");
-		///}
-		///	
+		if (ImGui::Button("Scripted (4) ALL", ImVec2(w, 0))) {
+			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
+			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
+			/*  Testing on :
+			*	(1) random
+			*	(3) ML without shift
+			*   (4) ML with shift-once
+			*/
+
+			int maxIters = 50;
+			//vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> wantedModes{ 50, 100 };
+			//vector<int> wantedModes{ 25 };
+			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
+			//vector<double> wantedTols{ 1e-2};
+			eigenSolver->zhaoShiftParam = 0.25;
+
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int k = 0; k<wantedTols.size(); ++k) {
+					// ML-with shift
+					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+					// ML no shift
+					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					// random
+					eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					/// // bathe init vector
+					///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+				}
+			}
+
+			/*  Testing on :
+			*	(5) NL non smooth (with shift)
+			*	(6) ML non smooth (without shift)
+			*/
+			eigenSolver->constructBasisNonSmooth(5.0);
+			eigenSolver->solveRestrictedProblem();
+			eigenSolver->zhaoShiftParam = 0.15;
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int k = 0; k<wantedTols.size(); ++k) {
+					// ML-with shift (non-smooth)
+					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+					// ML no shift (non-smooth)
+					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+				}
+			}
+
+			/*  Testing on :
+			*	(7) SGP as warm start
+			*/
+			eigenSolver->constructBasisCoarseOnly(12.5);
+			eigenSolver->solveRestrictedProblem();
+
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int k = 0; k<wantedTols.size(); ++k) {
+					// ML-with shift (non-smooth)
+					eigenSolver->performSubspaceIterationMethod(typeMap[1], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
+				}
+			}
+		}
 	}
 
 	ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
