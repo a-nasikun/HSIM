@@ -59,8 +59,12 @@ add_subdirectory(libigl/external/tetgen)
 # #################################################################################################
 add_executable(MultiLevelEigenSolver
 	"MLSolver/Main.cpp"
-	"MLSolver/MLEigSolver.h"
-	"MLSolver/MLEigSolver.cpp"
+	"MLSolver/MLEigenSolver.h"
+	"MLSolver/MLEigenSolver.cpp"
+	"MLSolver/MLSolverElastics.h"
+	"MLSolver/MLSolverElastics.cpp"
+	"MLSolver/MLSolverFunctions.h"
+	"MLSolver/MLSolverFunctions.cpp"
 	"MLSolver/MLEigSolverGUI.h"
 	"MLSolver/Basis.h"
 	"MLSolver/Basis.cpp"

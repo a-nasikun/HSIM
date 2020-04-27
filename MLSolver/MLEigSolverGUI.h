@@ -302,8 +302,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 
 			/* For Hierarchy and Sampling */
-			static double levelRatio = 4.0;
-			static char lvlRatTxt[10] = "4.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
+			static double levelRatio = 10.0;
+			static char lvlRatTxt[10] = "10.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 			levelRatio = atof(lvlRatTxt);
 
 			if (ImGui::Button("[2] Sampling##1", ImVec2(w, 0))) {
@@ -369,7 +369,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			/* For Basis */
 			ImGui::Checkbox("Clamp Basis##1", &isClampedBasis);
 			static double numOfSupport;
-			static char numSupTxt[15] = "5.0"; ImGui::InputText("Num of Supports", numSupTxt, 6);
+			static char numSupTxt[15] = "7.5"; ImGui::InputText("Num of Supports", numSupTxt, 6);
 						
 			if (isClampedBasis) {
 				ImGui::RadioButton("X", &defAxis, 0); ImGui::SameLine();
@@ -666,7 +666,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Text("Reference");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##RefEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -681,7 +681,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::SameLine(0, p);
 
 			if (ImGui::Button("+ 1##RefEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -694,7 +694,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Ref##EigVec1", ImVec2((w-85.0-3*p) / 3.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -912,9 +912,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*   (4) ML with shift-once
 			*/
 
+			eigenSolver->zhaoShiftParam = 0.35;
 			int maxIters = 50;	
-			//vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> wantedModes{ 50, 100 };
+			vector<int> wantedModes{ 50, 100, 250 };
+			//vector<int> wantedModes{ 50, 100 };
 			vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5};
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
@@ -922,7 +923,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					// ML-with shift
 					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
 					// ML no shift
-					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// random
 					//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					/// // bathe init vector
@@ -1040,7 +1041,32 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				}
 			}
 		}
+
+		if (ImGui::Button("Scripted (5) Shift", ImVec2(w, 0))) {
+			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
+			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+
+			/*  Testing on :
+			*	varying shift parameters on kitten model
+			*/
+
+			int maxIters = 50;
+			//vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> wantedModes{ 50, 100, 250 };
+			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
+			vector<double> shiftParams{0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45 };
+
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int k = 0; k<wantedTols.size(); ++k) {
+					for (int l = 0; l<shiftParams.size(); ++l) {
+						eigenSolver->zhaoShiftParam = shiftParams[l];
+						eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+					}
+				}
+			}
+		}
 	}
+
 
 	ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
@@ -1069,6 +1095,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			clampRegion = atof(selScale);
 		}
 
+
+
 		if (ImGui::Button("Compute Reference##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
 
@@ -1091,6 +1119,32 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			cout << " in " << duration.count() << " seconds." << endl;
 
 			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
+		}
+
+		if (ImGui::Button("Compute Reference Multi", ImVec2(w, 0))) {
+			vector<int> numEigs{50, 100, 250};
+			chrono::high_resolution_clock::time_point	t0, t1;
+			chrono::duration<double>					duration;
+			
+
+
+			for (int j = 0; j < 2; ++j) {
+				for (int k = 0; k < 3; ++k) {
+					if (j == 0) std::cout << "Computing ref in Matlab |" << numEigs[k] << std::endl;
+					else if(j==1) std::cout << "Computing ref in Spectra |" << numEigs[k] << std::endl;
+
+					t0 = chrono::high_resolution_clock::now();
+
+					eigenSolver->computeRefEigenProblem(numEigs[k], solverTypeMap[j]);
+
+					t1 = chrono::high_resolution_clock::now();
+					duration = t1 - t0;
+					cout << "___in " << duration.count() << " seconds." << endl;
+
+					cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
+				}
+			}
+			
 		}
 
 		if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {

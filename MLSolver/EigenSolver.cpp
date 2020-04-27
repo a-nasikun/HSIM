@@ -20,15 +20,15 @@
 #include "mex.h"
 
 // Matlab interface
-#include <igl/matlab/matlabinterface.h>
+#include <igl/matlab/matlabinterface.h> 
 
 // SPECTRA EIGENSOLVER
-//#include <GenEigsSolver.h>
-//#include <SymEigsSolver.h>
-//#include <SymEigsShiftSolver.h>
-//#include <GenEigsRealShiftSolver.h>
-#include <SymGEigsSolver.h>
-#include <MatOp/SparseCholesky.h>
+//#include <Spectra/GenEigsSolver.h>
+//#include <Spectra/SymEigsSolver.h>
+//#include <Spectra/SymEigsShiftSolver.h>
+//#include <Spectra/GenEigsRealShiftSolver.h>
+#include <Spectra/SymGEigsSolver.h>
+#include <Spectra/MatOp/SparseCholesky.h>
 
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
