@@ -241,3 +241,14 @@ void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio)
 	maxVal = length.maxCoeff();
 	cout << "____after scaling: " << maxVal << endl;
 }
+
+void printVector(const Eigen::VectorXd& V, bool isTranspose, int numDigit)
+{
+	std::string text = "%." + to_string(numDigit) + "lg";
+	if (isTranspose) text += "\t";
+	else text += "\n";
+
+	for (int i = 0; i < V.rows(); ++i) {
+		std::printf(text.c_str(), V(i));
+	}
+}

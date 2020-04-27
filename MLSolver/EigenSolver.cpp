@@ -723,7 +723,7 @@ void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int&
 }
 
 /* Sparse spectra eigensolver */
-void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal)
+void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, int type, int numIters, double tol)
 {
 	///cout << "Computing eigenproblem in Spectra...";
 	///chrono::high_resolution_clock::time_point	t1, t2;
@@ -736,17 +736,25 @@ void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatr
 
 	printf("Wrapper \n");
 
+	map<int, int> typeMap;
+	typeMap.insert(std::pair<int, int>(0, Spectra::SMALLEST_ALGE));
+	typeMap.insert(std::pair<int, int>(1, Spectra::SMALLEST_MAGN));
+	const int paramType = typeMap[type];
+
 	Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> spectraSolver(&SOp, &MOp, numEigs, 2 * numEigs);
+	
 
 	cout << "Trying to initiate \n";
 	spectraSolver.init();
-	cout << "Trying to solve \n";
-	int info = spectraSolver.compute();
+	std::cout << "Trying to solve | " << numEigs << " eigenpairs |" << numIters << "max iters |" << tol << " tolerance \n";
+	int info = spectraSolver.compute(numIters, tol, typeMap[type]);
 	cout << "Result of solving: " << info << endl; 
 
 	if (spectraSolver.info() == Spectra::SUCCESSFUL) {
-		EigVal = spectraSolver.eigenvalues().reverse();
-		EigVec = spectraSolver.eigenvectors().rowwise().reverse();
+		//EigVal = spectraSolver.eigenvalues().reverse();
+		//EigVec = spectraSolver.eigenvectors().rowwise().reverse();
+		EigVal = spectraSolver.eigenvalues();
+		EigVec = spectraSolver.eigenvectors();
 		cout << "Yes! Made it! \n";
 	}
 	else {

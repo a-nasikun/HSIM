@@ -866,7 +866,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
 			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
 			static char maxIterTxt[10] = "20"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
-			static char tolTxt[10] = "0.0001"; ImGui::InputText("Tolerance", tolTxt, 10);
+			static char tolTxt[15] = "0.0001"; ImGui::InputText("Tolerance", tolTxt, 15);
 			numOfModes	= atoi(numModesTxt);
 			maxIter		= atoi(maxIterTxt);
 			tol			= atof(tolTxt);
@@ -1121,11 +1121,49 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
 		}
 
+		double tol;
+		static char toleTxt[15] = "0.0001"; ImGui::InputText("Tolerance", toleTxt, 15);
+
+		if (ImGui::Button("Spectra Test", ImVec2(w, 0))) {
+			tol = atof(toleTxt);
+			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
+			std::vector<double> tolVect{ 1e-2 };
+			eigToCompute = atoi(numEig);
+			Eigen::MatrixXd EigVects;
+			Eigen::VectorXd EigVals;
+
+			cout << "> Computing reference eigenproblem ";
+			chrono::high_resolution_clock::time_point	t0, t1;
+			chrono::duration<double>					duration;
+
+			for (int i = 0; i < tolVect.size(); ++i) {
+
+				t0 = chrono::high_resolution_clock::now();
+
+				//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
+				computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tolVect[i]);
+				//tol /= 10000;
+
+				t1 = chrono::high_resolution_clock::now();
+				duration = t1 - t0;
+				cout << " in " << duration.count() << " seconds." << endl;
+
+				//cout << "Ref eigenvalues: \n" << EigVals << std::endl;
+				cout << "Ref eigenvalues: \n";
+				//std::cout << EigVals(0) << std::endl;
+				printVector(EigVals.tail(eigToCompute));
+
+				//for (int i = 1; i < EigVals.rows(); ++i) {
+				//	printf("%.16f\n", EigVals(i));
+				//}
+			}
+		}
+
+
 		if (ImGui::Button("Compute Reference Multi", ImVec2(w, 0))) {
 			vector<int> numEigs{50, 100, 250};
 			chrono::high_resolution_clock::time_point	t0, t1;
-			chrono::duration<double>					duration;
-			
+			chrono::duration<double>					duration;		
 
 
 			for (int j = 0; j < 2; ++j) {

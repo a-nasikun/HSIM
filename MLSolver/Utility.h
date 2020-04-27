@@ -40,6 +40,7 @@ double checkAccuracy(const Eigen::SparseMatrix<double>& M, const Eigen::VectorXd
 void generateRandomMatrix(int m, int n, Eigen::MatrixXd& Mat);
 void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat);
 void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio=1.0);
+void printVector(const Eigen::VectorXd& V, bool isTranspose = false, int numDigit = 16);
 
 template <typename DerivedM>
 void writeDenseMatrixToFile(const Eigen::PlainObjectBase<DerivedM>& M, const string& filename, bool overwrite=false)
@@ -66,7 +67,6 @@ void writeDenseMatrixToFile(const Eigen::PlainObjectBase<DerivedM>& M, const str
 	}
 	else cout << "Unable to open file";
 }
-
 
 #endif // !UTILITY_H
 
