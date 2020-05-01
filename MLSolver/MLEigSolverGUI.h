@@ -43,6 +43,8 @@ static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
 
+void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, Eigen::VectorXd& sampSize);
+
 void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
 {
 	// Variables For Viewer visualization
@@ -308,44 +310,18 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 			if (ImGui::Button("[2] Sampling##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
+				levelRatio = atof(lvlRatTxt);
 
 				cout << "> Creating samples... " << endl;
 				chrono::high_resolution_clock::time_point	t0, t1;
 				chrono::duration<double>					duration;
 				t0 = chrono::high_resolution_clock::now();
 
-				vector<int> sampleLevels; sampleLevels.reserve(10);
-				int SAMPLE_LOW_BOUND = 1000;
-				int SAMPLE_CUT_OFF = 250;
-				if (problemType == 1) {
-					SAMPLE_LOW_BOUND = 250;
-					SAMPLE_CUT_OFF = 50;
-				}
-				int numSample = eigenSolver->getV().rows();
-
-				/* hard coded */
-				///numLevels = 4;
-				///sampleLevels.resize(numLevels);
-				///Eigen::VectorXd sampSize(numLevels);
-				///sampSize << 64000, 16000, 4000, 1000;
-				///ml_eigSolver.setInitialSystem(numLevels);
-
-				/* automated */
-				do {
-					numSample = (int)round(numSample / levelRatio);
-					if (numSample < SAMPLE_CUT_OFF) break;
-					sampleLevels.push_back(numSample);
-				} while (numSample > SAMPLE_LOW_BOUND);
-
-				/* Setting the number of levels */
-				numLevels = sampleLevels.size();
-				eigenSolver->setInitialSystem(numLevels);
-
-				Eigen::VectorXd sampSize(sampleLevels.size());
-				for (int ii = 0; ii < sampleLevels.size(); ++ii)
-					sampSize(ii) = sampleLevels[ii];
+				Eigen::VectorXd sampSize;
+				setSamplingLevels(eigenSolver, levelRatio, sampSize);				
 
 				/* For 1 level (coarsest level) sampling only*/
+				eigenSolver->setInitialSystem(sampSize.rows());
 				eigenSolver->constructSampleHierarchy(sampSize);
 
 				t1 = chrono::high_resolution_clock::now();
@@ -844,6 +820,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	static int shiftType = 3;		// 0: Bathe, 1: Itoh/Wilson, 2: Gong, 3: Zhao
 	static bool isClampedEigen = false; 
 
+	static bool isParallel = true;
+	ImGui::Checkbox("Parallel solver", &isParallel);
+	if (ImGui::Button("Test parallel solver", ImVec2(w, 0))) {
+		eigenSolver->testParallelFactorization(isParallel);
+	}
+
 	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
 		/* some parameters */
 		static int		numOfModes	= 5;
@@ -862,6 +844,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(1, MLEigenSolver::ShiftType::SHIFT_ITOH_WILSON));
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(2, MLEigenSolver::ShiftType::SHIFT_GONG));
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(3, MLEigenSolver::ShiftType::SHIFT_ZHAO));
+
+
 
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
 			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
@@ -912,7 +896,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*   (4) ML with shift-once
 			*/
 
-			eigenSolver->zhaoShiftParam = 0.35;
+			eigenSolver->zhaoShiftParam = 0.25;
 			int maxIters = 50;	
 			vector<int> wantedModes{ 50, 100, 250 };
 			//vector<int> wantedModes{ 50, 100 };
@@ -1065,6 +1049,56 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				}
 			}
 		}
+
+		//if (ImGui::Button("Scripted (5) Var. Ratio", ImVec2(w, 0))) {
+		if (ImGui::Button("Scripted (5) Var. Support", ImVec2(w, 0))) {
+			Eigen::VectorXd sampSize;
+			//double numOfSupport = 5.0;
+
+			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
+			std::vector<double>		levelRatio{ 4 };
+			std::vector<double>		levelSupport{ 5.0, 7.5, 10.0, 12.5, 15.0, 20.0 };
+			//std::vector<double>	levelSupport{ 5.0 };
+			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
+			std::vector<double>		levelZhaoParam{ 0.25};
+			vector<int>				wantedModes{ 50, 100, 250 };
+			vector<double>			wantedTols{ 1e-4 };
+			int						maxIters = 50;
+
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int i = 0; i < levelRatio.size(); ++i) {
+					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
+					for (int l = 0; l < levelSupport.size(); ++l) {
+						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;
+						//Sampling
+						setSamplingLevels(eigenSolver, levelRatio[i], sampSize);
+						eigenSolver->setInitialSystem(sampSize.rows());
+						eigenSolver->constructSampleHierarchy(sampSize);
+
+						// Constructing basis...
+						eigenSolver->setClampBasis(false);
+						eigenSolver->constructBasis(levelSupport[l], defAxis, clampRegion);
+						useNonSmoothBasis = false;
+
+						// Compute restricted problem
+						eigenSolver->solveRestrictedProblem();
+
+						for (int m = 0; m < levelZhaoParam.size(); ++m) {
+							std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
+							eigenSolver->zhaoShiftParam = levelZhaoParam[m];
+							
+
+							std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
+							for (int k = 0; k < wantedTols.size(); ++k) {
+								std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
+								// ML-with shift
+								eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 
@@ -1127,41 +1161,58 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::Button("Spectra Test", ImVec2(w, 0))) {
 			tol = atof(toleTxt);
 			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
-			std::vector<double> tolVect{ 1e-2 };
-			eigToCompute = atoi(numEig);
+			std::vector<double>		tolVect{ 1e-2, 1e-3, 1e-4, 1e-5 };
+			vector<int>				wantedModes{ 50, 100, 250 };
+			//eigToCompute = atoi(numEig);
 			Eigen::MatrixXd EigVects;
 			Eigen::VectorXd EigVals;
+			Eigen::VectorXd timing(1);
 
 			cout << "> Computing reference eigenproblem ";
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
 
-			for (int i = 0; i < tolVect.size(); ++i) {
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int i = 0; i < tolVect.size(); ++i) {
 
-				t0 = chrono::high_resolution_clock::now();
+					t0 = chrono::high_resolution_clock::now();
 
-				//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
-				computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tolVect[i]);
-				//tol /= 10000;
+					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
+					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, 0, 1000, tolVect[i]);
 
-				t1 = chrono::high_resolution_clock::now();
-				duration = t1 - t0;
-				cout << " in " << duration.count() << " seconds." << endl;
+					Eigen::VectorXd conv2;
+					eigenSolver->checkConvergenceCat2(EigVects, EigVals, eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
+					std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
+					//tol /= 10000;
 
-				//cout << "Ref eigenvalues: \n" << EigVals << std::endl;
-				cout << "Ref eigenvalues: \n";
-				//std::cout << EigVals(0) << std::endl;
-				printVector(EigVals.tail(eigToCompute));
+					t1 = chrono::high_resolution_clock::now();
+					duration = t1 - t0;
+					cout << "\n in " << duration.count() << " seconds." << endl;
+					timing(0) = duration.count();
 
-				//for (int i = 1; i < EigVals.rows(); ++i) {
-				//	printf("%.16f\n", EigVals(i));
-				//}
+					string modelName = "Sphere_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
+					string filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigVects-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					writeDenseMatrixToFile(EigVects, filename);
+					filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigVals-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					writeDenseMatrixToFile(EigVals, filename);
+					filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_Tolerance-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					writeDenseMatrixToFile(timing, filename);
+					writeDenseMatrixToFile(conv2, filename);
+
+
+					//cout << "Ref eigenvalues: \n" << EigVals << std::endl;
+					cout << "Ref eigenvalues: \n";
+					//std::cout << EigVals(0) << std::endl;
+					//printVector(EigVals.tail(wantedModes[j]));
+					printVector(EigVals.head(wantedModes[j]));
+				}
 			}
 		}
 
 
 		if (ImGui::Button("Compute Reference Multi", ImVec2(w, 0))) {
-			vector<int> numEigs{50, 100, 250};
+			//vector<int> numEigs{50, 100, 250};
+			vector<int> numEigs{ 50};
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;		
 
@@ -1174,6 +1225,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					t0 = chrono::high_resolution_clock::now();
 
 					eigenSolver->computeRefEigenProblem(numEigs[k], solverTypeMap[j]);
+					Eigen::VectorXd conv2;
+					eigenSolver->checkConvergenceCat2(eigenSolver->getEigenVectorsRef(), eigenSolver->getEigenValuesRef(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
+					std::cout << "Conv: " << conv2 << std::endl;
 
 					t1 = chrono::high_resolution_clock::now();
 					duration = t1 - t0;
@@ -1198,4 +1252,37 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	}
 	ImGui::End();
 }
+
+void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, Eigen::VectorXd& sampSize)
+{
+	vector<int> sampleLevels;
+	sampleLevels.reserve(10);
+	int SAMPLE_LOW_BOUND = 1000;
+	int SAMPLE_CUT_OFF = 500;
+	if (problemType == 1) {
+		SAMPLE_LOW_BOUND = 350;
+		SAMPLE_CUT_OFF = 175;
+	}
+	int numSample = eigenSolver->getV().rows();
+
+	/* hard coded */
+	///numLevels = 4;
+	///sampleLevels.resize(numLevels);
+	///Eigen::VectorXd sampSize(numLevels);
+	///sampSize << 64000, 16000, 4000, 1000;
+	///ml_eigSolver.setInitialSystem(numLevels);
+
+	/* automated */
+	do {
+		numSample = (int)round(numSample / levelRatio);
+		if (numSample < SAMPLE_CUT_OFF) break;
+		sampleLevels.push_back(numSample);
+	} while (numSample > SAMPLE_LOW_BOUND);
+
+	
+	sampSize.resize(sampleLevels.size());
+	for (int ii = 0; ii < sampleLevels.size(); ++ii)
+		sampSize(ii) = sampleLevels[ii];
+}
+
 #endif // !FAST_SPECTRUM_GUI

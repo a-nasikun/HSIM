@@ -829,3 +829,100 @@ void MLEigenSolver::LBSTest_vel(igl::opengl::glfw::Viewer &viewer, int numBasis,
 	for (int i = 0; i<numBasis; i++)
 		viewer.data().add_points(Pos.row(handleId(i)), Eigen::RowVector3d(1.0, 0.1, 0.1));
 }
+
+
+void MLEigenSolver::testParallelFactorization(bool isParallel)
+{
+	std::cout << "Testing parallel factorization \n";	
+
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	
+	//bool isParallel = false;
+
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factor;
+	
+
+	/* Generating random matrix as input */
+	Eigen::MatrixXd input, output;
+	const int numCols = 100;
+	generateRandomMatrix(S.rows(), numCols, input);
+	output.resize(input.rows(), input.cols());
+
+	/* Normalizing the input */
+	for (int i = 0; i < numCols; ++i) {
+		double mNorm = input.col(i).transpose() * M * input.col(i);
+		mNorm = (double) 1.0 / sqrt(mNorm);
+		input.col(i) = mNorm * input.col(i);
+	}
+	//input = M*input;
+
+
+	cout << "___Factorizing ";
+	
+	/* Factorizing (Serial) */
+	if (!isParallel)
+	{		
+		std::cout << " (Serial)...";
+		factor.compute(S);
+		t1 = chrono::high_resolution_clock::now();
+		for (int i = 0; i < numCols; ++i) {
+			output.col(i) = factor.solve(input.col(i));
+		}
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
+
+		printVector(output.row(0), true, 4);
+	}
+	else
+	{
+		std::cout << " (Parallel)...";
+		t1 = chrono::high_resolution_clock::now();
+
+		Eigen::initParallel();
+
+		factor.compute(S);
+		const int		NUM_OF_THREADS = omp_get_num_procs();
+		//const int		NUM_OF_THREADS = 2;
+		omp_set_num_threads(NUM_OF_THREADS);
+		//Eigen::setNbThreads(NUM_OF_THREADS);
+		int tid, ntids, ipts, istart, iproc;
+		int iCol=0;
+		
+		#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+		{
+			iproc = omp_get_num_procs();
+			tid = omp_get_thread_num();
+			ntids = omp_get_num_threads();
+			ipts = (int)ceil((double)numCols / (double)ntids);
+			istart = tid * ipts;
+			if (tid == ntids - 1) ipts = numCols - istart;
+			if (ipts <= 0) ipts = 0;
+		
+			std::printf("ID %d with %d items (%d->%d) \n", tid, ipts, istart, istart + ipts);
+		
+			for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+				output.col(iCol) = factor.solve(input.col(iCol));
+			}
+		}
+
+		///int n = 4;
+		///omp_set_num_threads(n);
+		///Eigen::setNbThreads(n);
+		///factor.compute(S);
+		///
+		///for (int i = 0; i < numCols; ++i) {
+		///	output.col(i) = factor.solve(input.col(i));
+		///}
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
+
+		printVector(output.row(0), true, 4);
+
+	}
+	
+}

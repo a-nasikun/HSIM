@@ -164,7 +164,7 @@ void generateRandomMatrix(int m, int n, Eigen::MatrixXd& Mat)
 	//cout << "its rank:" << qr.rank() << endl;
 	//M = qr.householderQ()*Id;
 
-	cout << "Block: \n" << Mat.topLeftCorner(20, min(n, 10)) << endl;
+	///cout << "Block: \n" << Mat.topLeftCorner(20, min(n, 10)) << endl;
 }
 
 void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat)
@@ -251,4 +251,6 @@ void printVector(const Eigen::VectorXd& V, bool isTranspose, int numDigit)
 	for (int i = 0; i < V.rows(); ++i) {
 		std::printf(text.c_str(), V(i));
 	}
+
+	std::cout << std::endl; 
 }

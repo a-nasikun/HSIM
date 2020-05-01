@@ -141,6 +141,7 @@ public:
 	// TEst variable
 	double zhaoShiftParam;
 
+	void testParallelFactorization(bool isParallel=true);
 
 };
 
