@@ -208,9 +208,9 @@ void MLEigenSolver::solveRestrictedProblem()
 	M_ = Basis.transpose()*M*Basis;
 
 	printf("__S red %.4f (%d nnz)\n", (double)S_.nonZeros() / (double)S_.rows(), S_.nonZeros());
-	cout << S_.topLeftCorner(10, 10) << endl;
+	//cout << S_.topLeftCorner(10, 10) << endl;
 	printf("__M red %.4f (%d nnz)\n", (double)M_.nonZeros() / (double)M_.rows(), M_.nonZeros());
-	cout << M_.topLeftCorner(10, 10) << endl;
+	//cout << M_.topLeftCorner(10, 10) << endl;
 
 	cout << "> Computing the reduced eigenproblem (in GPU). \n";
 
