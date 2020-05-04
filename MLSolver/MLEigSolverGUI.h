@@ -853,7 +853,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
 			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
 			static char maxIterTxt[10] = "20"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
-			static char tolTxt[15] = "0.0001"; ImGui::InputText("Tolerance", tolTxt, 15);
+			static char tolTxt[15] = "0.0001"; ImGui::InputText("Tolerance##1", tolTxt, 15);
 			numOfModes	= atoi(numModesTxt);
 			maxIter		= atoi(maxIterTxt);
 			tol			= atof(tolTxt);
@@ -1179,7 +1179,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 								eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
 
 								// Random
-								eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
+								//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
 								}
 						}
 					}
@@ -1243,7 +1243,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		}
 
 		double tol;
-		static char toleTxt[15] = "0.0001"; ImGui::InputText("Tolerance", toleTxt, 15);
+		static char toleTxt[15] = "0.0001"; ImGui::InputText("Tolerance##2", toleTxt, 15);
 
 
 
@@ -1280,11 +1280,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					timing(0) = duration.count();
 
 					string modelName = "Blade_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
-					string filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigVects-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					string filename = "../../Data/" + modelName + "_EigVects-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(EigVects, filename);
-					filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigVals-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					filename = "../../Data/" + modelName + "_EigVals-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(EigVals, filename);
-					filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_Tolerance-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					filename = "../../Data/" + modelName + "_Tolerance-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(timing, filename);
 					writeDenseMatrixToFile(conv2, filename);
 
@@ -1331,11 +1331,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					timing(0) = duration.count();
 
 					string modelName = "Sphere_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
-					string filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigVects-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					string filename = "../../Data/" + modelName + "_EigVects-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(EigVects, filename);
-					filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigVals-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					filename = "../../Data/" + modelName + "_EigVals-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(EigVals, filename);
-					filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_Tolerance-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					filename = "../../Data/" + modelName + "_Tolerance-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(timing, filename);
 					writeDenseMatrixToFile(conv2, filename);
 
@@ -1382,11 +1382,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			// read from file 
 		}
 		if (ImGui::Button("Save EigVals#REF", ImVec2(w / 2, 0))) {
-			writeDenseMatrixToFile(eigenSolver->getEigenValuesRef(), "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
+			writeDenseMatrixToFile(eigenSolver->getEigenValuesRef(), "../../Data/" + model + "_EigVals_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
 		}
 		ImGui::SameLine(0, p);
 		if (ImGui::Button("Save EigVect#REF", ImVec2(w / 2, 0))) {
-			writeDenseMatrixToFile(eigenSolver->getEigenVectorsRef(), "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
+			writeDenseMatrixToFile(eigenSolver->getEigenVectorsRef(), "../../Data/" + model + "_EigVects_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
 		}
 	}
 	ImGui::End();
