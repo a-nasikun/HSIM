@@ -1,5 +1,6 @@
 #include "MLEigenSolver.h"
 #include <Eigen/PardisoSupport>
+#include <omp.h>
 
 /**
 *  @brief Reading a (triangle) mesh specified by the input.
@@ -85,6 +86,37 @@ void MLEigenSolver::initiateAdM()
 
 void MLEigenSolver::constructMassMatrix() {}
 void MLEigenSolver::constructStiffnessMatrix() {}
+
+void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
+{
+	double	spRatio = 1.25;
+	int		sizeSubsp = spRatio * 2 * numEigen;
+
+	vector<int> sampleLevels;
+	sampleLevels.reserve(10);
+	int SAMPLE_CUT_OFF = max(100, sizeSubsp);			//500
+	int SAMPLE_LOW_BOUND = 2 * SAMPLE_CUT_OFF;
+	int numSample = V.rows();
+	std::cout << "cut-out" << SAMPLE_CUT_OFF << "| Low bound " << SAMPLE_LOW_BOUND << ": " << std::endl;
+
+	/* automated */
+	do {
+		numSample = (int)round(numSample / levelRatio);
+		if (numSample < SAMPLE_CUT_OFF) break;
+		sampleLevels.push_back(numSample);
+		std::cout << "Inserted sample: " << numSample << std::endl;
+	} while (numSample > SAMPLE_LOW_BOUND);
+
+	if (sampleLevels.size() < 1)
+	{
+		std::cout << "Error! The provided sample is not enough! \n";
+		return;
+	}
+
+	sampSize.resize(sampleLevels.size());
+	for (int ii = 0; ii < sampleLevels.size(); ++ii)
+		sampSize(ii) = sampleLevels[ii];
+}
 
 void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 {
@@ -840,8 +872,7 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 	
 	//bool isParallel = false;
 
-	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factor;
-	
+	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factor;	
 
 	/* Generating random matrix as input */
 	Eigen::MatrixXd input, output;
@@ -881,17 +912,36 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 		std::cout << " (Parallel)...";
 		t1 = chrono::high_resolution_clock::now();
 
-		Eigen::initParallel();
-
+		//Eigen::initParallel();
 		factor.compute(S);
+		//factor.pardisoParameterArray()[33] = 1;
+		//auto const& cfactor = factor;
+
 		const int		NUM_OF_THREADS = omp_get_num_procs();
 		//const int		NUM_OF_THREADS = 2;
 		omp_set_num_threads(NUM_OF_THREADS);
 		//Eigen::setNbThreads(NUM_OF_THREADS);
 		int tid, ntids, ipts, istart, iproc;
 		int iCol=0;
+
+		auto const& cinput = input; // Not sure if "input" is already const, let's make sure
+		auto const& cfactor = factor; // Make sure we have a const reference to "factor"
+
+		vector<Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>> factorPar(NUM_OF_THREADS);
 		
-		#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+		//factorPar[0] = &(*factor);
+		//factorPar.resize(NUM_OF_THREADS);
+		//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorParA = factor;
+
+		//Eigen::SparseMatrix<double> MatS;
+		//factor.getMatrix(MatS);
+		//std::cout << "Matrix: \n" << MatS.topLeftCorner(10, 10) << std::endl;
+		//std::cout << "S: \n" << S.topLeftCorner(10, 10) << std::endl;
+
+		//std::copy(factor, factorPar[0]);
+
+#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+//#pragma omp parallel private(factor)
 		{
 			iproc = omp_get_num_procs();
 			tid = omp_get_thread_num();
@@ -900,11 +950,19 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 			istart = tid * ipts;
 			if (tid == ntids - 1) ipts = numCols - istart;
 			if (ipts <= 0) ipts = 0;
+			//factor.compute(S);
 		
 			std::printf("ID %d with %d items (%d->%d) \n", tid, ipts, istart, istart + ipts);
+			Eigen::VectorXd temp(input.rows());
 		
 			for (iCol = istart; iCol < (istart + ipts); ++iCol) {
-				output.col(iCol) = factor.solve(input.col(iCol));
+				//output.col(iCol) = factor.solve(input.col(iCol));
+				//factor._solve_impl(input.col(iCol), output.col(iCol));
+				temp = cfactor.solve(cinput.col(iCol));
+#pragma omp critical
+				{
+					output.col(iCol) = temp;
+				}
 			}
 		}
 
@@ -921,7 +979,7 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 		duration = t2 - t1;
 		cout << "in " << duration.count() << " seconds" << endl;
 
-		printVector(output.row(0), true, 4);
+		printVector(output.row(0), true,4);
 
 	}
 	

@@ -1398,7 +1398,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 {
 	std::cout << "Functions" << std::endl;
 
-	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::high_resolution_clock::time_point	t0, t1, t2;
 	chrono::duration<double>					duration;
 	t0 = chrono::high_resolution_clock::now();
 
@@ -1420,7 +1420,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 	else
 	{
 		/* 1: RESTRICTION */
-		printf("____<1> Restriction: \n");
+		printf("____<1> Restriction: ");
+		t1 = chrono::high_resolution_clock::now();
 		Eigen::SparseMatrix<double> SK, MK, Id;
 		if (k == 0) {
 			SK = SL; MK = ML;
@@ -1431,6 +1432,10 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 		}
 		Id.resize(SK.rows(), SK.cols());
 		Id.setIdentity();
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "...in " << duration.count() << " seconds." << endl;
+
 
 		printf("____<2> Going deeper => \n ################");
 		performMultiLevelSIM_withShiftOnce(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
@@ -1438,8 +1443,12 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 		///printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
 
 		/* [3] SUBSPACE ITERATION METHOD */
+		t1 = chrono::high_resolution_clock::now();
 		XkL = U[k] * XkL;
-		printf("____<3> Lifting, Init vectors: %dx%d \n", XkL.rows(), XkL.cols());
+		printf("____<3> Lifting, Init vectors: %dx%d ", XkL.rows(), XkL.cols());
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "...in " << duration.count() << " seconds." << endl;
 
 		/* Adding a small number on the diagonal, for robustness */
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -1472,6 +1481,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 
 		printf("____<5> Subspace iteration.\n");
 		do {
+			t1 = chrono::high_resolution_clock::now();
 			if (status != 0)
 			{
 				/* [4] Zhao's proposal */
@@ -1479,7 +1489,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 				zhaoShiftId = lastConvergedId + (int)floor(zhaoParam*(numEigs - lastConvergedId));
 				if (factCounter == 0) {
 					mu = AkL(zhaoShiftId);
-					std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId << std::endl;
+					std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId; // << std::endl;
 					factorization.compute(SK - mu*MK);
 				}
 				else {
@@ -1489,23 +1499,36 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 				}
 
 				factCounter++;
-				std::cout << "__> Factorization " << factCounter << " with shift of " << mu << std::endl;
+				std::cout << "__> Factorization " << factCounter << " with shift of " << mu; // << std::endl;
 			}
+			t2 = chrono::high_resolution_clock::now();
+			duration = t2 - t1;
+			cout << "...in " << duration.count() << " seconds." << endl;
 
 			/* Stage III: Iterations */
 			printf("Iteration: %d \n", iterCount + 1);
 
+			std::cout << "Solving each RHS ";
+			t1 = chrono::high_resolution_clock::now();
 			for (int j = 0; j < q; ++j) {						// easily parallelizeable
 				Eigen::VectorXd v;
 				v = MK * (XkL.col(j));
 				XbarK.col(j) = factorization.solve(v);
 			}
+			t2 = chrono::high_resolution_clock::now();
+			duration = t2 - t1;
+			cout << "...in " << duration.count() << " seconds." << endl;
 
 			/* Projection of M and K*/
+			t1 = chrono::high_resolution_clock::now();
 			printf("________setting up reduced matrix M and S. ");
 			Sproj = XbarK.transpose()*SK*XbarK;
 			Mproj = XbarK.transpose()*MK*XbarK;
+			t2 = chrono::high_resolution_clock::now();
+			duration = t2 - t1;
+			cout << "...in " << duration.count() << " seconds." << endl;
 
+			t1 = chrono::high_resolution_clock::now();
 			printf("________solve reduced eigenvalue problem. ");
 			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 			cout << "__STATUS: " << status << endl;
@@ -1516,9 +1539,16 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 				continue;
 				//break;
 			}
+			t2 = chrono::high_resolution_clock::now();
+			duration = t2 - t1;
+			cout << "...in " << duration.count() << " seconds." << endl;
 
-			printf("________lifting up/prolongation.\n");
+			t1 = chrono::high_resolution_clock::now();
+			printf("________lifting up/prolongation.");
 			XkL = XbarK*Q;
+			t2 = chrono::high_resolution_clock::now();
+			duration = t2 - t1;
+			cout << "...in " << duration.count() << " seconds." << endl;
 
 			/* Convergence Check*
 			** Type 2: */

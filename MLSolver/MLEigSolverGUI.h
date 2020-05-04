@@ -24,7 +24,7 @@
 using namespace std;
 
 enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
-
+static int			numOfModes		= 25;
 int					basisToShow		= 0;
 int					eigToShow		= 0;
 static int			eigToCompute    = 500;
@@ -319,9 +319,11 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				t0 = chrono::high_resolution_clock::now();
 
 				Eigen::VectorXd sampSize;
-				setSamplingLevels(eigenSolver, levelRatio, sampSize);				
+				//setSamplingLevels(eigenSolver, levelRatio, numOfModes, sampSize);		
+				std::cout << "Sought modes: " << numOfModes << std::endl;
 
 				/* For 1 level (coarsest level) sampling only*/
+				eigenSolver->setSamplingLevels(sampSize, numOfModes, levelRatio);
 				eigenSolver->setInitialSystem(sampSize.rows());
 				eigenSolver->constructSampleHierarchy(sampSize);
 
@@ -829,7 +831,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
 		/* some parameters */
-		static int		numOfModes	= 5;
+		//static int		numOfModes	= 5;
 		static int		maxIter		= 5;
 		static double	tol			= 1e-4;
 		/* Type of the SIM to be computed*/
@@ -898,10 +900,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*/
 
 			eigenSolver->zhaoShiftParam = 0.25;
-			int maxIters = 50;	
-			vector<int> wantedModes{ 50, 100, 250 };
-			//vector<int> wantedModes{ 50, 100 };
-			vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5};
+			int maxIters = 250;	
+			//vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> wantedModes{ 50 };
+			//vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9,1e-10};
+			vector<double> wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9,1e-10 };
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for(int k=0; k<wantedTols.size(); ++k){
@@ -1114,7 +1117,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			std::vector<double>		levelZhaoParam{ 0.25 };
 			vector<int>				wantedModes{ 50, 100, 250 };
-			vector<double>			wantedTols{ 1e-4 };
+			vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
 			int						maxIters = 50;
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
@@ -1125,8 +1128,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					//Sampling
 					cout << "> Creating samples... " << endl;
 					t0 = chrono::high_resolution_clock::now();
-					setSamplingLevels(eigenSolver, wantedModes[j], sampSize);
-					//setSamplingLevels(eigenSolver, levelRatio[i], wantedModes[j], sampSize);
+					//setSamplingLevels(eigenSolver, wantedModes[j], sampSize);
+					eigenSolver->setSamplingLevels(sampSize, wantedModes[j], levelRatio[i]);
 					eigenSolver->setInitialSystem(sampSize.rows());
 					eigenSolver->constructSampleHierarchy(sampSize);
 					t1 = chrono::high_resolution_clock::now();
@@ -1155,15 +1158,29 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						cout << "in " << duration.count() << " seconds." << endl;
 
 						for (int m = 0; m < levelZhaoParam.size(); ++m) {
-							std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
-							eigenSolver->zhaoShiftParam = levelZhaoParam[m];
+							///eigenSolver->zhaoShiftParam = levelZhaoParam[m];
+							///std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
 						
 							std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
 							for (int k = 0; k < wantedTols.size(); ++k) {
 								std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
-								// ML-with shift
+
+								// ML-without shift
+								eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
+
+								// ML-with shift 0.25
+								eigenSolver->zhaoShiftParam = 0.25;
+								std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
 								eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-							}
+
+								// ML-with shift 0.35
+								eigenSolver->zhaoShiftParam = 0.35;
+								std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
+								eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+
+								// Random
+								eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
+								}
 						}
 					}
 				}
@@ -1250,7 +1267,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					t0 = chrono::high_resolution_clock::now();
 
 					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
-					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, 0, 1000, tolVect[i]);
+					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, 1, 1000, tolVect[i]);
 					
 					Eigen::VectorXd conv2;
 					eigenSolver->checkConvergenceCat2(EigVects, EigVals, eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
@@ -1262,7 +1279,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					cout << "\n in " << duration.count() << " seconds." << endl;
 					timing(0) = duration.count();
 
-					string modelName = "Sphere_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
+					string modelName = "Blade_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
 					string filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigVects-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(EigVects, filename);
 					filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + modelName + "_EigVals-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
@@ -1407,8 +1424,8 @@ void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEi
 
 	vector<int> sampleLevels;
 	sampleLevels.reserve(10);
-	int SAMPLE_CUT_OFF = sizeSubsp;			//500
-	int SAMPLE_LOW_BOUND = 2*sizeSubsp;		//1000
+	int SAMPLE_CUT_OFF = max(250, sizeSubsp);			//500
+	int SAMPLE_LOW_BOUND = 2 * SAMPLE_CUT_OFF;
 	if (problemType == 1) {
 		SAMPLE_LOW_BOUND /= 3;
 		SAMPLE_CUT_OFF /= 3;

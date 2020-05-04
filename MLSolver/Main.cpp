@@ -4,6 +4,7 @@
 #include "MLSolverElastics.h"
 #include "MLSolverFunctions.h"
 #include "MLEigSolverGUI.h"
+#include "MLTest.h"
 #include <igl/unproject_onto_mesh.h>
 
 /* [MAIN FUNCTION THAT CALLS EVERYTHING ELSE] */
@@ -25,6 +26,9 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
 	meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_5k.obj";
 	eigenSolver->readMesh(meshFile);
+
+	//testInit(viewer, eigenSolver, meshFile);
+	//runMLSolverTest(viewer, eigenSolver);
 			
 	menu.callback_draw_viewer_window = [&]()
 	{
