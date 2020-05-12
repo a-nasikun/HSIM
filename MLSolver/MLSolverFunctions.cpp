@@ -476,6 +476,10 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 		SSel = S;
 	}
 
+	std::cout << "Lifting the eigenvectors... ";
+	EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2*numEigs);
+	std::cout << "...successful\n";
+
 	/* Performing the SIM according to user selected methods */
 	if (type == SIMType::SIM_MultiLevel) {
 		timingPerLevel.resize(level);
@@ -544,6 +548,7 @@ void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatri
 	case SIMType::SIM_1level_Random:
 		cout << "_______SUBSPACE ITERATION METHOD with Random initialization Vectors (normalized).\n";
 		generateRandomMatrix(S.rows(), q, Xk);
+		if(numEigs>=200) eps = 1e16 * std::numeric_limits<double>::epsilon();
 
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
@@ -808,7 +813,7 @@ void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMat
 		/* for later factorization */
 		else
 		{
-			double zhaoParam = 0.4;
+			double zhaoParam = zhaoShiftParam;
 			int zhaoShiftId;
 			/* [1] Bathe's proposal */
 			switch (shiftType)
