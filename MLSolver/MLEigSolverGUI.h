@@ -12,6 +12,7 @@
 #include <igl/opengl/glfw/ViewerPlugin.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
+#include <igl/isolines.h>
 
 #include <Eigen/PardisoSupport>
 
@@ -758,36 +759,38 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				viewer.data().set_mesh(Vtemp, Ftemp);
 			}
 		}
-		
-		static double	transVal = 0;
-		static int		transAxis = 0;
-		static double	rotVal = 45.0;
-		static int		rotAxis = 0;
-		static int		numHandles = 5;
+		/* LBS check */
+		if (ImGui::CollapsingHeader("Elements material##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
+			static double	transVal = 0;
+			static int		transAxis = 0;
+			static double	rotVal = 45.0;
+			static int		rotAxis = 0;
+			static int		numHandles = 5;
 
-		static char numHandlesTxt[32] = "5";			ImGui::InputText("Num Handles", numHandlesTxt, 32);
-		static char transValTxt[32] = "0.5";			ImGui::InputText("Translation", transValTxt, 32);		
-		ImGui::RadioButton("X##trans1", &transAxis, 0); ImGui::SameLine();
-		ImGui::RadioButton("Y##trans1", &transAxis, 1); ImGui::SameLine();
-		ImGui::RadioButton("Z##trans1", &transAxis, 2);
+			static char numHandlesTxt[32] = "5";			ImGui::InputText("Num Handles", numHandlesTxt, 32);
+			static char transValTxt[32] = "0.5";			ImGui::InputText("Translation", transValTxt, 32);
+			ImGui::RadioButton("X##trans1", &transAxis, 0); ImGui::SameLine();
+			ImGui::RadioButton("Y##trans1", &transAxis, 1); ImGui::SameLine();
+			ImGui::RadioButton("Z##trans1", &transAxis, 2);
 
-		static char rotValTxt[32] = "45";			ImGui::InputText("Rot. Angle", rotValTxt, 32);
-		ImGui::RadioButton("X##rot1", &rotAxis, 0); ImGui::SameLine();
-		ImGui::RadioButton("Y##rot1", &rotAxis, 1); ImGui::SameLine();
-		ImGui::RadioButton("Z##rot1", &rotAxis, 2);
+			static char rotValTxt[32] = "45";			ImGui::InputText("Rot. Angle", rotValTxt, 32);
+			ImGui::RadioButton("X##rot1", &rotAxis, 0); ImGui::SameLine();
+			ImGui::RadioButton("Y##rot1", &rotAxis, 1); ImGui::SameLine();
+			ImGui::RadioButton("Z##rot1", &rotAxis, 2);
 
-		if (ImGui::Button("LBS Pos", ImVec2((w-p)/2.0, 0))) {
-			transVal = atof(transValTxt);
-			rotVal = atof(rotValTxt);
-			numHandles = atoi(numHandlesTxt);
-			eigenSolver->LBSTest_pos(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("LBS Vel", ImVec2((w - p) / 2.0, 0))) {
-			transVal = atof(transValTxt);
-			rotVal = atof(rotValTxt);
-			numHandles = atoi(numHandlesTxt);
-			eigenSolver->LBSTest_vel(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
+			if (ImGui::Button("LBS Pos", ImVec2((w - p) / 2.0, 0))) {
+				transVal = atof(transValTxt);
+				rotVal = atof(rotValTxt);
+				numHandles = atoi(numHandlesTxt);
+				eigenSolver->LBSTest_pos(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("LBS Vel", ImVec2((w - p) / 2.0, 0))) {
+				transVal = atof(transValTxt);
+				rotVal = atof(rotValTxt);
+				numHandles = atoi(numHandlesTxt);
+				eigenSolver->LBSTest_vel(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
+			}
 		}
 
 		if (ImGui::Button("Reset Mesh", ImVec2(w, 0))) {
@@ -802,6 +805,66 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			viewer.data().line_width *= 2.0f;
 		}
 
+		if (ImGui::Button("Smaller", ImVec2((w - p) / 2.f, 0))) {
+			viewer.data().point_size *= 1.0/1.5f;
+		}
+		ImGui::SameLine(0, p);
+		if (ImGui::Button("Larger", ImVec2((w - p) / 2.f, 0))) {
+			viewer.data().point_size *= 1.5f;
+		}
+
+		ImGui::Separator(); 
+
+		/* Diffusion distance */
+		static std::vector<Eigen::VectorXd> diffTensor1;
+		static std::vector<Eigen::VectorXd> diffTensor2;
+		static Eigen::VectorXd diffVector(eigenSolver->getV().rows());
+		static int sourceID = 0;
+
+		if (ImGui::CollapsingHeader("Diffusion Distance##1", ImGuiTreeNodeFlags_CollapsingHeader))
+		{			
+			static char weighttxt[32] = "0.5";						ImGui::InputText("Weight", weighttxt, 32);
+			if (ImGui::Button("Create Diffusion Tensor", ImVec2(w, 0))) {			
+
+				if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+					double weight = atof(weighttxt);
+					//solver->constructDiffusionTensor(min(numOfModes, 50), 1.0, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor1);
+					solver->constructDiffusionTensor(min(numOfModes, 50), weight, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor2);					
+					std::cout << "Diffusion tensor successfully created \n";
+				}
+			}
+
+			static char sourceIDtxt[32] = "0";						ImGui::InputText("0", sourceIDtxt, 32);
+			Eigen::MatrixXd VCol;
+			if (ImGui::Button("Compute Diffusion Distance", ImVec2(w, 0))) {
+				
+				sourceID = atoi(sourceIDtxt);				
+				if(sourceID>=eigenSolver->getV().rows()) 
+					sourceID = eigenSolver->getV().rows()-1;
+				std::cout << "Source point: " << sourceID << std::endl;
+				diffVector.resize(eigenSolver->getV().rows());
+
+				for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
+					Eigen::VectorXd diff = diffTensor2[sourceID] - diffTensor2[i];
+					diffVector(i) = diff.norm();
+				}
+
+				
+				igl::jet(diffVector, true, VCol);
+				viewer.data().set_colors(VCol);
+				viewer.data().add_points(eigenSolver->getV().row(sourceID), Eigen::RowVector3d(0.7, 0.1, 0.1));
+			}
+
+			if (ImGui::Button("Show Isolines", ImVec2(w, 0))) {
+				Eigen::MatrixXd isoV, isoE;									
+				//igl::isolines(eigenSolver->getV(), eigenSolver->getF(), diffVector, 10, isoV, isoE);
+				
+				//for (int i = 0; i < isoE.rows(); i++) {
+				//	viewer.data().add_edges(isoV.row(isoE.row(i)(0)), isoV.row(isoE.row(i)(1)), Eigen::RowVector3d(0.6, 0.1, 0.1));
+				//}
+
+			}
+		}
 
 		ImGui::End();
 }

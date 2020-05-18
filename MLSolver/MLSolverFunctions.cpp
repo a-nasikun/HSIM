@@ -1623,6 +1623,19 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 	}
 }
 
+/* Applications */
+void MLSolverFunctions::constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor)
+{
+	DiffusionTensor.resize(V.rows());
+	for (int i = 0; i < V.rows(); ++i) {
+		Eigen::VectorXd diff(numEigs);
+		for (int j = 0; j < numEigs; ++j) {
+			diff(j) = exp(-1.0*EigVals(j)*t/2.0) * EigVects(i, j);
+		}
+		DiffusionTensor[i] = diff;
+	}
+}
+
 /* Visualization Tools*/
 void MLSolverFunctions::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const
 {

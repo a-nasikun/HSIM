@@ -94,7 +94,8 @@ void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, d
 
 	vector<int> sampleLevels;
 	sampleLevels.reserve(10);
-	int SAMPLE_CUT_OFF = max(100, sizeSubsp);			//500
+	//int SAMPLE_CUT_OFF = max(100, sizeSubsp);			//500
+	int SAMPLE_CUT_OFF = (sizeSubsp);			//500
 	int SAMPLE_LOW_BOUND = 2 * SAMPLE_CUT_OFF;
 	int numSample = V.rows();
 	std::cout << "cut-out" << SAMPLE_CUT_OFF << "| Low bound " << SAMPLE_LOW_BOUND << ": " << std::endl;
