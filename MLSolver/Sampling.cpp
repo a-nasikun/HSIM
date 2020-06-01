@@ -316,9 +316,9 @@ void ComputeDijkstra(const Eigen::MatrixXd &V, const int Si, const vector<set<in
 			Eigen::VectorXd vRow2 = V.block<1, 3>(*it, 0);
 			dist = (vRow2 - vRow1).norm();
 			//VtoVDist(vRow1, vRow2, dist);
-			//double tempDist = vp1.distance + dist;
+			double tempDist = vp1.distance + dist;
 
-			double tempDist = (V.row(Si) - V.row(*it)).norm();
+			//double tempDist = (V.row(Si) - V.row(*it)).norm();
 
 			if (tempDist < D(*it)) {
 				D(*it) = tempDist;
@@ -374,7 +374,8 @@ void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<st
 	std::random_device rd;								// Will be used to obtain a seed for the random number engine
 	std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
 	std::uniform_int_distribution<> dist(0, V.rows());	// From 0 to F.rows()-1
-	Samples(0) = dist(gen);	
+	//Samples(0) = dist(gen);	
+	Samples(0) = 0;
 	
 	Eigen::VectorXi::Index maxIndex;
 

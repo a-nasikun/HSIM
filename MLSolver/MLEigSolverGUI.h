@@ -388,17 +388,16 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				cout << "in " << duration.count() << " seconds." << endl;
 			}
 
-			///// Showing basis in different levels
-			///for (int i = 0; i < eigenSolver->getLevel(); ++i)
-			///{
-			///	string disp = "Lvl. "; disp += to_string(i);
-			///	char const* ca = disp.c_str();
-			///	if (ImGui::Button(ca, ImVec2(w / (double)eigenSolver->getLevel() - p, 0))) {
-			///		ml_eigSolver.computeTempBasis(i);
-			///		ml_eigSolver.visualizeBasis(viewer, basisToShow);
-			///	}
-			///	if (i<(ml_eigSolver.level - 1)) ImGui::SameLine(0, p);
-			///}
+			// Showing basis in different levels
+			for (int i = 0; i < eigenSolver->getLevel(); ++i)
+			{
+				string disp = "Lvl. "; disp += to_string(i);
+				char const* ca = disp.c_str();
+				if (ImGui::Button(ca, ImVec2(w / (double)eigenSolver->getLevel() - p, 0))) {					
+					eigenSolver->visualizeBasis(viewer, basisToShow, i);
+				}
+				if (i<(eigenSolver->getLevel()-1)) ImGui::SameLine(0, p);
+			}
 
 
 			if (ImGui::Button("[3] Coarse Basis only##1", ImVec2(w, 0))) {

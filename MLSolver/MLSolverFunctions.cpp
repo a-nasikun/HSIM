@@ -1637,10 +1637,24 @@ void MLSolverFunctions::constructDiffusionTensor(const int numEigs, double t, co
 }
 
 /* Visualization Tools*/
-void MLSolverFunctions::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const
+void MLSolverFunctions::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k,  double scale) const
 {
 	Eigen::MatrixXd VColor;
-	Eigen::VectorXd funcCols = Basis.col(id);
+	Eigen::VectorXd funcCols;
+	if (k < 0 || k >= level) return;
+	
+	if(k==0) funcCols = Basis.col(id);
+	else if (k < level) {
+		Eigen::SparseMatrix<double> Id(S.rows(), S.cols());
+		Id.setIdentity();
+		Eigen::SparseMatrix<double> TempBasis = Id;
+		for (int i = 0; i < k; ++i) {
+			TempBasis = TempBasis*U[i];
+		}
+		TempBasis = TempBasis*U[k].col(id);
+
+		funcCols = TempBasis;
+	}
 	igl::jet(funcCols, true, VColor);
 	viewer.data().set_colors(VColor);
 }

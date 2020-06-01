@@ -424,7 +424,7 @@ void MLEigenSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer
 	viewer.data().set_colors(VColor);
 }
 
-void MLEigenSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const {}
+void MLEigenSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k, double scale) const {}
 void MLEigenSolver::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const {}
 void MLEigenSolver::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer)
 {

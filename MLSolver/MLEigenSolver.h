@@ -57,7 +57,7 @@ public:
 
 	/* Visualization tools */
 	void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const;
-	void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale=1.0) const;
+	void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k=0, double scale=1.0) const;
 	void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType,  double scale=1.0) const;
 	void visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer);
 	void visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k);

@@ -2491,7 +2491,7 @@ void MLSolverElastics::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<do
 }
 
 /* Visualization Tools*/
-void MLSolverElastics::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const
+void MLSolverElastics::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k, double scale) const
 {
 	cout << "Visualizing volumetric basis \n";
 	Eigen::MatrixXd TVNew(V.rows(), V.cols());
