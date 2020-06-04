@@ -19,20 +19,43 @@ void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V
 
 void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize)
 {
-	cout << "Visualizing the samples \n";
-	
-	const int totLevel = sampleSize.size();
-	cout << "Total level: " << totLevel << endl; 
-	Eigen::VectorXd vCol(totLevel);
 	Eigen::MatrixXd MCol;
-	for (int i = 0; i < totLevel; i++) vCol(i) = i;
-	igl::jet(vCol, true, MCol);
+	const int totLevel = sampleSize.size();
+	cout << "Visualizing the samples \n";
+	cout << "Total level: " << totLevel << endl;
 
+	if (totLevel < 12) 
+	{
+	//
+	//	/* Predefined color*/
+		MCol.resize(11, 3);
+		MCol.row(0)  = Eigen::RowVector3d(228.0,  26.0,  28.0) / 255.0;
+	 	MCol.row(1)  = Eigen::RowVector3d( 55.0, 126.0, 184.0) / 255.0;
+	 	//MCol.row(2)  = Eigen::RowVector3d( 77.0, 175.0,  74.0) / 255.0;
+		MCol.row(2) = Eigen::RowVector3d(77.0, 225.0, 74.0) / 255.0;
+	 	MCol.row(3)  = Eigen::RowVector3d(152.0,  78.0, 163.0) / 255.0;
+	 	MCol.row(4)  = Eigen::RowVector3d(255.0, 127.0,   0.0) / 255.0;
+	 	MCol.row(5)  = Eigen::RowVector3d(255.0, 255.0,  51.0) / 255.0;
+	 	MCol.row(6)  = Eigen::RowVector3d(166.0,  86.0,  40.0) / 255.0;
+	 	MCol.row(7)  = Eigen::RowVector3d(247.0, 129.0, 191.0) / 255.0;
+	 	MCol.row(8)  = Eigen::RowVector3d(153.0, 153.0, 153.0) / 255.0;
+	 	MCol.row(9)  = Eigen::RowVector3d( 10.0,  10.0,  10.0) / 255.0;
+	 	MCol.row(10) = Eigen::RowVector3d(178.0, 223.0, 138.0) / 255.0;
+		
+		std::cout << "Color: \n" << 255.0*MCol << std::endl;
+	}
+	else 
+	{
+		Eigen::VectorXd vCol(totLevel);
+		//Eigen::MatrixXd MCol;
+		for (int i = 0; i < totLevel; i++) vCol(i) = i;
+		igl::jet(vCol, true, MCol);
+	}
 	printf("Total sample: %d \n", Sample.size());
 	for (int i = 0; i < totLevel; i++) printf("__level %d = %d \n", i, sampleSize[i]);	
 
 
-	int lastID = viewer.data().points.rows();
+	//int lastID = viewer.data().points.rows();
 	//printf("Row: %d \n", lastID);
 	//viewer.data().points.conservativeResize(lastID + Sample.size(), 6);
 	//printf("Data points size: %dx%d \n", viewer.data().points.rows(), viewer.data().points.cols());
@@ -41,6 +64,8 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	for (int i = 0; i < sampleSize[totLevel-1]; i++)
 	{
 		viewer.data().add_points(V.row(Sample(i)), MCol.row(0));
+		if (i == 0)
+			std::cout << "Color: " << MCol.row(0)*255.0 << std::endl;
 	}
 
 	for (int k = (totLevel-1); k > 0; k--) {
@@ -48,36 +73,7 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 		{
 			viewer.data().add_points(V.row(Sample(i)), MCol.row(k));
 		}
-	}
-	//	// level 4: Coarsest level
-	//for (int i = 0; i < sampleSize[totLevel - 1]; i++)
-	//{
-	//	//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0);
-	//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(228.0, 26.0, 28.0)/255.0);
-	//}
-
-	//// level 3
-	//for (int i = sampleSize[totLevel - 1]; i < sampleSize[totLevel - 2]; i++)
-	//{
-	//	//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(0.0, 1.0, 0.1);
-	//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(77.0, 175.0, 74.0)/255.0);
-	//}
-
-	//// level 2
-	//for (int i = sampleSize[totLevel - 2]; i < sampleSize[totLevel - 3]; i++)
-	//{
-	//	//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(0.0, 0.1, 1.0);
-	//	//viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(224.0 / 255.0, 254.0 / 255.0, 254.0 / 255.0));
-	//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(55.0, 126.0, 184.0) / 255.0);
-	//}
-
-
-	//// level 1 (just a bit below the total vertex size)
-	//for (int i = sampleSize[totLevel - 3]; i < sampleSize[totLevel - 4]; i++)
-	//{
-	//	//viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 1.0);
-	//	viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 1.0));
-	//}
+	}	
 }
 
 /* Visualize basis */

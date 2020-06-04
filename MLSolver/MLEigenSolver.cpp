@@ -94,7 +94,8 @@ void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, d
 
 	vector<int> sampleLevels;
 	sampleLevels.reserve(10);
-	int SAMPLE_CUT_OFF = max(100, sizeSubsp);			//500
+	//int SAMPLE_CUT_OFF = max(100, sizeSubsp);			//500
+	int SAMPLE_CUT_OFF = (sizeSubsp);			//500
 	int SAMPLE_LOW_BOUND = 2 * SAMPLE_CUT_OFF;
 	int numSample = V.rows();
 	std::cout << "cut-out" << SAMPLE_CUT_OFF << "| Low bound " << SAMPLE_LOW_BOUND << ": " << std::endl;
@@ -423,7 +424,7 @@ void MLEigenSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer
 	viewer.data().set_colors(VColor);
 }
 
-void MLEigenSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, double scale) const {}
+void MLEigenSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k, double scale) const {}
 void MLEigenSolver::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const {}
 void MLEigenSolver::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer)
 {
