@@ -146,18 +146,26 @@ void MLSolverFunctions::constructBasisCoarseOnly(double support, int axis, doubl
 	Basis.resize(V.rows(), coarseSample);
 	Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
 
-	// timing
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	cout << "in " << duration.count() << " seconds" << endl;
+	
 
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", Basis.rows(), Basis.cols(), (double)(Basis.nonZeros() / (double)Basis.rows()));
 
 	formPartitionOfUnity();
+	
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 
 void MLSolverFunctions::constructBasisNonSmooth(double support, int axis, double offset)
 {
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "[1] Basis (non-smooth) construction \n" ;
+	t1 = chrono::high_resolution_clock::now();
+
 	Eigen::VectorXd globToLocMap;
 	double xBound;
 
@@ -194,7 +202,7 @@ void MLSolverFunctions::constructBasisNonSmooth(double support, int axis, double
 
 	/* Construct clusters on each level, then create basis out of it */
 	/* 1. For level 0 */
-	cout << "Clustering level 0\n";
+	cout << "__Clustering level 0\n";
 	Eigen::SparseMatrix<double, Eigen::RowMajor> UTemp = U[0];
 	for (int k = 0; k < UTemp.outerSize(); ++k) {
 		double maxVal = std::numeric_limits<double>::lowest();
@@ -209,7 +217,7 @@ void MLSolverFunctions::constructBasisNonSmooth(double support, int axis, double
 	}
 
 	/* New basis */
-	cout << "Set up new basis \n";
+	cout << "__Set up new basis \n";
 	vector<Eigen::Triplet<double>> UTriplet; UTriplet.reserve(V.rows());
 	for (int i = 0; i < V.rows(); i++)
 	{
@@ -223,7 +231,7 @@ void MLSolverFunctions::constructBasisNonSmooth(double support, int axis, double
 	/* 1. For level k */
 	for (int l = 1; l < level; l++)
 	{
-		printf("Clustering level %d \n", l);
+		printf("__Clustering level %d \n", l);
 		UTemp = U[l];
 		for (int k = 0; k < UTemp.outerSize(); ++k) {
 			double maxVal = std::numeric_limits<double>::lowest();
@@ -237,7 +245,7 @@ void MLSolverFunctions::constructBasisNonSmooth(double support, int axis, double
 			}
 		}
 
-		cout << "Set up new basis \n";
+		cout << "__Set up new basis \n";
 		UTriplet.reserve(SubspaceSize[l - 1]);
 		for (int i = 0; i < SubspaceSize[l - 1]; i++)
 		{
@@ -254,8 +262,13 @@ void MLSolverFunctions::constructBasisNonSmooth(double support, int axis, double
 	Basis.setIdentity();
 	for (int i = 0; i < level; i++) {
 		Basis = Basis * U[i];
-		printf("Basis size: %dx%d (nnz: %d) | Loc Basis: %dx%d (nnz: %d). \n", Basis.rows(), Basis.cols(), Basis.nonZeros(), U[i].rows(), U[i].cols(), U[i].nonZeros());
+		printf("__Basis size: %dx%d (nnz: %d) | Loc Basis: %dx%d (nnz: %d). \n", Basis.rows(), Basis.cols(), Basis.nonZeros(), U[i].rows(), U[i].cols(), U[i].nonZeros());
 	}
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
 }
 
 void MLSolverFunctions::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
@@ -721,7 +734,7 @@ void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMat
 	const int			Imax = 4;
 	int					k = 0;
 	int					factCounter = 0;
-	double				eps = 1e-2*std::numeric_limits<double>::epsilon();
+	double				eps = 1e6*std::numeric_limits<double>::epsilon();
 	int					status;
 	EigVectsSIM.resize(S.rows(), numEigs);
 	EigValsSIM.resize(numEigs);
@@ -738,6 +751,7 @@ void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMat
 	case SIMType::SIM_1level_Random:
 		cout << "_______SUBSPACE ITERATION METHOD with Random initialization Vectors (normalized).\n";
 		generateRandomMatrix(S.rows(), q, Xk);
+		
 
 		/* M-normalized per column */
 		for (int i = 0; i < q; i++) {
@@ -1494,9 +1508,15 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 				//zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
 				zhaoShiftId = lastConvergedId + (int)floor(zhaoParam*(numEigs - lastConvergedId));
 				if (factCounter == 0) {
-					mu = AkL(zhaoShiftId);
-					std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId; // << std::endl;
-					factorization.compute(SK - mu*MK);
+					if (tol < 1e-9 && k == 0) {
+						std::cout << "__On finest level, no shift on really high accuracy!" << std::endl;						
+						factorization.compute(SK + eps*Id);
+					}
+					else {
+						mu = AkL(zhaoShiftId);
+						std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId; // << std::endl;
+						factorization.compute(SK - mu*MK);
+					}
 				}
 				else {
 					eps *= 10;

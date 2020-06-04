@@ -89,7 +89,7 @@ void MLEigenSolver::constructStiffnessMatrix() {}
 
 void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
 {
-	double	spRatio = 1.25;
+	double	spRatio = 1.0;
 	int		sizeSubsp = spRatio * 2 * numEigen;
 
 	vector<int> sampleLevels;
@@ -317,10 +317,10 @@ void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& s
 	switch (solverType)
 	{
 	case EigenSolverType::EIG_SOLVER_MATLAB:
-		computeEigenMatlab(S, M, numEigs, EigVectsRef, EigValsRef, "");
+		computeEigenMatlab(S, M, numEigs, EigVectsRef, EigValsRef);
 		break;
 	case EigenSolverType::EIG_SOLVER_SPECTRA:
-		computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef);
+		computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, 50, 1e-2);
 		break;
 	case EigenSolverType::EIG_SOLVER_CUDA:
 		if ( M.rows()>7500 ) {
@@ -391,10 +391,10 @@ void MLEigenSolver::computeRefEigenProblemWithSelector(int numEigs, const EigenS
 	switch (solverType)
 	{
 	case EigenSolverType::EIG_SOLVER_MATLAB:
-		computeEigenMatlab(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef, "");
+		computeEigenMatlab(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef);
 		break;
 	case EigenSolverType::EIG_SOLVER_SPECTRA:
-		computeEigenSpectraSparse(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef);
+		computeEigenSpectraSparse(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef, 0, 50, 1e-2);
 		break;
 	case EigenSolverType::EIG_SOLVER_CUDA:
 		if (MLoc.rows()>7500) {

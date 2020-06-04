@@ -11,7 +11,7 @@ int computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd
 ///void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal);
 void computeEigenGPUDense2(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal);
 ///void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal);
-void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, const string& filename);
+void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, double tol=1e-10, const string& filename="");
 void computeEigenMatlabDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, const string& filename);
 void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal);
 //type: 0=smallest_ALGE, 1=smallest_MAGN

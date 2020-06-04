@@ -521,12 +521,12 @@ void computeEigenGPUDense2(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::Matrix
 	cudaDeviceReset();
 }
 
-void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, const string& filename)
+void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, double tol, const string& filename)
 {
 	//printf("Size of S = %dx%d\n", S.rows(), S.cols());
 	using namespace matlab::engine;
 	Engine *ep;
-	mxArray *MM = NULL, *MS = NULL, *result = NULL, *eigVecResult, *nEigsBuff;
+	mxArray *MM = NULL, *MS = NULL, *result = NULL, *eigVecResult, *nEigsBuff, *solverTol;
 
 	/* Storing element to determine how many eigenpairs to compute*/
 	if (numEigs > M.rows())
@@ -537,6 +537,11 @@ void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<doub
 	nEigsBuff = mxCreateDoubleMatrix((mwSize)1, (mwSize)1, mxREAL);
 	double *numEigsPtr = mxGetPr(nEigsBuff);
 	*numEigsPtr = numEigs;
+
+	solverTol = mxCreateDoubleMatrix((mwSize)1, (mwSize)1, mxREAL);
+	double *solverTolPtr = mxGetPr(solverTol);
+	*solverTolPtr = tol;
+
 
 	chrono::high_resolution_clock::time_point	t1, t2, t3, t4;
 	chrono::duration<double>					time_span, ts2;
@@ -616,9 +621,11 @@ void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<doub
 	engPutVariable(ep, "MS", MS);
 	engPutVariable(ep, "MM", MM);
 	engPutVariable(ep, "Num", nEigsBuff);
+	engPutVariable(ep, "Tol", solverTol);
 
+	std::cout << "Solving eigenproblem with tolerance of " << tol << std::endl;
 	t3 = chrono::high_resolution_clock::now();
-	engEvalString(ep, "[data, EigVal]=eigs(MS,MM, Num(1,1),'smallestabs');");
+	engEvalString(ep, "[data, EigVal]=eigs(MS,MM, Num(1,1),'smallestabs', 'Tolerance',Tol);");	
 	//engEvalString(ep, "[EigVec, EigVal]=eigs(MS,MM);");
 	engEvalString(ep, "EigVal=diag(EigVal);");
 	if (numEigs > 1)
@@ -758,7 +765,8 @@ void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatr
 		cout << "Yes! Made it! \n";
 	}
 	else {
-		cout << "Computation failed \n";
+		std::cout << "Computation failed " << spectraSolver.info() <<" \n";
+		std::cout << "Converged eigenpairs " << spectraSolver.compute() << std::endl;
 	}
 
 	///t2 = chrono::high_resolution_clock::now();
