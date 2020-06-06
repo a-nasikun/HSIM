@@ -52,7 +52,7 @@ public:
 	void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate) const;
 
 	/* Computing the reference eigenproblem */
-	void computeRefEigenProblem(int numEigs, const EigenSolverType& solverType);
+	void computeRefEigenProblem(int numEigs, const EigenSolverType& solverType, int maxIters=1000, double tol=1e-10);
 	void computeRefEigenProblemWithSelector(int numEigs, const EigenSolverType& solverType, int axis=0, double offset=0.0);
 
 	/* Visualization tools */

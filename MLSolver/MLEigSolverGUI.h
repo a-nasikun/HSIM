@@ -1420,6 +1420,13 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		ImGui::RadioButton("Spectra", &solverType, 1); ImGui::SameLine();
 		ImGui::RadioButton("CUDA", &solverType, 2);
 
+		static double tol;
+		static char toleTxt[15] = "0.0001"; ImGui::InputText("Tolerance##2", toleTxt, 15);
+		static int maxIter;
+		static char maxItersTxt[15] = "500"; ImGui::InputText("Max Iters##1", maxItersTxt, 15);
+		tol = stof(toleTxt);
+		maxIter = stoi(maxItersTxt);
+
 		ImGui::Checkbox("Clamped Eigen", &isClampedEigen);
 		if (isClampedEigen) {
 
@@ -1435,7 +1442,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::Button("Compute Reference##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
 
-			eigToCompute = atoi(numEig);			
+			eigToCompute = atoi(numEig);	
+			tol = stof(toleTxt);
+			maxIter = stoi(maxItersTxt);
+
 			cout << "> Computing reference eigenproblem ";
 
 			chrono::high_resolution_clock::time_point	t0, t1;
@@ -1443,7 +1453,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			t0 = chrono::high_resolution_clock::now();
 
 			if (!isClampedEigen) {
-				eigenSolver->computeRefEigenProblem(eigToCompute, solverTypeMap[solverType]);
+				eigenSolver->computeRefEigenProblem(eigToCompute, solverTypeMap[solverType], maxIter, tol);
 			}
 			else {
 				eigenSolver->computeRefEigenProblemWithSelector(eigToCompute, solverTypeMap[solverType], defAxis, clampRegion);
@@ -1456,18 +1466,16 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
 		}
 
-		double tol;
-		static char toleTxt[15] = "0.0001"; ImGui::InputText("Tolerance##2", toleTxt, 15);
 
 
 
 		if (ImGui::Button("Spectra Test", ImVec2(w, 0))) {
 			tol = atof(toleTxt);
 			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
-			//std::vector<double>		tolVect{ 1e-2, 1e-3, 1e-4, 1e-5 };
-			std::vector<double>		tolVect{ 1e-2  };
-			//vector<int>				wantedModes{ 50, 100, 250 };
-			vector<int>				wantedModes{ 100 };
+			//std::vector<double>		tolVect{ 5e-2, 1e-2, 1e-3, 1e-4, 1e-5 };
+			std::vector<double>		tolVect{1e-1, 5.0e-2, 1e-4 };
+			vector<int>				wantedModes{ 250 };
+			//vector<int>				wantedModes{ 100, 150, 250 };
 			//eigToCompute = atoi(numEig);
 			Eigen::MatrixXd EigVects;
 			Eigen::VectorXd EigVals;
@@ -1483,7 +1491,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					t0 = chrono::high_resolution_clock::now();
 
 					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
-					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, 1, 100, tolVect[i]);
+					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, 1, 5000, tolVect[i]);
 					
 					Eigen::VectorXd conv2;
 					eigenSolver->checkConvergenceCat2(EigVects, EigVals, eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);

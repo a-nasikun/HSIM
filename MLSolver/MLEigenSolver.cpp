@@ -313,7 +313,7 @@ void MLEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::
 }
 
 /* Computing the reference eigenproblem */
-void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& solverType)
+void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& solverType, int maxIters, double tol)
 {
 	switch (solverType)
 	{
@@ -321,7 +321,7 @@ void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& s
 		computeEigenMatlab(S, M, numEigs, EigVectsRef, EigValsRef);
 		break;
 	case EigenSolverType::EIG_SOLVER_SPECTRA:
-		computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, 50, 1e-2);
+		computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, maxIters, tol);
 		break;
 	case EigenSolverType::EIG_SOLVER_CUDA:
 		if ( M.rows()>7500 ) {
