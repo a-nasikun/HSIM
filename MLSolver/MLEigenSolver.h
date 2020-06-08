@@ -9,10 +9,6 @@
 
 #include <igl/opengl/glfw/Viewer.h>
 
-using namespace std;
-
-//enum class Problem_Class { Laplace_Beltrami, Linear_Elasticity };
-
 class MLEigenSolver
 {
 public:
@@ -28,7 +24,10 @@ public:
 	void virtual constructStiffnessMatrix();
 
 	/* Construction of the subspace and/or hierarchy */
-	void setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen=50, double levelRatio=10.0);
+	template <typename DerivedV, typename Scalar> 
+	inline void setSamplingLevels(Eigen::PlainObjectBase<DerivedV>& sampSize, int numEigen=50, Scalar levelRatio=10.0);
+
+
 	void constructSampleHierarchy(const Eigen::VectorXd& samples);	// Constructing multi-level samples
 	void virtual constructBasis(double support, int axis=0, double offset = 0.0);											// Constructing multi-level basis
 	void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0);

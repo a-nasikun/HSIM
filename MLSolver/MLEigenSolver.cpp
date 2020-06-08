@@ -72,10 +72,8 @@ void MLEigenSolver::initiateAdM()
 	{
 		for (int j = 0; j < F.cols(); j++) {
 			/* vertex-to-vertex neighborhood */
-			for (int k = j+1; k < F.cols(); k++) {
-				//if (j == k) continue;
-				//AM[F(i, j)].insert(F(i, k));
-				//TODO: Verify that this is correct!
+			for (int k = j+1; k < F.cols(); k++) {				
+				//TODO: Verify that the robustness
 				AdM[F(i, j)].insert(F(i, k));
 				AdM[F(i, k)].insert(F(i, j));
 			}
@@ -87,7 +85,8 @@ void MLEigenSolver::initiateAdM()
 void MLEigenSolver::constructMassMatrix() {}
 void MLEigenSolver::constructStiffnessMatrix() {}
 
-void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
+template <typename DerivedV, typename Scalar>
+inline void MLEigenSolver::setSamplingLevels(Eigen::PlainObjectBase<DerivedV>& sampSize, int numEigen, Scalar levelRatio)
 {
 	double	spRatio = 1.0;
 	int		sizeSubsp = spRatio * 2 * numEigen;
@@ -986,3 +985,5 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 	}
 	
 }
+
+//template void MLEigenSolver::setSamplingLevels(Eigen::PlainObjectBase<double>& sampSize, int numEigen, double levelRatio);
