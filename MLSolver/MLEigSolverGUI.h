@@ -19,7 +19,6 @@
 #include "MLEigSolver.h"
 
 #include "MLEigenSolver.h"
-#include "MLSolverElastics.h"
 #include "MLSolverFunctions.h"
 
 using namespace std;
@@ -55,11 +54,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			menuWindowHeight	= 475.f;
 
 	/* Material properties (for linear elasticity) */
-	static double	m1lame1 = 1.49977776131565*1e-9,
-					m1lame2 = 0.000333358026520483*1e-9,
-					m2lame1 = 19.8175675675676*1e-9,
-					m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
-
+	
 	Eigen::MatrixXd		VColor;
 	Eigen::VectorXd		Z;
 
@@ -125,140 +120,28 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			
 
 		ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
-		ImGui::RadioButton("Lin. Elasti.", &problemType, 1);
 
 		if (ImGui::Button("Set-up Problem##1", ImVec2((w - p) / 2.f, 0))) {
 			if (viewer.data().V.rows() < 1) return;
 
 			delete eigenSolver;
-			if (problemType == 0) {
-				eigenSolver = new MLSolverFunctions();
-			}
-			else if (problemType == 1) {
-				eigenSolver = new MLSolverElastics();
-			}
+			eigenSolver = new MLSolverFunctions();
+
 			eigenSolver->setV(viewer.data().V);
 			eigenSolver->setF(viewer.data().F);
 
 			printf("Mesh in eigensolver object: %dx%d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols());
 		}
 
-		static int axis = 0;
-		if (problemType == 1) {
-			if (ImGui::Button("Create Tet-Mesh", ImVec2((w), 0))) {
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					if (solver->getF().cols() == 4) return;
-					solver->createTetrahedralMesh();
-					solver->computeVolume();/* Set the parameters of the mesh for deformable objects */
-					viewer.data().clear();
-					viewer.data().set_mesh(solver->getV(), solver->getTF());
-				}
-
-				//viewer.selected_data_index = 0;
-				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
-				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
-				viewer.data().invert_normals = true;
-
-				printf("mesh that we have  now: %d \n", viewer.data_list.size());
-			}
-
-			/* Visualizing the tetrahedral mesh */
-			if (ImGui::Button("Pick Axis", ImVec2((w) / 2.0, 0))) {
-				axis = (axis + 1) % 3;
-				if (axis == 0) cout << "X axis \n";
-				else if (axis == 1) cout << "Y axis \n";
-				else cout << "Z axis \n";
-			}
-			ImGui::SameLine(0, p);
-			if (ImGui::Button("Show Tet Mesh", ImVec2((w) / 2.0, 0))) {
-				viewer.data().invert_normals = false;
-				viewer.data().show_lines = true;
-
-				srand(time(NULL));
-				double t = (double)(rand() % 20 + 1) / 20.0;
-				//double t = 1.0;
-				cout << "The variable is: " << t << endl;
-				int id = axis;
-				Eigen::VectorXd v;
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					v = solver->getVB().col(id).array() - solver->getVB().col(id).minCoeff();
-					v /= v.col(0).maxCoeff();
-
-					vector<int> s;
-					s.reserve(v.size());
-					for (unsigned int i = 0; i < v.size(); i++) {
-						if (v(i) < t) {
-							s.push_back(i);
-						}
-					}
-
-					Eigen::MatrixXd V_temp(s.size() * 4, 3);
-					Eigen::MatrixXi F_temp(s.size() * 4, 3);
-
-					for (unsigned i = 0; i < s.size(); ++i)
-					{
-						V_temp.row(i * 4 + 0) = solver->getV().row(solver->getF()(s[i], 0));
-						V_temp.row(i * 4 + 1) = solver->getV().row(solver->getF()(s[i], 1));
-						V_temp.row(i * 4 + 2) = solver->getV().row(solver->getF()(s[i], 2));
-						V_temp.row(i * 4 + 3) = solver->getV().row(solver->getF()(s[i], 3));
-
-						F_temp.row(i * 4 + 0) << (i * 4) + 0, (i * 4) + 1, (i * 4) + 3;			// CW
-						F_temp.row(i * 4 + 1) << (i * 4) + 0, (i * 4) + 2, (i * 4) + 1;
-						F_temp.row(i * 4 + 2) << (i * 4) + 3, (i * 4) + 2, (i * 4) + 0;
-						F_temp.row(i * 4 + 3) << (i * 4) + 1, (i * 4) + 2, (i * 4) + 3;
-					}
-					printf("Size of V_Temp; %dx%d | F=%dx%d \n", V_temp.rows(), V_temp.cols(), F_temp.rows(), F_temp.cols());
-
-					viewer.data().clear();
-					viewer.data().set_mesh(V_temp, F_temp);
-					viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
-					viewer.data().set_face_based(true);
-				}
-
-				printf("mesh that we have  now: %d \n", viewer.data_list.size());
-			}
-
-			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-		}
+		static int axis = 0;		
 	}
 
 		/* STEP BY STEP CONSTRUCTION */
 		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
-			/* Set material propertries*/
-			double	m1lame1 = 1.49977776131565*1e-9,
-				m1lame2 = 0.000333358026520483*1e-9,
-				m2lame1 = 19.8175675675676*1e-9,
-				m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
-			int		numSlices;
+			
 			static	Eigen::VectorXd colorVect;
 			static bool	isClampedBasis = false;
 			static int numLevels;
-
-			if (problemType == 1) {
-				if (ImGui::CollapsingHeader("Elements material##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
-					/* Radio button to select material type */
-					ImGui::RadioButton("Const", &matType, 0); ImGui::SameLine();
-					ImGui::RadioButton("2-Mat", &matType, 1); ImGui::SameLine();
-					ImGui::RadioButton("Slices", &matType, 2);
-					ImGui::RadioButton("Box", &matType, 3); ImGui::SameLine();
-					ImGui::RadioButton("n-Mat", &matType, 4); ImGui::SameLine();
-					ImGui::RadioButton("Hetero", &matType, 5);
-					if (matType == 2) {
-						static char numSlicesTxt[10] = "5";						ImGui::InputText("Num of slices", numSlicesTxt, 10);
-						numSlices = atoi(numSlicesTxt);
-					}
-
-					/* Setting up the lame parameters */
-					static char lame1txt[32] = "1.49977776131565";			ImGui::InputText("L1_1", lame1txt, 32);
-					static char lame2txt[32] = "0.000333358026520483";		ImGui::InputText("L1_2", lame2txt, 32);
-					static char lame3txt[32] = "19.8175675675676";			ImGui::InputText("L2_1", lame3txt, 32);
-					static char lame4txt[32] = "0.875";						ImGui::InputText("L2_2", lame4txt, 32);
-					m1lame1 = atof(lame1txt)*1e-9;
-					m1lame2 = atof(lame2txt)*1e-9;
-					m2lame1 = atof(lame3txt)*1e-9;
-					m2lame2 = atof(lame4txt)*1e-9;
-				}
-			}
 
 			/* Setup stiffness Matrix */
 			if (ImGui::Button("[1] Construct Stiffness Matrix##1", ImVec2(w, 0))) {
@@ -266,41 +149,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				eigenSolver->constructMassMatrix();
 				eigenSolver->initiateAdM();
-
-				/* Setting up materials parameters*/
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver))
-				{
-					switch (matType)
-					{
-					case 0:
-						cout << "MatType: " << matType << ", 1 constant materials" << endl;
-						solver->setLameParametersConstant(m1lame1, m1lame2);
-						break;
-
-						/* 2-Material (left-right) */
-					case 1:
-						cout << "MatType: " << matType << ", 2 materials in halves" << endl;
-						solver->setLameParametersSlices(defAxis, 2, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);
-						break;
-
-						/* 2-Material, in slices */
-					case 2:
-						cout << "MatType: " << matType << ", 2 materials in slices" << endl;
-						solver->setLameParametersSlices(defAxis, numSlices, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);
-						break;
-
-					case 3:
-						cout << "MatType: " << matType << ", Outer box is different from inner. " << endl;
-						solver->setLameParametersBox(defAxis, clampRegion, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);
-						break;
-
-					default:
-						break;
-					}
-					igl::jet(colorVect, false, VColor);
-					viewer.data().set_colors(VColor);
-				}
-
 				eigenSolver->constructStiffnessMatrix();
 			}
 
@@ -373,13 +221,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->setClampBasis(isClampedBasis);
 				numOfSupport = atof(numSupTxt);
 
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					cout << "LBS Basis \n";
-					solver->constructBasis_LBS(numOfSupport, defAxis, clampRegion);
-				}
-				else {
-					eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
-				}
+				eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
+
 				useNonSmoothBasis = false;
 				//ml_eigSolver.testConstantFuncsProjection();
 
@@ -425,13 +268,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
 
-				
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					solver->constructBasisCoarseOnly_LBS(numOfSupport, defAxis, clampRegion);
-				} 
-				else {
-					eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
-				}
+				eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);				
 
 				useNonSmoothBasis = false;
 			}
@@ -444,14 +281,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 				numOfSupport = atof(numSupTxt);
 				eigenSolver->setClampBasis(isClampedBasis);
-
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					solver->constructBasisNonSmooth_LBS(numOfSupport, defAxis, clampRegion);
-				}
-				else 
-				{
-					eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
-				}
+					
+				eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
+				
 				//ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
 				useNonSmoothBasis = true;
 			}
@@ -492,12 +324,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 				cout << eigenSolver->getEigenValuesReduced().head(min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
 
-				///if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver))
-				///{
-				///	solver->injectRigidModes();
-				///}
-
-				cout << eigenSolver->getEigenValuesReduced().head(min(20, (int)eigenSolver->getEigenValuesReduced().rows()));
 				//eigToShow = 3; 
 				//
 				//cout << "Showing id: " << eigToShow << endl; 
@@ -556,11 +382,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				viewer.data().point_size = 10.0f;
 			}
 
-			/* For Basis */
-			if (problemType == 1) {
-				static char scale[25] = "1.05"; ImGui::InputText("Spatial Scaling", scale, 10);
-				eigScale = atof(scale);
-			}
+			
 			ImGui::Text("Show Basis ");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("-1##Basis1", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
@@ -775,40 +597,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				viewer.data().set_mesh(Vtemp, Ftemp);
 			}
 		}
-		/* LBS check */
-		if (ImGui::CollapsingHeader("Elements material##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
-			static double	transVal = 0;
-			static int		transAxis = 0;
-			static double	rotVal = 45.0;
-			static int		rotAxis = 0;
-			static int		numHandles = 5;
-
-			static char numHandlesTxt[32] = "5";			ImGui::InputText("Num Handles", numHandlesTxt, 32);
-			static char transValTxt[32] = "0.5";			ImGui::InputText("Translation", transValTxt, 32);
-			ImGui::RadioButton("X##trans1", &transAxis, 0); ImGui::SameLine();
-			ImGui::RadioButton("Y##trans1", &transAxis, 1); ImGui::SameLine();
-			ImGui::RadioButton("Z##trans1", &transAxis, 2);
-
-			static char rotValTxt[32] = "45";			ImGui::InputText("Rot. Angle", rotValTxt, 32);
-			ImGui::RadioButton("X##rot1", &rotAxis, 0); ImGui::SameLine();
-			ImGui::RadioButton("Y##rot1", &rotAxis, 1); ImGui::SameLine();
-			ImGui::RadioButton("Z##rot1", &rotAxis, 2);
-
-			if (ImGui::Button("LBS Pos", ImVec2((w - p) / 2.0, 0))) {
-				transVal = atof(transValTxt);
-				rotVal = atof(rotValTxt);
-				numHandles = atoi(numHandlesTxt);
-				eigenSolver->LBSTest_pos(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("LBS Vel", ImVec2((w - p) / 2.0, 0))) {
-				transVal = atof(transValTxt);
-				rotVal = atof(rotValTxt);
-				numHandles = atoi(numHandlesTxt);
-				eigenSolver->LBSTest_vel(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
-			}
-		}
-
+		
 		if (ImGui::Button("Reset Mesh", ImVec2(w, 0))) {
 			viewer.data().set_vertices(eigenSolver->getV());
 		}

@@ -262,7 +262,7 @@ void MLEigenSolver::solveRestrictedProblem()
 	} while (status != 0 && iter<10);
 
 	std::cout << "Succesful and lifted to fine resolution \n";
-	//EigVectsReduced = Basis * EigVectsReducedNonLifted;
+	EigVectsReduced = Basis * EigVectsReducedNonLifted;
 }
 
 void MLEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset) {}
