@@ -10,7 +10,7 @@
 int main(int argc, char *argv[])
 {
 	string							meshFile; 
-	MLEigenSolver*					eigenSolver = new MLEigenSolver();
+	MLEigenSolver*					eigenSolver = new MLSolverFunctions();
 
 
 	/* GUI FUNCTIONALITY */	
@@ -40,6 +40,7 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Neptune_clean__watertight_4M triangles/803_neptune_4Mtriangles_manifold.off";
 		
 	eigenSolver->readMesh(meshFile);
+
 
 	//testInit(viewer, eigenSolver, meshFile);
 	//runMLSolverTest(viewer, eigenSolver);

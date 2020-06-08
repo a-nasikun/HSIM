@@ -111,6 +111,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				boolShowSamples = false;
 				printf("mesh that we have  now: %d \n", viewer.data_list.size());
+
+				eigenSolver->setV(viewer.data().V);
+				eigenSolver->setF(viewer.data().F);
 			}
 		}
 		ImGui::SameLine(0, p);
@@ -119,19 +122,19 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		}
 			
 
-		ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
-
-		if (ImGui::Button("Set-up Problem##1", ImVec2((w - p) / 2.f, 0))) {
-			if (viewer.data().V.rows() < 1) return;
-
-			delete eigenSolver;
-			eigenSolver = new MLSolverFunctions();
-
-			eigenSolver->setV(viewer.data().V);
-			eigenSolver->setF(viewer.data().F);
-
-			printf("Mesh in eigensolver object: %dx%d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols());
-		}
+		///ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
+		///
+		///if (ImGui::Button("Set-up Problem##1", ImVec2((w - p) / 2.f, 0))) {
+		///	if (viewer.data().V.rows() < 1) return;
+		///
+		///	delete eigenSolver;
+		///	eigenSolver = new MLSolverFunctions();
+		///
+		///	eigenSolver->setV(viewer.data().V);
+		///	eigenSolver->setF(viewer.data().F);
+		///
+		///	printf("Mesh in eigensolver object: %dx%d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols());
+		///}
 
 		static int axis = 0;		
 	}
@@ -175,6 +178,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->setSamplingLevels(sampSize, numOfModes, levelRatio);
 				eigenSolver->setInitialSystem(sampSize.rows());
 				eigenSolver->constructSampleHierarchy(sampSize);
+				numLevels = sampSize.size();
 
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
@@ -195,10 +199,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Spacing(); ImGui::Spacing();
 
 			/* For Basis */
-			ImGui::Checkbox("Clamp Basis##1", &isClampedBasis);
-			static double numOfSupport;
-			static char numSupTxt[15] = "7.5"; ImGui::InputText("Num of Supports", numSupTxt, 6);
-						
+			ImGui::Checkbox("Clamp Basis##1", &isClampedBasis);						
 			if (isClampedBasis) {
 				ImGui::RadioButton("X", &defAxis, 0); ImGui::SameLine();
 				ImGui::RadioButton("Y", &defAxis, 1); ImGui::SameLine();
@@ -206,6 +207,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				static char clampRegionTxt[10] = "0.01"; ImGui::InputText("Selection", clampRegionTxt, 10);
 				clampRegion = atof(clampRegionTxt);
 			}
+			static double numOfSupport;
+			static char numSupTxt[15] = "7.5"; ImGui::InputText("Num of Supports", numSupTxt, 6);
 
 			if (ImGui::Button("[3] Construct Basis##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) {
@@ -595,6 +598,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				Eigen::MatrixXi Ftemp = viewer.data().F;
 				viewer.data().clear();
 				viewer.data().set_mesh(Vtemp, Ftemp);
+				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 			}
 		}
 		
@@ -718,7 +722,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 
 
-		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
+		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
 			static char maxIterTxt[10] = "20"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
 			static char tolTxt[15] = "0.0001"; ImGui::InputText("Tolerance##1", tolTxt, 15);
