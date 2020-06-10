@@ -7,9 +7,9 @@ namespace MuLES
 {
 	
 	/**
+	*  @brief		Read a (triangle) mesh specified by the input file. 
 	*  @details
-	*   Read a (triangle) mesh specified by the input 'meshFile',
-	*	currently it supports 'obj' and 'off' file format only (could be extended to other type format, e.g. .ply, etc.).
+	*   Currently it supports 'obj' and 'off' file format only (could be extended to other type format, e.g. .ply, etc.).
 	*  @param meshFile  Location of the mesh
 	*/
 	void MLEigenSolver::readMesh(const string &meshFile)
@@ -40,7 +40,7 @@ namespace MuLES
 	}
 
 	/**
-	*  @details
+	*  @brief
 	*   Set up the system to have required levels.
 	*  @param n Number of specified levels of the system.
 	*/
@@ -57,7 +57,7 @@ namespace MuLES
 	}
 
 	/**
-	*  @details
+	*  @brief
 	*   Set up the vertex-vertex adjacency matrix, generally 3 neighbors for triangle mesh (or 2 on the boundary).
 	*/
 	void MLEigenSolver::initiateAdM()
@@ -81,23 +81,26 @@ namespace MuLES
 	}
 
 	/**
+	*  @brief
+	*   Set-up the corresponding mass matrix M.
 	*  @details
-	*   Set-up the corresponding mass matrix M. For Laplace--Beltrami eigenproblem, 
+	*	For Laplace--Beltrami eigenproblem, 
 	*	we generally use the lumped mass matrix (i.e. diagonal mass matrix).
 	*  @see	MuLES::MLSolverFunctions::constructMassMatrix()
 	*/
 	void MLEigenSolver::constructMassMatrix() {}
 	
 	/**
+	*  @brief	Set-up the corresponding stiffness matrix S. 
 	*  @details
-	*   Set-up the corresponding stiffness matrix S. The widely used option for Laplace--Beltrami eigenproblem,
-	*	is the cotangent weight.
+	*	The widely adopted Laplacian option for discretization of Laplace--Beltrami operator in geometry processing is the cotangent weight.
 	*/
 	void MLEigenSolver::constructStiffnessMatrix() {}
 
 	/**
+	*  @brief	Set-up level of the hierarchy description
 	*  @details
-	*   Set-up level of the hierarchy description, i.e. the number of samples (degree of freedom) on each level of the hierarcy.
+	*	It specifies the number of samples (degree of freedom) on each level of the hierarcy.
 	*   The number of levels is determined by (1) the number of vertices of the mesh, 
 	*   (2) the number of sought eigenpairs, and (3) the decay rate/ratio between one level to the other.
 	*  @param	sampSize	[Return] A vector specifying the number of degree of freedom on each level.
@@ -135,11 +138,10 @@ namespace MuLES
 		for (int ii = 0; ii < sampleLevels.size(); ++ii)
 			sampSize(ii) = sampleLevels[ii];
 	}
-
-
+	
 	/**
-	*  @details
-	*   Construct the number of samples in every level via farthest point sampling. 
+	*  @brief	 Construct the number of samples in every level via farthest point sampling. 
+	*  @details	
 	*   Starting from the coarsest level, it computes the the first set of sampled DoFs (i.e. vertices).
 	*   Then for every level, it adds more samples according the 
 	*  @see MuLES::constructFarthestPointSample() \n MuLES::MLEigenSolver::setSamplingLevels() 
@@ -177,8 +179,8 @@ namespace MuLES
 	}
 
 	/**
+	*  @brief	Construct a multilevel basis for every level on each of the hierarchy. 
 	*  @details
-	*   Construct a multilevel basis for every level on each of the hierarchy. 
 	*   The basis is constructed using (1) farthest point sampling, followed by (2) region growing strategy.
 	*  @param	support The expected average overlaps of disks on every degree of freedom on each level.
 	*  @param	axis	When clamping of basis is used (by default not), it specifies which axis direction is used.
@@ -187,8 +189,8 @@ namespace MuLES
 	void MLEigenSolver::constructBasis(double support, int axis, double offset) {}
 
 	/**
-	*  @details
-	*   Construct the basis for 2-level hierarchical system, i.e. only 1 basis (restriction and prolongation) matrix is required.
+	*  @brief	Construct the basis for 2-level hierarchical system
+	*  @details In this set-up only 1 basis (restriction and prolongation) matrix is required.
 	*	In general, we take the coarsest level DoFs for this construction.
 	*  @param	support The expected average overlaps of disks on every degree of freedom on each level.
 	*  @param	axis	When clamping of basis is used (by default not), it specifies which axis direction is used.
@@ -197,7 +199,7 @@ namespace MuLES
 	void MLEigenSolver::constructBasisCoarseOnly(double support, int axis, double offset) {}
 
 	/**
-	*  @details
+	*  @brief
 	*   Build a radial basis functions (i.e. geodesic disks) on every samples for every level on each of the hierarchy.
 	*  @param	k			The level that RBFs needs to be constructed.
 	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
@@ -217,9 +219,27 @@ namespace MuLES
 	*/
 	void MLEigenSolver::constructBasisNonSmooth(double support, int axis, double offset) {}
 
+	/**
+	*  @brief
+	*   Construct a growing radial geodesic disk for every sample vertex on each level.
+	*  @param	s1			Index (ID) of source vertex, 0 to |V|-1.
+	*  @param	D			Vector representing distance from the source vertex.
+	*  @param	a			First polynomial coefficient for the unique polynomial function, mapping the distance function to Gaussian-like polynomial function.
+	*  @param	b			Second Polynomial coefficient for the unique polynomial function, mapping the distance function to Gaussian-like polynomial function.
+	*  @param	maxDist		Radius of the geodesic disk.
+	*  @param	col			Index of the sample vertex, determining the column index of the basis matrix.
+	*  @param	level		Level on which the geodesic disk is computed.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*  @param	UTriplet	Eigen::Triplet<T> representing the \code{.cpp}Eigen::SparseMatrix<T> \endcode for the basis on that particular level.
+	*/
+	void MLEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet) {}
 
-	void MLEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter) {}
-
+	/**
+	*  @brief	Perform partition of unity on every row of the basis matrix in every level.
+	*  @details
+	*	This ensures that a constant functions is mapped as constant function accross hierarchy.
+	*/
 	void MLEigenSolver::formPartitionOfUnityMultiLevel()
 	{
 		cout << "Partition of unity \n";
@@ -261,6 +281,11 @@ namespace MuLES
 		}
 	}
 
+	/**
+	*  @brief	Perform partition of unity for 2-level system.
+	*  @details
+	*	This ensures that a constant functions is mapped as constant function accross hierarchy.
+	*/
 	void MLEigenSolver::formPartitionOfUnity()
 	{
 		cout << "> Partition of unity \n";
@@ -288,6 +313,16 @@ namespace MuLES
 		Basis = DiagNormMatrix * Basis;
 	}
 
+	/**
+	*  @brief	Solve the eigenproblem in the coarsest level of the hierarchy.
+	*  @details
+	*	The projection to the subspace is done via the restriction operator (R=U^T).
+	*	This function gives out two output: \n
+	*   <ul>
+	*		<li> `EigVectsReducedNonLifted`	Eigenvectors in the reduced space.
+	*		<li> `EigVectsReduced`			Eigenvectors projected (i.e. lifted) to the reference space. 
+	*   </ul>
+	*/
 	void MLEigenSolver::solveRestrictedProblem()
 	{
 		double eps = 1e-16;
@@ -325,6 +360,13 @@ namespace MuLES
 		EigVectsReduced = Basis * EigVectsReducedNonLifted;
 	}
 
+	/**
+	*  @brief
+	*   Construct a selector matrix for clamped eigen problem. 
+	*  @param	SelMat		The desired selector matrix 
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*/
 	void MLEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset) {}
 
 	/* Subspace Iteration methods */
