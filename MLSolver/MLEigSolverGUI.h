@@ -16,8 +16,6 @@
 
 #include <Eigen/PardisoSupport>
 
-#include "MLEigSolver.h"
-
 #include "MLEigenSolver.h"
 #include "MLSolverFunctions.h"
 
@@ -711,13 +709,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	static int SIMType = 0;			// 0: M-L, 1: SGP, 2:random, 3: Bathe
 	static int shiftType = 3;		// 0: Bathe, 1: Itoh/Wilson, 2: Gong, 3: Zhao
 	static bool isClampedEigen = false; 
-
-	static bool isParallel = true;
-	ImGui::Checkbox("Parallel solver", &isParallel);
-	if (ImGui::Button("Test parallel solver", ImVec2(w, 0))) {
-		eigenSolver->testParallelFactorization(isParallel);
-	}
-
+		
 	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
 		/* some parameters */
 		//static int		numOfModes	= 5;

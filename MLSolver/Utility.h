@@ -20,23 +20,6 @@ struct VertexPair {
 	bool	operator< (const VertexPair &ref) const { return distance < ref.distance; }
 };
 
-
-/* Create a list of neighbors of every vertex */
-void initiateAdM(Eigen::MatrixXd &V, Eigen::MatrixXi &F, vector<set<int>> &AM);
-/* Precompute the distance between a vertex and its neighbor(s), for a bit of speed up */
-void initiateDistTableSpM(Eigen::MatrixXd &V, const vector<set<int>> &AM, Eigen::SparseMatrix<double> &DistanceTable);
-
-/* Compute distance between two points */
-void VtoVDist(const Eigen::VectorXd &V1, const Eigen::VectorXd &V2, double &dist);
-/* Rotate the edge*/
-void rotateVector2D(const Eigen::RowVector2d &e, const double &angle, Eigen::RowVector2d &e2);
-/* Get the angle between two edges */
-double VtoVangle(const Eigen::Vector3d &V1, const Eigen::Vector3d &V2, const Eigen::Vector3d &P);
-/* Compute Areas of surface*/
-double computeSurfaceArea(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F);
-/* Check accuracy*/
-double checkAccuracy(const Eigen::SparseMatrix<double>& M, const Eigen::VectorXd& ref, const Eigen::VectorXd& approx);
-
 void generateRandomMatrix(int m, int n, Eigen::MatrixXd& Mat);
 void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat);
 void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio=1.0);
