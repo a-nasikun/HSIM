@@ -20,6 +20,7 @@
 #include "MLSolverFunctions.h"
 
 using namespace std;
+using namespace MuLES;
 
 enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
 static int			numOfModes		= 25;
@@ -29,7 +30,7 @@ static int			eigToCompute    = 500;
 bool				boolShowSamples = false;
 bool				useNonSmoothBasis = false; 
 //static int			numOfSample		= 250;
-static int			sampleType		= Sample_Farthest_Point; 
+static int			sampleType		= MuLES::Sample_Farthest_Point; 
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
