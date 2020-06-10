@@ -90,14 +90,14 @@ public:
 
 protected:
 	/* Mesh-related variables */
-	Eigen::MatrixXd						V;							// Coordinates of each vertex
-	Eigen::MatrixXi						F;							// Vertices ID of each face (triangle);
+	Eigen::MatrixXd						V;							//!< Coordinates of each vertex
+	Eigen::MatrixXi						F;							//!< Vertices ID of each face (triangle);
 
 	/* System matrices */
-	Eigen::SparseMatrix<double>			S;							// Stiffness matrix
-	Eigen::SparseMatrix<double>			M;							// Mass matrix
-	Eigen::SparseMatrix<double>			Minv, MhNeg;				// Inverse and ^(1/2) of the mass matrix, respectively
-	Eigen::SparseMatrix<double>			G;							// Gradient matrix (Each 3 rows corresponds to the x-y-z components of 1 vertex)
+	Eigen::SparseMatrix<double>			S;							//!< Stiffness matrix
+	Eigen::SparseMatrix<double>			M;							//!< Mass matrix
+	Eigen::SparseMatrix<double>			Minv, MhNeg;				//!< Inverse and ^(1/2) of the mass matrix, respectively
+	Eigen::SparseMatrix<double>			G;							//!< Gradient matrix (Each 3 rows corresponds to the x-y-z components of 1 vertex)
 
 	/* Utility matrices, vectors, and scalar */
 	Eigen::SparseMatrix<double>			SelMatrix;					// Selector matrix for eigen computation

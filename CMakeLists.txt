@@ -64,8 +64,6 @@ add_executable(MultiLevelEigenSolver
 	"MLSolver/MLSolverFunctions.h"
 	"MLSolver/MLSolverFunctions.cpp"
 	"MLSolver/MLEigSolverGUI.h"
-	"MLSolver/Basis.h"
-	"MLSolver/Basis.cpp"
 	"MLSolver/EigenSolver.h"
 	"MLSolver/EigenSolver.cpp"
 	"MLSolver/Sampling.h"
