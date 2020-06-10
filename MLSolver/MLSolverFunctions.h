@@ -34,8 +34,8 @@ namespace MuLES
 		void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale = 1.0) const;
 
 	private:
-		double			avgEdgeLength;						// average edge length (from the mesh)
-		double			surfaceArea;						// total surface area (from the mesh)
+		double			avgEdgeLength;						//!< Average edge length (from the mesh)
+		double			surfaceArea;						//!< Total surface area (from the mesh)
 	};
 }
 #endif // !ML_SOLVER_FUNCTIONS

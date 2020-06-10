@@ -5,12 +5,11 @@
 
 namespace MuLES
 {
+	
 	/**
-	*  @brief Reading a (triangle) mesh specified by the input.
-	*
 	*  @details
-	*   Reading a (triangle) mesh specified by the input 'meshFile',
-	*	currently it supports 'obj' and 'off' file format only
+	*   Read a (triangle) mesh specified by the input 'meshFile',
+	*	currently it supports 'obj' and 'off' file format only (could be extended to other type format, e.g. .ply, etc.).
 	*  @param meshFile  Location of the mesh
 	*/
 	void MLEigenSolver::readMesh(const string &meshFile)
@@ -21,7 +20,7 @@ namespace MuLES
 		if (meshFile.substr(meshFile.find_last_of(".") + 1) == "off") {
 			igl::readOFF(meshFile, V, F);
 			if (V.rows() == 0 || V.cols() == 0) {
-				cout << "Error! It cannot be an empty mesh." << endl;
+				std::cout << "Error! It cannot be an empty mesh." << std::endl;
 				return;
 			}
 			printf("A new mesh with %d vertices (%d faces) is loaded.\n", V.rows(), F.rows());
@@ -41,10 +40,8 @@ namespace MuLES
 	}
 
 	/**
-	*  @brief Setting up the system to have required levels.
-	*
 	*  @details
-	*   Setting up the system to have required levels.
+	*   Set up the system to have required levels.
 	*  @param n Number of specified levels of the system.
 	*/
 	void MLEigenSolver::setInitialSystem(int n)
@@ -60,10 +57,8 @@ namespace MuLES
 	}
 
 	/**
-	*  @brief Setting up the adjacency matrix.
-	*
 	*  @details
-	*   Setting up the adjacency matrix.
+	*   Set up the vertex-vertex adjacency matrix, generally 3 neighbors for triangle mesh (or 2 on the boundary).
 	*/
 	void MLEigenSolver::initiateAdM()
 	{
@@ -85,8 +80,30 @@ namespace MuLES
 
 	}
 
+	/**
+	*  @details
+	*   Set-up the corresponding mass matrix M. For Laplace--Beltrami eigenproblem, 
+	*	we generally use the lumped mass matrix (i.e. diagonal mass matrix).
+	*  @see	MuLES::MLSolverFunctions::constructMassMatrix()
+	*/
 	void MLEigenSolver::constructMassMatrix() {}
+	
+	/**
+	*  @details
+	*   Set-up the corresponding stiffness matrix S. The widely used option for Laplace--Beltrami eigenproblem,
+	*	is the cotangent weight.
+	*/
 	void MLEigenSolver::constructStiffnessMatrix() {}
+
+	/**
+	*  @details
+	*   Set-up level of the hierarchy description, i.e. the number of samples (degree of freedom) on each level of the hierarcy.
+	*   The number of levels is determined by (1) the number of vertices of the mesh, 
+	*   (2) the number of sought eigenpairs, and (3) the decay rate/ratio between one level to the other.
+	*  @param	sampSize	[Return] A vector specifying the number of degree of freedom on each level.
+	*  @param	numEigen	The number of sought eigenvalues and corresponding eigenvectors.
+	*  @param	levelRatio	The decay rate stating how the DoFs decreases from one level to the next level.
+	*/
 	void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
 	{
 		double	spRatio = 1.0;
@@ -119,6 +136,15 @@ namespace MuLES
 			sampSize(ii) = sampleLevels[ii];
 	}
 
+
+	/**
+	*  @details
+	*   Construct the number of samples in every level via farthest point sampling. 
+	*   Starting from the coarsest level, it computes the the first set of sampled DoFs (i.e. vertices).
+	*   Then for every level, it adds more samples according the 
+	*  @see MuLES::constructFarthestPointSample() \n MuLES::MLEigenSolver::setSamplingLevels() 
+	*  @param	samples	A constact vector stating the number of samples on every level of the hierarchy.
+	*/
 	void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 	{
 		printf("____Sampling on %d levels \n", samples.size());
@@ -150,13 +176,47 @@ namespace MuLES
 		}
 	}
 
+	/**
+	*  @details
+	*   Construct a multilevel basis for every level on each of the hierarchy. 
+	*   The basis is constructed using (1) farthest point sampling, followed by (2) region growing strategy.
+	*  @param	support The expected average overlaps of disks on every degree of freedom on each level.
+	*  @param	axis	When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset	When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*/
 	void MLEigenSolver::constructBasis(double support, int axis, double offset) {}
 
+	/**
+	*  @details
+	*   Construct the basis for 2-level hierarchical system, i.e. only 1 basis (restriction and prolongation) matrix is required.
+	*	In general, we take the coarsest level DoFs for this construction.
+	*  @param	support The expected average overlaps of disks on every degree of freedom on each level.
+	*  @param	axis	When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset	When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*/
 	void MLEigenSolver::constructBasisCoarseOnly(double support, int axis, double offset) {}
 
+	/**
+	*  @details
+	*   Build a radial basis functions (i.e. geodesic disks) on every samples for every level on each of the hierarchy.
+	*  @param	k			The level that RBFs needs to be constructed.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	isClamped	Tells whether clamping is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*  @param	support		The expected average overlaps of disks on every degree of freedom on each level.
+	*/
 	void MLEigenSolver::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support) {}
 
+	/**
+	*  @details
+	*   Our implementation of Xian's piecewise constant weight function for hierarchical problem.
+	*	Originally this method is used for fast linear solver used in deformation of elastics body.
+	*  @param	support		The expected average overlaps of disks on every degree of freedom on each level.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.	
+	*/
 	void MLEigenSolver::constructBasisNonSmooth(double support, int axis, double offset) {}
+
 
 	void MLEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter) {}
 

@@ -98,43 +98,44 @@ namespace MuLES
 		/* System matrices */
 		Eigen::SparseMatrix<double>			S;							//!< Stiffness matrix
 		Eigen::SparseMatrix<double>			M;							//!< Mass matrix
-		Eigen::SparseMatrix<double>			Minv, MhNeg;				//!< Inverse and ^(1/2) of the mass matrix, respectively
+		Eigen::SparseMatrix<double>			Minv;						//!< Inverse  of the mass matrix
+		Eigen::SparseMatrix<double>			MhNeg;						//!< 'Square root' of the mass matrix (M^0.5)
 		Eigen::SparseMatrix<double>			G;							//!< Gradient matrix (Each 3 rows corresponds to the x-y-z components of 1 vertex)
 
 		/* Utility matrices, vectors, and scalar */
-		Eigen::SparseMatrix<double>			SelMatrix;					// Selector matrix for eigen computation
-		Eigen::VectorXi						Sample;						// Global ID of vertices selected as samples 
-		Eigen::VectorXi						SampleMap;					// For a certain vertex ID (provided that it's a sample vertex) get its 'sample id' 								
-		int									sampleSize;					// Total sample size (i.e. right after the finest level sample, level 1)
-		std::vector<set<int>>				AdM;						// Adjacency matrix (vertex to neighboring vertices)
-		std::vector<double>					maxNeighDist;				// Geodesic distance for sampling (to control the sparsity), for each level
+		Eigen::SparseMatrix<double>			SelMatrix;					//!< Selector matrix for eigen computation
+		Eigen::VectorXi						Sample;						//!< Global ID of vertices selected as samples 
+		Eigen::VectorXi						SampleMap;					//!< For a certain vertex ID (provided that it's a sample vertex) get its 'sample id' 								
+		int									sampleSize;					//!< Total sample size (i.e. right after the finest level sample, level 1)
+		std::vector<set<int>>				AdM;						//!< Adjacency matrix (vertex to neighboring vertices)
+		std::vector<double>					maxNeighDist;				//!< Geodesic distance for sampling (to control the sparsity), for each level
 
 		/* Subspace and spectral-related matrices, vectors, and variables */
-		Eigen::SparseMatrix<double>			Basis;						// Basis matrix (U[0]*U[1]*... *U[k])
-		bool								isClampedBasis;				// Toogle/Flag if the basis is a clamped version
-		Eigen::MatrixXd						EigVectsRef;				// Reference eigenvectors (from either Matlab, SpectrA, or Manifold Harmonics in Graphite)
-		Eigen::MatrixXd						EigVectsReduced;			// Approximated eigenvectors (lifted to reference space)
-		Eigen::MatrixXd						EigVectsReducedNonLifted;	// approximated eigenvectors in the subspace(not Lifted)
-		Eigen::VectorXd						EigValsRef;					// Reference eigenvalues (from either Matlab, SpectrA, or Manifold Harmonics in Graphite)
-		Eigen::VectorXd						EigValsReduced;				// Approximated eigenvalues
-		Eigen::MatrixXd						EigVectsSIM;				// Eigenvectors computed using our multi-level  Subspace Iteration Method (SIM)
-		Eigen::VectorXd						EigValsSIM;					// Eigenvalues computed using our multi-level Subspace Iteration Method (SIM)
+		Eigen::SparseMatrix<double>			Basis;						//!< Basis matrix (U[0]*U[1]*... *U[k])
+		bool								isClampedBasis;				//!< Toogle/Flag if the basis is a clamped version
+		Eigen::MatrixXd						EigVectsRef;				//!< Reference eigenvectors (from either Matlab, SpectrA, or Manifold Harmonics in Graphite)
+		Eigen::MatrixXd						EigVectsReduced;			//!< Approximated eigenvectors (lifted to reference space)
+		Eigen::MatrixXd						EigVectsReducedNonLifted;	//!< approximated eigenvectors in the subspace(not Lifted)
+		Eigen::VectorXd						EigValsRef;					//!< Reference eigenvalues (from either Matlab, SpectrA, or Manifold Harmonics in Graphite)
+		Eigen::VectorXd						EigValsReduced;				//!< Approximated eigenvalues
+		Eigen::MatrixXd						EigVectsSIM;				//!< Eigenvectors computed using our multi-level  Subspace Iteration Method (SIM)
+		Eigen::VectorXd						EigValsSIM;					//!< Eigenvalues computed using our multi-level Subspace Iteration Method (SIM)
 
 		/* Utility matrix/vector, for performance check */
-		Eigen::MatrixXd						EigValsSIMStack;			// Stack of eigenvalues, from multiple iterations
-		Eigen::MatrixXd						convergence2Stacks;			// Stack of convergence rate (convergence criteria2), from multiple iterations
-		Eigen::MatrixXd						convergence3Stacks;			// Stack of convergence rate (convergence criteria2), from multiple iterations
-		Eigen::VectorXd						timingPerLevel;				// Timing (in secs) for every level (in multi-level)
-		Eigen::VectorXi						itersPerLevel;				// Number of iterations per every level (in multi-level)
-
+		Eigen::MatrixXd						EigValsSIMStack;			//!< Stack of eigenvalues, from multiple iterations
+		Eigen::MatrixXd						convergence2Stacks;			//!< Stack of convergence rate (convergence criteria2), from multiple iterations
+		Eigen::MatrixXd						convergence3Stacks;			//!< Stack of convergence rate (convergence criteria2), from multiple iterations
+		Eigen::VectorXd						timingPerLevel;				//!< Timing (in secs) for every level (in multi-level)
+		Eigen::VectorXi						itersPerLevel;				//!< Number of iterations per every level (in multi-level)
+		
 		/* MULTI-GRID STUFF*/
-		int											level;				// the total number of hierarchy/levels on multigrid
-		std::vector<int>							SubspaceSize;		// subspace/sample size on each level, from level 0 to level n-1
-		std::vector<Eigen::SparseMatrix<double>>	U;					// basis matrix on each level
-		std::vector<Eigen::SparseMatrix<double>>	Sbar, Mbar;			// reduced system matrices (stiffness + mass matrix) on each level
-		std::vector<Eigen::VectorXd>				geoDist;			// resulting geodesic distance on each level, stored at the last index on each level
-		std::vector<Eigen::VectorXi>				clusters;			// the index of sample point [level k] closest to a certain vertex/sample [level k-1]
-		Eigen::VectorXi								sampleLevel;		// to indicate if a vertex is picked as a sample; if yes, at which highest level k
+		int											level;				//!< the total number of hierarchy/levels on multigrid
+		std::vector<int>							SubspaceSize;		//!< subspace/sample size on each level, from level 0 to level n-1
+		std::vector<Eigen::SparseMatrix<double>>	U;					//!< basis matrix on each level
+		std::vector<Eigen::SparseMatrix<double>>	Sbar, Mbar;			//!< reduced system matrices (stiffness + mass matrix) on each level
+		std::vector<Eigen::VectorXd>				geoDist;			//!< resulting geodesic distance on each level, stored at the last index on each level
+		std::vector<Eigen::VectorXi>				clusters;			//!< the index of sample point [level k] closest to a certain vertex/sample [level k-1]
+		Eigen::VectorXi								sampleLevel;		//!< to indicate if a vertex is picked as a sample; if yes, at which highest level k
 
 
 	public:
