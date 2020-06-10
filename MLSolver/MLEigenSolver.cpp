@@ -85,8 +85,7 @@ void MLEigenSolver::initiateAdM()
 void MLEigenSolver::constructMassMatrix() {}
 void MLEigenSolver::constructStiffnessMatrix() {}
 
-template <typename DerivedV, typename Scalar>
-inline void MLEigenSolver::setSamplingLevels(Eigen::PlainObjectBase<DerivedV>& sampSize, int numEigen, Scalar levelRatio)
+void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
 {
 	double	spRatio = 1.0;
 	int		sizeSubsp = spRatio * 2 * numEigen;

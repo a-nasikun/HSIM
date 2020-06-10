@@ -3,7 +3,7 @@
 using namespace std;
 
 /* Visualize the samples */
-void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample)
+void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, double nEps)
 {
 	//viewer.data().clear();
 	//viewer.data().set_mesh(V, F);
@@ -13,16 +13,16 @@ void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V
 	for (int i = 0; i < Sample.size(); i++)
 	{
 		//viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0));
-		viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0);
+		viewer.data().points.row(lastID + i) << V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0);
 	}
 }
 
-void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize)
+void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize, double nEps)
 {
 	Eigen::MatrixXd MCol;
 	const int totLevel = sampleSize.size();
 	cout << "Visualizing the samples \n";
-	cout << "Total level: " << totLevel << endl;
+	cout << "Total level: " << totLevel << endl;	
 
 	if (totLevel < 12) 
 	{
@@ -30,9 +30,9 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	//	/* Predefined color*/
 		MCol.resize(11, 3);
 		MCol.row(0)  = Eigen::RowVector3d(228.0,  26.0,  28.0) / 255.0;
-	 	MCol.row(1)  = Eigen::RowVector3d( 55.0, 126.0, 184.0) / 255.0;
+	 	MCol.row(1)  = Eigen::RowVector3d(77.0, 225.0, 74.0) / 255.0;
 	 	//MCol.row(2)  = Eigen::RowVector3d( 77.0, 175.0,  74.0) / 255.0;
-		MCol.row(2) = Eigen::RowVector3d(77.0, 225.0, 74.0) / 255.0;
+		MCol.row(2) = Eigen::RowVector3d(55.0, 126.0, 184.0) / 255.0; 
 	 	MCol.row(3)  = Eigen::RowVector3d(152.0,  78.0, 163.0) / 255.0;
 	 	MCol.row(4)  = Eigen::RowVector3d(255.0, 127.0,   0.0) / 255.0;
 	 	MCol.row(5)  = Eigen::RowVector3d(255.0, 255.0,  51.0) / 255.0;
@@ -63,7 +63,7 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	/* Lowest level */
 	for (int i = 0; i < sampleSize[totLevel-1]; i++)
 	{
-		viewer.data().add_points(V.row(Sample(i)), MCol.row(0));
+		viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(0));
 		if (i == 0)
 			std::cout << "Color: " << MCol.row(0)*255.0 << std::endl;
 	}
@@ -71,10 +71,66 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	for (int k = (totLevel-1); k > 0; k--) {
 		for (int i = sampleSize[k]; i < sampleSize[k-1]; i++)
 		{
-			viewer.data().add_points(V.row(Sample(i)), MCol.row(k));
+			viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(totLevel - k));
 		}
 	}	
 }
+
+void visualizeSample_1(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps)
+{
+	Eigen::MatrixXd MCol(1,3);
+	MCol.row(0) = Eigen::RowVector3d(228.0, 26.0, 28.0) / 255.0;
+	viewer.data().add_points(V.row(Sample(0)) + nEps*viewer.data().V_normals.row(Sample(0)), MCol.row(0));
+}
+void visualizeSample_2(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps)
+{
+	Eigen::MatrixXd MCol(1, 3);
+	MCol.row(0) = Eigen::RowVector3d(228.0, 26.0, 28.0) / 255.0;
+	viewer.data().add_points(V.row(Sample(0)) + nEps*viewer.data().V_normals.row(Sample(0)), MCol.row(0));
+	viewer.data().add_points(V.row(Sample(1)) + nEps*viewer.data().V_normals.row(Sample(1)), MCol.row(0));
+	//viewer.data().add_points(V.row(Sample(0)), MCol.row(0));
+	//viewer.data().add_points(V.row(Sample(1)), MCol.row(0));
+}
+void visualizeSample_3(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps)
+{
+	Eigen::MatrixXd MCol(1, 3); 
+	MCol.row(0) = Eigen::RowVector3d(228.0, 26.0, 28.0) / 255.0;
+	viewer.data().add_points(V.row(Sample(0)) + nEps*viewer.data().V_normals.row(Sample(0)), MCol.row(0));
+	viewer.data().add_points(V.row(Sample(1)) + nEps*viewer.data().V_normals.row(Sample(1)), MCol.row(0));
+	viewer.data().add_points(V.row(Sample(2)) + nEps*viewer.data().V_normals.row(Sample(2)), MCol.row(0));
+}
+void visualizeSampleFirstLevel(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps)
+{
+	Eigen::MatrixXd MCol(1, 3);
+	MCol.row(0) = Eigen::RowVector3d(228.0, 26.0, 28.0) / 255.0;
+	const int totLevel = sampleSize.size();
+	for (int i = 0; i < sampleSize[totLevel - 1]; i++)
+	{
+		viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(0));
+		if (i == 0)
+			std::cout << "Color: " << MCol.row(0)*255.0 << std::endl;
+	}
+}
+void visualizeSampleSecondLevel(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps)
+{
+	Eigen::MatrixXd MCol(2, 3);
+	MCol.row(0) = Eigen::RowVector3d(228.0, 26.0, 28.0) / 255.0;
+	MCol.row(1) = Eigen::RowVector3d(77.0, 225.0, 74.0) / 255.0;
+	const int totLevel = sampleSize.size();
+	for (int i = 0; i < sampleSize[totLevel - 1]; i++)
+	{
+		viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(0));
+		if (i == 0)
+			std::cout << "Color: " << MCol.row(0)*255.0 << std::endl;
+	}
+	for (int k = (totLevel - 1); k >(totLevel - 2); k--) {
+		for (int i = sampleSize[k]; i < sampleSize[k - 1]; i++)
+		{
+			viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(1));
+		}
+	}
+}
+
 
 /* Visualize basis */
 void visualizeBasis(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::SparseMatrix<double> &U, const int &basisID)

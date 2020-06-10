@@ -369,6 +369,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		/* VISUALIZATION WINDOW */
 		if (ImGui::CollapsingHeader("Visualization##MLEigSolver1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			/* For Sampling */
+			static double nEps = 0.005;
 			if (ImGui::Button("Show Samples##1", ImVec2((w), 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1) {
 					cout << "Error! Make sure you compute new samples before viewing them." << endl;
@@ -377,12 +378,28 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				boolShowSamples = !boolShowSamples;
 				if (boolShowSamples) {
-					visualizeSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize());
+					visualizeSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps);
 				}
 				else {
 					viewer.data().points.resize(0, 6);
 				}
 				viewer.data().point_size = 10.0f;
+			}
+
+			if (ImGui::Button("S1", ImVec2((w/5.0), 0))) {
+				visualizeSample_1(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps);
+			} ImGui::SameLine(0, p);
+			if (ImGui::Button("S2", ImVec2((w / 5.0), 0))) {
+				visualizeSample_2(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize()), nEps;
+			} ImGui::SameLine(0, p);
+			if (ImGui::Button("S3", ImVec2((w / 5.0), 0))) {
+				visualizeSample_3(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps);
+			} ImGui::SameLine(0, p);
+			if (ImGui::Button("Lvl1", ImVec2((w / 5.0), 0))) {
+				visualizeSampleFirstLevel(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps);
+			} ImGui::SameLine(0, p);
+			if (ImGui::Button("Lvl2", ImVec2((w / 5.0), 0))) {
+				visualizeSampleSecondLevel(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps);
 			}
 
 			
