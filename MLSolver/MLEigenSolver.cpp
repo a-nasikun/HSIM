@@ -1,6 +1,7 @@
 #include "MLEigenSolver.h"
 #include <Eigen/PardisoSupport>
 #include <omp.h>
+#include <random>
 
 /**
 *  @brief Reading a (triangle) mesh specified by the input.
@@ -84,7 +85,6 @@ void MLEigenSolver::initiateAdM()
 
 void MLEigenSolver::constructMassMatrix() {}
 void MLEigenSolver::constructStiffnessMatrix() {}
-
 void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
 {
 	double	spRatio = 1.0;
