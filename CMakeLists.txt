@@ -74,7 +74,6 @@ add_executable(MultiLevelEigenSolver
 	"MLSolver/Utility.cpp"
 	"MLSolver/Visualization.h"
 	"MLSolver/Visualization.cpp"
-	"MLSolver/Hessian.h"
 	)
 target_link_libraries(MultiLevelEigenSolver
 	PUBLIC libigl

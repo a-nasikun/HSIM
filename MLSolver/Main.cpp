@@ -1,5 +1,3 @@
-#include "MLEigSolver.h"
-
 #include "MLEigenSolver.h"
 #include "MLSolverFunctions.h"
 #include "MLEigSolverGUI.h"

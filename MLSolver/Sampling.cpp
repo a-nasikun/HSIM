@@ -79,8 +79,8 @@ void constructVoxelSample(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 
 					// Selecting vertex that closest to the center of each box/container;
 					for (int l = 0; l < v4[i][j][k].size(); l++) {
-						double	dist;
-						VtoVDist(V.row(v4[i][j][k][l]), (boxMin + boxDist / 2.0), dist);
+						double	dist = (V.row(v4[i][j][k][l]) - (boxMin+boxDist/2.0).transpose()).norm();
+						//VtoVDist(V.row(v4[i][j][k][l]), (boxMin + boxDist / 2.0), dist);
 						//double pDist = lambda * exp(-lambda*dist);
 						if (dist < minVal) {
 							minVal = dist;
@@ -247,8 +247,8 @@ void constructPoissonDiskSample(const Eigen::MatrixXd &V, const int &numSamples,
 					if (v4[i][j][k].size() > 0) {
 						/* Removing samples closer than a certain radius */
 						for (list<int>::iterator it = v4[i][j][k].begin(); it != v4[i][j][k].end(); ) {
-							double distAB;
-							VtoVDist(V.row(boxSample), V.row(*it), distAB);
+							double distAB = (V.row(boxSample)-V.row(*it)).norm();
+							//VtoVDist(V.row(boxSample), V.row(*it), distAB);
 		
 							if (distAB <= radius) {
 								it = v4[i][j][k].erase(it);
