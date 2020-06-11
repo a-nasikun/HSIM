@@ -56,7 +56,7 @@ namespace MuLES
 		//cout << "its rank:" << qr.rank() << endl;
 		//M = qr.householderQ()*Id;
 
-		///cout << "Block: \n" << Mat.topLeftCorner(20, min(n, 10)) << endl;
+		//cout << "Block: \n" << Mat.topLeftCorner(20, min(n, 10)) << endl;
 	}
 
 	void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat)

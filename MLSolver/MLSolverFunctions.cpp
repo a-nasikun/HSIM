@@ -246,7 +246,7 @@ namespace MuLES
 			for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {
 				if (it.value() > maxVal)
 				{
-					///if (isClampedBasis && globToLocMap(it.row()) < 0) continue;
+					//if (isClampedBasis && globToLocMap(it.row()) < 0) continue;
 					maxVal = it.value();
 					clusters[0](it.row()) = it.col();
 				}
@@ -275,7 +275,7 @@ namespace MuLES
 				for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(UTemp, k); it; ++it) {
 					if (it.value() > maxVal)
 					{
-						///if (isClampedBasis && globToLocMap(Sample(it.row()) < 0)) continue;
+						//if (isClampedBasis && globToLocMap(Sample(it.row()) < 0)) continue;
 						maxVal = it.value();
 						clusters[l](it.row()) = it.col();
 					}
@@ -772,7 +772,7 @@ namespace MuLES
 			//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 			cout << "Conv 2 \n" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
 
-			/** Type 3: */
+			/* Type 3: */
 			checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
 			//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 			cout << "Conv 3 \n" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
@@ -793,7 +793,7 @@ namespace MuLES
 			/* Check convergence */
 			for (int i = lastConvergedId; i < numEigs; ++i) {
 				if (conv2(i) < tol) {
-					///std::cout << "Checking convergence ID " << i << ": " << conv2(i) << std::endl; 
+					//std::cout << "Checking convergence ID " << i << ": " << conv2(i) << std::endl; 
 					lastConvergedId = i;
 				}
 				else {
@@ -994,26 +994,26 @@ namespace MuLES
 			}
 			factCounter++;
 
-			///cout << "Head: " << factorization.vectorD().head(10).transpose() << endl;
-			///cout << "Tail: " << factorization.vectorD().tail(10).transpose() << endl;
+			//cout << "Head: " << factorization.vectorD().head(10).transpose() << endl;
+			//cout << "Tail: " << factorization.vectorD().tail(10).transpose() << endl;
 
-			///cout << "Negative entries: ";
-			///vector<int> negDiagStdVect; negDiagStdVect.reserve(100);
-			///for (int i = 0; i < S.rows(); ++i) {
-			///	if (factorization.vectorD()(i) < 0) {
-			///		negDiagStdVect.push_back(i);
-			///		cout << i << ": " << factorization.vectorD()(i) << " |";
-			///		dCounter++;
-			///	}
-			///}
-			///
-			/////Eigen::VectorXd a(negDiagStdVect.data());
-			///Eigen::VectorXi negDiags = Eigen::Map<Eigen::VectorXi, Eigen::Unaligned>(negDiagStdVect.data(), negDiagStdVect.size());
-			///
-			/////Eigen::VectorXd negDiags(negDiagStdVect.data(), dCounter);
-			///cout << "diag with negative ids: \n" << negDiags.transpose() << endl;
-			/////cout << "diag with negative ids: \n" << a.transpose() << endl;
-			///cout << "Counter: " << dCounter << endl; 
+			//cout << "Negative entries: ";
+			//vector<int> negDiagStdVect; negDiagStdVect.reserve(100);
+			//for (int i = 0; i < S.rows(); ++i) {
+			//	if (factorization.vectorD()(i) < 0) {
+			//		negDiagStdVect.push_back(i);
+			//		cout << i << ": " << factorization.vectorD()(i) << " |";
+			//		dCounter++;
+			//	}
+			//}
+			//
+			//Eigen::VectorXd a(negDiagStdVect.data());
+			//Eigen::VectorXi negDiags = Eigen::Map<Eigen::VectorXi, Eigen::Unaligned>(negDiagStdVect.data(), negDiagStdVect.size());
+			//
+			//Eigen::VectorXd negDiags(negDiagStdVect.data(), dCounter);
+			//cout << "diag with negative ids: \n" << negDiags.transpose() << endl;
+			//cout << "diag with negative ids: \n" << a.transpose() << endl;
+			//cout << "Counter: " << dCounter << endl; 
 
 			cout << "__> Factorization " << factCounter << " with shift of " << ((k == 0) ? eps : mu) << endl;
 
@@ -1056,7 +1056,7 @@ namespace MuLES
 				** Type 2: */
 				checkConvergenceCat2(Xk, Alpha, ML, SL, conv2);
 				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
-				/** Type 3: */
+				/* Type 3: */
 				checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
 				cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 
@@ -1758,7 +1758,7 @@ namespace MuLES
 				** Type 2: */
 				checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
 				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
-				/** Type 3: */
+				/* Type 3: */
 				checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
 				//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 	
@@ -1787,7 +1787,7 @@ namespace MuLES
 	
 				/* Check convergence */
 				for (int i = lastConvergedId; i < numEigs; ++i) {
-					///cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
+					//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
 					if (conv2(i) < tol) {
 						lastConvergedId = i;
 					}

@@ -121,19 +121,19 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		}
 			
 
-		///ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
-		///
-		///if (ImGui::Button("Set-up Problem##1", ImVec2((w - p) / 2.f, 0))) {
-		///	if (viewer.data().V.rows() < 1) return;
-		///
-		///	delete eigenSolver;
-		///	eigenSolver = new MLSolverFunctions();
-		///
-		///	eigenSolver->setV(viewer.data().V);
-		///	eigenSolver->setF(viewer.data().F);
-		///
-		///	printf("Mesh in eigensolver object: %dx%d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols());
-		///}
+		//ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
+		//
+		//if (ImGui::Button("Set-up Problem##1", ImVec2((w - p) / 2.f, 0))) {
+		//	if (viewer.data().V.rows() < 1) return;
+		//
+		//	delete eigenSolver;
+		//	eigenSolver = new MLSolverFunctions();
+		//
+		//	eigenSolver->setV(viewer.data().V);
+		//	eigenSolver->setF(viewer.data().F);
+		//
+		//	printf("Mesh in eigensolver object: %dx%d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols());
+		//}
 
 		static int axis = 0;		
 	}
@@ -351,16 +351,16 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 			ImGui::SameLine();
 			ImGui::InputText("#eigs", numRedEigTxt, 32);
-			///
-			///if (ImGui::Button("Save EigVals#Approx", ImVec2(w / 2.0, 0))) {
-			///	int toStore = min(250, (int)ml_eigSolver.reducedEigVals.rows());
-			///	writeDenseMatrixToFile(ml_eigSolver.reducedEigVals.block(0, 0, toStore, 1), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_Red_" + to_string(toStore) + ".txt");
-			///}
-			///ImGui::SameLine(0, p);
-			///if (ImGui::Button("Save EigVect#Approx", ImVec2(w / 2.0, 0))) {
-			///	int toStore = 250;
-			///	writeDenseMatrixToFile(ml_eigSolver.Basis*ml_eigSolver.reducedEigVects.block(0, 0, ml_eigSolver.V.rows(), toStore), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Red_" + to_string(toStore) + ".txt");
-			///}
+			//
+			//if (ImGui::Button("Save EigVals#Approx", ImVec2(w / 2.0, 0))) {
+			//	int toStore = min(250, (int)ml_eigSolver.reducedEigVals.rows());
+			//	writeDenseMatrixToFile(ml_eigSolver.reducedEigVals.block(0, 0, toStore, 1), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_Red_" + to_string(toStore) + ".txt");
+			//}
+			//ImGui::SameLine(0, p);
+			//if (ImGui::Button("Save EigVect#Approx", ImVec2(w / 2.0, 0))) {
+			//	int toStore = 250;
+			//	writeDenseMatrixToFile(ml_eigSolver.Basis*ml_eigSolver.reducedEigVects.block(0, 0, ml_eigSolver.V.rows(), toStore), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Red_" + to_string(toStore) + ".txt");
+			//}
 		}
 
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
@@ -722,7 +722,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(1, MLEigenSolver::SIMType::SIM_1level_WarmStart));
 		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(2, MLEigenSolver::SIMType::SIM_1level_Random));
 		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(3, MLEigenSolver::SIMType::SIM_1level_Bathe));
-
+		
 		/* Type of shifting approach */
 		std::map<int, MLEigenSolver::ShiftType>			shiftMap;
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(0, MLEigenSolver::ShiftType::SHIFT_BATHE));
@@ -767,8 +767,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
 
 			printf("Successfully computing the eigenvalues \n");
-			///cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM() << endl;
-			///cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
+			//cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM() << endl;
+			//cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
 		}
 
 		if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
@@ -796,8 +796,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// random
 					//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-					/// // bathe init vector
-					///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					// // bathe init vector
+					//eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 				}
 			}			
 		}
@@ -854,8 +854,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						cout << "> Constructing basis... " << endl;
 						t0 = chrono::high_resolution_clock::now();
 						eigenSolver->setClampBasis(false);
-						///eigenSolver->constructBasis(levelSupport[l], defAxis, clampRegion);
-						///eigenSolver->constructBasisCoarseOnly(levelSupport[l]);		// for SGP setting
+						//eigenSolver->constructBasis(levelSupport[l], defAxis, clampRegion);
+						//eigenSolver->constructBasisCoarseOnly(levelSupport[l]);		// for SGP setting
 						eigenSolver->constructBasisNonSmooth(levelSupport[l], defAxis, clampRegion);
 						useNonSmoothBasis = false;
 						t1 = chrono::high_resolution_clock::now();
@@ -887,9 +887,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 								eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
 
 								// ML-with shift 0.35
-								///eigenSolver->zhaoShiftParam = 0.35;
-								///std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
-								///eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+								//eigenSolver->zhaoShiftParam = 0.35;
+								//std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
+								//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
 
 								//SGP
 								//eigenSolver->performSubspaceIterationMethod(typeMap[1], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
@@ -947,7 +947,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					cout << "> Constructing basis... " << endl;
 					t0 = chrono::high_resolution_clock::now();
 					eigenSolver->setClampBasis(false);
-					///eigenSolver->constructBasis(levelSupport[l], defAxis, clampRegion);
+					//eigenSolver->constructBasis(levelSupport[l], defAxis, clampRegion);
 					eigenSolver->constructBasisCoarseOnly(levelSupport[l]);		// for SGP setting
 					t1 = chrono::high_resolution_clock::now();
 					duration = t1 - t0;
@@ -997,8 +997,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// random
 					eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-					/// // bathe init vector
-					///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					// // bathe init vector
+					//eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 				}
 			}
 
@@ -1153,8 +1153,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						t0 = chrono::high_resolution_clock::now();
 						eigenSolver->setClampBasis(false);
 						eigenSolver->constructBasis(levelSupport[l], defAxis, clampRegion);
-						///eigenSolver->constructBasisCoarseOnly(levelSupport[l]);		// for SGP setting
-						///eigenSolver->constructBasisNonSmooth(levelSupport[l], defAxis, clampRegion);
+						//eigenSolver->constructBasisCoarseOnly(levelSupport[l]);		// for SGP setting
+						//eigenSolver->constructBasisNonSmooth(levelSupport[l], defAxis, clampRegion);
 						useNonSmoothBasis = false;
 						t1 = chrono::high_resolution_clock::now();
 						duration = t1 - t0;
