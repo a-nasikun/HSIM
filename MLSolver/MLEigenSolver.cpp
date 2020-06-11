@@ -362,26 +362,152 @@ namespace MuLES
 
 	/**
 	*  @brief
-	*   Construct a selector matrix for clamped eigen problem. 
+	*   Construct a selector matrix for clamped eigen problem. 	
 	*  @param	SelMat		The desired selector matrix 
 	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
 	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
 	*/
 	void MLEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset) {}
 
-	/* Subspace Iteration methods */
+	/**
+	*  @brief
+	*   Main call to subspaceiteration method (SIM). 
+	*  @details
+	*	It will then call the specific type of SIM according to what user selects. 
+	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	shiftType	If shift is used, it tells which shifting strategy is used.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.	
+	*/
 	void MLEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset) { }
 
+	/**
+	*  @brief
+	*   Perform the subspace iteration method (SIM), with various possible settings.
+	*  @details
+	*	This is the standard implementation of SIM, with various possible definition of starting vectors,
+	*	but without shifting strategy. It also has the convergence control via relative residual and maximum iterations
+	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*/
 	void MLEigenSolver::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift) {}
 
+	/**
+	*  @brief
+	*   Main call to subspaceiteration method (SIM) with shifting strategy.
+	*  @details
+	*	This is the standard implementation of SIM with shifting strategy, with various possible definition of starting vectors.
+	*	It also has the convergence control via relative residual and maximum iterations
+	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	shiftType	If shift is used, it tells which shifting strategy is used.
+	*/
 	void MLEigenSolver::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType) {}
 
+	/**
+	*  @brief
+	*   Performing a multilevel subspace iteration method.
+	*  @details
+	*	Our hierarchical subspace iteration method, without any shifting strategy. 
+	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	k			Level of the hierarchy
+	*  @param	XkL			Approximated eigenvectors on the level k
+	*  @param	AkL			Approximated eigenvalues on the level k
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*/
 	void MLEigenSolver::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift) {}
 
+	/**
+	*  @brief
+	*   Performing a multilevel subspace iteration method with regular shift.
+	*  @details
+	*	Our hierarchical subspace iteration method, with regular shifting strategy, i.e. shifting is performed after every 4-5 iterations.
+	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	k			Level of the hierarchy
+	*  @param	XkL			Approximated eigenvectors on the level k
+	*  @param	AkL			Approximated eigenvalues on the level k
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	shiftType	If shift is used, it tells which shifting strategy is used.
+	*/
 	void MLEigenSolver::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType) {}
 
+	/**
+	*  @brief
+	*   Performing a multilevel subspace iteration method with shifting performed once at the beginning of the iteration.
+	*  @details
+	*	Our hierarchical subspace iteration method, with regular shifting strategy, i.e. shifting is performed after every 4-5 iterations.
+	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	k			Level of the hierarchy
+	*  @param	XkL			Approximated eigenvectors on the level k
+	*  @param	AkL			Approximated eigenvalues on the level k
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	shiftType	If shift is used, it tells which shifting strategy is used.
+	*/
 	void MLEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType) {}
 
+	/**
+	*  @brief
+	*   Check the convergence of current iteration.
+	*  @details
+	*	Convergence check via relative residual. 
+	*	\begin{equation}
+	*		{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*		{{\left | S \phi_i \right |}_2}}< \varepsilon_q
+	*	\end{equation}
+	*  @param	Q			Eigenvectors in the Ritz reduced space
+	*  @param	A			Eigenvalues in the Ritz reduced space
+	*  @param	MK			Mass matrix in the Ritz subspace 
+	*  @param	SK			Stiffness matrix in the Ritz subspace 
+	*  @param	convRate	Vector storing the convergence rate of each pair of eigenvalue and eigenvector in Ritz subspace	
+	*/
 	void MLEigenSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const
 	{
 		convRate.resize(A.rows());
@@ -399,6 +525,20 @@ namespace MuLES
 		//printf("eigVals: %d | S: %dx%d | M: %dx%d \n", A.rows(), SK.rows(), SK.cols(), MK.rows(), MK.cols());
 	}
 
+	/**
+	*  @brief
+	*   Check the convergence of current iteration.
+	*  @details
+	*	The error bound of an eigenvalue expressed through its corresponding eigenvector in the Ritz subspace eigenbasis
+	*	\begin{equation}
+	*		{\left( 1 - \frac{{\lambda_i}^2}{q_i^T q_i} \right)}^{1/2} < \varepsilon_q
+	*	\end{equation}
+	*  @param	Q			Eigenvectors in the Ritz reduced space
+	*  @param	A			Eigenvalues in the Ritz reduced space
+	*  @param	MK			Mass matrix in the Ritz subspace
+	*  @param	SK			Stiffness matrix in the Ritz subspace
+	*  @param	convRate	Vector storing the convergence rate of each pair of eigenvalue and eigenvector in Ritz subspace
+	*/
 	void MLEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate) const
 	{
 		convRate.resize(A.rows());
@@ -413,8 +553,17 @@ namespace MuLES
 			convRate(i) = sqrt(conv);
 		}
 	}
-
-	/* Computing the reference eigenproblem */
+		
+	/**
+	*  @brief
+	*   Compute a comparison of eigenvalues and eigenvectors using other methods (Matlab, Spectra, etc.)
+	*  @details
+	*	This serves as benchmark to our multilevel eigensolver. 
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	solverType	Selected solver (Matlab, Spectra, or CUDA's cusolver)
+	*  @param	maxIters	(If applicable) Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			(If applicable) Convergence threshold, depending on the implementation of each solver, highly probably is different compared to ours.	
+	*/
 	void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& solverType, int maxIters, double tol)
 	{
 		switch (solverType)
@@ -432,12 +581,22 @@ namespace MuLES
 			}
 			computeEigenGPU(S, M, EigVectsRef, EigValsRef);
 			break;
-
 		default:
 			break;
 		}
 	}
 
+	/**
+	*  @brief	Compute a comparison of eigenvalues and eigenvectors with some clampling (e.g. some areas are excluded from computation)
+	*  @details
+	*	This serves as benchmark to our multilevel eigensolver.
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors).
+	*  @param	solverType	Selected solver (Matlab, Spectra, or CUDA's cusolver).
+	*  @param	maxIters	(If applicable) Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			(If applicable) Convergence threshold, depending on the implementation of each solver, highly probably is different compared to ours.
+	*  @param	axis		When clamping is used (by default not), it specifies which axis direction is used for clamping.
+	*  @param	offset		When clamping is used (by default not), it determines the ratio w.r.t selected axis for clamping.	
+	*/
 	void MLEigenSolver::computeRefEigenProblemWithSelector(int numEigs, const EigenSolverType& solverType, int axis, double offset)
 	{
 		cout << "____ Creating selector matrix \n";
@@ -519,6 +678,12 @@ namespace MuLES
 	}
 
 	/* Visualization tools */
+
+	/**
+	*  @brief	Visualize the geodesic distance over varying level.
+	*  @param	viewer		GUI for model interaction.
+	*  @param	k			Level on the hierarchy.
+	*/
 	void MLEigenSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer &viewer, int k) const
 	{
 		Eigen::MatrixXd VColor;
@@ -526,8 +691,28 @@ namespace MuLES
 		viewer.data().set_colors(VColor);
 	}
 
+	/**
+	*  @brief	Visualize the basis, on varying level.
+	*  @param	viewer		GUI for model interaction.
+	*  @param	id			ID/index of basis to show (corresponds to column of the basis matrix), mapped to full resolution using the *Prolongation* operator.
+	*  @param	k			Level on the hierarchy.
+	*  @param	scale		(If applicable) Ratio for scaling of the basis.
+	*/
 	void MLEigenSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k, double scale) const {}
+
+	/**
+	*  @brief	Visualize the selected eigenvector corresponding to a certain eigenvalue.
+	*  @param	viewer		GUI for model interaction.
+	*  @param	id			ID/index of eigenvector to show (i.e. the ID of the corresponding eigenvalue).
+	*  @param	eigType		Type of the eigenvector to show, from MuLES::MLEigenSolver::EigenVectorType enum type.
+	*  @param	scale		(If applicable) Ratio for scaling of the basis.
+	*/
 	void MLEigenSolver::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const {}
+	
+	/**
+	*  @brief	Visualize samples at level 1 (right after the fine resolution mesh).
+	*  @param	viewer		GUI for model interaction.
+	*/
 	void MLEigenSolver::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer)
 	{
 		Eigen::MatrixXd VColor;
@@ -541,6 +726,11 @@ namespace MuLES
 		viewer.data().set_colors(VColor);
 	}
 
+	/**
+	*  @brief	Visualize samples at level `k` on the hierarchy.
+	*  @param	viewer		GUI for model interaction.
+	*  @param	k			Level of sample in the hierarchy to show.
+	*/
 	void MLEigenSolver::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k)
 	{
 		viewer.data().points.resize(0, 6);
@@ -561,25 +751,70 @@ namespace MuLES
 		}
 	}
 
-	/* Some getters */
+	/**
+	*  @brief	Getter for the vertex. Request the matrix storing the vertex coordinates.
+	*/
 	Eigen::MatrixXd MLEigenSolver::getV() const { return V; }
+		
+	/**
+	*  @brief	Getter for the faces. 
+	*  @details
+	*	Request the matrix representing the discretization of the model (face in terms of surface, tetrahedron for volume).
+	*	Each row contains 3 integer ids corresponding to the vertex location of the face. 
+	*/
 	Eigen::MatrixXi MLEigenSolver::getF() const { return F; }
+
+	/**
+	*  @brief	Setter for the vertex. Provide the matrix storing the vertex coordinates.
+	*  @param	Vin		Matrix storing the vertex coordinates. Generally in the size of `nx3`, where `n` is the number of vertices.
+	*/
 	void MLEigenSolver::setV(const Eigen::MatrixXd& Vin) { V = Vin; }
+
+	/**
+	*  @brief	Setter for the Face. Provide the matrix storing the vertex IDs corresponds to each face.
+	*  @param	Fin		Matrix storing the vertex IDs (integer). Generally in the size of `nx3`, where `n` is the number of faces.
+	*/
 	void MLEigenSolver::setF(const Eigen::MatrixXi& Fin) { F = Fin; }
+
+	/**  @brief	Obtain the stiffness matrix for the Laplacian. */
 	Eigen::SparseMatrix<double> MLEigenSolver::getStiffnessMatrix() const { return S; }
+
+	/**  @brief	Obtain the Mass matrix for the Laplacian. */
 	Eigen::SparseMatrix<double> MLEigenSolver::getMassMatrix() const { return M; }
+
+	/**  @brief	Obtain the (combined) Bais matrix. */
 	Eigen::SparseMatrix<double> MLEigenSolver::getBasisMatrix() const { return Basis; }
+
+	/**  @brief	Obtain the value of `isClampBasis` flag. */
 	bool MLEigenSolver::getClampBasis() const { return isClampedBasis; }
+
+	/**  @brief	Set the value of `isClampBasis` flag. */
 	void MLEigenSolver::setClampBasis(bool isClamped) { isClampedBasis = isClamped; }
+
+	/** @brief	Obtain number of levels in the hierarchy. */
 	int MLEigenSolver::getLevel() const { return level; }
+
+	/**  @brief	Obtain the size of the samples. */
 	int MLEigenSolver::getSampleSize() const { return sampleSize; }
+
+	/**  @brief	Obtain the value of `Sample` vector, containing information of number of samples on each level. */
 	const Eigen::VectorXi& MLEigenSolver::getSample() const { return Sample; }
+
+	/**  @brief	Obtain the value of Subspace size on each level */
 	const vector<int>& MLEigenSolver::getSubspaceSize() const { return SubspaceSize; }
+
+	/**  @brief	Set the value of shifting parameter used (the one proposed by Zhao) */
 	void MLEigenSolver::setZhaoShiftParam(const double shiftParam) { zhaoShiftParam = shiftParam; }
+
+	/**  @brief	Obtain the value of shifting parameter used (the one proposed by Zhao) */
 	double MLEigenSolver::getZhaoShiftParam() const { return zhaoShiftParam; }
 
-	/* Getters of the eigen-values + vectors*/
+	/* [Getters of the eigen-values + vectors] */
+	/**  @brief	Obtain the entire eigenvectors (obtained from reference solver). */
 	const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsRef() const { return EigVectsRef; }
+
+	/** @brief	Obtain the a selected eigenvector (obtained from reference solver). 
+	*	param	id	ID/index of eigenvector to show	*/
 	const Eigen::VectorXd& MLEigenSolver::getEigenVectorsRef(int id) const
 	{
 		if (id >= EigVectsRef.cols())	return EigVectsRef.col(EigValsRef.rows() - 1);
@@ -587,7 +822,12 @@ namespace MuLES
 
 		return EigVectsRef.col(id);
 	}
+
+	/** @brief	Obtain the entire eigenvalues (obtained from reference solver), represented as a vector. */
 	const Eigen::VectorXd& MLEigenSolver::getEigenValuesRef() const { return EigValsRef; }
+
+	/** @brief	Obtain the selected eigenvalue (obtained from reference solver)
+	*	param	id	ID/index of eigenvector to show	*/
 	const double MLEigenSolver::getEigenValueRef(int id) const
 	{
 		if (id >= EigValsRef.rows())	return EigValsRef(EigValsRef.rows() - 1);
@@ -595,7 +835,12 @@ namespace MuLES
 
 		return EigValsRef(id);
 	}
+
+	/**  @brief	Obtain the entire *approximated* eigenvectors (obtained in the reduced subspace, then lifted to the reference space). */
 	const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsReduced() const { return EigVectsReduced; }
+
+	/** @brief	Obtain the a selected *approximated* eigenvector (obtained in the reduced subspace, then lifted to the reference space).
+	*	param	id	ID/index of eigenvector to show	*/
 	const Eigen::VectorXd& MLEigenSolver::getEigenVectorsReduced(int id) const
 	{
 		if (id >= EigVectsReduced.cols())	return EigVectsReduced.col(EigValsReduced.rows() - 1);
@@ -603,7 +848,12 @@ namespace MuLES
 
 		return EigVectsReduced.col(id);
 	}
+
+	/** @brief	Obtain the entire *approximated* eigenvalues (obtained in the reduced subspace, then lifted to the reference space), represented as a vector. */
 	const Eigen::VectorXd& MLEigenSolver::getEigenValuesReduced() const { return EigValsReduced; }
+
+	/** @brief	Obtain the selected *approximated* eigenvalue (obtained in the reduced subspace)
+	*	param	id	ID/index of eigenvalue to show	*/
 	const double MLEigenSolver::getEigenValueReduced(int id) const
 	{
 		if (id >= EigValsReduced.rows())	return EigValsReduced(EigValsReduced.rows() - 1);
@@ -611,14 +861,24 @@ namespace MuLES
 
 		return EigValsReduced(id);
 	}
+
+	/**  @brief	Obtain the entire eigenvectors (obtained our our SIM or other type of SIM). */
 	const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsSIM() const { return EigVectsSIM; }
+
+	/** @brief	Obtain the a selected eigenvector (obtained our our SIM or other type of SIM).
+	*	param	id	ID/index of eigenvector to show	*/
 	const Eigen::VectorXd& MLEigenSolver::getEigenVectorsSIM(int id) const
 	{
 		if (id >= EigVectsSIM.cols())		return EigVectsSIM.col(EigValsSIM.rows() - 1);
 		else if (id < 0)						return EigVectsSIM.col(0);
 		return EigVectsSIM.col(id);
 	}
+
+	/** @brief	Obtain the entire eigenvalues (obtained our our SIM or other type of SIM), represented as a vector. */
 	const Eigen::VectorXd& MLEigenSolver::getEigenValuesSIM() const { return EigValsSIM; }
+
+	/** @brief	Obtain the selected eigenvalue (obtained our our SIM or other type of SIM)
+	*	param	id	ID/index of value to show	*/
 	const double MLEigenSolver::getEigenValueSIM(int id) const
 	{
 		if (id >= EigValsSIM.rows())		return EigValsSIM(EigValsSIM.rows() - 1);
