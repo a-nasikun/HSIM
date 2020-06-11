@@ -10,7 +10,19 @@
 #include <igl/opengl/glfw/Viewer.h>
 namespace MuLES
 {
-
+	/**
+	*  @brief The base class for our multilevel eigenproblem. 
+	*  @details
+	*	This is the implementation of our hierarchical subspace iteration method (SIM) for geometry processing applications.
+	*	In this work, we work specifically with `Laplace--Beltrami Eigenproblem` that is widely adopted for various tasks in geometry processing.
+	*	The method proceeds in the following steps:
+	*   <ol>
+	*		<li> Set up the required matrix for `Laplace--Beltrami Eigenproblem`.
+	*		<li> Construct the hierarchy.
+	*		<li> Use the hierarchy to solve the `Laplace--Beltrami Eigenproblem` using the *subspace iteration method*.
+	*   </ol>
+	*
+	*/
 	class MLEigenSolver
 	{
 	public:

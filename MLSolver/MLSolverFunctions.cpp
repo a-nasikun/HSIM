@@ -11,6 +11,9 @@
 
 namespace MuLES
 {
+	/**
+	*  @brief	Compuete the area of each triangle constituting the triangle mesh represantion.
+	*/
 	void MLSolverFunctions::computeArea()
 	{
 		/* Constructing Average length of the edges */
@@ -19,13 +22,16 @@ namespace MuLES
 		Eigen::VectorXd dArea;
 		igl::doublearea(V, F, dArea);
 		surfaceArea = dArea.sum() / 2.0;
-
-		//surfaceArea = 0.0;
-		//for (int i = 0; i < F.rows(); i++){
-		//	surfaceArea += dArea(i) / 2.0;
-		//}
 	}
 
+	/**
+	*  @brief
+	*   Set-up the corresponding mass matrix M.
+	*  @details
+	*	For Laplace--Beltrami eigenproblem,
+	*	we generally use the lumped mass matrix (i.e. diagonal mass matrix).
+	*  @see	MuLES::MLSolverFunctions::constructMassMatrix()
+	*/
 	void MLSolverFunctions::constructMassMatrix()
 	{
 		cout << "> Creating mass matrix for the surface mesh \n";
@@ -39,7 +45,11 @@ namespace MuLES
 		surfaceArea = dblArea.sum();
 	}
 
-
+	/**
+	*  @brief	Set-up the corresponding stiffness matrix S.
+	*  @details
+	*	The widely adopted Laplacian option for discretization of Laplace--Beltrami operator in geometry processing is the cotangent weight.
+	*/
 	void MLSolverFunctions::constructStiffnessMatrix()
 	{
 		cout << "> Creating stiffness matrix (Cotangent Laplacian). \n";
@@ -47,6 +57,14 @@ namespace MuLES
 		S = -S;
 	}
 
+	/**
+	*  @brief	Construct a multilevel basis for every level on each of the hierarchy.
+	*  @details
+	*   The basis is constructed using (1) farthest point sampling, followed by (2) region growing strategy.
+	*  @param	support The expected average overlaps of disks on every degree of freedom on each level.
+	*  @param	axis	When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset	When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*/
 	void MLSolverFunctions::constructBasis(double support, int axis, double offset)
 	{
 		cout << "> Constructing multi-level basis \n";
@@ -70,6 +88,14 @@ namespace MuLES
 		printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
 	}
 
+	/**
+	*  @brief	Construct the basis for 2-level hierarchical system
+	*  @details In this set-up only 1 basis (restriction and prolongation) matrix is required.
+	*	In general, we take the coarsest level DoFs for this construction.
+	*  @param	support The expected average overlaps of disks on every degree of freedom on each level.
+	*  @param	axis	When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset	When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*/
 	void MLSolverFunctions::constructBasisCoarseOnly(double support, int axis, double offset)
 	{
 		// For Timing
@@ -161,6 +187,14 @@ namespace MuLES
 		cout << "in " << duration.count() << " seconds" << endl;
 	}
 
+	/**
+	*  @details
+	*   Our implementation of Xian's piecewise constant weight function for hierarchical problem.
+	*	Originally this method is used for fast linear solver used in deformation of elastics body.
+	*  @param	support		The expected average overlaps of disks on every degree of freedom on each level.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*/
 	void MLSolverFunctions::constructBasisNonSmooth(double support, int axis, double offset)
 	{
 		// For Timing
@@ -274,6 +308,15 @@ namespace MuLES
 		cout << "in " << duration.count() << " seconds" << endl;
 	}
 
+	/**
+	*  @brief
+	*   Build a radial basis functions (i.e. geodesic disks) on every samples for every level on each of the hierarchy.
+	*  @param	k			The level that RBFs needs to be constructed.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	isClamped	Tells whether clamping is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*  @param	support		The expected average overlaps of disks on every degree of freedom on each level.
+	*/
 	void MLSolverFunctions::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
 	{
 		// For Timing
@@ -360,6 +403,20 @@ namespace MuLES
 		printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
 	}
 
+	/**
+	*  @brief
+	*   Construct a growing radial geodesic disk for every sample vertex on each level.
+	*  @param	s1			Index (ID) of source vertex, 0 to |V|-1.
+	*  @param	D			Vector representing distance from the source vertex.
+	*  @param	a			First polynomial coefficient for the unique polynomial function, mapping the distance function to Gaussian-like polynomial function.
+	*  @param	b			Second Polynomial coefficient for the unique polynomial function, mapping the distance function to Gaussian-like polynomial function.
+	*  @param	maxDist		Radius of the geodesic disk.
+	*  @param	col			Index of the sample vertex, determining the column index of the basis matrix.
+	*  @param	level		Level on which the geodesic disk is computed.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*  @param	UTriplet	Eigen::Triplet<T> representing the \code{.cpp}Eigen::SparseMatrix<T> \endcode for the basis on that particular level.
+	*/
 	void MLSolverFunctions::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet) 
 	{
 		priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
@@ -436,7 +493,13 @@ namespace MuLES
 		D.setConstant(numeric_limits<double>::infinity());
 	}
 
-
+	/**
+	*  @brief
+	*   Construct a selector matrix for clamped eigen problem.
+	*  @param	SelMat		The desired selector matrix
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*/
 	void MLSolverFunctions::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset)
 	{
 		SelMat.resize(M.rows(), M.cols());
@@ -463,7 +526,24 @@ namespace MuLES
 	}
 
 
-	/* Subspace Iteration methods */
+	/**
+	*  @brief
+	*   Main call to subspaceiteration method (SIM).
+	*  @details
+	*	It will then call the specific type of SIM according to what user selects.
+	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	shiftType	If shift is used, it tells which shifting strategy is used.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*/
 	void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset)
 	{
 		cout << "> The Subspace Iteration Method \n";
@@ -537,7 +617,25 @@ namespace MuLES
 		fileEigs = "../../Data/" + modelName + "_Convergence3Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
 		writeDenseMatrixToFile(convergence3Stacks, fileEigs);
 	}
-
+	
+	/**
+	*  @brief
+	*   Perform the subspace iteration method (SIM), with various possible settings.
+	*  @details
+	*	This is the standard implementation of SIM, with various possible definition of starting vectors,
+	*	but without shifting strategy. It also has the convergence control via relative residual and maximum iterations
+	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*/
 	void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift)
 	{
 		chrono::high_resolution_clock::time_point	t0, t1;
@@ -725,6 +823,23 @@ namespace MuLES
 
 	}
 
+	/**
+	*  @brief
+	*   Main call to subspaceiteration method (SIM) with shifting strategy.
+	*  @details
+	*	This is the standard implementation of SIM with shifting strategy, with various possible definition of starting vectors.
+	*	It also has the convergence control via relative residual and maximum iterations
+	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	shiftType	If shift is used, it tells which shifting strategy is used.
+	*/
 	void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
 	{
 		chrono::high_resolution_clock::time_point	t0, t1;
@@ -995,7 +1110,25 @@ namespace MuLES
 		itersPerLevel(0) = k;
 	}
 
-
+	/**
+	*  @brief
+	*   Performing a multilevel subspace iteration method.
+	*  @details
+	*	Our hierarchical subspace iteration method, without any shifting strategy.
+	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	k			Level of the hierarchy
+	*  @param	XkL			Approximated eigenvectors on the level k
+	*  @param	AkL			Approximated eigenvalues on the level k
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*/
 	void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift)
 	{
 		
@@ -1155,6 +1288,26 @@ namespace MuLES
 		}
 	}
 	
+	/**
+	*  @brief
+	*   Performing a multilevel subspace iteration method with regular shift.
+	*  @details
+	*	Our hierarchical subspace iteration method, with regular shifting strategy, i.e. shifting is performed after every 4-5 iterations.
+	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	k			Level of the hierarchy
+	*  @param	XkL			Approximated eigenvectors on the level k
+	*  @param	AkL			Approximated eigenvalues on the level k
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	shiftType	If shift is used, it tells which shifting strategy is used.
+	*/
 	void MLSolverFunctions::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
 	{
 		chrono::high_resolution_clock::time_point	t0, t1;
@@ -1419,7 +1572,26 @@ namespace MuLES
 		}
 	}
 	
-	
+	/**
+	*  @brief
+	*   Performing a multilevel subspace iteration method with shifting performed once at the beginning of the iteration.
+	*  @details
+	*	Our hierarchical subspace iteration method, with regular shifting strategy, i.e. shifting is performed after every 4-5 iterations.
+	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
+	*  @param	k			Level of the hierarchy
+	*  @param	XkL			Approximated eigenvectors on the level k
+	*  @param	AkL			Approximated eigenvalues on the level k
+	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
+	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
+	*  @param	tol			Convergence threshold, as relative residual value.
+	*						\begin{equation}
+	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
+	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q
+	*						\end{equation}
+	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	shiftType	If shift is used, it tells which shifting strategy is used.
+	*/
 	void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
 	{
 		std::cout << "Functions" << std::endl;
@@ -1649,7 +1821,15 @@ namespace MuLES
 		}
 	}
 	
-	/* Applications */
+	/**
+	*  @brief
+	*   Diffusion distance using the spectrum and eigenvector of the Laplace--Beltrami eigenproblem.
+	*  @param	numEigs				Number of eigenpairs (eigenvalues and eigenvectors) used for computing diffusion distance
+	*  @param	t					Diffusion parameter
+	*  @param	EigVect				Matrix containing the eigenvectors, stored per column.
+	*  @param	EigVals				Vector representing the eigenvalues.
+	*  @param	DiffusionTensor		The diffusion tensor with the provided data.
+	*/
 	void MLSolverFunctions::constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor)
 	{
 		DiffusionTensor.resize(V.rows());
@@ -1662,7 +1842,14 @@ namespace MuLES
 		}
 	}
 	
-	/* Visualization Tools*/
+	/* [VISUALIZATION TOOLS] */
+	/**
+	*  @brief	Visualize the basis, on varying level.
+	*  @param	viewer		GUI for model interaction.
+	*  @param	id			ID/index of basis to show (corresponds to column of the basis matrix), mapped to full resolution using the *Prolongation* operator.
+	*  @param	k			Level on the hierarchy.
+	*  @param	scale		(If applicable) Ratio for scaling of the basis.
+	*/
 	void MLSolverFunctions::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k,  double scale) const
 	{
 		Eigen::MatrixXd VColor;
@@ -1685,6 +1872,13 @@ namespace MuLES
 		viewer.data().set_colors(VColor);
 	}
 	
+	/**
+	*  @brief	Visualize the selected eigenvector corresponding to a certain eigenvalue.
+	*  @param	viewer		GUI for model interaction.
+	*  @param	id			ID/index of eigenvector to show (i.e. the ID of the corresponding eigenvalue).
+	*  @param	eigType		Type of the eigenvector to show, from MuLES::MLEigenSolver::EigenVectorType enum type.
+	*  @param	scale		(If applicable) Ratio for scaling of the basis.
+	*/
 	void MLSolverFunctions::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const
 	{
 		cout << "Visualizing the eigenvector of id " << id << endl; 
