@@ -16,6 +16,13 @@ namespace MuLES
 	*		<li> Use the hierarchy to solve the `Laplace--Beltrami Eigenproblem` using the **subspace iteration method**.
 	*   </ol>
 	*
+	*
+	*	### Example of usage
+	*	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.cpp
+	*	MLSolverFunctions *solver;			// Create a pointer for the object
+	*	solver->readMesh(fileLocation);		// Read a mesh
+	*	solver->computeEigenpairs(A,B);		// Compute the eigenvalues and eigenvectors
+	*	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	*/
 	class MLSolverFunctions : public MLEigenSolver
 	{

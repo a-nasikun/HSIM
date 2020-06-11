@@ -107,7 +107,7 @@ namespace MuLES
 	*  @param	numEigen	The number of sought eigenvalues and corresponding eigenvectors.
 	*  @param	levelRatio	The decay rate stating how the DoFs decreases from one level to the next level.
 	*/
-	void MLEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
+	void MLEigenSolver::setSamplingLevels(Eigen::VectorXi& sampSize, int numEigen, double levelRatio)
 	{
 		double	spRatio = 1.0;
 		int		sizeSubsp = spRatio * 2 * numEigen;

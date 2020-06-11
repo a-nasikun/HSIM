@@ -1127,7 +1127,7 @@ namespace MuLES
 	*							{\frac{{\left | S \phi_i - \lambda_i M \phi_i \right |}_{2}}
 	*							{{\left | S \phi_i \right |}_2}}< \varepsilon_q .
 	*						\end{equation}
-	*  @param	isithShift	A boolean value, determining whether a shift is incorporated to the system.
+	*  @param	isWithShift	A boolean value, determining whether a shift is incorporated to the system.
 	*/
 	void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift)
 	{
@@ -1168,17 +1168,17 @@ namespace MuLES
 			printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
 	
 			//if (k == (level-1)) {
-			///std::cout << "Level (under the hood, this number is 1 lower to the real one, since the finest level is defined as level 0): " << k << std::endl;
-			///printf("Basis U: %dx%d \n", U[k].rows(), U[k].cols());
-			///std::cout << "MK: \n" << MK.topLeftCorner(10, 10) << std::endl;
-			///std::cout << "SK: \n" << SK.topLeftCorner(10, 10) << std::endl;
-			///std::cout << "Aprox. EigVals (from coarser): " << AkL.head(numEigs).transpose() << std::endl;
-			///std::cout << "Approx. EigVects (from coarser): \n" << XkL.topLeftCorner(10, 10) << std::endl;
+			//std::cout << "Level (under the hood, this number is 1 lower to the real one, since the finest level is defined as level 0): " << k << std::endl;
+			//printf("Basis U: %dx%d \n", U[k].rows(), U[k].cols());
+			//std::cout << "MK: \n" << MK.topLeftCorner(10, 10) << std::endl;
+			//std::cout << "SK: \n" << SK.topLeftCorner(10, 10) << std::endl;
+			//std::cout << "Aprox. EigVals (from coarser): " << AkL.head(numEigs).transpose() << std::endl;
+			//std::cout << "Approx. EigVects (from coarser): \n" << XkL.topLeftCorner(10, 10) << std::endl;
 			//}
 	
 			/* [3] SUBSPACE ITERATION METHOD */
-			///std::cout << "Dimensionality check: \n";
-			///printf("Basis U:%dx%d | Approx. EigVect: %dx%d \n", U[k].rows(), U[k].cols(), XkL.rows(), XkL.cols());
+			//std::cout << "Dimensionality check: \n";
+			//printf("Basis U:%dx%d | Approx. EigVect: %dx%d \n", U[k].rows(), U[k].cols(), XkL.rows(), XkL.cols());
 			XkL = U[k] * XkL;
 			printf("____<3> Lifting, Init vectors: %dx%d \n", XkL.rows(), XkL.cols());
 	
@@ -1191,8 +1191,8 @@ namespace MuLES
 			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 			factorization.compute(SS);
 			//factorization.compute(SK);
-			///cout << "SS: \n" << SS.topLeftCorner(12, 6) << endl;
-			///printf("____<4> Embedding a small-valued diagonal matrix ");
+			//cout << "SS: \n" << SS.topLeftCorner(12, 6) << endl;
+			//printf("____<4> Embedding a small-valued diagonal matrix ");
 			std::cout << eps << std::endl;
 	
 			/* Temporary variables */
@@ -1256,7 +1256,7 @@ namespace MuLES
 				}
 				/* Check convergence */
 				for (int i = lastConvergedId; i < numEigs; ++i) {
-					///cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
+					//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
 					if (conv2(i) < tol) {
 						lastConvergedId = i;
 					}
@@ -1502,7 +1502,7 @@ namespace MuLES
 					** Type 2: */
 					checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
 					cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
-					/** Type 3: */
+					/* Type 3: */
 					checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
 					cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 	
@@ -1612,7 +1612,7 @@ namespace MuLES
 		{
 			XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
 			AkL = EigValsReduced.head(q);
-			///printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
+			//printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
 		}
 		// RECURSIVE for level k < max_level
 		else
@@ -1638,7 +1638,7 @@ namespace MuLES
 			printf("____<2> Going deeper => \n ################");
 			performMultiLevelSIM_withShiftOnce(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
 	
-			///printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
+			//printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
 	
 			/* [3] SUBSPACE ITERATION METHOD */
 			t1 = chrono::high_resolution_clock::now();
@@ -1760,12 +1760,12 @@ namespace MuLES
 				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 				/** Type 3: */
 				checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
-				///cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
+				//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 	
 				cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
 				cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
 	
-				///cout << AkL.head(numEigs).transpose() << endl;
+				//cout << AkL.head(numEigs).transpose() << endl;
 	
 				if (k == 0) {
 					EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);

@@ -160,7 +160,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			static char lvlRatTxt[10] = "10.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 			levelRatio = atof(lvlRatTxt);
 
-			if (ImGui::Button("[2] Sampling##1", ImVec2(w, 0))) {
+			if (ImGui::Button("[2] Construct Hierarchy##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
 				levelRatio = atof(lvlRatTxt);
 
@@ -169,7 +169,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				chrono::duration<double>					duration;
 				t0 = chrono::high_resolution_clock::now();
 
-				Eigen::VectorXd sampSize;
+				Eigen::VectorXi sampSize;
 				//setSamplingLevels(eigenSolver, levelRatio, numOfModes, sampSize);		
 				std::cout << "Sought modes: " << numOfModes << std::endl;
 
@@ -814,7 +814,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
 
-			Eigen::VectorXd			sampSize;
+			Eigen::VectorXi			sampSize;
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
 			std::vector<double>		levelRatio{ 10 };
 			//std::vector<double>		levelSupport{ 5.0, 7.5, 10.0, 12.5, 15.0, 20.0 };
@@ -1111,7 +1111,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
 
-			Eigen::VectorXd			sampSize;
+			Eigen::VectorXi			sampSize;
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
 			std::vector<double>		levelRatio{ 10 };
 			//std::vector<double>		levelSupport{ 5.0, 7.5, 10.0, 12.5, 15.0, 20.0 };
