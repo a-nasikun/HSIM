@@ -147,7 +147,7 @@ namespace MuLES
 	*  @see MuLES::constructFarthestPointSample() \n MuLES::MLEigenSolver::setSamplingLevels() 
 	*  @param	samples	A constact vector stating the number of samples on every level of the hierarchy.
 	*/
-	void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
+	void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXi& samples)
 	{
 		printf("____Sampling on %d levels \n", samples.size());
 		for (int i = 0; i < samples.size(); ++i) {

@@ -39,7 +39,7 @@ namespace MuLES
 
 		/* Construction of the subspace and/or hierarchy */
 		void setSamplingLevels(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 10.0);
-		void constructSampleHierarchy(const Eigen::VectorXd& samples);	// Constructing multi-level samples
+		void constructSampleHierarchy(const Eigen::VectorXi& samples);	// Constructing multi-level samples
 		void virtual constructBasis(double support, int axis = 0, double offset = 0.0);											// Constructing multi-level basis
 		void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0);
 		void virtual constructBasisNonSmooth(double support, int axis = 0, double offset = 0.0);
@@ -153,6 +153,7 @@ namespace MuLES
 	public:
 		// TEst variable
 		double zhaoShiftParam;
+		double qParam;
 	};
 }
 

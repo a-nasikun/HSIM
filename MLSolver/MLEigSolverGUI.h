@@ -42,8 +42,8 @@ static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
 
-void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXd& sampSize);
-void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXd& sampSize);
+void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
+void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
 
 void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
 {
@@ -262,7 +262,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				t0 = chrono::high_resolution_clock::now();
 
 				eigenSolver->setInitialSystem(1);
-				Eigen::VectorXd			sampSize;
+				Eigen::VectorXi			sampSize;
 				sampSize.resize(1);
 				sampSize(0) = 2 * numOfModes;
 				eigenSolver->constructSampleHierarchy(sampSize);
@@ -746,6 +746,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			ImGui::RadioButton("Multi-level",	&SIMType, 0);			//ImGui::SameLine();
 		}
 
+		
+
 		static bool isShiftedSIM = false;
 		ImGui::Checkbox("with shift", &(isShiftedSIM));
 		static double zhaoShiftParam = 0.25;
@@ -758,10 +760,15 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			zhaoShiftParam = atof(zhaoTxt);
 		}
 
+		static double qParam;
+		static char qParamTxt[10] = "2.0"; ImGui::InputText("q Param", qParamTxt, 10);
+		qParam = atof(qParamTxt);
+
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
 			
+			eigenSolver->qParam = qParam;
 			eigenSolver->zhaoShiftParam = zhaoShiftParam;
 			std::cout << "Shift param = " << zhaoShiftParam << std::endl; 
 			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
@@ -932,7 +939,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				//setSamplingLevels(eigenSolver, wantedModes[j], sampSize);
 				//eigenSolver->setSamplingLevels(sampSize, wantedModes[j], levelRatio[i]);
 				eigenSolver->setInitialSystem(1);
-				Eigen::VectorXd			sampSize;
+				Eigen::VectorXi			sampSize;
 				sampSize.resize(1);
 				sampSize(0) = 2 * wantedModes[j];
 				eigenSolver->constructSampleHierarchy(sampSize);
@@ -1058,7 +1065,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		//if (ImGui::Button("Scripted (5) Var. Ratio", ImVec2(w, 0))) {
 		if (ImGui::Button("Scripted (5) Var. Support", ImVec2(w, 0))) {
-			Eigen::VectorXd sampSize;
+			Eigen::VectorXi sampSize;
 			//double numOfSupport = 5.0;
 
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
@@ -1421,7 +1428,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 /* Sampling with fixed target,
 ** The number of levels and ratio between levels is determined accordingly. */
-void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXd& sampSize)
+void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize)
 {
 	std::cout << "Auto sampling for " << numEigen << " number of eigenvalues \n";
 	double	spRatio			= 1.25;
@@ -1444,7 +1451,7 @@ void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorX
 
 /* Sampling with fixed Ratio,
 ** The number of levels and number of coarsest level is determined accordingly. */
-void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXd& sampSize)
+void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize)
 {
 	double	spRatio = 1.25;
 	int		sizeSubsp = spRatio * 2 * numEigen;

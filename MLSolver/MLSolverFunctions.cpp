@@ -1601,7 +1601,9 @@ namespace MuLES
 		t0 = chrono::high_resolution_clock::now();
 	
 		printf("____[1] level: %d \n", k);
-		int		q = max(2 * numEigs, numEigs + 8);
+		//int		q = max(2 * numEigs, numEigs + 8);
+		int		q = qParam*numEigs;
+		std::cout << "qParam is" << qParam << std::endl;
 	
 		int iterCount = 0;
 		int factCounter = 0;
