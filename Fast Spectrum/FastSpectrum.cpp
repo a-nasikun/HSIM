@@ -503,8 +503,9 @@ void FastSpectrum::solveHeatMethod(igl::opengl::glfw::Viewer &viewer)
 	//double tau = 10000.0*avgEdgeLength;
 	//double tau = 100.0*avgEdgeLength;
 	inputHeat.setZero(V.rows()); 
-	heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	//heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
 	//heatSource = 0;
+	heatSource = 35692;		// side of the dragon model
 	//inputHeat(heatSource) = 1.0 * M.coeff(heatSource, heatSource);  // M*inputHeat;
 	inputHeat(heatSource) = 1.0;
 	//inputHeat(V.rows()/2) = -1.0;
@@ -594,8 +595,11 @@ void FastSpectrum::solvePoissonEquation(const Eigen::VectorXd& input, Eigen::Vec
 	Eigen::VectorXd res = rhs - S*output;
 	double residual = res.transpose()*M*res;
 	residual = sqrt(residual);
+	Eigen::VectorXd resV2 = S*output;
+	double res2 = resV2.transpose()*M*resV2;
+	res2 = sqrt(res2);
 	//double residual = res.norm();
-	cout << "__Ref. residu: " << residual << endl; 
+	cout << "__Ref. residu: " << residual/res2 << endl; 
 }
 
 void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, const Eigen::VectorXd& functions)
@@ -604,13 +608,17 @@ void FastSpectrum::visualizeHeatGeodesics(igl::opengl::glfw::Viewer &viewer, con
 	igl::jet(functions, true, VColor);
 	viewer.data().set_colors(VColor);
 
+	viewer.data().point_size = 10.0;
+	viewer.data().add_points(V.row(heatSource), Eigen::RowVector3d(0.9, 0.1, 0.1));
+
 	/* Isolines*/
 	bool showIsolines = true; 
 	Eigen::MatrixXd isoV;
 	Eigen::MatrixXi isoE;
+	viewer.data().line_width = 2.0;
 	if (showIsolines) {
 		igl::isolines(V, F, functions, 15, isoV, isoE);
-		viewer.data().set_edges(isoV, isoE, Eigen::RowVector3d(0, 0, 0));
+		viewer.data().set_edges(isoV, isoE, Eigen::RowVector3d(240, 250, 240));
 	}
 }
 
@@ -626,25 +634,26 @@ void FastSpectrum::solveHeatMethodRed(igl::opengl::glfw::Viewer &viewer)
 	cout << "__Scale: " << tauScale << endl; 
 
 	inputHeatRed.setZero(V.rows());
-	heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
+	//heatSource = 12924; if (heatSource >= V.rows()) heatSource = 0;
 	//heatSource = 0;
+	heatSource = 35692;
 	inputHeatRed(heatSource) = 1.0;
 	inputHeatRed = M*inputHeatRed;
 
 	//solveHeatEquationRed(tau, inputHeatRed, outputHeatRed);
-	//solveHeatEquation(tau, inputHeatRed, outputHeatRed);
+	solveHeatEquation(tau, inputHeatRed, outputHeatRed);
 
 	/* Test on new heat diffusion */
-	multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
+	//multiLevelHeatDiffusion(viewer, tau, inputHeatRed, outputHeatRed);
 	//Eigen::SparseMatrix<double>  LHS = M + tau*S;
 	//multiGridSolver(LHS, inputHeatRed, outputHeatRed);
 
 	gradRed = G*outputHeatRed;
 	normalizeGradient(gradRed);
-	solvePoissonEquation(gradRed, heatDistanceRed);
-	//solvePoissonEquationRed(gradRed, heatDistanceRed);
+	//solvePoissonEquation(gradRed, heatDistanceRed);
+	solvePoissonEquationRed(gradRed, heatDistanceRed);
 	
-	//visualizeHeatGeodesics(viewer, heatDistanceRed);
+	visualizeHeatGeodesics(viewer, heatDistanceRed);
 	//visualizeHeatGeodesics(viewer, outputHeatRed);
 	
 	measureAccuracyOfReducedSolver(heatDistance, heatDistanceRed);
@@ -1656,74 +1665,11 @@ void FastSpectrum::multiGridSolver2LevelHardCode(Eigen::SparseMatrix<double>& A,
 
 void FastSpectrum::multiGridSolver(Eigen::SparseMatrix<double>& A, Eigen::VectorXd& b, Eigen::VectorXd& x)
 {
-	/* Generic */
-	//Eigen::VectorXd x0(U[level - 1].cols()); x0.setZero();
-	///for (int i = level-1; i >= 0; i--)
-	///{
-	///	multiGridSolverLevelK(A, i, b, x0, x);
-	///	x0 = x;
-	///}
-	///
-	///cout << "__Finest level \n";
-	///Eigen::VectorXd x0_0 = U[0] * x0;
-	///
-	///cout << "B_ref proj: " << b.block(0, 0, 20, 1).transpose() << endl;
-	///cout << "B_app proj: " << x0_0.block(0, 0, 20, 1).transpose() << endl;
-	///
-	///Eigen::VectorXd r1 = b - A*x0_0;
-	///double resi = r1.transpose()*A*r1;
-	///cout << "Residu (init): " << resi << endl; 
-	///
-	///GaussSeidelSparseSolver(A, b, x0_0, x, 100000, 5e-5);
-
-	/* Hard coded */
-	//cout << "Pre-smooth (fine level) \n";
-	//// Pre-smooth (fine level)
-	//Eigen::VectorXd x00(b.rows()); x00.setZero();
-	//Eigen::VectorXd x0;
-	//GaussSeidelSparseSolver(A, b, x00, x0, 1000, 1e-10);
-	//Eigen::VectorXd r0 = b - A*x0;
-	//
-	//cout << "Pre-smooth (level 0) \n";
-	//Eigen::VectorXd b1 = U[0].transpose()*r0;
-	//Eigen::VectorXd x1(b1.rows()); x1.setZero();
-	////Eigen::VectorXd				  b1 = U[0].transpose()*b;
-	//Eigen::SparseMatrix<double>   A1 = U[0].transpose()*A*U[0];
-	//GaussSeidelSparseSolver(A1, b1, x1, x1, 1000, 1e-10);
-	//Eigen::VectorXd r1 = b1 - A1*x1;
-	//
-	//cout << "Coarsest level \n";
-	//// coarsest level: (1000 dim)
-	//Eigen::VectorXd b2 = U[1].transpose()*r1;
-	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
-	//Eigen::SparseMatrix<double> A2 = U[1].transpose()*U[0].transpose()*A*U[0] * U[1];	
-	//sparseSolver.compute(A2);
-	////Eigen::VectorXd b2 = U[1].transpose()*U[0].transpose()*b;
-	//printf("LHS: %dx%d | rhs: %d ", A2.rows(), A2.cols(), b2.rows());
-	//Eigen::VectorXd x2 = sparseSolver.solve(b2);
-	//printf("sol: %d \n", x2.rows());
-	//Eigen::VectorXd e1 = U[1] * x2;
-	//
-	//
-	//cout << "Level 0 \n";
-	//// level 0: (16.000 dim)
-	//Eigen::VectorXd x10 = x1 + e1;
-	////Eigen::VectorXd				x1_0 = U[1] * x2;
-	////Eigen::VectorXd				  x1;
-	//printf("LHS: %dx%d | rhs: %d | init guess: %d", A1.rows(), A1.cols(), b1.rows(), x1.rows());
-	////GaussSeidelSparseSolver(A1, b1, x1, x1, 100000, 1e-16);
-	//GaussSeidelSparseSolver(A1, b1, x10, x1, 100000, std::numeric_limits<double>::epsilon());
-	//printf("sol: %d \n", x1.rows());
-	//Eigen::VectorXd e0 = U[0] * x1;
-	//
-	//// fine level (resolution of the mesh
-	//cout << "Finest level \n";
-	////Eigen::VectorXd x0_0 = U[0] * x1;
-	//x0 = x0 + e0;
-	//GaussSeidelSparseSolver(A, b, x0, x, 100000, 1e-6);
-
 	/* ======================================= NEW RECURSIVE ====================================== */
 	//x.setZero(b.rows());		// initial guest
+	heatPreSmoothStack.resize(level);
+	heatProlongStack.resize(level);
+	heatPostSmoothStack.resize(level);
 	initiateMultigrid(A, b, x);
 	multiGridVCycle(A, M, b, x, 0);
 	//multiGridFCycle(A, M, b, x, 0);
@@ -1803,11 +1749,11 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cout << "______________________________V-CYCLE______________________________ \n";
 	cout << "LEVEL_" << k << endl; 
 	/* 0: Some variables required */
-	int		iterPre = 5, iterPost = 100000;
-	//double	tolPre = 5e-6, tolInner = 5e-6, tolOuter = 5.0e-6;
-	double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
+	int		iterPre = 5, iterPost = 1000;
+	double	tolPre = 5e-5, tolInner = 5e-7, tolOuter = 5.0e-5;
+	//double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
 
-	tolOuter = tolInner;
+	//tolOuter = tolInner;
 	/* Conjugate gradient */
 	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
 	cg.compute(A);
@@ -1822,14 +1768,16 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cg.setMaxIterations(iterPre);
 	cg.setTolerance(tolPre);
 	x = cg.solveWithGuess(b, x);
+	heatPreSmoothStack[k] = x;
 
 	//GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
 
 	/* 2: COMPUTE RESIDUAL ERROR */
 	Eigen::VectorXd r = b - A*x;
 	//double res = r.transpose()*A*r; 
-	double res = r.transpose()*r; res = sqrt(res);
-	cout << "____[" << k << "] Residu (after pre-smoothing): " << res << endl; 
+	double res = r.transpose()*Mv*r; res = sqrt(res);
+	double res2 = b.transpose()*Mv*b; res2 = sqrt(res2);
+	cout << "____[" << k << "] Residu (after pre-smoothing): " << res/res2 << endl; 
 	cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 
 	/* 3: RESTRICTION */
@@ -1841,7 +1789,7 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	/* Testing the mass matrix */
 	Eigen::VectorXd const1(M1.rows()); const1.setOnes();
 	double const1Norm = const1.transpose()*M1*const1;
-	printf("___%d => energy: %4.f \n", k, const1Norm);
+	printf("___%d => energy: %.4f \n", k, const1Norm);
 
 	/* 4: RECURSION */
 	if (k == level - 1)			// DIRECT SOLVE for the last level (level k)
@@ -1858,9 +1806,11 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 
 	/* 5: PROLONGATION + CORRECTION */
 	x = x + U[k]*eps;
-	r = b - A*x; 
+	r = b - A*x;
 	//res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
-	res = r.transpose()*r; res = sqrt(res);	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+	res = r.transpose()*Mv*r; res = sqrt(res);	
+	cout << "____[" << k << "] Residu (after correction from lower level): " << res/res2 << endl;
+	heatProlongStack[k] = x;
 
 	/* 6: POST-SMOOTHING */
 	// Gauss-Seidel
@@ -1884,7 +1834,11 @@ void FastSpectrum::multiGridVCycle(Eigen::SparseMatrix<double>& A, Eigen::Sparse
 	cout << "____" << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
 
 	//r = b - A*x;res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
-	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res); cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+	r = b - A*x; res = r.transpose()*Mv*r; res = sqrt(res);	
+	cout << "++++[" << k << "] Residu (after post-smoothing): " << res/res2 << endl;
+	
+	heatPostSmoothStack[k] = x;
+	printf("Level %d has heat dist of size: %d \n", k, heatPostSmoothStack[k].rows());
 }
 
 void FastSpectrum::multiGridFCycle(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k)

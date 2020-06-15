@@ -21,7 +21,8 @@ int main(int argc, char *argv[])
 	ImGui::StyleColorsDark();							// Set style
 
 	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
-	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
+	meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/dragon/Dragon.obj";
 
 	fastSpectrum.setInitialSystem(2);
 	fastSpectrum.computeEigenPairs(meshFile, 1000, Basis, redEigVects, redEigVals);
@@ -92,8 +93,9 @@ int main(int argc, char *argv[])
 	viewer.data().set_mesh(V, F);
 	viewer.callback_key_down		= key_down;
 
-	Eigen::Vector4f					bgCol(0.5f, 0.4f, 0.9f, 0.2f);
+	//Eigen::Vector4f					bgCol(0.5f, 0.4f, 0.9f, 0.2f);
 	//Eigen::Vector4f				bgCol(0.95f, 0.95f, 0.95f, 1.0f);
+	Eigen::Vector4f				bgCol(1.0f, 1.0f, 1.0f, 1.0f);
 	viewer.core.background_color	= bgCol;	
 	viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 	viewer.data().point_size		= 10.0f;

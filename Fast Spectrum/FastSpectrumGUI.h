@@ -520,6 +520,69 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 				}
 			}
 			
+			/* Visualizing the geodesic distance */
+			if (ImGui::Button("Ref.##Heat_Method", ImVec2((w) / 2.f, 0))) {
+				fastSpectrum.visualizeHeatGeodesics(viewer, fastSpectrum.heatDistance);
+			}
+			ImGui::SameLine(0, p);
+			if (ImGui::Button("Approx##Heat_Method", ImVec2((w) / 2.f, 0)))
+			{
+				fastSpectrum.visualizeHeatGeodesics(viewer, fastSpectrum.heatDistanceRed);
+			}
+
+			// Showing basis in different levels
+			for (int i = 0; i < fastSpectrum.level; i++)
+			{
+				/* Pre-smoothing*/
+				Eigen::VectorXd distFunc;
+				string disp1 = "Pre. ##1"; disp1 += to_string(i);
+				char const* ca1 = disp1.c_str();
+				if (ImGui::Button(ca1, ImVec2(w / (double)fastSpectrum.level - p, 0))) {
+					if (i > 0) {
+						distFunc = fastSpectrum.U[i - 1] * fastSpectrum.heatPreSmoothStack[i];
+					}
+					else {
+						distFunc = fastSpectrum.heatPreSmoothStack[i];
+					}
+					fastSpectrum.visualizeHeatGeodesics(viewer, distFunc);
+				}
+				if (i < (fastSpectrum.level - 1)) ImGui::SameLine(0, p);
+			}
+			for (int i = 0; i < fastSpectrum.level; i++)
+			{
+				/* Prolongation */
+				Eigen::VectorXd distFunc;
+				string disp2 = "Prolong. ##1"; disp2 += to_string(i);
+				char const* ca2 = disp2.c_str();
+				if (ImGui::Button(ca2, ImVec2(w / (double)fastSpectrum.level - p, 0))) {
+					if (i > 0) {
+						distFunc = fastSpectrum.U[i - 1] * fastSpectrum.heatProlongStack[i];
+					}
+					else {
+						distFunc = fastSpectrum.heatProlongStack[i];
+					}
+					fastSpectrum.visualizeHeatGeodesics(viewer, distFunc);
+				}
+				if (i < (fastSpectrum.level - 1)) ImGui::SameLine(0, p);
+			}
+			for (int i = 0; i < fastSpectrum.level; i++)
+			{
+				/* Post-smoothing*/
+				Eigen::VectorXd distFunc;
+				string disp3 = "Post. ##1"; disp3 += to_string(i);
+				char const* ca3 = disp3.c_str();
+				if (ImGui::Button(ca3, ImVec2(w / (double)fastSpectrum.level - p, 0))) {
+					if (i > 0) {
+						distFunc = fastSpectrum.U[i - 1] * fastSpectrum.heatPostSmoothStack[i];
+					}
+					else {
+						distFunc = fastSpectrum.heatPostSmoothStack[i];
+					}
+					fastSpectrum.visualizeHeatGeodesics(viewer, distFunc);
+				}
+				if (i<(fastSpectrum.level - 1)) ImGui::SameLine(0, p);
+			}
+
 			if (ImGui::Button("Diffuse##Heat Diffusion", ImVec2((w) / 3.f, 0))) {
 				fastSpectrum.inputHeatRed.setZero(V.rows());
 				fastSpectrum.inputHeatRed(0) = 1.0;
@@ -567,15 +630,7 @@ void applicationMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui
 				fastSpectrum.testGaussSeidelSolver(viewer);
 			}
 		
-			/* Visualizing the geodesic distance */
-			if (ImGui::Button("Ref.##Heat_Method", ImVec2((w) / 2.f, 0))) {
-				fastSpectrum.visualizeHeatGeodesics(viewer, fastSpectrum.heatDistance);
-			}
-			ImGui::SameLine(0, p);
-			if (ImGui::Button("Approx##Heat_Method", ImVec2((w) / 2.f, 0))) 
-			{
-				fastSpectrum.visualizeHeatGeodesics(viewer, fastSpectrum.heatDistanceRed);
-			}
+			
 			
 		} // End of HEAT METHOD
 

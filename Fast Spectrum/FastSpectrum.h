@@ -184,6 +184,7 @@ public:
 	Eigen::VectorXd						gradRed;
 	Eigen::VectorXd						heatDistanceRed;
 	double								tauScale;
+	std::vector<Eigen::VectorXd>		heatPreSmoothStack, heatProlongStack, heatPostSmoothStack;
 
 	
 };
