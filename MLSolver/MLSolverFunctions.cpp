@@ -573,20 +573,23 @@ namespace MuLES
 			SSel = S;
 		}
 
-		std::cout << "Lifting the eigenvectors... ";
-		EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2 * numEigs);
-		std::cout << "...successful\n";
+		//std::cout << "Lifting the eigenvectors... ";
+		//EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2 * numEigs);
+		//std::cout << "...successful\n";
 
 		/* Performing the SIM according to user selected methods */
 		if (type == SIMType::SIM_MultiLevel) {
-			timingPerLevel.resize(level);
-			itersPerLevel.resize(level);
+			timingPerLevel.resize(level+1);
+			itersPerLevel.resize(level+1);
 			if (isWithShift) {
+				std::cout << "DISCARD CONVERGED EIGEN \n";
 				//performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
 				performMultiLevelSIM_withShiftOnceConverged(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
 			}
 			else {
-				performMultiLevelSIM(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+				std::cout << "USE CONVERGED EIGEN \n";
+				//performMultiLevelSIM(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+				performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
 			}
 		}
 		else {
@@ -1148,8 +1151,12 @@ namespace MuLES
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
-			computeEigenGPU(SL, ML, EVecTemp, EValTemp);
-			XkL = EVecTemp.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
+			Eigen::SparseMatrix<double> SK, MK;
+			SK = U[k - 1].transpose()*SL*U[k - 1];
+			MK = U[k - 1].transpose()*ML*U[k - 1];
+
+			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
+			XkL = EVecTemp.topLeftCorner(MK.rows(), q);
 			AkL = EValTemp.head(q);
 
 			//XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
@@ -1333,8 +1340,12 @@ namespace MuLES
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
-			computeEigenGPU(SL, ML, EVecTemp, EValTemp);
-			XkL = EVecTemp.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
+			Eigen::SparseMatrix<double> SK, MK;
+			SK = U[k - 1].transpose()*SL*U[k - 1];
+			MK = U[k - 1].transpose()*ML*U[k - 1];
+
+			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
+			XkL = EVecTemp.topLeftCorner(MK.rows(), q);
 			AkL = EValTemp.head(q);
 			//XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
 			//AkL = EigValsReduced.head(q);
@@ -1627,8 +1638,12 @@ namespace MuLES
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
-			computeEigenGPU(SL, ML, EVecTemp, EValTemp);
-			XkL = EVecTemp.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
+			Eigen::SparseMatrix<double> SK, MK;
+			SK = U[k - 1].transpose()*SL*U[k - 1];
+			MK = U[k - 1].transpose()*ML*U[k - 1];
+
+			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
+			XkL = EVecTemp.topLeftCorner(MK.rows(), q);
 			AkL = EValTemp.head(q);
 			//XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
 			//AkL = EigValsReduced.head(q);
@@ -1884,10 +1899,17 @@ namespace MuLES
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
-			computeEigenGPU(SL, ML, EVecTemp, EValTemp);
-			XkL = EVecTemp.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
+			Eigen::SparseMatrix<double> SK, MK;
+			SK = U[k - 1].transpose()*SL*U[k - 1];
+			MK = U[k - 1].transpose()*ML*U[k - 1];
+
+			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
+			XkL = EVecTemp.topLeftCorner(MK.rows(), q);
 			AkL = EValTemp.head(q);
-			//printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
+			//std::cout << "Level: " << level << "k=" << k << std::endl;
+			//std::cout << "Eigvals (1)\n" << EValTemp.transpose() << std::endl;
+			//std::cout << "Eigvals (2)\n" << AkL.transpose() << std::endl;
+			//printf("____Size of the initial vectors: %dx%d (%d eigvalues)\n", XkL.rows(), XkL.cols(), AkL.rows());
 		}
 		// RECURSIVE for level k < max_level
 		else
@@ -1911,13 +1933,15 @@ namespace MuLES
 
 
 			printf("____<2> Going deeper => \n ################");
-			performMultiLevelSIM_withShiftOnce(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
+			performMultiLevelSIM_withShiftOnceConverged(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
 
 			//printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
 
 			/* [3] SUBSPACE ITERATION METHOD */
 			t1 = chrono::high_resolution_clock::now();
+			printf("Level: %d | XkL: %dx%d | U: %dx%d \n", k, XkL.rows(), XkL.cols(), U[k].rows(), U[k].cols());
 			XkL = U[k] * XkL;
+			printf("Level: %d | XkL: %dx%d | U: %dx%d \n", k, XkL.rows(), XkL.cols(), U[k].rows(), U[k].cols());
 			printf("____<3> Lifting, Init vectors: %dx%d ", XkL.rows(), XkL.cols());
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
@@ -1998,12 +2022,15 @@ namespace MuLES
 					}
 				}
 				else {
+					int solveCounter = 0;
 					Eigen::VectorXd v;
 					for (int j = 0; j < q; ++j) {						// easily parallelizeable
 						if (conv2(j) < tol && j > 0) continue;
 						v = MK * (XkL.col(j));
 						XbarK.col(j) = factorization.solve(v);
+						solveCounter++;
 					}
+					std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
 				}
 				t2 = chrono::high_resolution_clock::now();
 				duration = t2 - t1;
@@ -2101,7 +2128,7 @@ namespace MuLES
 		t1 = chrono::high_resolution_clock::now();
 		duration = t1 - t0;
 		cout << "...in " << duration.count() << " seconds." << endl;
-		if (k < level) {
+		if (k <= level) {
 			timingPerLevel(k) = duration.count();
 			itersPerLevel(k) = iterCount;
 		}
@@ -2405,8 +2432,9 @@ namespace MuLES
 		setInitialSystem(sampSize.rows());
 		constructSampleHierarchy(sampSize);
 		constructBasis(basisSupport);
-
-		performSubspaceIterationMethod(SIMType::SIM_MultiLevel, numEigs, maxIter, tol, isWithShift);		
+		
+		// SHIFT is FAKE-ly used to switch between DISCARDING the converged and not!
+		performSubspaceIterationMethod(SIMType::SIM_MultiLevel, numEigs, maxIter, tol, isWithShift);
 	}
 
 	/**

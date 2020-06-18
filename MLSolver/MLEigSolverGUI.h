@@ -748,7 +748,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		
 
-		static bool isShiftedSIM = false;
+		static bool isShiftedSIM = true;
 		ImGui::Checkbox("with shift", &(isShiftedSIM));
 		static double zhaoShiftParam = 0.25;
 		if (isShiftedSIM) {
