@@ -764,6 +764,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		static char qParamTxt[10] = "2.0"; ImGui::InputText("q Param", qParamTxt, 10);
 		qParam = atof(qParamTxt);
 
+		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
+			eigenSolver->qParam = qParam;
+			eigenSolver->zhaoShiftParam = zhaoShiftParam;
+			eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, 10.0, 7.5);
+		}
+
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
