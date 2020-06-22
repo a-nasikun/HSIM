@@ -1216,6 +1216,61 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				}
 			}
 		}
+
+		if (ImGui::Button("Scripted (7) Disc. Converged", ImVec2(w, 0))) {
+
+			chrono::high_resolution_clock::time_point	t0, t1;
+			chrono::duration<double>					duration;
+
+			Eigen::VectorXi			sampSize;
+			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
+			std::vector<double>		levelRatio{ 10 };
+			//std::vector<double>		levelSupport{ 5.0, 7.5, 10.0, 12.5, 15.0, 20.0 };
+			std::vector<double>		levelSupport{ 7.5 };
+			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
+			//std::vector<double>		levelZhaoParam{ 0.25 };			
+			std::vector<double>		levelZhaoParam{ 0.25 };
+			vector<int>				wantedModes{ 50, 200, 500};
+			std::vector<double>		qParam{ 2.0, 1.5 };
+			//vector<int>				wantedModes{ 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
+			//vector<int>				wantedModes{ 500, 750, 1000 };
+			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
+			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
+			//vector<double>			wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
+			//vector<double>			wantedTols{ 1e-10 };
+			vector<double>			wantedTols{ 1e-4 };
+			int						maxIters = 50;
+
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
+
+				for (int i = 0; i < levelRatio.size(); ++i) {
+					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;					
+
+					for (int l = 0; l < levelSupport.size(); ++l) {
+						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;		
+
+						for (int n = 0; n < qParam.size(); ++n) {
+							eigenSolver->qParam = qParam[n];
+
+							for (int m = 0; m < levelZhaoParam.size(); ++m) {
+								eigenSolver->zhaoShiftParam = levelZhaoParam[m];
+								std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
+
+								std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
+								for (int k = 0; k < wantedTols.size(); ++k) {
+									std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
+									// Our current solver (shift as FALSE)
+									eigenSolver->solve(wantedModes[j], maxIters, wantedTols[k], false, MuLES::MLEigenSolver::ShiftType::SHIFT_BATHE, 0, 0, levelRatio[i], levelSupport[l]);
+									// Do not include the converged ones into consideratoin (shift as TRUE)
+									eigenSolver->solve(wantedModes[j], maxIters, wantedTols[k], true, MuLES::MLEigenSolver::ShiftType::SHIFT_BATHE, 0, 0, levelRatio[i], levelSupport[l]);
+								}	// toleransi
+							}		// zhao's shift param
+						}			// qParam
+					}				// support radius
+				}					// level ratio
+			}						// wanted modes
+		}
 	}
 
 

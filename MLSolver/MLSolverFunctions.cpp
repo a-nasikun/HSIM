@@ -1850,7 +1850,7 @@ namespace MuLES
 		t1 = chrono::high_resolution_clock::now();
 		duration = t1 - t0;
 		cout << "...in " << duration.count() << " seconds." << endl;
-		if (k < level) {
+		if (k <= level) {
 			timingPerLevel(k) = duration.count();
 			itersPerLevel(k) = iterCount;
 		}
