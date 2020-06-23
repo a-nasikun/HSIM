@@ -512,18 +512,26 @@ namespace MuLES
 	*  @param	SK			Stiffness matrix in the Ritz subspace 
 	*  @param	convRate	Vector storing the convergence rate of each pair of eigenvalue and eigenvector in Ritz subspace	
 	*/
-	void MLEigenSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const
+	void MLEigenSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const
 	{
 		convRate.resize(A.rows());
 		Eigen::VectorXd Kq, AMq, diff;
 
-		for (int i = 0; i < A.rows(); i++) {
+		//Eigen::MatrixXd KQ = SK*Q.topLeftCorner(Q.rows(), num);
+		//Eigen::MatrixXd AMQ = (MK*Q.topLeftCorner(Q.rows(), num)).array().rowwise() * (A.head(num)).transpose().array();
+		//Eigen::MatrixXd AMQ = MK*Q.topLeftCorner(Q.rows(), num);
+		//Eigen::MatrixXd Diff = KQ - AMQ;
+
+		for (int i = 0; i < num; i++) {
 			Kq = SK * Q.col(i);
 			AMq = A(i)*MK*Q.col(i);
 			diff = Kq - AMq;
+			//diff = KQ.col(i) - A(i)*AMQ.col(i);
 
 			double n1 = diff.transpose()*MK*diff;
 			double n2 = Kq.transpose()*MK*Kq;
+			//double n1 = Diff.col(i).transpose()*MK*Diff.col(i);
+			//double n2 = KQ.col(i).transpose()*MK*KQ.col(i);
 			convRate(i) = sqrt(n1 / n2);
 		}
 		//printf("eigVals: %d | S: %dx%d | M: %dx%d \n", A.rows(), SK.rows(), SK.cols(), MK.rows(), MK.cols());
@@ -543,11 +551,11 @@ namespace MuLES
 	*  @param	SK			Stiffness matrix in the Ritz subspace
 	*  @param	convRate	Vector storing the convergence rate of each pair of eigenvalue and eigenvector in Ritz subspace
 	*/
-	void MLEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate) const
+	void MLEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, bool isWithShift, double mu, Eigen::VectorXd& convRate) const
 	{
 		convRate.resize(A.rows());
 
-		for (int i = 0; i < A.rows(); ++i)
+		for (int i = 0; i < num; ++i)
 		{
 			double a2 = A(i)*A(i);
 			double qTq = Q.col(i).transpose()*Q.col(i);

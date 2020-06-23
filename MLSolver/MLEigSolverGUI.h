@@ -1365,7 +1365,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, 1, 5000, tolVect[i]);
 					
 					Eigen::VectorXd conv2;
-					eigenSolver->checkConvergenceCat2(EigVects, EigVals, eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
+					eigenSolver->checkConvergenceCat2(EigVects, EigVals, wantedModes[j], eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
 					std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
 					//tol /= 10000;
 
@@ -1416,7 +1416,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					computeEigenMatlab(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, tolVect[i], "");
 
 					Eigen::VectorXd conv2;
-					eigenSolver->checkConvergenceCat2(EigVects, EigVals, eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
+					eigenSolver->checkConvergenceCat2(EigVects, EigVals, wantedModes[j], eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
 					std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
 					//tol /= 10000;
 
@@ -1460,7 +1460,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 					eigenSolver->computeRefEigenProblem(numEigs[k], solverTypeMap[j]);
 					Eigen::VectorXd conv2;
-					eigenSolver->checkConvergenceCat2(eigenSolver->getEigenVectorsRef(), eigenSolver->getEigenValuesRef(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
+					eigenSolver->checkConvergenceCat2(eigenSolver->getEigenVectorsRef(), eigenSolver->getEigenValuesRef(), numEigs[k], eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
 					std::cout << "Conv: " << conv2 << std::endl;
 
 					t1 = chrono::high_resolution_clock::now();

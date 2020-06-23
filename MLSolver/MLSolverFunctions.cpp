@@ -772,12 +772,12 @@ namespace MuLES
 
 			/* Convergence Check*
 			** Type 2: */
-			checkConvergenceCat2(Xk, Alpha, ML, S, conv2);
+			checkConvergenceCat2(Xk, Alpha, numEigs, ML, S, conv2);
 			//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 			cout << "Conv 2 \n" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
 
 			/* Type 3: */
-			checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
+			checkConvergenceCat3(Q, Alpha, numEigs, isWithShift, mu, conv3);
 			//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 			cout << "Conv 3 \n" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
 
@@ -1058,10 +1058,10 @@ namespace MuLES
 
 				/* Convergence Check*
 				** Type 2: */
-				checkConvergenceCat2(Xk, Alpha, ML, SL, conv2);
+				checkConvergenceCat2(Xk, Alpha, numEigs, ML, SL, conv2);
 				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 				/* Type 3: */
-				checkConvergenceCat3(Q, Alpha, isWithShift, mu, conv3);
+				checkConvergenceCat3(Q, Alpha, numEigs, isWithShift, mu, conv3);
 				cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 
 				cout << Alpha.head(numEigs).transpose() << endl;
@@ -1249,10 +1249,10 @@ namespace MuLES
 				//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 	
 				XkL = XbarK*Q;
-				checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
+				checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
 				cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs/2) << " " << conv2(numEigs-1) << endl;
 	
-				checkConvergenceCat3(Q, AkL, isWithShift, -eps, conv3);
+				checkConvergenceCat3(Q, AkL, numEigs, isWithShift, -eps, conv3);
 				cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs/2) << " " << conv3(numEigs-1) << endl;
 	
 	
@@ -1523,10 +1523,10 @@ namespace MuLES
 	
 					/* Convergence Check*
 					** Type 2: */
-					checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
+					checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
 					cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 					/* Type 3: */
-					checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
+					checkConvergenceCat3(Q, AkL, numEigs, isWithShift, mu, conv3);
 					cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 	
 					cout << AkL.head(numEigs).transpose() << endl;
@@ -1793,7 +1793,7 @@ namespace MuLES
 				** Type 2: */
 				t1 = chrono::high_resolution_clock::now();
 				printf("________Convergence check");
-				checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
+				checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
 				t2 = chrono::high_resolution_clock::now();
 				duration = t2 - t1;
 				cout << "...in " << duration.count() << " seconds." << endl;
@@ -2079,7 +2079,7 @@ namespace MuLES
 				** Type 2: */
 				t1 = chrono::high_resolution_clock::now();
 				printf("__Convergence check.");
-				checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
+				checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
 				t2 = chrono::high_resolution_clock::now();
 				duration = t2 - t1;
 				cout << "...in " << duration.count() << " seconds." << endl;
