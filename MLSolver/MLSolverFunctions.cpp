@@ -584,12 +584,14 @@ namespace MuLES
 			if (isWithShift) {
 				std::cout << "DISCARD CONVERGED EIGEN \n";
 				//performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
-				performMultiLevelSIM_withShiftOnceConverged(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
+				//performMultiLevelSIM_withShiftOnceConverged(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
+				performMultiLevelSIM_withShiftOnceConverged(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, true, shiftType);
 			}
 			else {
 				std::cout << "USE CONVERGED EIGEN \n";
 				//performMultiLevelSIM(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
-				performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
+				//performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
+				performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, true, shiftType);
 			}
 		}
 		else {
