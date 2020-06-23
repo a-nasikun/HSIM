@@ -558,8 +558,8 @@ namespace MuLES
 		EigValsSIMStack.setZero();
 		convergence2Stacks.resize(numEigs, maxIter);
 		convergence2Stacks.setZero();
-		convergence3Stacks.resize(numEigs, maxIter);
-		convergence3Stacks.setZero();
+		//convergence3Stacks.resize(numEigs, maxIter);
+		//convergence3Stacks.setZero();
 
 		Eigen::SparseMatrix<double> MSel, SSel;
 		if (isClampedBasis) {
@@ -618,8 +618,8 @@ namespace MuLES
 		writeDenseMatrixToFile(EigValsSIMStack, fileConv);
 		string fileEigs = "../../Data/" + modelName + "_Convergence2Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
 		writeDenseMatrixToFile(convergence2Stacks, fileEigs);
-		fileEigs = "../../Data/" + modelName + "_Convergence3Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
-		writeDenseMatrixToFile(convergence3Stacks, fileEigs);
+		//fileEigs = "../../Data/" + modelName + "_Convergence3Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
+		//writeDenseMatrixToFile(convergence3Stacks, fileEigs);
 	}
 	
 	/**
@@ -1791,21 +1791,28 @@ namespace MuLES
 	
 				/* Convergence Check*
 				** Type 2: */
+				t1 = chrono::high_resolution_clock::now();
+				printf("________Convergence check");
 				checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
+				t2 = chrono::high_resolution_clock::now();
+				duration = t2 - t1;
+				cout << "...in " << duration.count() << " seconds." << endl;
+
 				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+
 				/* Type 3: */
-				checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
+				//checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
 				//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 	
-				cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
-				cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
+				//cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
+				//cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
 	
 				//cout << AkL.head(numEigs).transpose() << endl;
 	
 				if (k == 0) {
 					EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
 					convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
-					convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
+					//convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
 				}
 	
 				iterCount++;
@@ -1842,7 +1849,7 @@ namespace MuLES
 			if (k == 0) {
 				cout << "____<7> Storing the convergence data. \n";
 				convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
-				convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
+				//convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
 				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 			}
 		}
@@ -1986,7 +1993,7 @@ namespace MuLES
 					zhaoShiftId = lastConvergedId + (int)floor(zhaoParam*(numEigs - lastConvergedId));
 					if (factCounter == 0) {
 						if (tol < 1e-9 && k == 0) {
-							std::cout << "__On finest level, no shift on really high accuracy!" << std::endl;
+							std::cout << "__On finest level, no shift on really high accuracy!"; // << std::endl;
 							factorization.compute(SK + eps*Id);
 						}
 						else {
@@ -2020,6 +2027,7 @@ namespace MuLES
 						v = MK * (XkL.col(j));
 						XbarK.col(j) = factorization.solve(v);
 					}
+					std::cout << "Soving all" << q << " equations \n";
 				}
 				else {
 					int solveCounter = 0;
@@ -2038,7 +2046,7 @@ namespace MuLES
 
 				/* Projection of M and K*/
 				t1 = chrono::high_resolution_clock::now();
-				printf("________setting up reduced matrix M and S. ");
+				printf("___setting up reduced matrix M and S. ");
 				Sproj = XbarK.transpose()*SK*XbarK;
 				Mproj = XbarK.transpose()*MK*XbarK;
 				t2 = chrono::high_resolution_clock::now();
@@ -2046,7 +2054,7 @@ namespace MuLES
 				cout << "...in " << duration.count() << " seconds." << endl;
 
 				t1 = chrono::high_resolution_clock::now();
-				printf("________solve reduced eigenvalue problem. ");
+				printf("__solve reduced eigenvalue problem. ");
 				status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 				cout << "__STATUS: " << status << endl;
 				if (status != 0) {
@@ -2061,7 +2069,7 @@ namespace MuLES
 				cout << "...in " << duration.count() << " seconds." << endl;
 
 				t1 = chrono::high_resolution_clock::now();
-				printf("________lifting up/prolongation.");
+				printf("__lifting up/prolongation.");
 				XkL = XbarK*Q;
 				t2 = chrono::high_resolution_clock::now();
 				duration = t2 - t1;
@@ -2069,21 +2077,28 @@ namespace MuLES
 
 				/* Convergence Check*
 				** Type 2: */
+				t1 = chrono::high_resolution_clock::now();
+				printf("__Convergence check.");
 				checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
+				t2 = chrono::high_resolution_clock::now();
+				duration = t2 - t1;
+				cout << "...in " << duration.count() << " seconds." << endl;
+
 				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+
 				/* Type 3: */
-				checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
+				//checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
 				//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 
-				cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
-				cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
+				//cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
+				///cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
 
 				//cout << AkL.head(numEigs).transpose() << endl;
 
 				if (k == 0) {
 					EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
 					convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
-					convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
+					//convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
 				}
 
 				iterCount++;
@@ -2121,7 +2136,7 @@ namespace MuLES
 				cout << "____<7> Storing the convergence data. \n";
 				convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
 				convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
-				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
+				///EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 			}
 		}
 
