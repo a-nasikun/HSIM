@@ -874,7 +874,8 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 	
 	//bool isParallel = false;
 
-	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factor;	
+	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factor;	
+	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factor;
 
 	/* Generating random matrix as input */
 	Eigen::MatrixXd input, output;
@@ -891,13 +892,19 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 	//input = M*input;
 
 
-	cout << "___Factorizing ";
+	cout << "___Factorizing \n";
 	
 	/* Factorizing (Serial) */
 	if (!isParallel)
 	{		
 		std::cout << " (Serial)...";
+		t1 = chrono::high_resolution_clock::now();
 		factor.compute(S);
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
+
+		std::cout << " Solving...";
 		t1 = chrono::high_resolution_clock::now();
 		for (int i = 0; i < numCols; ++i) {
 			output.col(i) = factor.solve(input.col(i));
@@ -918,8 +925,14 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 		factor.compute(S);
 		//factor.pardisoParameterArray()[33] = 1;
 		//auto const& cfactor = factor;
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
 
-		const int		NUM_OF_THREADS = omp_get_num_procs();
+		std::cout << " Solving...";
+		t1 = chrono::high_resolution_clock::now();
+
+		const int		NUM_OF_THREADS = omp_get_num_procs()/2;
 		//const int		NUM_OF_THREADS = 2;
 		omp_set_num_threads(NUM_OF_THREADS);
 		//Eigen::setNbThreads(NUM_OF_THREADS);
@@ -929,7 +942,7 @@ void MLEigenSolver::testParallelFactorization(bool isParallel)
 		auto const& cinput = input; // Not sure if "input" is already const, let's make sure
 		auto const& cfactor = factor; // Make sure we have a const reference to "factor"
 
-		vector<Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>> factorPar(NUM_OF_THREADS);
+		//vector<Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>> factorPar(NUM_OF_THREADS);
 		
 		//factorPar[0] = &(*factor);
 		//factorPar.resize(NUM_OF_THREADS);

@@ -1472,6 +1472,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 
 		/* Adding a small number on the diagonal, for robustness */
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		//Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 
 		//printf("____<4> Embedding a small-valued diagonal matrix \n");
 

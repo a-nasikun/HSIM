@@ -9,13 +9,26 @@ cmake_policy(SET CMP0076 NEW)
 find_package(OpenMP)
 find_package(OpenGL)
 
+# ------------------------------------------------------------------
+# Detect SuiteSparse libraries:
+# If not found automatically, set SuiteSparse_DIR in CMake to the 
+# directory where SuiteSparse was built.
+# ------------------------------------------------------------------
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/..") # Add the directory where FindSuiteSparse.cmake module can be found.
+set(SuiteSparse_USE_LAPACK_BLAS ON)
+
 # Matlab
 set (MATLAB_LIBRARY_DIR "" CACHE PATH "Matlab static library dirs (e.g. R2018a/extern/lib/win64/microsoft)")
 set (MATLAB_INCLUDE_DIR "" CACHE PATH "Matlab include dir ((e.g. R2018a/extern/include)")
 set (SPECTRA_INCLUDE_DIR "" CACHE PATH "Include library for the Spectra eigensolver")
+set (SuiteSparse_LIBRARIES "" CACHE PATH "SuiteSparse install folder")
 include_directories(${MATLAB_INCLUDE_DIR})
 include_directories(${SPECTRA_INCLUDE_DIR}/include)
+include_directories(${SuiteSparse_LIBRARIES}/include/)
+include_directories(${SuiteSparse_LIBRARIES}/include/suitesparse/)
 link_directories(${MATLAB_LIBRARY_DIR})
+link_directories(${SuiteSparse_LIBRARIES}/lib/)
+link_directories(${SuiteSparse_LIBRARIES}/lib64/lapack_blas_windows)
 					
 # EIGEN
 # #################################################################################################
@@ -97,6 +110,23 @@ target_link_libraries(MultiLevelEigenSolver
 	libut.lib                   # 
 	libmex.lib                  # 
 	libmx.lib                   # for matlab stuff
+	GPUQREngine.lib 			# SuiteSparse
+	libblas.lib					
+	liblapack.lib 
+	libamd.lib 
+	libbtf.lib
+	libcamd.lib 
+	libccolamd.lib 
+	libcholmod.lib 
+	libcolamd.lib 
+	libcxsparse.lib 
+	libklu.lib 
+	libldl.lib
+	libspqr.lib 
+	libumfpack.lib 
+	metis.lib 
+	SuiteSparse_GPURuntime.lib 
+	suitesparseconfig.lib 		# SuiteSparse
 	)
 set_target_properties(MultiLevelEigenSolver PROPERTIES
 	VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin
