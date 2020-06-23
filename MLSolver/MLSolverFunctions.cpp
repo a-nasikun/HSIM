@@ -1695,7 +1695,8 @@ namespace MuLES
 			cout << "...in " << duration.count() << " seconds." << endl;
 	
 			/* Adding a small number on the diagonal, for robustness */
-			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+			//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 	
 			//printf("____<4> Embedding a small-valued diagonal matrix \n");
 	
@@ -1761,13 +1762,34 @@ namespace MuLES
 				printf("Iteration: %d \n", iterCount + 1);
 	
 				std::cout << "Solving each RHS ";
-				t1 = chrono::high_resolution_clock::now();
-				for (int j = 0; j < q; ++j) {						// easily parallelizeable
-					Eigen::VectorXd v;
-					v = MK * (XkL.col(j));
-					XbarK.col(j) = factorization.solve(v);
-				}				
+				const int		NUM_OF_THREADS = omp_get_num_procs();
+				//const int		NUM_OF_THREADS = 2;
+				omp_set_num_threads(NUM_OF_THREADS);
+				int tid, ntids, ipts, istart, iproc;
+				int iCol = 0;
+#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+				{
+					iproc = omp_get_num_procs();
+					tid = omp_get_thread_num();
+					ntids = omp_get_num_threads();
+					ipts = (int)ceil((double)q / (double)ntids);
+					istart = tid * ipts;
+					if (tid == ntids - 1) ipts = q - istart;
+					if (ipts <= 0) ipts = 0;
 
+					for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+						Eigen::VectorXd v;
+						v = MK * (XkL.col(iCol));
+						XbarK.col(iCol) = factorization.solve(v);
+					}
+				}
+				//t1 = chrono::high_resolution_clock::now();
+				//for (int j = 0; j < q; ++j) {						// easily parallelizeable
+				//	Eigen::VectorXd v;
+				//	v = MK * (XkL.col(j));
+				//	XbarK.col(j) = factorization.solve(v);
+				//}				
+				
 				t2 = chrono::high_resolution_clock::now();
 				duration = t2 - t1;
 				cout << "...in " << duration.count() << " seconds." << endl;
@@ -2060,7 +2082,7 @@ namespace MuLES
 					//std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
 				//}
 
-				const int		NUM_OF_THREADS = omp_get_num_procs() / 2;
+				const int		NUM_OF_THREADS = omp_get_num_procs();
 				//const int		NUM_OF_THREADS = 2;
 				omp_set_num_threads(NUM_OF_THREADS);
 				int tid, ntids, ipts, istart, iproc;
