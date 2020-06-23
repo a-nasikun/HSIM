@@ -732,7 +732,9 @@ namespace MuLES
 		Eigen::MatrixXd Mproj, Sproj;
 		Eigen::MatrixXd Q;
 		Eigen::VectorXd Alpha;
-		Eigen::VectorXd conv2, conv3;
+		Eigen::VectorXd conv2(numEigs), conv3(numEigs);
+		conv2.setConstant(std::numeric_limits<double>::max());
+		conv3.setConstant(std::numeric_limits<double>::max());
 
 		do {
 			printf("________ (%d) iteration \n", k + 1);
@@ -912,7 +914,9 @@ namespace MuLES
 		Eigen::MatrixXd Mproj, Sproj;
 		Eigen::MatrixXd Q;
 
-		Eigen::VectorXd conv2, conv3;
+		Eigen::VectorXd conv2(numEigs), conv3(numEigs);
+		conv2.setConstant(std::numeric_limits<double>::max());
+		conv3.setConstant(std::numeric_limits<double>::max());
 
 		int						firstNZ = 0;
 		int						lastConvergedId = 0;
@@ -1217,7 +1221,9 @@ namespace MuLES
 			Eigen::MatrixXd Mproj, Sproj;
 			Eigen::MatrixXd Q;
 			//Eigen::VectorXd Alpha;
-			Eigen::VectorXd conv2, conv3;
+			Eigen::VectorXd conv2(numEigs), conv3(numEigs);
+			conv2.setConstant(std::numeric_limits<double>::max());
+			conv3.setConstant(std::numeric_limits<double>::max());
 	
 	
 			/* Iterating*/
@@ -1390,7 +1396,10 @@ namespace MuLES
 			Eigen::MatrixXd Mproj, Sproj;
 			Eigen::MatrixXd Q;
 			//Eigen::VectorXd Alpha;
-			Eigen::VectorXd conv2, conv3;
+			Eigen::VectorXd conv2(numEigs), conv3(numEigs);
+			conv2.setConstant(std::numeric_limits<double>::max());
+			conv3.setConstant(std::numeric_limits<double>::max());
+
 			double mu = 0;
 			double eps = 1e-5*std::numeric_limits<double>::epsilon();
 	
@@ -1696,7 +1705,9 @@ namespace MuLES
 			Eigen::MatrixXd Mproj, Sproj;
 			Eigen::MatrixXd Q;
 			//Eigen::VectorXd Alpha;
-			Eigen::VectorXd conv2, conv3;
+			Eigen::VectorXd conv2(numEigs), conv3(numEigs);
+			conv2.setConstant(std::numeric_limits<double>::max());
+			conv3.setConstant(std::numeric_limits<double>::max());
 	
 			int						firstNZ = 0;
 			int						lastConvergedId = 0;
@@ -1755,7 +1766,8 @@ namespace MuLES
 					Eigen::VectorXd v;
 					v = MK * (XkL.col(j));
 					XbarK.col(j) = factorization.solve(v);
-				}
+				}				
+
 				t2 = chrono::high_resolution_clock::now();
 				duration = t2 - t1;
 				cout << "...in " << duration.count() << " seconds." << endl;
@@ -1850,9 +1862,9 @@ namespace MuLES
 			/* Print some data when it's on the finest level */
 			if (k == 0) {
 				cout << "____<7> Storing the convergence data. \n";
+				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 				convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
 				//convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
-				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 			}
 		}
 	
@@ -1957,7 +1969,8 @@ namespace MuLES
 			cout << "...in " << duration.count() << " seconds." << endl;
 
 			/* Adding a small number on the diagonal, for robustness */
-			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+			//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 
 			//printf("____<4> Embedding a small-valued diagonal matrix \n");
 
@@ -1967,7 +1980,10 @@ namespace MuLES
 			Eigen::MatrixXd Mproj, Sproj;
 			Eigen::MatrixXd Q;
 			//Eigen::VectorXd Alpha;
-			Eigen::VectorXd conv2, conv3;
+			Eigen::VectorXd conv2(q), conv3(q);
+			conv2.setConstant(std::numeric_limits<double>::max());
+			conv3.setConstant(std::numeric_limits<double>::max());		
+			
 
 			int						firstNZ = 0;
 			int						lastConvergedId = 0;
@@ -2022,26 +2038,51 @@ namespace MuLES
 
 				std::cout << "Solving each RHS ";
 				t1 = chrono::high_resolution_clock::now();
-				if (iterCount == 0)
+				//if (iterCount == 0)
+				//{
+				//	Eigen::VectorXd v;
+				//	for (int j = 0; j < q; ++j) {						// easily parallelizeable
+				//		v = MK * (XkL.col(j));
+				//		XbarK.col(j) = factorization.solve(v);
+				//	}
+				//	std::cout << "Soving all" << q << " equations \n";
+				//}
+				//else {
+
+					//int solveCounter = 0;
+					//Eigen::VectorXd v;
+					//for (int j = 0; j < q; ++j) {						// easily parallelizeable
+					//	if (conv2(j) < tol && j > 0) continue;
+					//	v = MK * (XkL.col(j));
+					//	XbarK.col(j) = factorization.solve(v);
+					//	solveCounter++;
+					//}
+					//std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
+				//}
+
+				const int		NUM_OF_THREADS = omp_get_num_procs() / 2;
+				//const int		NUM_OF_THREADS = 2;
+				omp_set_num_threads(NUM_OF_THREADS);
+				int tid, ntids, ipts, istart, iproc;
+				int iCol = 0;
+#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
 				{
-					Eigen::VectorXd v;
-					for (int j = 0; j < q; ++j) {						// easily parallelizeable
-						v = MK * (XkL.col(j));
-						XbarK.col(j) = factorization.solve(v);
+					iproc = omp_get_num_procs();
+					tid = omp_get_thread_num();
+					ntids = omp_get_num_threads();
+					ipts = (int)ceil((double)q / (double)ntids);
+					istart = tid * ipts;
+					if (tid == ntids - 1) ipts = q - istart;
+					if (ipts <= 0) ipts = 0;
+
+					for (iCol = istart; iCol < (istart + ipts); ++iCol) {		
+						if (conv2(iCol) < tol && iCol > 0) continue;
+						Eigen::VectorXd v;
+						v = MK * (XkL.col(iCol));
+						XbarK.col(iCol) = factorization.solve(v);
 					}
-					std::cout << "Soving all" << q << " equations \n";
 				}
-				else {
-					int solveCounter = 0;
-					Eigen::VectorXd v;
-					for (int j = 0; j < q; ++j) {						// easily parallelizeable
-						if (conv2(j) < tol && j > 0) continue;
-						v = MK * (XkL.col(j));
-						XbarK.col(j) = factorization.solve(v);
-						solveCounter++;
-					}
-					std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
-				}
+
 				t2 = chrono::high_resolution_clock::now();
 				duration = t2 - t1;
 				cout << "...in " << duration.count() << " seconds." << endl;
@@ -2136,9 +2177,9 @@ namespace MuLES
 			/* Print some data when it's on the finest level */
 			if (k == 0) {
 				cout << "____<7> Storing the convergence data. \n";
+				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 				convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
-				convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
-				///EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
+				//convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
 			}
 		}
 
