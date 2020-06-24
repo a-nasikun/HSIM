@@ -1706,7 +1706,7 @@ namespace MuLES
 			Eigen::MatrixXd Mproj, Sproj;
 			Eigen::MatrixXd Q;
 			//Eigen::VectorXd Alpha;
-			Eigen::VectorXd conv2(numEigs), conv3(numEigs);
+			Eigen::VectorXd conv2(q), conv3(q);
 			conv2.setConstant(std::numeric_limits<double>::max());
 			conv3.setConstant(std::numeric_limits<double>::max());
 	
@@ -1727,6 +1727,8 @@ namespace MuLES
 			double eps = 1e3*std::numeric_limits<double>::epsilon();
 	
 			printf("____<5> Subspace iteration.\n");
+			printf("Size of XkL: %dx%d \n", XkL.rows(), XkL.cols());
+			printf("Size of XbarK: %dx%d \n", XbarK.rows(), XbarK.cols());
 			do {
 				t1 = chrono::high_resolution_clock::now();
 				if (status != 0)
@@ -1762,7 +1764,8 @@ namespace MuLES
 				printf("Iteration: %d \n", iterCount + 1);
 	
 				std::cout << "Solving each RHS ";
-				const int		NUM_OF_THREADS = omp_get_num_procs();
+				const int		NUM_OF_THREADS = min(q, omp_get_num_procs());
+				cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
 				//const int		NUM_OF_THREADS = 2;
 				omp_set_num_threads(NUM_OF_THREADS);
 				int tid, ntids, ipts, istart, iproc;
@@ -1772,12 +1775,15 @@ namespace MuLES
 					iproc = omp_get_num_procs();
 					tid = omp_get_thread_num();
 					ntids = omp_get_num_threads();
-					ipts = (int)ceil((double)q / (double)ntids);
+					//ipts = (int)ceil((double)q / (double)ntids);
+					ipts = (q+ntids-1) / ntids;
 					istart = tid * ipts;
 					if (tid == ntids - 1) ipts = q - istart;
 					if (ipts <= 0) ipts = 0;
+					//printf("[%d] block %d->%d (%d) \n", tid, istart, istart + ipts, ipts);
 
 					for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+						if (iCol >= q) continue;
 						Eigen::VectorXd v;
 						v = MK * (XkL.col(iCol));
 						XbarK.col(iCol) = factorization.solve(v);
@@ -2082,7 +2088,9 @@ namespace MuLES
 					//std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
 				//}
 
-				const int		NUM_OF_THREADS = omp_get_num_procs();
+				//const int		NUM_OF_THREADS = omp_get_num_procs();
+				const int		NUM_OF_THREADS = min(q, omp_get_num_procs());
+				cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
 				//const int		NUM_OF_THREADS = 2;
 				omp_set_num_threads(NUM_OF_THREADS);
 				int tid, ntids, ipts, istart, iproc;
@@ -2092,14 +2100,18 @@ namespace MuLES
 					iproc = omp_get_num_procs();
 					tid = omp_get_thread_num();
 					ntids = omp_get_num_threads();
-					ipts = (int)ceil((double)q / (double)ntids);
+					//ipts = (int)ceil((double) q / (double)ntids);
+					//ipts = q / ntids;
+					ipts = (q + ntids - 1) / ntids;
 					istart = tid * ipts;
 					if (tid == ntids - 1) ipts = q - istart;
 					if (ipts <= 0) ipts = 0;
+						
+					Eigen::VectorXd v;
 
-					for (iCol = istart; iCol < (istart + ipts); ++iCol) {		
+					for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+						if (iCol >= q) continue;
 						if (conv2(iCol) < tol && iCol > 0) continue;
-						Eigen::VectorXd v;
 						v = MK * (XkL.col(iCol));
 						XbarK.col(iCol) = factorization.solve(v);
 					}
@@ -2507,11 +2519,20 @@ namespace MuLES
 		initiateAdM();
 		constructStiffnessMatrix();
 
+		chrono::high_resolution_clock::time_point	t0, t1;
+		chrono::duration<double>					duration;
+		cout << "> Constructing hierarchy... " << endl;
+		t0 = chrono::high_resolution_clock::now();
+
 		Eigen::VectorXi sampSize;
 		setSamplingLevels(sampSize, numEigs, levelRatio);
 		setInitialSystem(sampSize.rows());
 		constructSampleHierarchy(sampSize);
 		constructBasis(basisSupport);
+
+		t1 = chrono::high_resolution_clock::now();
+		duration = t1 - t0;
+		cout << "in " << duration.count() << " seconds." << endl;
 		
 		// SHIFT is FAKE-ly used to switch between DISCARDING the converged and not!
 		performSubspaceIterationMethod(SIMType::SIM_MultiLevel, numEigs, maxIter, tol, isWithShift);

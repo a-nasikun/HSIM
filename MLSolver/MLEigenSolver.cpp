@@ -515,24 +515,42 @@ namespace MuLES
 	void MLEigenSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const
 	{
 		convRate.resize(A.rows());
-		Eigen::VectorXd Kq, AMq, diff;
 
 		//Eigen::MatrixXd KQ = SK*Q.topLeftCorner(Q.rows(), num);
 		//Eigen::MatrixXd AMQ = (MK*Q.topLeftCorner(Q.rows(), num)).array().rowwise() * (A.head(num)).transpose().array();
 		//Eigen::MatrixXd AMQ = MK*Q.topLeftCorner(Q.rows(), num);
 		//Eigen::MatrixXd Diff = KQ - AMQ;
 
-		for (int i = 0; i < num; i++) {
-			Kq = SK * Q.col(i);
-			AMq = A(i)*MK*Q.col(i);
-			diff = Kq - AMq;
-			//diff = KQ.col(i) - A(i)*AMQ.col(i);
+		const int		NUM_OF_THREADS = omp_get_num_procs();
+		//const int		NUM_OF_THREADS = 2;
+		omp_set_num_threads(NUM_OF_THREADS);
+		int tid, ntids, ipts, istart, iproc;
+		int iCol = 0;
+#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+		{
+			iproc = omp_get_num_procs();
+			tid = omp_get_thread_num();
+			ntids = omp_get_num_threads();
+			ipts = (int)ceil((double)num / (double)ntids);
+			istart = tid * ipts;
+			if (tid == ntids - 1) ipts = num - istart;
+			if (ipts <= 0) ipts = 0;
 
-			double n1 = diff.transpose()*MK*diff;
-			double n2 = Kq.transpose()*MK*Kq;
-			//double n1 = Diff.col(i).transpose()*MK*Diff.col(i);
-			//double n2 = KQ.col(i).transpose()*MK*KQ.col(i);
-			convRate(i) = sqrt(n1 / n2);
+			Eigen::VectorXd Kq, AMq, diff;
+
+			for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+				if (iCol >= num) continue;
+				Kq = SK * Q.col(iCol);
+				AMq = A(iCol)*MK*Q.col(iCol);
+				diff = Kq - AMq;
+				//diff = KQ.col(i) - A(i)*AMQ.col(i);
+
+				double n1 = diff.transpose()*MK*diff;
+				double n2 = Kq.transpose()*MK*Kq;
+				//double n1 = Diff.col(i).transpose()*MK*Diff.col(i);
+				//double n2 = KQ.col(i).transpose()*MK*KQ.col(i);
+				convRate(iCol) = sqrt(n1 / n2);
+			}
 		}
 		//printf("eigVals: %d | S: %dx%d | M: %dx%d \n", A.rows(), SK.rows(), SK.cols(), MK.rows(), MK.cols());
 	}
