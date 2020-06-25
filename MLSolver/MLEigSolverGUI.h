@@ -174,7 +174,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				std::cout << "Sought modes: " << numOfModes << std::endl;
 
 				/* For 1 level (coarsest level) sampling only*/
-				eigenSolver->setSamplingLevels(sampSize, numOfModes, levelRatio);
+				///eigenSolver->setSamplingLevels(sampSize, numOfModes, levelRatio);
+				eigenSolver->setSamplingLevelsAuto(sampSize, numOfModes, levelRatio);
 				eigenSolver->setInitialSystem(sampSize.rows());
 				eigenSolver->constructSampleHierarchy(sampSize);
 				numLevels = sampSize.size();
@@ -772,7 +773,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
-			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
+			if ((SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
 			
 			eigenSolver->qParam = qParam;
 			eigenSolver->zhaoShiftParam = zhaoShiftParam;
