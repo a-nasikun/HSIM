@@ -1337,9 +1337,19 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
 		}
-
-
-
+		
+		Eigen::MatrixXd OrthMat;
+		if (ImGui::Button("Ort.Ref", ImVec2(w/2.0-p, 0))) {
+			if (eigenSolver->getEigenVectorsRef().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
+			checkOrthonormality(eigenSolver->getEigenVectorsRef(), eigenSolver->getMassMatrix(), OrthMat);
+			//std::cout << "[REF] Orthonormality check \n" << OrthMat << std::endl;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Ort.SIM##1", ImVec2(w/2.0-p, 0))) {
+			if (eigenSolver->getEigenVectorsSIM().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
+			checkOrthonormality(eigenSolver->getEigenVectorsSIM(), eigenSolver->getMassMatrix(), OrthMat);
+			//std::cout << "[SIM] Orthonormality check \n" << OrthMat << std::endl;
+		}
 
 		if (ImGui::Button("Spectra Test", ImVec2(w, 0))) {
 			tol = atof(toleTxt);

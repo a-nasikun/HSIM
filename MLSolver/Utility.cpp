@@ -4,6 +4,7 @@
 
 #include <random>
 #include <fstream>
+#include <igl/matlab/matlabinterface.h>
 
 #include <chrono>				// For quite precise timing, needed (perhaps) in most sub-task
 
@@ -145,5 +146,31 @@ namespace MuLES
 		}
 
 		std::cout << std::endl;
+	}
+
+	void checkOrthonormality(const Eigen::MatrixXd& EigVect, const Eigen::SparseMatrix<double>& M, Eigen::MatrixXd &OrthMat)
+	{
+		Engine* engine;
+		igl::matlab::mlinit(&engine);
+
+		OrthMat = EigVect.transpose()*M*EigVect;
+		igl::matlab::mlsetmatrix(&engine, "M", OrthMat);
+		igl::matlab::mleval(&engine, "clf;");
+		igl::matlab::mleval(&engine, "imagesc(M);");
+
+		srand(time(NULL));
+		int k = rand() % 1000;
+		if(k%2==0)
+			igl::matlab::mleval(&engine, "colormap(gca,jet(256));");
+		else 
+			igl::matlab::mleval(&engine, "colormap(gca,parula(256));");
+		igl::matlab::mleval(&engine, "colorbar(gca);");
+
+		igl::matlab::mleval(&engine, "hold on; n=size(M,1); for i = 1:n    plot([.5,n+.5],[i-.5,i-.5],'k-');    plot([i-.5,i-.5],[.5,n+.5],'k-'); end");
+		//igl::matlab::mleval(&engine, "hold on;");
+		//igl::matlab::mleval(&engine, "for i = 1:size(M,1)+1");
+		//igl::matlab::mleval(&engine, "plot([.5, size(M,1)+0.5], [i - .5, i - .5], 'k-');");
+		//igl::matlab::mleval(&engine, "plot([i - .5, i - .5], [.5, size(M,1)+0.5], 'k-');");
+		//igl::matlab::mleval(&engine, "end");
 	}
 }
