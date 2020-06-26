@@ -1,6 +1,8 @@
 #ifndef FAST_SPECTRUM_GUI
 #define FAST_SPECTRUM_GUI
 
+#include <iostream>
+
 #include <imgui/imgui.h>
 #include <imgui/imgui.cpp>
 #include <imgui/imgui_demo.cpp>
@@ -14,6 +16,8 @@
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/isolines.h>
 
+//#define EIGEN_USE_MKL_ALL 
+#include <Eigen/Eigen>
 #include <Eigen/PardisoSupport>
 #include <Eigen/CholmodSupport>
 #include <Eigen/SPQRSupport>
@@ -25,6 +29,9 @@
 #include "MLEigenSolver.h"
 #include "MLSolverElastics.h"
 #include "MLSolverFunctions.h"
+
+#include <mkl.h>
+//#include <armadillo>
 
 using namespace std;
 
@@ -51,6 +58,8 @@ static double		eigScale		= 1.005;
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXd& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXd& sampSize);
 void testSolver(Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM);
+void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
+void testArmadillo(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
 
 void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
 {
@@ -495,14 +504,14 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				cout << "in " << duration.count() << " seconds." << endl;
 
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
-				cout << eigenSolver->getEigenValuesReduced().head(min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
+				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
 
 				///if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver))
 				///{
 				///	solver->injectRigidModes();
 				///}
 
-				cout << eigenSolver->getEigenValuesReduced().head(min(20, (int)eigenSolver->getEigenValuesReduced().rows()));
+				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows()));
 				//eigToShow = 3; 
 				//
 				//cout << "Showing id: " << eigToShow << endl; 
@@ -524,7 +533,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					return;
 				}
 				static int numRedEigs = atoi(numRedEigTxt);
-				cout << "Red eigenvalues" << eigenSolver->getEigenValuesReduced().head(min(numRedEigs, (int)eigenSolver->getEigenValuesReduced().rows())) << endl;
+				cout << "Red eigenvalues" << eigenSolver->getEigenValuesReduced().head(std::min(numRedEigs, (int)eigenSolver->getEigenValuesReduced().rows())) << endl;
 			}
 			ImGui::SameLine();
 			ImGui::InputText("#eigs", numRedEigTxt, 32);
@@ -850,7 +859,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
 					double weight = atof(weighttxt);
 					//solver->constructDiffusionTensor(min(numOfModes, 50), 1.0, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor1);
-					solver->constructDiffusionTensor(min(numOfModes, 50), weight, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor2);					
+					solver->constructDiffusionTensor(std::min(numOfModes, 50), weight, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor2);					
 					std::cout << "Diffusion tensor successfully created \n";
 				}
 			}
@@ -910,8 +919,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	static bool isParallel = true;
 	ImGui::Checkbox("Parallel solver", &isParallel);
 	if (ImGui::Button("Test parallel solver", ImVec2(w, 0))) {
-		eigenSolver->testParallelFactorization(isParallel);
+		//eigenSolver->testParallelFactorization(isParallel);
 		//testSolver(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix());
+		testMatrixMultiplication(isParallel, eigenSolver->getBasisMatrix(), eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getEigenVectorsReduced());
+		//testArmadillo(isParallel, eigenSolver->getBasisMatrix(), eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getEigenVectorsReduced());
 	}
 
 	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -1282,7 +1293,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					for (int l = 0; l < levelSupport.size(); ++l) {
 						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;
 						//Sampling
-						setSamplingLevels(eigenSolver, levelRatio[i], wantedModes[j], sampSize);
+						//setSamplingLevels(eigenSolver, levelRatio[i], wantedModes[j], sampSize);
+						eigenSolver->setSamplingLevels(sampSize, wantedModes[j], levelRatio[i]);
 						eigenSolver->setInitialSystem(sampSize.rows());
 						eigenSolver->constructSampleHierarchy(sampSize);
 
@@ -1631,16 +1643,16 @@ void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorX
 	int		sizeSubsp		= spRatio * 2 * numEigen;
 	double	desiredRatio	= 10.0;
 	double	VSRatio			= (double)eigenSolver->getV().rows() / (double) sizeSubsp;
-	double	logRatio		= log(VSRatio) / log(desiredRatio);
+	double	logRatio		= std::log(VSRatio) / std::log(desiredRatio);
 	int		numLevels		= std::round(logRatio);
-	double	sampleRatio		= pow(VSRatio, 1.0 / (double) numLevels);
+	double	sampleRatio		= std::pow(VSRatio, 1.0 / (double) numLevels);
 	std::cout << "Wanted mode: " << numEigen << " | subspace dim: " << 2 * numEigen << " | provided subspace: " << sizeSubsp << "(" << spRatio << ")\n";
 	std::cout << ">>> LEVEL Ratio of " << sampleRatio << std::endl;
 
 	int numSample = eigenSolver->getV().rows();
 	sampSize.resize(numLevels);
 	for (int i = 0; i < numLevels; ++i) {
-		numSample = (int)round(numSample / sampleRatio);
+		numSample = (int)std::round(numSample / sampleRatio);
 		sampSize(i) = numSample;
 	}
 }
@@ -1654,7 +1666,7 @@ void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEi
 
 	vector<int> sampleLevels;
 	sampleLevels.reserve(10);
-	int SAMPLE_CUT_OFF = max(250, sizeSubsp);			//500
+	int SAMPLE_CUT_OFF = std::max(250, sizeSubsp);			//500
 	int SAMPLE_LOW_BOUND = 2 * SAMPLE_CUT_OFF;
 	if (problemType == 1) {
 		SAMPLE_LOW_BOUND /= 3;
@@ -1665,7 +1677,7 @@ void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEi
 
 	/* automated */
 	do {
-		numSample = (int)round(numSample / levelRatio);
+		numSample = (int)std::round(numSample / levelRatio);
 		if (numSample < SAMPLE_CUT_OFF) break;
 		sampleLevels.push_back(numSample);
 		std::cout << "Inserted sample: " << numSample << std::endl; 
@@ -1704,7 +1716,7 @@ void testSolver(Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM)
 	/* Normalizing the input */
 	for (int i = 0; i < numCols; ++i) {
 		double mNorm = input.col(i).transpose() * MM * input.col(i);
-		mNorm = (double) 1.0 / sqrt(mNorm);
+		mNorm = (double) 1.0 / std::sqrt(mNorm);
 		input.col(i) = mNorm * input.col(i);
 	}
 	std::cout << "___Factorizing...";
@@ -1723,6 +1735,50 @@ void testSolver(Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM)
 	duration = t2 - t1;
 	cout << "in " << duration.count() << " seconds" << endl;
 
+}
+
+void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE)
+{
+	Eigen::SparseMatrix<double, Eigen::RowMajor> UUr = UU;
+	Eigen::SparseMatrix<double> SSr;
+	Eigen::MatrixXd Res;
+
+	// For Timing
+	chrono::high_resolution_clock::time_point	t1, t2;
+	chrono::duration<double>					duration;
+	cout << "___Matrix multiplication... ";
+	t1 = chrono::high_resolution_clock::now();
+
+	if (isParallel) {
+
+		Eigen::setNbThreads(omp_get_num_procs());
+		cout << " (parallel) " << omp_get_num_procs() ;
+		//Res = UUr*EE;
+		SSr = (UUr.transpose()*SS)*UU;
+	}
+	else {
+		cout << " (not parallel) ";
+		//Res = UU*EE;
+		SSr = UU.transpose()*SS*UU;
+	}
+
+	// timing
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "in " << duration.count() << " seconds" << endl;
+}
+
+
+void testArmadillo(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE)
+{
+
+	//arma::SpMat<double> A = arma::sprandu(100, 100, 0.01);
+	//arma::SpMat<double> B = arma::sprandu(100, 100, 0.01);
+	//
+	//arma::sp_mat E = A*B;
+	//std::cout << E << std::endl;
+	//std::cout << "Matrix E" << std::endl; 
+	//std::cout << E.print();
 }
 
 #endif // !FAST_SPECTRUM_GUI

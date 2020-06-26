@@ -491,7 +491,7 @@ const double MLEigenSolver::getEigenValueRef(int id) const
 
 	return EigValsRef(id); 
 }
-const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsReduced() const		{ return EigVectsReduced; }
+const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsReduced() const		{ return EigVectsReducedNonLifted; }
 const Eigen::VectorXd& MLEigenSolver::getEigenVectorsReduced(int id) const
 {
 	if (id >= EigVectsReduced.cols())	return EigVectsReduced.col(EigValsReduced.rows()-1);
