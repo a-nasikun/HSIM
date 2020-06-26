@@ -19,6 +19,13 @@
 #include "engine.h"
 #include "mex.h"
 
+/* [CUDA] */
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "cusparse.h"
+#include "cusolverDn.h"
+#include "cusolverSp.h"
+
 // Matlab interface
 #include <igl/matlab/matlabinterface.h> 
 
@@ -255,6 +262,91 @@ namespace MuLES
 		cudaDeviceReset();
 
 		return ((int)cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4);
+	}
+	int performSIMIteration(const Eigen::SparseMatrix<double> &S, const Eigen::SparseMatrix<double> &M, Eigen::MatrixXd &X0, Eigen::MatrixXd &Xk, Eigen::VectorXd &LDEigVal)
+	{
+		//To multiple S1=XT*S and M1=XT*M
+		cusparseHandle_t				handle;		/* Entries for matrix multiplication using CuSparse */
+		cusparseMatDescr_t				descrS, descM;
+
+		cudaError_t			cudaStat1 = cudaSuccess;
+		cusparseStatus_t	cusparseStat;
+		// initialize the system
+		cusparseCreateMatDescr(&descrS);
+		cusparseSetMatType(descrS, CUSPARSE_MATRIX_TYPE_GENERAL);
+		cusparseSetMatIndexBase(descrS, CUSPARSE_INDEX_BASE_ZERO);
+		cusparseCreate(&handle);
+
+		Eigen::SparseMatrix<double, Eigen::RowMajor> MRow, SRow;
+		MRow = M;
+		SRow = S;
+		int m_S = S.rows();
+		int n_S = m_S;
+		int m_X = X0.rows();
+		int n_X = X0.cols();
+		int nnz_S = S.nonZeros();
+		int nnz_M = M.nonZeros();
+		double const  alpha = 1.0f;
+		double const  beta = 1.0f;
+
+		// Populating the matrix S row in CPU
+		double* h_csrSVal = (double*)malloc(nnz_S * sizeof(double));
+		int* h_csrSRowPtr = (int*)malloc((m_S + 1) * sizeof(int));
+		int* h_csrSColInd = (int*)malloc(nnz_S * sizeof(int));
+		h_csrSVal = SRow.valuePtr();
+		h_csrSRowPtr = SRow.outerIndexPtr();
+		h_csrSColInd = SRow.innerIndexPtr();
+
+		// Populating matrix X in CPU
+		double *XData = (double*)std::malloc(m_X*n_X * sizeof(double));
+		XData = X0.transpose().data();
+		double *S1Data = (double*)std::malloc(n_X*m_S * sizeof(double));
+
+		double*							d_csrSVal, d_csrMVal;
+		int*							d_csrSRowPtr, d_csrMRowPtr;
+		int*							d_csrSColInd, d_csrMColInd;
+		double							*d_S1 = NULL;
+
+		// Allocating memory in device/GPU for matrix S
+		cudaStat1 = cudaMalloc(&d_csrSColInd, nnz_S * sizeof(int));					cout << "__col:alloc_status:" << cudaStat1 << endl;
+		cudaStat1 = cudaMalloc(&d_csrSRowPtr, (m_S + 1) * sizeof(int));				cout << "__row:alloc_status:" << cudaStat1 << endl;
+		cudaStat1 = cudaMalloc(&d_csrSVal, nnz_S * sizeof(double));					cout << "__val:alloc_status:" << cudaStat1 << endl;
+		cudaStat1 = cudaMalloc((void**)&d_S1, sizeof(double) * m_S * n_X);			cout << "__S1 :alloc_status:" << cudaStat1 << endl;
+
+		// Allocating memory in device/GPU for matrix X
+		double *d_X = NULL;
+		cudaStat1 = cudaMalloc((void**)&d_X, sizeof(double) * m_X * n_X);			cout << "__dX :alloc_status:" << cudaStat1 << endl;
+		cudaStat1 = cudaMemcpy(d_X, XData, sizeof(double) * m_X * n_X, cudaMemcpyHostToDevice);
+																					cout << "__dX :copy_status:" << cudaStat1 << endl;
+
+		//{
+		//	double	*d_A = NULL;
+		//	double	*d_B = NULL;
+		//	double	*d_W = NULL;
+		//	// step 2: copy A and B to device 
+		//	cudaStat1 = cudaMalloc((void**)&d_A, sizeof(double) * lda * m);
+		//	cudaStat2 = cudaMalloc((void**)&d_B, sizeof(double) * lda * m);
+		//	cudaStat3 = cudaMalloc((void**)&d_W, sizeof(double) * m);
+		//	cudaStat1 = cudaMemcpy(d_A, A, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
+		//}
+		// cusparseStatus_t cusparseStat1 = cusparseDcsrmv(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, m, n, nnz, &alpha, descrA, d_csrVal, d_csrRowPtr, d_csrColInd, d_a, &beta, d_b);
+
+		std::cout << "Perform multiplication ";
+		cusparseStat = cusparseDgemmi(handle,  n_X, n_S, m_X, nnz_S, &alpha, d_X, n_X, d_csrSVal, d_csrSRowPtr, d_csrSColInd, &beta, d_S1, n_X);
+		std::cout << cusparseStat << " done \n";
+
+		cudaStat1 = cudaMemcpy(S1Data, d_S1, sizeof(double)*n_X*m_S, cudaMemcpyDeviceToHost);	cout << "__S1Data :copy_status:" << cudaStat1 << endl;
+		//Eigen::MatrixXd S1 = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(S1Data, n_X, m_X, Eigen::OuterStride<>(n_X));
+		//S1.data() = S1Data;
+		std::cout << "Mapping to Eigen Matrix \n";
+		//LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V, m, lda, Eigen::OuterStride<>(m));
+		Eigen::MatrixXd S1 = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(S1Data, n_X, m_X, Eigen::OuterStride<>(n_X));
+		std::cout << "S1=" << S1.topLeftCorner(10, 10) << std::endl;
+
+		Eigen::MatrixXd S1bm = X0.transpose()*S;
+		std::cout << "S1 benchmark=" << S1bm.topLeftCorner(10, 10) << std::endl;
+		printf("S1:%dx%d | S1bm: %dx%d \n", S1.rows(), S1.cols(), S1bm.rows(), S1bm.cols());
+
 	}
 
 	//void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)

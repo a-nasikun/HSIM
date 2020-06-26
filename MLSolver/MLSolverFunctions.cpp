@@ -752,6 +752,9 @@ namespace MuLES
 				XbarK.col(i) = factorization.solve(v);
 			}
 
+			Eigen::MatrixXd XXX;
+			performSIMIteration(SL, ML, XbarK, XXX, Alpha);
+
 			/* Projection of M and K*/
 			printf("________setting up reduced matrix M and S. ");
 			Sproj = XbarK.transpose()*SL*XbarK;
