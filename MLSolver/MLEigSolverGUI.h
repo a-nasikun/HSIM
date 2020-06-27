@@ -41,6 +41,7 @@ static int			matType			= 0;					// material type (for hessian/linear elasticity)
 static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
+static double		levelRatio = 10.0;
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
@@ -156,7 +157,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 
 			/* For Hierarchy and Sampling */
-			static double levelRatio = 10.0;
 			static char lvlRatTxt[10] = "10.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 			levelRatio = atof(lvlRatTxt);
 
@@ -768,7 +768,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
 			eigenSolver->qParam = qParam;
 			eigenSolver->zhaoShiftParam = zhaoShiftParam;
-			eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, 10.0, 7.5);
+			eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
 		}
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
@@ -1342,13 +1342,13 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::Button("Ort.Ref", ImVec2(w/2.0-p, 0))) {
 			if (eigenSolver->getEigenVectorsRef().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
 			checkOrthonormality(eigenSolver->getEigenVectorsRef(), eigenSolver->getMassMatrix(), OrthMat);
-			//std::cout << "[REF] Orthonormality check \n" << OrthMat << std::endl;
+			std::cout << "[REF] Orthonormality check \n" << OrthMat << std::endl;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Ort.SIM##1", ImVec2(w/2.0-p, 0))) {
 			if (eigenSolver->getEigenVectorsSIM().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
 			checkOrthonormality(eigenSolver->getEigenVectorsSIM(), eigenSolver->getMassMatrix(), OrthMat);
-			//std::cout << "[SIM] Orthonormality check \n" << OrthMat << std::endl;
+			std::cout << "[SIM] Orthonormality check \n" << OrthMat << std::endl;
 		}
 
 		if (ImGui::Button("Spectra Test", ImVec2(w, 0))) {

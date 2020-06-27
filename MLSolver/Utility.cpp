@@ -166,7 +166,7 @@ namespace MuLES
 			igl::matlab::mleval(&engine, "colormap(gca,parula(256));");
 		igl::matlab::mleval(&engine, "colorbar(gca);");
 
-		igl::matlab::mleval(&engine, "hold on; n=size(M,1); for i = 1:n    plot([.5,n+.5],[i-.5,i-.5],'k-');    plot([i-.5,i-.5],[.5,n+.5],'k-'); end");
+		//igl::matlab::mleval(&engine, "hold on; n=size(M,1); for i = 1:n    plot([.5,n+.5],[i-.5,i-.5],'k-');    plot([i-.5,i-.5],[.5,n+.5],'k-'); end");
 		//igl::matlab::mleval(&engine, "hold on;");
 		//igl::matlab::mleval(&engine, "for i = 1:size(M,1)+1");
 		//igl::matlab::mleval(&engine, "plot([.5, size(M,1)+0.5], [i - .5, i - .5], 'k-');");

@@ -605,6 +605,8 @@ namespace MuLES
 			}
 		}
 
+		EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
+		EigValsSIM.conservativeResize(numEigs);
 		printf("Size of eigenvalues: %d | eigVectors: %dx%d \n", EigValsSIM.rows(), EigVectsSIM.rows(), EigVectsSIM.cols());
 
 		t1 = chrono::high_resolution_clock::now();
@@ -2528,7 +2530,8 @@ namespace MuLES
 		t0 = chrono::high_resolution_clock::now();
 
 		Eigen::VectorXi sampSize;
-		setSamplingLevels(sampSize, numEigs, levelRatio);
+		//setSamplingLevels(sampSize, numEigs, levelRatio);
+		setSamplingLevelsAuto(sampSize, numEigs, levelRatio);
 		setInitialSystem(sampSize.rows());
 		constructSampleHierarchy(sampSize);
 		constructBasis(basisSupport);
