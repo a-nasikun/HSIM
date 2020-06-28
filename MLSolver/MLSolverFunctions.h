@@ -58,7 +58,7 @@ namespace MuLES
 	private:
 		double			avgEdgeLength;						//!< Average edge length (from the mesh)
 		double			surfaceArea;						//!< Total surface area (from the mesh)
-		void subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK,  Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int solverStatus, int numEigs, int q, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isConvergedNotUsed = true, int lastConvergedId=0);
+		void subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK,  Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int solverStatus, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isConvergedNotUsed = true, int lastConvergedId=0);
 	};
 }
 #endif // !ML_SOLVER_FUNCTIONS

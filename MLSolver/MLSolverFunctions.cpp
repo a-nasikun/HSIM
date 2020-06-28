@@ -709,7 +709,8 @@ namespace MuLES
 		Id = eps*Id;
 		SS = SL + Id;		// Adding epsilon to the diagonal
 
-		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 		double mu;
 		if (isWithShift) {
 			if (EigValsReduced.rows() < 1)			// if no information about shifting is available, use no shift
@@ -1735,7 +1736,7 @@ namespace MuLES
 			printf("Size of XkL: %dx%d \n", XkL.rows(), XkL.cols());
 			printf("Size of XbarK: %dx%d \n", XbarK.rows(), XbarK.cols());
 			
-			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, maxIter, tol, factorization, false, lastConvergedId);
+			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, false, lastConvergedId);
 			//do {
 			//	t1 = chrono::high_resolution_clock::now();
 			//	if (status != 0)
@@ -2037,7 +2038,7 @@ namespace MuLES
 			double eps = 1e3*std::numeric_limits<double>::epsilon();
 
 			printf("____<5> Subspace iteration.\n");
-			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, maxIter, tol, factorization, true, lastConvergedId);
+			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, true, lastConvergedId);
 			//do {
 			//	t1 = chrono::high_resolution_clock::now();
 			//	if (status != 0)
@@ -2213,16 +2214,17 @@ namespace MuLES
 			//	cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
 			//
 			//} while (!isConverged);
-			//
-			//printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
-			//
+			
+			printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
+			
+			
 			///* Print some data when it's on the finest level */
-			//if (k == 0) {
-			//	cout << "____<7> Storing the convergence data. \n";
-			//	EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
-			//	convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
-			//	//convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
-			//}
+			if (k == 0) {
+				cout << "____<7> Storing the convergence data. \n";
+				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
+				convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
+				//convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
+			}
 		}
 
 		t1 = chrono::high_resolution_clock::now();
@@ -2522,7 +2524,7 @@ namespace MuLES
 	//}
 
 
-void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int status, int numEigs, int q, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isConvergedNotUsed, int lastConvergedId)
+void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int status, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isConvergedNotUsed, int lastConvergedId)
 {
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
 	chrono::duration<double>					duration;
@@ -2531,7 +2533,7 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 	bool isConverged = false;
 	int zhaoShiftId;
 
-	int iterCount = 0;
+	iterCount = 0;
 	int factCounter = 0;
 	//bool isConvergedNotUsed = true;
 	double mu;
