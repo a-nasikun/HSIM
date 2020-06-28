@@ -589,9 +589,9 @@ namespace MuLES
 			}
 			else {
 				std::cout << "USE CONVERGED EIGEN \n";
-				//performMultiLevelSIM(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
+				performMultiLevelSIM(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift);
 				//performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
-				performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, true, shiftType);
+				//performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, true, shiftType);
 			}
 		}
 		else {
@@ -1153,9 +1153,9 @@ namespace MuLES
 		t0 = chrono::high_resolution_clock::now();
 	
 		printf("____[1] level: %d \n", k);
-		int		q = max(2 * numEigs, numEigs + 8);
+		int		q = std::max((int)(qParam * numEigs), numEigs + 8);
 		double eps = 1e6 * std::numeric_limits<double>::epsilon();
-		int status;
+		int status = 1;
 		int lastConvergedId = 1;
 	
 		/* 4: RECURSION */
@@ -1213,9 +1213,11 @@ namespace MuLES
 			Eigen::SparseMatrix<double> Id; Id.resize(SK.rows(), SK.cols()); Id.setIdentity();
 			//double eps = 1e-6;
 	
-			SS = SK + eps*Id;		// Adding epsilon to the diagonal
-			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-			factorization.compute(SS);
+			//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
+			//__SS = SK + eps*Id;		// Adding epsilon to the diagonal
+			//__Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+			//__factorization.compute(SS);
 			//factorization.compute(SK);
 			//cout << "SS: \n" << SS.topLeftCorner(12, 6) << endl;
 			//printf("____<4> Embedding a small-valued diagonal matrix ");
@@ -1235,66 +1237,67 @@ namespace MuLES
 			/* Iterating*/
 			printf("____<4> Subspace iteration.\n");
 			int iterCount = 0;
-			do {
-				/* Set up the iteration matrix */
-				cout << "___Backward and Forward substitution \n";
-				for (int i = 0; i < q; i++) {						// easily parallelizeable
-					Eigen::VectorXd v;
-					v = MK * (XkL.col(i));
-					XbarK.col(i) = factorization.solve(v);
-				}
-	
-				/* Projected matrix */
-				Sproj = XbarK.transpose()*SK*XbarK;
-				Mproj = XbarK.transpose()*MK*XbarK;
-	
-				/* Computing the eigenproblem in reduced space*/
-				status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
-				if (status != 0) {
-					cout << status << "Cannot resolve eigenproblem epsilon " << eps << endl;
-					eps *= 10;
-					SS = SK + eps*Id;
-					factorization.compute(SS);
-					cout << "Increase the epsilon to " << -eps << endl;
-					continue;
-				}
-	
-				//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
-				//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
-	
-				XkL = XbarK*Q;
-				checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
-				cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs/2) << " " << conv2(numEigs-1) << endl;
-	
-				checkConvergenceCat3(Q, AkL, numEigs, isWithShift, -eps, conv3);
-				cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs/2) << " " << conv3(numEigs-1) << endl;
-	
-	
-				/* Store the eigenvalues and convergence rate if it's on the finest level */
-				if (k == 0) {
-					EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-					convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
-					convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
-				}
-	
-				iterCount++;
-				if (iterCount >= maxIter || (conv2(numEigs - 1) < tol))
-				{
-					convergenceCheck = true;
-				}
-				/* Check convergence */
-				for (int i = lastConvergedId; i < numEigs; ++i) {
-					//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
-					if (conv2(i) < tol) {
-						lastConvergedId = i;
-					}
-					else break;
-				}
-	
-				if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
-					convergenceCheck = false;
-	
-			} while (!convergenceCheck);
+			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, isWithShift, false, lastConvergedId);
+			//_do {
+			//_	/* Set up the iteration matrix */
+			//_	cout << "___Backward and Forward substitution \n";
+			//_	for (int i = 0; i < q; i++) {						// easily parallelizeable
+			//_		Eigen::VectorXd v;
+			//_		v = MK * (XkL.col(i));
+			//_		XbarK.col(i) = factorization.solve(v);
+			//_	}
+			//_
+			//_	/* Projected matrix */
+			//_	Sproj = XbarK.transpose()*SK*XbarK;
+			//_	Mproj = XbarK.transpose()*MK*XbarK;
+			//_
+			//_	/* Computing the eigenproblem in reduced space*/
+			//_	status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			//_	if (status != 0) {
+			//_		cout << status << "Cannot resolve eigenproblem epsilon " << eps << endl;
+			//_		eps *= 10;
+			//_		SS = SK + eps*Id;
+			//_		factorization.compute(SS);
+			//_		cout << "Increase the epsilon to " << -eps << endl;
+			//_		continue;
+			//_	}
+			//_
+			//_	//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
+			//_	//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
+			//_
+			//_	XkL = XbarK*Q;
+			//_	checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
+			//_	cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs/2) << " " << conv2(numEigs-1) << endl;
+			//_
+			//_	checkConvergenceCat3(Q, AkL, numEigs, isWithShift, -eps, conv3);
+			//_	cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs/2) << " " << conv3(numEigs-1) << endl;
+			//_
+			//_
+			//_	/* Store the eigenvalues and convergence rate if it's on the finest level */
+			//_	if (k == 0) {
+			//_		EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
+			//_		convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+			//_		convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
+			//_	}
+			//_
+			//_	iterCount++;
+			//_	if (iterCount >= maxIter || (conv2(numEigs - 1) < tol))
+			//_	{
+			//_		convergenceCheck = true;
+			//_	}
+			//_	/* Check convergence */
+			//_	for (int i = lastConvergedId; i < numEigs; ++i) {
+			//_		//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
+			//_		if (conv2(i) < tol) {
+			//_			lastConvergedId = i;
+			//_		}
+			//_		else break;
+			//_	}
+			//_
+			//_	if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
+			//_		convergenceCheck = false;
+			//_
+			//_} while (!convergenceCheck);
 			//printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
 	
 	
@@ -1736,7 +1739,7 @@ namespace MuLES
 			printf("Size of XkL: %dx%d \n", XkL.rows(), XkL.cols());
 			printf("Size of XbarK: %dx%d \n", XbarK.rows(), XbarK.cols());
 			
-			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, false, lastConvergedId);
+			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, isWithShift, false, lastConvergedId);
 			//do {
 			//	t1 = chrono::high_resolution_clock::now();
 			//	if (status != 0)
@@ -2038,7 +2041,7 @@ namespace MuLES
 			double eps = 1e3*std::numeric_limits<double>::epsilon();
 
 			printf("____<5> Subspace iteration.\n");
-			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, true, lastConvergedId);
+			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, isWithShift, true, lastConvergedId);
 			//do {
 			//	t1 = chrono::high_resolution_clock::now();
 			//	if (status != 0)
@@ -2524,7 +2527,7 @@ namespace MuLES
 	//}
 
 
-void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int status, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isConvergedNotUsed, int lastConvergedId)
+void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int status, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed, int lastConvergedId)
 {
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
 	chrono::duration<double>					duration;
@@ -2537,7 +2540,7 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 	int factCounter = 0;
 	//bool isConvergedNotUsed = true;
 	double mu;
-	double eps = 1e3*std::numeric_limits<double>::epsilon();
+	double eps = 1e6*std::numeric_limits<double>::epsilon();
 	Eigen::SparseMatrix<double> Id(SK.rows(), SK.cols());
 	Id.setIdentity();
 	Eigen::VectorXd conv2(q), conv3(q);
@@ -2553,7 +2556,7 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 			//zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
 			zhaoShiftId = lastConvergedId + (int)floor(zhaoShiftParam*(numEigs - lastConvergedId));
 			if (factCounter == 0) {
-				if (tol < 1e-9 && k == 0) {
+				if ((tol < 1e-9 && k == 0) || (!isWithShift)){
 					std::cout << "__On finest level, no shift on really high accuracy!"; // << std::endl;
 					factorization.compute(SK + eps*Id);
 				}
