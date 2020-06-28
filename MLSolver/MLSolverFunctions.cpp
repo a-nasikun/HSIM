@@ -2606,32 +2606,46 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		//std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
 		//}
 
-		//const int		NUM_OF_THREADS = omp_get_num_procs();
-		const int		NUM_OF_THREADS = std::min(q, omp_get_num_procs());
-		cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
-		//const int		NUM_OF_THREADS = 2;
-		omp_set_num_threads(NUM_OF_THREADS);
-		int tid, ntids, ipts, istart, iproc;
-		int iCol = 0;
-#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
-		{
-			iproc = omp_get_num_procs();
-			tid = omp_get_thread_num();
-			ntids = omp_get_num_threads();
-			//ipts = (int)ceil((double) q / (double)ntids);
-			//ipts = q / ntids;
-			ipts = (q + ntids - 1) / ntids;
-			istart = tid * ipts;
-			if (tid == ntids - 1) ipts = q - istart;
-			if (ipts <= 0) ipts = 0;
-
+		if (!isParallelSolverEnabled) {
+			int solveCounter = 0;
 			Eigen::VectorXd v;
+			for (int j = 0; j < q; ++j) {						// easily parallelizeable
+				if (isConvergedVectsNotUsed && (conv2(j) < tol && j > 0)) continue;
+				v = MK * (XkL.col(j));
+				XbarK.col(j) = factorization.solve(v);
+				solveCounter++;
+			}
+		}
+		else
+		{
 
-			for (iCol = istart; iCol < (istart + ipts); ++iCol) {
-				if (iCol >= q) continue;
-				if (isConvergedNotUsed && conv2(iCol) < tol && iCol > 0) continue;
-				v = MK * (XkL.col(iCol));
-				XbarK.col(iCol) = factorization.solve(v);
+			//const int		NUM_OF_THREADS = omp_get_num_procs();
+			const int		NUM_OF_THREADS = std::min(q, omp_get_num_procs());
+			cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
+			//const int		NUM_OF_THREADS = 2;
+			omp_set_num_threads(NUM_OF_THREADS);
+			int tid, ntids, ipts, istart, iproc;
+			int iCol = 0;
+#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+			{
+				iproc = omp_get_num_procs();
+				tid = omp_get_thread_num();
+				ntids = omp_get_num_threads();
+				//ipts = (int)ceil((double) q / (double)ntids);
+				//ipts = q / ntids;
+				ipts = (q + ntids - 1) / ntids;
+				istart = tid * ipts;
+				if (tid == ntids - 1) ipts = q - istart;
+				if (ipts <= 0) ipts = 0;
+
+				Eigen::VectorXd v;
+
+				for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+					if (iCol >= q) continue;
+					if (isConvergedNotUsed && conv2(iCol) < tol && iCol > 0) continue;
+					v = MK * (XkL.col(iCol));
+					XbarK.col(iCol) = factorization.solve(v);
+				}
 			}
 		}
 
