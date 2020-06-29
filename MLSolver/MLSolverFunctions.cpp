@@ -2021,8 +2021,7 @@ namespace MuLES
 			//Eigen::VectorXd Alpha;
 			Eigen::VectorXd conv2(q), conv3(q);
 			conv2.setConstant(std::numeric_limits<double>::max());
-			conv3.setConstant(std::numeric_limits<double>::max());		
-			
+			conv3.setConstant(std::numeric_limits<double>::max());			
 
 			int						firstNZ = 0;
 			int						lastConvergedId = 0;

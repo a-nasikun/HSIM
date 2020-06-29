@@ -919,6 +919,12 @@ namespace MuLES
 	/**  @brief	Obtain the ratio of iterating vectors w.r.t numbers of eigenvalues (default is 2.0) */
 	double MLEigenSolver::getQParam() const { return qParam; }
 
+	void MLEigenSolver::setNotIterateOverConvergedFlag(bool flag) { isConvergedVectsNotUsed = flag; }
+	bool MLEigenSolver::getNotIterateOverConvergedFlag() const { return isConvergedVectsNotUsed; };
+	void MLEigenSolver::setParallelSolverFlag(bool flag) { isParallelSolverEnabled=flag; }
+	bool MLEigenSolver::getParallelSolverFlag() const { return isParallelSolverEnabled; }
+
+
 	/* [Getters of the eigen-values + vectors] */
 	/**  @brief	Obtain the entire eigenvectors (obtained from reference solver). */
 	const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsRef() const { return EigVectsRef; }

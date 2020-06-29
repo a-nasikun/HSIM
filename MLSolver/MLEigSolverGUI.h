@@ -751,6 +751,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		static bool isShiftedSIM = true;
 		ImGui::Checkbox("with shift", &(isShiftedSIM));
+		static bool isNotIterateOverConverged = true;
+		ImGui::Checkbox("not iterate over converged", &(isNotIterateOverConverged));
+		static bool isUsingParallelSolver = true;
+		ImGui::Checkbox("using parallel solver", &(isUsingParallelSolver));
+
 		static double zhaoShiftParam = 0.25;
 		if (isShiftedSIM) {
 			ImGui::RadioButton("Bathe##Shift",		&shiftType, 0);			ImGui::SameLine();
@@ -768,6 +773,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
 			eigenSolver->setQParam(qParam);
 			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
 		}
 

@@ -92,6 +92,10 @@ namespace MuLES
 		double getZhaoShiftParam() const;
 		void setQParam(const double value);
 		double getQParam() const;
+		void setNotIterateOverConvergedFlag(bool flag);
+		bool getNotIterateOverConvergedFlag() const;
+		void setParallelSolverFlag(bool flag=true);
+		bool getParallelSolverFlag() const;
 
 
 		const Eigen::MatrixXd& getEigenVectorsRef() const;
