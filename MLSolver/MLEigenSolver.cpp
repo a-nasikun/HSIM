@@ -913,6 +913,12 @@ namespace MuLES
 	/**  @brief	Obtain the value of shifting parameter used (the one proposed by Zhao) */
 	double MLEigenSolver::getZhaoShiftParam() const { return zhaoShiftParam; }
 
+	/**  @brief	Set the ratio of iterating vectors w.r.t numbers of eigenvalues (default is 2.0) */
+	void MLEigenSolver::setQParam(const double value) { qParam = value; }
+
+	/**  @brief	Obtain the ratio of iterating vectors w.r.t numbers of eigenvalues (default is 2.0) */
+	double MLEigenSolver::getQParam() const { return qParam; }
+
 	/* [Getters of the eigen-values + vectors] */
 	/**  @brief	Obtain the entire eigenvectors (obtained from reference solver). */
 	const Eigen::MatrixXd& MLEigenSolver::getEigenVectorsRef() const { return EigVectsRef; }

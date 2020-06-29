@@ -90,6 +90,9 @@ namespace MuLES
 		const vector<int>& getSubspaceSize() const;
 		void setZhaoShiftParam(const double shiftParam);
 		double getZhaoShiftParam() const;
+		void setQParam(const double value);
+		double getQParam() const;
+
 
 		const Eigen::MatrixXd& getEigenVectorsRef() const;
 		const Eigen::VectorXd& getEigenVectorsRef(int id) const;
@@ -155,12 +158,12 @@ namespace MuLES
 		/* CLASS/OBJECT FLAG */
 		bool isConvergedVectsNotUsed = true;
 		bool isParallelSolverEnabled = true;
+		double zhaoShiftParam;
+		double qParam;
 
 		void virtual subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int solverStatus, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed = true, int lastConvergedId = 0);
 	public:
 		// TEst variable
-		double zhaoShiftParam;
-		double qParam;
 	};
 }
 

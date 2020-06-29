@@ -766,8 +766,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		qParam = atof(qParamTxt);
 
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
-			eigenSolver->qParam = qParam;
-			eigenSolver->zhaoShiftParam = zhaoShiftParam;
+			eigenSolver->setQParam(qParam);
+			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
 			eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
 		}
 
@@ -775,8 +775,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
 			if ((SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
 			
-			eigenSolver->qParam = qParam;
-			eigenSolver->zhaoShiftParam = zhaoShiftParam;
+			eigenSolver->setQParam(qParam);
+			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
 			std::cout << "Shift param = " << zhaoShiftParam << std::endl; 
 			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
 
@@ -795,7 +795,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*   (4) ML with shift-once
 			*/
 
-			eigenSolver->zhaoShiftParam = 0.25;
+			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
 			int maxIters = 250;	
 			//vector<int> wantedModes{ 50, 100, 250 };
 			vector<int> wantedModes{ 50 };
@@ -885,7 +885,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						cout << "in " << duration.count() << " seconds." << endl;
 
 						for (int m = 0; m < levelZhaoParam.size(); ++m) {
-							eigenSolver->zhaoShiftParam = levelZhaoParam[m];
+							eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
 							std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
 
 							std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
@@ -1001,7 +1001,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//vector<int> wantedModes{ 25 };
 			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
 			//vector<double> wantedTols{ 1e-2};
-			eigenSolver->zhaoShiftParam = 0.25;
+			eigenSolver->setZhaoShiftParam(0.25);
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for (int k = 0; k<wantedTols.size(); ++k) {
@@ -1022,7 +1022,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*/
 			eigenSolver->constructBasisNonSmooth(5.0);
 			eigenSolver->solveRestrictedProblem();
-			eigenSolver->zhaoShiftParam = 0.15;
+			eigenSolver->setZhaoShiftParam(0.15);
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for (int k = 0; k<wantedTols.size(); ++k) {
 					// ML-with shift (non-smooth)
@@ -1063,7 +1063,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for (int k = 0; k<wantedTols.size(); ++k) {
 					for (int l = 0; l<shiftParams.size(); ++l) {
-						eigenSolver->zhaoShiftParam = shiftParams[l];
+						eigenSolver->setZhaoShiftParam(shiftParams[l]);
 						eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
 					}
 				}
@@ -1107,7 +1107,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 						for (int m = 0; m < levelZhaoParam.size(); ++m) {
 							std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
-							eigenSolver->zhaoShiftParam = levelZhaoParam[m];
+							eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
 							
 							for (int k = 0; k < wantedTols.size(); ++k) {
 								std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
@@ -1183,7 +1183,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						cout << "in " << duration.count() << " seconds." << endl;
 
 						for (int m = 0; m < levelZhaoParam.size(); ++m) {
-							eigenSolver->zhaoShiftParam = levelZhaoParam[m];
+							eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
 							std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
 						
 							std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
@@ -1252,10 +1252,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;		
 
 						for (int n = 0; n < qParam.size(); ++n) {
-							eigenSolver->qParam = qParam[n];
+							eigenSolver->setQParam(qParam[n]);
 
 							for (int m = 0; m < levelZhaoParam.size(); ++m) {
-								eigenSolver->zhaoShiftParam = levelZhaoParam[m];
+								eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
 								std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
 
 								std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
