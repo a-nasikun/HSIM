@@ -801,6 +801,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*	(3) ML without shift
 			*   (4) ML with shift-once
 			*/
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+
 
 			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
 			int maxIters = 250;	
@@ -826,6 +830,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::Button("Scripted (2)--non-smooth", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
 			//if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
 
 			/*  Testing on :
 			*	(5) NL non smooth (with shift)
@@ -931,6 +939,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
 			//if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+
 
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
@@ -996,6 +1008,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+
 			/*  Testing on :
 			*	(1) random
 			*	(3) ML without shift
@@ -1054,6 +1070,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		}
 
 		if (ImGui::Button("Scripted (5) Shift", ImVec2(w, 0))) {
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
@@ -1079,6 +1099,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		//if (ImGui::Button("Scripted (5) Var. Ratio", ImVec2(w, 0))) {
 		if (ImGui::Button("Scripted (5) Var. Support", ImVec2(w, 0))) {
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+
 			Eigen::VectorXi sampSize;
 			//double numOfSupport = 5.0;
 
@@ -1132,6 +1156,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
 
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+
+
 			Eigen::VectorXi			sampSize;
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
 			std::vector<double>		levelRatio{ 10 };
@@ -1140,14 +1169,14 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 0.25 };			
-			//vector<int>				wantedModes{ 50, 100, 250};
-			vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
+			vector<int>				wantedModes{ 50, 100, 250};
+			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 500, 750, 1000 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
 			//vector<double>			wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-10 };
-			vector<double>			wantedTols{ 1e-4 };
+			vector<double>			wantedTols{ 1e-3 };
 			int						maxIters = 50;
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
@@ -1159,7 +1188,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					cout << "> Creating samples... " << endl;
 					t0 = chrono::high_resolution_clock::now();
 					//setSamplingLevels(eigenSolver, wantedModes[j], sampSize);
-					eigenSolver->setSamplingLevels(sampSize, wantedModes[j], levelRatio[i]);
+					eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
 					eigenSolver->setInitialSystem(sampSize.rows());
 					eigenSolver->constructSampleHierarchy(sampSize);
 					t1 = chrono::high_resolution_clock::now();
@@ -1182,12 +1211,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						cout << "in " << duration.count() << " seconds." << endl;
 
 						// Compute restricted problem
-						cout << "> Solving restricted system... " << endl;
-						t0 = chrono::high_resolution_clock::now();
-						eigenSolver->solveRestrictedProblem();
-						t1 = chrono::high_resolution_clock::now();
-						duration = t1 - t0;
-						cout << "in " << duration.count() << " seconds." << endl;
+						//cout << "> Solving restricted system... " << endl;
+						//t0 = chrono::high_resolution_clock::now();
+						//eigenSolver->solveRestrictedProblem();
+						//t1 = chrono::high_resolution_clock::now();
+						//duration = t1 - t0;
+						//cout << "in " << duration.count() << " seconds." << endl;
 
 						for (int m = 0; m < levelZhaoParam.size(); ++m) {
 							eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
