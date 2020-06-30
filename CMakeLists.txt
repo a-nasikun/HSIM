@@ -12,10 +12,16 @@ find_package(OpenGL)
 # Matlab
 set (MATLAB_LIBRARY_DIR "" CACHE PATH "Matlab static library dirs (e.g. R2018a/extern/lib/win64/microsoft)")
 set (MATLAB_INCLUDE_DIR "" CACHE PATH "Matlab include dir ((e.g. R2018a/extern/include)")
+set (MKL_DIR "" CACHE PATH "Intel MKL include directory.")
 set (SPECTRA_INCLUDE_DIR "" CACHE PATH "Include library for the Spectra eigensolver")
 include_directories(${MATLAB_INCLUDE_DIR})
 include_directories(${SPECTRA_INCLUDE_DIR}/include)
 link_directories(${MATLAB_LIBRARY_DIR})
+include_directories(${MKL_DIR}/mkl/include)
+include_directories(${MKL_DIR}/mkl/include/intel64)
+link_directories(${MKL_DIR}/mkl/lib)
+link_directories(${MKL_DIR}/mkl/lib/intel64_win)
+link_directories(${MKL_DIR}/compiler/lib/intel64_win)
 					
 # EIGEN
 # #################################################################################################
@@ -91,7 +97,13 @@ target_link_libraries(MultiLevelEigenSolver
 	libeng.lib                  # 
 	libut.lib                   # 
 	libmex.lib                  # 
-	libmx.lib                   # for matlab stuff
+	libmx.lib                   # for matlab stuff	
+	mkl_core.lib				# For Intel MKL
+	mkl_intel_thread.lib        # 
+	mkl_lapack95_lp64.lib       # 
+	libiomp5md.lib              # 
+	mkl_blas95_lp64.lib         # 
+	mkl_intel_lp64.lib          # For Intel MKL
 	)
 set_target_properties(MultiLevelEigenSolver PROPERTIES
 	VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin
