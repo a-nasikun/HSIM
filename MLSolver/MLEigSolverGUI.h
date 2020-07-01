@@ -774,6 +774,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setQParam(qParam);
 			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
 			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			std::cout << "is iterating over converged ? " << isNotIterateOverConverged << std::endl; 
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
 		}
@@ -793,8 +794,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		}
 
 		if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
-			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
-			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+			if (eigenSolver->getV().rows() < 1) return;
+			//if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
+			//if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
 			/*  Testing on : 
 			*	(1) random, (2) Bathe 
@@ -807,22 +809,25 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 
 			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
-			int maxIters = 250;	
+			int maxIters = 20;	
 			//vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> wantedModes{ 50 };
+			//vector<int> wantedModes{ 50 };
+			vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
 			//vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9,1e-10};
-			vector<double> wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9,1e-10 };
+			//vector<double> wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9,1e-10 };
+			vector<double> wantedTols{ 1e-3 };
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for(int k=0; k<wantedTols.size(); ++k){
 					// ML-with shift
-					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
 					// ML no shift
 					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// random
 					//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// // bathe init vector
 					//eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					eigenSolver->solve(wantedModes[j], maxIters, wantedTols[k], true, MuLES::MLEigenSolver::ShiftType::SHIFT_ZHAO, 0, 0.0, levelRatio, 7.5);
 				}
 			}			
 		}
@@ -1020,18 +1025,18 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 			int maxIters = 50;
 			//vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> wantedModes{ 50, 100 };
+			vector<int> wantedModes{ 25, 50, 100, 200}; //, 300, 500, 750, 1000, 2000 };
 			//vector<int> wantedModes{ 25 };
-			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
-			//vector<double> wantedTols{ 1e-2};
+			//vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
+			vector<double> wantedTols{ 1e-3};
 			eigenSolver->setZhaoShiftParam(0.25);
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for (int k = 0; k<wantedTols.size(); ++k) {
-					// ML-with shift
-					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-					// ML no shift
-					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+					//// ML-with shift
+					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+					//// ML no shift
+					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// random
 					eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// // bathe init vector
@@ -1043,30 +1048,30 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*	(5) NL non smooth (with shift)
 			*	(6) ML non smooth (without shift)
 			*/
-			eigenSolver->constructBasisNonSmooth(5.0);
-			eigenSolver->solveRestrictedProblem();
-			eigenSolver->setZhaoShiftParam(0.15);
-			for (int j = 0; j < wantedModes.size(); ++j) {
-				for (int k = 0; k<wantedTols.size(); ++k) {
-					// ML-with shift (non-smooth)
-					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-					// ML no shift (non-smooth)
-					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-				}
-			}
-
-			/*  Testing on :
-			*	(7) SGP as warm start
-			*/
-			eigenSolver->constructBasisCoarseOnly(12.5);
-			eigenSolver->solveRestrictedProblem();
-
-			for (int j = 0; j < wantedModes.size(); ++j) {
-				for (int k = 0; k<wantedTols.size(); ++k) {
-					// ML-with shift (non-smooth)
-					eigenSolver->performSubspaceIterationMethod(typeMap[1], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
-				}
-			}
+			//eigenSolver->constructBasisNonSmooth(5.0);
+			//eigenSolver->solveRestrictedProblem();
+			//eigenSolver->setZhaoShiftParam(0.15);
+			//for (int j = 0; j < wantedModes.size(); ++j) {
+			//	for (int k = 0; k<wantedTols.size(); ++k) {
+			//		// ML-with shift (non-smooth)
+			//		eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+			//		// ML no shift (non-smooth)
+			//		eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+			//	}
+			//}
+			//
+			///*  Testing on :
+			//*	(7) SGP as warm start
+			//*/
+			//eigenSolver->constructBasisCoarseOnly(12.5);
+			//eigenSolver->solveRestrictedProblem();
+			//
+			//for (int j = 0; j < wantedModes.size(); ++j) {
+			//	for (int k = 0; k<wantedTols.size(); ++k) {
+			//		// ML-with shift (non-smooth)
+			//		eigenSolver->performSubspaceIterationMethod(typeMap[1], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
+			//	}
+			//}
 		}
 
 		if (ImGui::Button("Scripted (5) Shift", ImVec2(w, 0))) {

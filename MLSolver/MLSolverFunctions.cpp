@@ -671,7 +671,7 @@ namespace MuLES
 		case SIMType::SIM_1level_Random:
 			cout << "_______SUBSPACE ITERATION METHOD with Random initialization Vectors (normalized).\n";
 			generateRandomMatrix(S.rows(), q, Xk);
-			if (numEigs >= 200) eps = 1e16 * std::numeric_limits<double>::epsilon();
+			//if (numEigs >= 200) eps = 1e16 * std::numeric_limits<double>::epsilon();
 
 			/* M-normalized per column */
 			for (int i = 0; i < q; i++) {
@@ -708,6 +708,7 @@ namespace MuLES
 		Id.setIdentity();
 		Id = eps*Id;
 		SS = SL + Id;		// Adding epsilon to the diagonal
+		//SS = SL;
 
 		//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
 		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -744,19 +745,63 @@ namespace MuLES
 			std::cout << "____Last converged ID: " << lastConvergedId << std::endl;
 			printf("________ setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
 
-			for (int i = 0; i < q; ++i) {						// easily parallelizeable
+			//for (int i = 0; i < q; ++i) {						// easily parallelizeable
+			//	Eigen::VectorXd v;
+			//	if (type == SIMType::SIM_1level_Bathe && i == 0) {
+			//		v = Xk.col(i);				// use the input as "MxXi" directly
+			//	}
+			//	else {
+			//		v = ML * (Xk.col(i));
+			//	}
+			//	XbarK.col(i) = factorization.solve(v);
+			//}
+
+			if (!isParallelSolverEnabled) {
+				std::cout << " NOT PARALLELL! \n";
+				int solveCounter = 0;
 				Eigen::VectorXd v;
-				if (type == SIMType::SIM_1level_Bathe && i == 0) {
-					v = Xk.col(i);				// use the input as "MxXi" directly
+				for (int j = 0; j < q; ++j) {						// easily parallelizeable				
+					if (isConvergedVectsNotUsed && (conv2(j) < tol && j > 0)) continue;
+					v = ML * (Xk.col(j));
+					XbarK.col(j) = factorization.solve(v);
+					solveCounter++;
 				}
-				else {
-					v = ML * (Xk.col(i));
+			}
+			else
+			{
+				std::cout << " PARALLELL! \n";
+				//const int		NUM_OF_THREADS = omp_get_num_procs();
+				const int		NUM_OF_THREADS = std::min(q, omp_get_num_procs());
+				cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
+				//const int		NUM_OF_THREADS = 2;
+				omp_set_num_threads(NUM_OF_THREADS);
+				int tid, ntids, ipts, istart, iproc;
+				int iCol = 0;
+				#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+				{
+					iproc = omp_get_num_procs();
+					tid = omp_get_thread_num();
+					ntids = omp_get_num_threads();
+					//ipts = (int)ceil((double) q / (double)ntids);
+					//ipts = q / ntids;
+					ipts = (q + ntids - 1) / ntids;
+					istart = tid * ipts;
+					if (tid == ntids - 1) ipts = q - istart;
+					if (ipts <= 0) ipts = 0;
+
+					Eigen::VectorXd v;
+
+					for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+						if (iCol >= q) continue;
+						if (isConvergedVectsNotUsed && conv2(iCol) < tol && iCol > 0) continue;
+						v = ML * (Xk.col(iCol));
+						XbarK.col(iCol) = factorization.solve(v);
+					}
 				}
-				XbarK.col(i) = factorization.solve(v);
 			}
 
 			Eigen::MatrixXd XXX;
-			performSIMIteration(SL, ML, XbarK, XXX, Alpha);
+			//performSIMIteration(SL, ML, XbarK, XXX, Alpha);
 
 			/* Projection of M and K*/
 			printf("________setting up reduced matrix M and S. ");
@@ -1991,6 +2036,10 @@ namespace MuLES
 			duration = t2 - t1;
 			cout << "...in " << duration.count() << " seconds." << endl;
 
+			//if (k == level - 1) {
+			//	std::cout << "LEVEL" << k << ", tolerance is increased to " << 1e-10 << std::endl;
+			//	tol = 1e-10;
+			//}
 
 			printf("____<2> Going deeper => \n ################");
 			performMultiLevelSIM_withShiftOnceConverged(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
@@ -2604,12 +2653,13 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		//}
 		//std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
 		//}
-
+		double tolCheck = tol;
+		if (tol > 0.99e-2) tolCheck = 1e-3;
 		if (!isParallelSolverEnabled) {
 			int solveCounter = 0;
 			Eigen::VectorXd v;
-			for (int j = 0; j < q; ++j) {						// easily parallelizeable
-				if (isConvergedVectsNotUsed && (conv2(j) < tol && j > 0)) continue;
+			for (int j = 0; j < q; ++j) {						// easily parallelizeable				
+				if (isConvergedVectsNotUsed && (conv2(j) < tolCheck && j > 0)) continue;
 				v = MK * (XkL.col(j));
 				XbarK.col(j) = factorization.solve(v);
 				solveCounter++;
@@ -2641,7 +2691,7 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 
 				for (iCol = istart; iCol < (istart + ipts); ++iCol) {
 					if (iCol >= q) continue;
-					if (isConvergedNotUsed && conv2(iCol) < tol && iCol > 0) continue;
+					if (isConvergedVectsNotUsed && conv2(iCol) < tolCheck && iCol > 0) continue;
 					v = MK * (XkL.col(iCol));
 					XbarK.col(iCol) = factorization.solve(v);
 				}
@@ -2741,6 +2791,8 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		constructMassMatrix();
 		initiateAdM();
 		constructStiffnessMatrix();
+
+		std::cout << "Iterating over converged?" << isConvergedVectsNotUsed << std::endl; 
 
 		chrono::high_resolution_clock::time_point	t0, t1;
 		chrono::duration<double>					duration;
