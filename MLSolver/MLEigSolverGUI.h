@@ -769,7 +769,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		}
 
 		static double qParam;
-		static char qParamTxt[10] = "2.0"; ImGui::InputText("q Param", qParamTxt, 10);
+		static char qParamTxt[10] = "1.5"; ImGui::InputText("q Param", qParamTxt, 10);
 		qParam = atof(qParamTxt);
 
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {

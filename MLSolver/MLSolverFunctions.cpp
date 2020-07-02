@@ -2584,12 +2584,15 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 	bool isConverged = false;
 	int zhaoShiftId;
 
+	//Eigen::SparseMatrix<double, Eigen::RowMajor> SK = SKK;
+	//Eigen::SparseMatrix<double, Eigen::RowMajor> MK = MKK;
+
 	iterCount = 0;
 	int factCounter = 0;
 	//bool isConvergedNotUsed = true;
 	double mu;
 	double eps = 1e6*std::numeric_limits<double>::epsilon();
-	Eigen::SparseMatrix<double> Id(SK.rows(), SK.cols());
+	Eigen::SparseMatrix<double, Eigen::ColMajor> Id(SK.rows(), SK.cols());
 	Id.setIdentity();
 	Eigen::VectorXd conv2(q), conv3(q);
 	conv2.setConstant(std::numeric_limits<double>::max());
@@ -2687,8 +2690,8 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 					{
 						v = MK*XbarK.col(iCol);
 						XbarK.col(iCol) = factorization.solve(v);
-						v = MK*XbarK.col(iCol);
-						XbarK.col(iCol) = factorization.solve(v);
+						//v = MK*XbarK.col(iCol);
+						//XbarK.col(iCol) = factorization.solve(v);
 					}
 				}
 			}
@@ -2701,8 +2704,14 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		/* Projection of M and K*/
 		t1 = chrono::high_resolution_clock::now();
 		printf("___setting up reduced matrix M and S. ");
-		Sproj = XbarK.transpose()*SK*XbarK;
-		Mproj = XbarK.transpose()*MK*XbarK;
+		Sproj = XbarK.transpose() * SK;		// two steps for faster result
+		Sproj = Sproj*XbarK;
+		Mproj = XbarK.transpose() * MK;
+		Mproj = Mproj*XbarK;
+		//Sproj = SK * XbarK;
+		//Sproj = XbarK.transpose() * Sproj;
+		//Mproj = MK * XbarK;
+		//Mproj = XbarK.transpose() * Mproj;
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
@@ -2738,13 +2747,13 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
 
-		cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+		//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 
 		/* Type 3: */
 		//checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
 		//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 
-		//cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
+		cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
 		///cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
 
 		//cout << AkL.head(numEigs).transpose() << endl;
