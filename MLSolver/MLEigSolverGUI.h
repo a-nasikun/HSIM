@@ -755,6 +755,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		ImGui::Checkbox("not iterate over converged", &(isNotIterateOverConverged));
 		static bool isUsingParallelSolver = true;
 		ImGui::Checkbox("using parallel solver", &(isUsingParallelSolver));
+		static bool isMultipleSolve = true;
+		ImGui::Checkbox("multiple solve per SIM", &(isMultipleSolve));
 
 		static double zhaoShiftParam = 0.25;
 		if (isShiftedSIM) {
@@ -776,6 +778,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
 			std::cout << "is iterating over converged ? " << isNotIterateOverConverged << std::endl; 
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->isMultipleSolve = isMultipleSolve;
 			eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
 		}
 

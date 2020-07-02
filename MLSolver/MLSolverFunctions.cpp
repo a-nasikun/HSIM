@@ -2632,27 +2632,7 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 
 		std::cout << "Solving each RHS ";
 		t1 = chrono::high_resolution_clock::now();
-		//if (iterCount == 0)
-		//{
-		//	Eigen::VectorXd v;
-		//	for (int j = 0; j < q; ++j) {						// easily parallelizeable
-		//		v = MK * (XkL.col(j));
-		//		XbarK.col(j) = factorization.solve(v);
-		//	}
-		//	std::cout << "Soving all" << q << " equations \n";
-		//}
-		//else {
 
-		//int solveCounter = 0;
-		//Eigen::VectorXd v;
-		//for (int j = 0; j < q; ++j) {						// easily parallelizeable
-		//	if (conv2(j) < tol && j > 0) continue;
-		//	v = MK * (XkL.col(j));
-		//	XbarK.col(j) = factorization.solve(v);
-		//	solveCounter++;
-		//}
-		//std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
-		//}
 		double tolCheck = tol;
 		if (tol > 0.99e-2) tolCheck = 1e-3;
 		if (!isParallelSolverEnabled) {
@@ -2662,6 +2642,14 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 				if (isConvergedVectsNotUsed && (conv2(j) < tolCheck && j > 0)) continue;
 				v = MK * (XkL.col(j));
 				XbarK.col(j) = factorization.solve(v);
+
+				if (isMultipleSolve)
+				{
+					v = MK*XbarK.col(j);
+					XbarK.col(j) = factorization.solve(v);
+					//v = MK*XbarK.col(j);
+					//XbarK.col(j) = factorization.solve(v);
+				}
 				solveCounter++;
 			}
 		}
@@ -2694,6 +2682,14 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 					if (isConvergedVectsNotUsed && conv2(iCol) < tolCheck && iCol > 0) continue;
 					v = MK * (XkL.col(iCol));
 					XbarK.col(iCol) = factorization.solve(v);
+
+					if (isMultipleSolve)
+					{
+						v = MK*XbarK.col(iCol);
+						XbarK.col(iCol) = factorization.solve(v);
+						v = MK*XbarK.col(iCol);
+						XbarK.col(iCol) = factorization.solve(v);
+					}
 				}
 			}
 		}
