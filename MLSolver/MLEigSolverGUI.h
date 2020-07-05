@@ -789,6 +789,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setQParam(qParam);
 			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
 			std::cout << "Shift param = " << zhaoShiftParam << std::endl; 
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
 
 			printf("Successfully computing the eigenvalues \n");
@@ -1028,7 +1030,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 			int maxIters = 50;
 			//vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> wantedModes{ 25, 50, 100, 200}; //, 300, 500, 750, 1000, 2000 };
+			vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
 			//vector<int> wantedModes{ 25 };
 			//vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
 			vector<double> wantedTols{ 1e-3};
@@ -1167,6 +1169,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->setQParam(qParam);
+			eigenSolver->isMultipleSolve = isMultipleSolve;
 
 
 			Eigen::VectorXi			sampSize;
@@ -1177,14 +1180,15 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 0.25 };			
-			vector<int>				wantedModes{ 50, 100, 250};
+			//vector<int>				wantedModes{ 50, 100, 250};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
-			//vector<int>				wantedModes{ 500, 750, 1000 };
-			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
+			//vector<int>				wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000 };
+			vector<int>				wantedModes{ 50 };
+			vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
 			//vector<double>			wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
-			//vector<double>			wantedTols{ 1e-10 };
-			vector<double>			wantedTols{ 1e-3 };
+			//vector<double>			wantedTols{ 1e-9, 1e-10 };
+			//vector<double>			wantedTols{ 1e-3 };
 			int						maxIters = 50;
 
 			for (int j = 0; j < wantedModes.size(); ++j) {

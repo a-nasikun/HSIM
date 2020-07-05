@@ -646,8 +646,9 @@ namespace MuLES
 	*/
 	void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift)
 	{
-		chrono::high_resolution_clock::time_point	t0, t1;
+		chrono::high_resolution_clock::time_point	t00, t0, t1;
 		chrono::duration<double>					duration;
+		t00 = chrono::high_resolution_clock::now();
 		t0 = chrono::high_resolution_clock::now();
 
 		/* Initialization */
@@ -658,7 +659,7 @@ namespace MuLES
 		int					lastConvergedId = 1;
 		double eps;
 		if (F.cols() == 4) eps = 1e-2 * std::numeric_limits<double>::epsilon();
-		else			eps = 1e6 * std::numeric_limits<double>::epsilon();
+		else			eps = 1e7 * std::numeric_limits<double>::epsilon();
 
 		/* Selecting the appropriate subspace iteration method */
 		bool isNormalized = false;
@@ -682,32 +683,39 @@ namespace MuLES
 			break;
 		case SIMType::SIM_1level_Bathe:
 			cout << "________SUBSPACE ITERATION METHOD with Bathe's proposed initialization Vectors (normalized).\n";
-			generateBatheInitVectors(M.rows(), q, ML, Xk);
+			generateBatheInitVectors(M.rows(), q, SL, ML, Xk);
+			//generateBatheInitVectors(M.rows(), q, ML, Xk);
 
 			/* M-normalized per column */
-			if (isNormalized) {
+			//if (isNormalized) {
 				for (int i = 0; i < q; i++) {
 					double mNorm = Xk.col(i).transpose() * ML * Xk.col(i);
 					mNorm = (double) 1.0 / sqrt(mNorm);
 					Xk.col(i) = mNorm * Xk.col(i);
 				}
-			}
+			//}
 			break;
 		default:
 			break;
 		}
+		t1 = chrono::high_resolution_clock::now();
+		duration = t1 - t0;
+		cout << "...in " << duration.count() << " seconds." << endl;
 
 		/* Setting up the system + factorization */
 		cout << "____[2] Factorizing the system matrix. \n";
+		t0 = chrono::high_resolution_clock::now();
+
 		Eigen::SparseMatrix<double> SS;
 		Eigen::SparseMatrix<double> Id;
 		//double eps = 1e-6;
 
+
 		cout << "Eps: " << eps << endl;
 		Id.resize(S.rows(), S.cols());
 		Id.setIdentity();
-		Id = eps*Id;
-		SS = SL + Id;		// Adding epsilon to the diagonal
+		//Id = eps*Id;
+		SS = SL + eps*Id;		// Adding epsilon to the diagonal
 		//SS = SL;
 
 		//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -724,6 +732,9 @@ namespace MuLES
 		else {
 			factorization.compute(SS);
 		}
+		t1 = chrono::high_resolution_clock::now();
+		duration = t1 - t0;
+		cout << "...in " << duration.count() << " seconds." << endl;
 
 		/* Iteration for eigenproblem */
 		cout << "____[3] Iterating steps. \n";
@@ -745,16 +756,7 @@ namespace MuLES
 			std::cout << "____Last converged ID: " << lastConvergedId << std::endl;
 			printf("________ setting up trial vectors Xk_bar %dx%d \n", XbarK.rows(), XbarK.cols());
 
-			//for (int i = 0; i < q; ++i) {						// easily parallelizeable
-			//	Eigen::VectorXd v;
-			//	if (type == SIMType::SIM_1level_Bathe && i == 0) {
-			//		v = Xk.col(i);				// use the input as "MxXi" directly
-			//	}
-			//	else {
-			//		v = ML * (Xk.col(i));
-			//	}
-			//	XbarK.col(i) = factorization.solve(v);
-			//}
+			t0 = chrono::high_resolution_clock::now();
 
 			if (!isParallelSolverEnabled) {
 				std::cout << " NOT PARALLELL! \n";
@@ -799,18 +801,26 @@ namespace MuLES
 					}
 				}
 			}
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "...in " << duration.count() << " seconds." << endl;
 
 			Eigen::MatrixXd XXX;
 			//performSIMIteration(SL, ML, XbarK, XXX, Alpha);
 
 			/* Projection of M and K*/
+			t0 = chrono::high_resolution_clock::now();
 			printf("________setting up reduced matrix M and S. ");
 			Sproj = XbarK.transpose()*SL*XbarK;
 			Mproj = XbarK.transpose()*ML*XbarK;
 			printf("________Mred: %dx%d | Sred: %dx%d \n", Mproj.rows(), Mproj.cols(), Sproj.rows(), Sproj.cols());
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "...in " << duration.count() << " seconds." << endl;
 
 			/* Reduced eigenvalue problem */
 			printf("________solve reduced eigenvalue problem. ");
+			t0 = chrono::high_resolution_clock::now();
 			status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
 			if (status != 0) {
 				eps *= 10;
@@ -818,17 +828,29 @@ namespace MuLES
 				std::cout << "___shifting by \n" << eps << std::endl;
 				continue;
 			}
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "...in " << duration.count() << " seconds." << endl;
 			//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
 			//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 
 			printf("________lifting up/prolongation.\n");
+			t0 = chrono::high_resolution_clock::now();
 			Xk = XbarK*Q;
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "...in " << duration.count() << " seconds." << endl;
 
 			/* Convergence Check*
 			** Type 2: */
+			std::cout << "__Check convergence \n" ;
+			t0 = chrono::high_resolution_clock::now();
 			checkConvergenceCat2(Xk, Alpha, numEigs, ML, S, conv2);
 			//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "...in " << duration.count() << " seconds." << endl;
 			cout << "Conv 2 \n" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
 
 			/* Type 3: */
@@ -874,7 +896,7 @@ namespace MuLES
 		EigValsSIM = Alpha;
 
 		t1 = chrono::high_resolution_clock::now();
-		duration = t1 - t0;
+		duration = t1 - t00;
 		cout << "...in " << duration.count() << " seconds." << endl;
 
 		timingPerLevel(0) = duration.count();
@@ -2637,7 +2659,9 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		t1 = chrono::high_resolution_clock::now();
 
 		double tolCheck = tol;
-		if (tol > 0.99e-2) tolCheck = 1e-3;
+		tolCheck = std::min(1e-3, tol / 10.0);
+		//if (tol > 0.99e-2) tolCheck = 1e-3;
+		
 		if (!isParallelSolverEnabled) {
 			int solveCounter = 0;
 			Eigen::VectorXd v;

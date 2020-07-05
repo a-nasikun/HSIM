@@ -88,6 +88,66 @@ namespace MuLES
 		Mat.col(n - 1) = mNorm * Mat.col(n - 1);
 	}
 
+	void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> S, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat)
+	{
+		/* Initiating the Bathe's proposed inite vectors */
+		Mat.resize(m, n);
+		Eigen::VectorXd e(m); e.setZero();
+		Mat.col(0) = M.diagonal();
+
+		Eigen::VectorXd ratios(M.rows()); 
+		ratios.setZero();
+
+		for (int i = 0; i < M.rows(); ++i) {
+			ratios(i) = S.coeff(i, i) / M.coeff(i, i);
+		}
+		//std::cout << "S[i,i]/M[i,i] ratios \n" << ratios.transpose() << std::endl;
+		Eigen::VectorXd ratios_sorted = ratios;
+
+		//std::sort(std::begin(ratios.data()), std::end(ratios.data()), [](int lhs, int rhs) {return rhs > lhs});
+		std::sort(ratios_sorted.data(), ratios_sorted.data() + ratios_sorted.size());
+		//std::cout << "S[i,i]/M[i,i] ratios \n" << ratios_sorted.transpose() << std::endl;
+
+		double up_bound = ratios_sorted(n-3);
+		Eigen::VectorXi smallRatioID(n - 2);
+		int idCounter = 0;
+		for (int i = 0; i < ratios.size(); ++i) {
+			if (ratios(i) <= up_bound) {
+				smallRatioID(idCounter) = i;
+				idCounter++;
+			}
+			if (idCounter >= n - 2) break;
+		}
+		std::cout << "Entries with minimum ratio of Sii/Mii are \n" << smallRatioID.transpose() << std::endl; 
+
+		for (int i = 0; i < smallRatioID.size(); ++i) {
+			e(smallRatioID(i)) = 1.0;
+			Mat.col(i + 1) = e;
+			e.setZero();
+		}
+
+
+		//for (int i = 1; i < (n - 1); ++i) {
+		//	e(i) = 1.0;
+		//	Mat.col(i) = e;
+		//	e(i) = 0.0;
+		//}
+
+		/* Last column **
+		** Filling out each element by random numbers */
+		std::random_device rd;								// Will be used to obtain a seed for the random number engine
+		std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
+		std::uniform_int_distribution<> dist(0, m);			// From 0 to F.rows()-1
+
+		for (int i = 0; i < m; ++i) {					// row
+			double randNum = (double)dist(gen);
+			Mat(i, n - 1) = 2.0 * (randNum / (double)m - 0.5);
+		}
+		double mNorm = Mat.col(n - 1).transpose() * M * Mat.col(n - 1);
+		mNorm = (double)1.0 / sqrt(mNorm);
+		Mat.col(n - 1) = mNorm * Mat.col(n - 1);
+	}
+
 	void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio)
 	{
 		cout << "> Scaling the mesh to have a unit length \n";
