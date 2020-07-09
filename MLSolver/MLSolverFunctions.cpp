@@ -1221,54 +1221,38 @@ namespace MuLES
 	
 		printf("____[1] level: %d \n", k);
 		int		q = std::max((int)(qParam * numEigs), numEigs + 8);
-		double eps = 1e6 * std::numeric_limits<double>::epsilon();
+		double constexpr eps = 1e6 * std::numeric_limits<double>::epsilon();
 		int status = 1;
 		int lastConvergedId = 1;
+
+		/* 1: RESTRICTION */
+		printf("____<1> Restriction: \n");
+		Eigen::SparseMatrix<double> SK, MK;
+		if (k == 0) {
+			SK = SL; MK = ML;
+		}
+		else {
+			SK = U[k - 1].transpose() * SL * U[k - 1];
+			MK = U[k - 1].transpose() * ML * U[k - 1];
+		}
 	
 		/* 4: RECURSION */
 		if (k == level)			// check if this already in the lowest/coarsest subspace
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
-			Eigen::SparseMatrix<double> SK, MK;
-			SK = U[k - 1].transpose()*SL*U[k - 1];
-			MK = U[k - 1].transpose()*ML*U[k - 1];
 
 			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
 			XkL = EVecTemp.topLeftCorner(MK.rows(), q);
 			AkL = EValTemp.head(q);
-
-			//XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
-			//AkL = EigValsReduced.head(q);
-			//printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
 		}
 		// RECURSIVE for level k < max_level
 		else
 		{
-			/* 1: RESTRICTION */
-			printf("____<1> Restriction: \n");
-			Eigen::SparseMatrix<double> SK, MK;
-			if (k == 0) {
-				SK = SL; MK = ML;
-			}
-			else {
-				SK = U[k - 1].transpose()*SL*U[k - 1];
-				MK = U[k - 1].transpose()*ML*U[k - 1];
-			}
-	
 			printf("____<2> Going deeper => \n ################");
 			performMultiLevelSIM(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift);
 			printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
-	
-			//if (k == (level-1)) {
-			//std::cout << "Level (under the hood, this number is 1 lower to the real one, since the finest level is defined as level 0): " << k << std::endl;
-			//printf("Basis U: %dx%d \n", U[k].rows(), U[k].cols());
-			//std::cout << "MK: \n" << MK.topLeftCorner(10, 10) << std::endl;
-			//std::cout << "SK: \n" << SK.topLeftCorner(10, 10) << std::endl;
-			//std::cout << "Aprox. EigVals (from coarser): " << AkL.head(numEigs).transpose() << std::endl;
-			//std::cout << "Approx. EigVects (from coarser): \n" << XkL.topLeftCorner(10, 10) << std::endl;
-			//}
-	
+				
 			/* [3] SUBSPACE ITERATION METHOD */
 			//std::cout << "Dimensionality check: \n";
 			//printf("Basis U:%dx%d | Approx. EigVect: %dx%d \n", U[k].rows(), U[k].cols(), XkL.rows(), XkL.cols());
@@ -1305,67 +1289,6 @@ namespace MuLES
 			printf("____<4> Subspace iteration.\n");
 			int iterCount = 0;
 			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, isWithShift, false, lastConvergedId);
-			//_do {
-			//_	/* Set up the iteration matrix */
-			//_	cout << "___Backward and Forward substitution \n";
-			//_	for (int i = 0; i < q; i++) {						// easily parallelizeable
-			//_		Eigen::VectorXd v;
-			//_		v = MK * (XkL.col(i));
-			//_		XbarK.col(i) = factorization.solve(v);
-			//_	}
-			//_
-			//_	/* Projected matrix */
-			//_	Sproj = XbarK.transpose()*SK*XbarK;
-			//_	Mproj = XbarK.transpose()*MK*XbarK;
-			//_
-			//_	/* Computing the eigenproblem in reduced space*/
-			//_	status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
-			//_	if (status != 0) {
-			//_		cout << status << "Cannot resolve eigenproblem epsilon " << eps << endl;
-			//_		eps *= 10;
-			//_		SS = SK + eps*Id;
-			//_		factorization.compute(SS);
-			//_		cout << "Increase the epsilon to " << -eps << endl;
-			//_		continue;
-			//_	}
-			//_
-			//_	//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
-			//_	//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
-			//_
-			//_	XkL = XbarK*Q;
-			//_	checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
-			//_	cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs/2) << " " << conv2(numEigs-1) << endl;
-			//_
-			//_	checkConvergenceCat3(Q, AkL, numEigs, isWithShift, -eps, conv3);
-			//_	cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs/2) << " " << conv3(numEigs-1) << endl;
-			//_
-			//_
-			//_	/* Store the eigenvalues and convergence rate if it's on the finest level */
-			//_	if (k == 0) {
-			//_		EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-			//_		convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
-			//_		convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
-			//_	}
-			//_
-			//_	iterCount++;
-			//_	if (iterCount >= maxIter || (conv2(numEigs - 1) < tol))
-			//_	{
-			//_		convergenceCheck = true;
-			//_	}
-			//_	/* Check convergence */
-			//_	for (int i = lastConvergedId; i < numEigs; ++i) {
-			//_		//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
-			//_		if (conv2(i) < tol) {
-			//_			lastConvergedId = i;
-			//_		}
-			//_		else break;
-			//_	}
-			//_
-			//_	if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
-			//_		convergenceCheck = false;
-			//_
-			//_} while (!convergenceCheck);
-			//printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
 	
 	
 			/* Print some data when it's on the finest level */
@@ -1418,15 +1341,23 @@ namespace MuLES
 		int iterCount = 0;
 		int factCounter = 0;
 		int status = 0;
+
+		/* 1: RESTRICTION */
+		printf("____<1> Restriction: ");
+		Eigen::SparseMatrix<double> SK, MK;
+		if (k == 0) {
+			SK = SL; MK = ML;
+		}
+		else {
+			SK = U[k - 1].transpose() * SL * U[k - 1];
+			MK = U[k - 1].transpose() * ML * U[k - 1];
+		}
 	
 		/* 4: RECURSION */
 		if (k == level)			// check if this already in the lowest/coarsest subspace
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
-			Eigen::SparseMatrix<double> SK, MK;
-			SK = U[k - 1].transpose()*SL*U[k - 1];
-			MK = U[k - 1].transpose()*ML*U[k - 1];
 
 			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
 			XkL = EVecTemp.topLeftCorner(MK.rows(), q);
@@ -1437,18 +1368,7 @@ namespace MuLES
 		}
 		// RECURSIVE for level k < max_level
 		else
-		{
-			/* 1: RESTRICTION */
-			printf("____<1> Restriction: ");
-			Eigen::SparseMatrix<double> SK, MK;
-			if (k == 0) {
-				SK = SL; MK = ML;
-			}
-			else {
-				SK = U[k - 1].transpose()*SL*U[k - 1];
-				MK = U[k - 1].transpose()*ML*U[k - 1];
-			}
-	
+		{	
 			printf("____<2> Going deeper => \n ################");
 			if (isWithShift)
 				performMultiLevelSIM_withShift_Draft(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
@@ -1462,7 +1382,8 @@ namespace MuLES
 			printf("____<3> Lifting, Init vectors: %dx%d \n", XkL.rows(), XkL.cols());
 	
 			/* Adding a small number on the diagonal, for robustness */
-			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+			//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 	
 			//printf("____<4> Embedding a small-valued diagonal matrix \n");
 	
@@ -1580,13 +1501,74 @@ namespace MuLES
 				cout << "__> Factorization " << factCounter << " with shift of " << ((iterCount == 0) ? eps : mu) << endl;
 	
 				/* Stage III: Iterations */
+				double tolCheck = std::min(1e-3, 0.1 * tol);
 				for (int i = 0; i < Imax; ++i) {
 					printf("Iteration: %d \n", iterCount + 1);
-	
-					for (int j = 0; j < q; ++j) {						// easily parallelizeable
+
+
+					//for (int j = 0; j < q; ++j) {						// easily parallelizeable
+					//	Eigen::VectorXd v;
+					//	v = MK * (XkL.col(j));
+					//	XbarK.col(j) = factorization.solve(v);
+					//}
+
+					if (!isParallelSolverEnabled) {
+						int solveCounter = 0;
 						Eigen::VectorXd v;
-						v = MK * (XkL.col(j));
-						XbarK.col(j) = factorization.solve(v);
+						for (int j = 0; j < q; ++j) {						// easily parallelizeable				
+							if (isConvergedVectsNotUsed && (conv2(j) < tolCheck && j > 0)) continue;
+							v = MK * (XkL.col(j));
+							XbarK.col(j) = factorization.solve(v);
+
+							if (isMultipleSolve)
+							{
+								v = MK * XbarK.col(j);
+								XbarK.col(j) = factorization.solve(v);
+								//v = MK*XbarK.col(j);
+								//XbarK.col(j) = factorization.solve(v);
+							}
+							solveCounter++;
+						}
+					}
+					else
+					{
+
+						//const int		NUM_OF_THREADS = omp_get_num_procs();
+						const int		NUM_OF_THREADS = std::min(q, omp_get_num_procs());
+						cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
+						//const int		NUM_OF_THREADS = 2;
+						omp_set_num_threads(NUM_OF_THREADS);
+						int tid, ntids, ipts, istart, iproc;
+						int iCol = 0;
+#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+						{
+							iproc = omp_get_num_procs();
+							tid = omp_get_thread_num();
+							ntids = omp_get_num_threads();
+							//ipts = (int)ceil((double) q / (double)ntids);
+							//ipts = q / ntids;
+							ipts = (q + ntids - 1) / ntids;
+							istart = tid * ipts;
+							if (tid == ntids - 1) ipts = q - istart;
+							if (ipts <= 0) ipts = 0;
+
+							Eigen::VectorXd v;
+
+							for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+								if (iCol >= q) continue;
+								if (isConvergedVectsNotUsed && conv2(iCol) < tolCheck && iCol > 0) continue;
+								v = MK * (XkL.col(iCol));
+								XbarK.col(iCol) = factorization.solve(v);
+
+								if (isMultipleSolve)
+								{
+									v = MK * XbarK.col(iCol);
+									XbarK.col(iCol) = factorization.solve(v);
+									//v = MK*XbarK.col(iCol);
+									//XbarK.col(iCol) = factorization.solve(v);
+								}
+							}
+						}
 					}
 	
 					/* Projection of M and K*/
@@ -1719,15 +1701,27 @@ namespace MuLES
 		int factCounter = 0;
 		int status = 1;
 		bool isConvergedNotUsed = true;
+
+		/* 1: RESTRICTION */
+		printf("____<1> Restriction: ");
+		t1 = chrono::high_resolution_clock::now();
+		Eigen::SparseMatrix<double> SK, MK;
+		if (k == 0) {
+			SK = SL; MK = ML;
+		}
+		else {
+			SK = U[k - 1].transpose() * SL * U[k - 1];
+			MK = U[k - 1].transpose() * ML * U[k - 1];
+		}
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "...in " << duration.count() << " seconds." << endl;
 	
 		/* 4: RECURSION */
 		if (k == level)			// check if this already in the lowest/coarsest subspace
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
-			Eigen::SparseMatrix<double> SK, MK;
-			SK = U[k - 1].transpose()*SL*U[k - 1];
-			MK = U[k - 1].transpose()*ML*U[k - 1];
 
 			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
 			XkL = EVecTemp.topLeftCorner(MK.rows(), q);
@@ -1739,17 +1733,8 @@ namespace MuLES
 		// RECURSIVE for level k < max_level
 		else
 		{
-			/* 1: RESTRICTION */
-			printf("____<1> Restriction: ");
-			t1 = chrono::high_resolution_clock::now();
-			Eigen::SparseMatrix<double> SK, MK, Id;
-			if (k == 0) {
-				SK = SL; MK = ML;
-			}
-			else {
-				SK = U[k - 1].transpose()*SL*U[k - 1];
-				MK = U[k - 1].transpose()*ML*U[k - 1];
-			}
+			/* 1: RESTRICTION */			
+			Eigen::SparseMatrix<double> Id;
 			Id.resize(SK.rows(), SK.cols());
 			Id.setIdentity();
 			t2 = chrono::high_resolution_clock::now();
@@ -1800,168 +1785,13 @@ namespace MuLES
 			double zhaoParam = zhaoShiftParam;
 			int zhaoShiftId;
 			double mu;
-			double eps = 1e3*std::numeric_limits<double>::epsilon();
+			double constexpr eps = 1e3*std::numeric_limits<double>::epsilon();
 	
 			printf("____<5> Subspace iteration.\n");
 			printf("Size of XkL: %dx%d \n", XkL.rows(), XkL.cols());
 			printf("Size of XbarK: %dx%d \n", XbarK.rows(), XbarK.cols());
 			
 			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, isWithShift, false, lastConvergedId);
-			//do {
-			//	t1 = chrono::high_resolution_clock::now();
-			//	if (status != 0)
-			//	{
-			//		/* [4] Zhao's proposal */
-			//		//zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
-			//		zhaoShiftId = lastConvergedId + (int)floor(zhaoParam*(numEigs - lastConvergedId));
-			//		if (factCounter == 0) {
-			//			if (tol < 1e-9 && k == 0) {
-			//				std::cout << "__On finest level, no shift on really high accuracy!" << std::endl;						
-			//				factorization.compute(SK + eps*Id);
-			//			}
-			//			else {
-			//				mu = AkL(zhaoShiftId);
-			//				std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId; // << std::endl;
-			//				factorization.compute(SK - mu*MK);
-			//			}
-			//		}
-			//		else {
-			//			eps *= 10;
-			//			mu = eps;
-			//			factorization.compute(SK + mu*Id);
-			//		}
-			//
-			//		factCounter++;
-			//		std::cout << "__> Factorization " << factCounter << " with shift of " << mu; // << std::endl;
-			//	}
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	/* Stage III: Iterations */
-			//	printf("Iteration: %d \n", iterCount + 1);
-			//
-			//	std::cout << "Solving each RHS ";
-			//	const int		NUM_OF_THREADS = min(q, omp_get_num_procs());
-			//	cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
-			//	//const int		NUM_OF_THREADS = 2;
-			//	omp_set_num_threads(NUM_OF_THREADS);
-			//	int tid, ntids, ipts, istart, iproc;
-			//	int iCol = 0;
-			//	#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
-			//	{
-			//		iproc = omp_get_num_procs();
-			//		tid = omp_get_thread_num();
-			//		ntids = omp_get_num_threads();
-			//		//ipts = (int)ceil((double)q / (double)ntids);
-			//		ipts = (q+ntids-1) / ntids;
-			//		istart = tid * ipts;
-			//		if (tid == ntids - 1) ipts = q - istart;
-			//		if (ipts <= 0) ipts = 0;
-			//		//printf("[%d] block %d->%d (%d) \n", tid, istart, istart + ipts, ipts);
-			//
-			//		for (iCol = istart; iCol < (istart + ipts); ++iCol) {
-			//			if (iCol >= q) continue;
-			//			Eigen::VectorXd v;
-			//			v = MK * (XkL.col(iCol));
-			//			XbarK.col(iCol) = factorization.solve(v);
-			//		}
-			//	}
-			//	//t1 = chrono::high_resolution_clock::now();
-			//	//for (int j = 0; j < q; ++j) {						// easily parallelizeable
-			//	//	Eigen::VectorXd v;
-			//	//	v = MK * (XkL.col(j));
-			//	//	XbarK.col(j) = factorization.solve(v);
-			//	//}				
-			//	
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	/* Projection of M and K*/
-			//	t1 = chrono::high_resolution_clock::now();
-			//	printf("________setting up reduced matrix M and S. ");
-			//	Sproj = XbarK.transpose()*SK*XbarK;
-			//	Mproj = XbarK.transpose()*MK*XbarK;
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	t1 = chrono::high_resolution_clock::now();
-			//	printf("________solve reduced eigenvalue problem. ");
-			//	status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
-			//	cout << "__STATUS: " << status << endl;
-			//	if (status != 0) {
-			//		cout << "___!! COmputation of eigenvalues failed! \n";
-			//		cout << "____Status: " << status << endl;
-			//		//i = Imax;
-			//		continue;
-			//		//break;
-			//	}
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	t1 = chrono::high_resolution_clock::now();
-			//	printf("________lifting up/prolongation.");
-			//	XkL = XbarK*Q;
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	/* Convergence Check*
-			//	** Type 2: */
-			//	t1 = chrono::high_resolution_clock::now();
-			//	printf("________Convergence check");
-			//	checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
-			//
-			//	/* Type 3: */
-			//	//checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
-			//	//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
-			//
-			//	//cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
-			//	//cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
-			//
-			//	//cout << AkL.head(numEigs).transpose() << endl;
-			//
-			//	if (k == 0) {
-			//		EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-			//		convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
-			//		//convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
-			//	}
-			//
-			//	iterCount++;
-			//
-			//	/* Ignore the first iteration */
-			//	if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
-			//		isConverged = true;
-			//	}
-			//
-			//	if (status != 0) {
-			//		std::cout << "Cannot solve reduced eigenproblem \n";
-			//		continue;
-			//	}
-			//
-			//	/* Check convergence */
-			//	for (int i = lastConvergedId; i < numEigs; ++i) {
-			//		//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
-			//		if (conv2(i) < tol) {
-			//			lastConvergedId = i;
-			//		}
-			//		else break;
-			//	}
-			//
-			//	if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
-			//		isConverged = false;
-			//
-			//	cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
-			//
-			//} while (!isConverged);
 	
 			printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
 	
@@ -2021,42 +1851,38 @@ namespace MuLES
 		int status = 1;
 		bool isConvergedNotUsed = true;
 
+		/* 1: RESTRICTION */
+		printf("____<1> Restriction: ");
+		t1 = chrono::high_resolution_clock::now();
+		Eigen::SparseMatrix<double> SK, MK;
+		if (k == 0) {
+			SK = SL; MK = ML;
+		}
+		else {
+			SK = U[k - 1].transpose() * SL * U[k - 1];
+			MK = U[k - 1].transpose() * ML * U[k - 1];
+		}
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "...in " << duration.count() << " seconds." << endl;
+
 		/* 4: RECURSION */
 		if (k == level)			// check if this already in the lowest/coarsest subspace
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
-			Eigen::SparseMatrix<double> SK, MK;
-			SK = U[k - 1].transpose()*SL*U[k - 1];
-			MK = U[k - 1].transpose()*ML*U[k - 1];
 
 			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
 			XkL = EVecTemp.topLeftCorner(MK.rows(), q);
 			AkL = EValTemp.head(q);
-			//std::cout << "Level: " << level << "k=" << k << std::endl;
-			//std::cout << "Eigvals (1)\n" << EValTemp.transpose() << std::endl;
-			//std::cout << "Eigvals (2)\n" << AkL.transpose() << std::endl;
-			//printf("____Size of the initial vectors: %dx%d (%d eigvalues)\n", XkL.rows(), XkL.cols(), AkL.rows());
 		}
 		// RECURSIVE for level k < max_level
 		else
-		{
-			/* 1: RESTRICTION */
-			printf("____<1> Restriction: ");
-			t1 = chrono::high_resolution_clock::now();
-			Eigen::SparseMatrix<double> SK, MK, Id;
-			if (k == 0) {
-				SK = SL; MK = ML;
-			}
-			else {
-				SK = U[k - 1].transpose()*SL*U[k - 1];
-				MK = U[k - 1].transpose()*ML*U[k - 1];
-			}
+		{			
+
+			Eigen::SparseMatrix<double> Id;
 			Id.resize(SK.rows(), SK.cols());
 			Id.setIdentity();
-			t2 = chrono::high_resolution_clock::now();
-			duration = t2 - t1;
-			cout << "...in " << duration.count() << " seconds." << endl;
 
 			//if (k == level - 1) {
 			//	std::cout << "LEVEL" << k << ", tolerance is increased to " << 1e-10 << std::endl;
@@ -2108,186 +1934,10 @@ namespace MuLES
 			double zhaoParam = zhaoShiftParam;
 			int zhaoShiftId;
 			double mu;
-			double eps = 1e3*std::numeric_limits<double>::epsilon();
+			double constexpr eps = 1e3*std::numeric_limits<double>::epsilon();
 
 			printf("____<5> Subspace iteration.\n");
-			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, isWithShift, true, lastConvergedId);
-			//do {
-			//	t1 = chrono::high_resolution_clock::now();
-			//	if (status != 0)
-			//	{
-			//		/* [4] Zhao's proposal */
-			//		//zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
-			//		zhaoShiftId = lastConvergedId + (int)floor(zhaoParam*(numEigs - lastConvergedId));
-			//		if (factCounter == 0) {
-			//			if (tol < 1e-9 && k == 0) {
-			//				std::cout << "__On finest level, no shift on really high accuracy!"; // << std::endl;
-			//				factorization.compute(SK + eps*Id);
-			//			}
-			//			else {
-			//				mu = AkL(zhaoShiftId);
-			//				std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId; // << std::endl;
-			//				factorization.compute(SK - mu*MK);
-			//			}
-			//		}
-			//		else {
-			//			eps *= 10;
-			//			mu = eps;
-			//			factorization.compute(SK + mu*Id);
-			//		}
-			//
-			//		factCounter++;
-			//		std::cout << "__> Factorization " << factCounter << " with shift of " << mu; // << std::endl;
-			//	}
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	/* Stage III: Iterations */
-			//	printf("Iteration: %d \n", iterCount + 1);
-			//
-			//	std::cout << "Solving each RHS ";
-			//	t1 = chrono::high_resolution_clock::now();
-			//	//if (iterCount == 0)
-			//	//{
-			//	//	Eigen::VectorXd v;
-			//	//	for (int j = 0; j < q; ++j) {						// easily parallelizeable
-			//	//		v = MK * (XkL.col(j));
-			//	//		XbarK.col(j) = factorization.solve(v);
-			//	//	}
-			//	//	std::cout << "Soving all" << q << " equations \n";
-			//	//}
-			//	//else {
-			//
-			//		//int solveCounter = 0;
-			//		//Eigen::VectorXd v;
-			//		//for (int j = 0; j < q; ++j) {						// easily parallelizeable
-			//		//	if (conv2(j) < tol && j > 0) continue;
-			//		//	v = MK * (XkL.col(j));
-			//		//	XbarK.col(j) = factorization.solve(v);
-			//		//	solveCounter++;
-			//		//}
-			//		//std::cout << "Soving " << solveCounter << " equations, from " << q << std::endl;
-			//	//}
-			//
-			//	//const int		NUM_OF_THREADS = omp_get_num_procs();
-			//	const int		NUM_OF_THREADS = min(q, omp_get_num_procs());
-			//	cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
-			//	//const int		NUM_OF_THREADS = 2;
-			//	omp_set_num_threads(NUM_OF_THREADS);
-			//	int tid, ntids, ipts, istart, iproc;
-			//	int iCol = 0;
-			//#pragma ompparallel private(tid,ntids,ipts,istart,iCol)
-			//	{
-			//		iproc = omp_get_num_procs();
-			//		tid = omp_get_thread_num();
-			//		ntids = omp_get_num_threads();
-			//		//ipts = (int)ceil((double) q / (double)ntids);
-			//		//ipts = q / ntids;
-			//		ipts = (q + ntids - 1) / ntids;
-			//		istart = tid * ipts;
-			//		if (tid == ntids - 1) ipts = q - istart;
-			//		if (ipts <= 0) ipts = 0;
-			//			
-			//		Eigen::VectorXd v;
-			//
-			//		for (iCol = istart; iCol < (istart + ipts); ++iCol) {
-			//			if (iCol >= q) continue;
-			//			if (conv2(iCol) < tol && iCol > 0) continue;
-			//			v = MK * (XkL.col(iCol));
-			//			XbarK.col(iCol) = factorization.solve(v);
-			//		}
-			//	}
-			//
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	/* Projection of M and K*/
-			//	t1 = chrono::high_resolution_clock::now();
-			//	printf("___setting up reduced matrix M and S. ");
-			//	Sproj = XbarK.transpose()*SK*XbarK;
-			//	Mproj = XbarK.transpose()*MK*XbarK;
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	t1 = chrono::high_resolution_clock::now();
-			//	printf("__solve reduced eigenvalue problem. ");
-			//	status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
-			//	cout << "__STATUS: " << status << endl;
-			//	if (status != 0) {
-			//		cout << "___!! COmputation of eigenvalues failed! \n";
-			//		cout << "____Status: " << status << endl;
-			//		//i = Imax;
-			//		continue;
-			//		//break;
-			//	}
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	t1 = chrono::high_resolution_clock::now();
-			//	printf("__lifting up/prolongation.");
-			//	XkL = XbarK*Q;
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	/* Convergence Check*
-			//	** Type 2: */
-			//	t1 = chrono::high_resolution_clock::now();
-			//	printf("__Convergence check.");
-			//	checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
-			//	t2 = chrono::high_resolution_clock::now();
-			//	duration = t2 - t1;
-			//	cout << "...in " << duration.count() << " seconds." << endl;
-			//
-			//	cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
-			//
-			//	/* Type 3: */
-			//	//checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
-			//	//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
-			//
-			//	//cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
-			//	///cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
-			//
-			//	//cout << AkL.head(numEigs).transpose() << endl;
-			//
-			//	if (k == 0) {
-			//		EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-			//		convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
-			//		//convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
-			//	}
-			//
-			//	iterCount++;
-			//
-			//	/* Ignore the first iteration */
-			//	if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
-			//		isConverged = true;
-			//	}
-			//
-			//	if (status != 0) {
-			//		std::cout << "Cannot solve reduced eigenproblem \n";
-			//		continue;
-			//	}
-			//
-			//	/* Check convergence */
-			//	for (int i = lastConvergedId; i < numEigs; ++i) {
-			//		//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
-			//		if (conv2(i) < tol) {
-			//			lastConvergedId = i;
-			//		}
-			//		else break;
-			//	}
-			//
-			//	if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
-			//		isConverged = false;
-			//
-			//	cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
-			//
-			//} while (!isConverged);
-			
+			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, isWithShift, true, lastConvergedId);						
 			printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
 			
 			

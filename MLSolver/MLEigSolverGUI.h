@@ -811,16 +811,16 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->setQParam(qParam);
-
-
+			eigenSolver->isMultipleSolve = isMultipleSolve;
 			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
-			int maxIters = 20;	
+
+			int maxIters = 25;	
 			//vector<int> wantedModes{ 50, 100, 250 };
-			//vector<int> wantedModes{ 50 };
-			vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
+			vector<int> wantedModes{ 2000 };
+			//vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
 			//vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9,1e-10};
-			//vector<double> wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9,1e-10 };
-			vector<double> wantedTols{ 1e-3 };
+			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4,1e-5 };
+			//vector<double> wantedTols{ 1e-3 };
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for(int k=0; k<wantedTols.size(); ++k){
@@ -1016,7 +1016,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		if (ImGui::Button("Scripted (4) ALL", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
-			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+			//if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
 			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
@@ -1028,12 +1028,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*   (4) ML with shift-once
 			*/
 
-			int maxIters = 50;
+			int maxIters = 25;
 			//vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
-			//vector<int> wantedModes{ 25 };
-			//vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
-			vector<double> wantedTols{ 1e-3};
+			//vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
+			vector<int> wantedModes{ 50, 250 };
+			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
+			//vector<double> wantedTols{ 1e-3};
 			eigenSolver->setZhaoShiftParam(0.25);
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
@@ -1180,12 +1180,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 0.25 };			
-			//vector<int>				wantedModes{ 50, 100, 250};
+			vector<int>				wantedModes{ 50, 100, 250, 750};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000 };
-			vector<int>				wantedModes{ 50 };
-			vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
-			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
+			//vector<int>				wantedModes{ 50 };
+			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
+			vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
 			//vector<double>			wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-3 };
