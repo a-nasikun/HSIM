@@ -4,6 +4,7 @@
 #include <igl/doublearea.h>
 #include <igl/invert_diag.h>
 #include <igl/avg_edge_length.h>
+#include <igl/edges.h>
 
 #include <Eigen/PardisoSupport>
 
@@ -34,6 +35,12 @@ namespace MuLES
 	*/
 	void MLSolverFunctions::constructMassMatrix()
 	{
+		//constructDiagonalMassMatrix();
+		constructConsistentMassMatrix();
+	}
+
+	void MLSolverFunctions::constructDiagonalMassMatrix()
+	{
 		cout << "> Creating mass matrix for the surface mesh \n";
 		/* Construct Mass matrix M*/
 		//igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
@@ -43,6 +50,86 @@ namespace MuLES
 		Eigen::VectorXd dblArea;
 		igl::doublearea(V, F, dblArea);
 		surfaceArea = dblArea.sum();
+	}
+
+	void MLSolverFunctions::constructConsistentMassMatrix()
+	{
+		/* Set up the edges data structure*/
+		Eigen::MatrixXi E;
+		igl::edges(F, E);
+		Eigen::VectorXd dArea;
+		igl::doublearea(V, F, dArea);
+		surfaceArea = dArea.sum();
+
+		/* Build up vertex-edge neighborhood structure */
+		std::vector<std::set<int>> VENeighbors;
+		VENeighbors.resize(V.rows());
+		for (int i = 0; i < E.rows(); i++) {
+			VENeighbors[E(i, 0)].emplace(i);
+			VENeighbors[E(i, 1)].emplace(i);			
+		}
+
+		/* Build up edge-face neighborhood structure */
+		vector<set<int>> EFlist;
+		EFlist.resize(E.rows());
+		for (int ijk = 0; ijk < F.rows(); ijk++) {
+			for (int i = 0; i < F.cols(); i++) {
+				int ii = F(ijk, i);
+				int in = F(ijk, (i + 1) % (int)F.cols());
+				int ip;
+				if (i < 1)
+					ip = 2;
+				else
+					ip = (i - 1) % (int)F.cols();
+
+				/* Loop over all edges having element F(i,j) */
+				for (set<int>::iterator ij = VENeighbors[ii].begin(); ij != VENeighbors[ii].end(); ++ij) {
+					int edge = *ij;
+					if ((ii == E(edge, 0) && in == E(edge, 1)) || (ii == E(edge, 1) && in == E(edge, 0)))
+					{
+						EFlist[edge].emplace(ijk);
+					}
+				}
+			}
+		}
+
+		/* Some test*/
+		//srand(time(NULL));
+		//int v = rand()%V.rows();
+		//for (int e : VENeighbors[v]) {
+		//	printf("Vertex %d has edge %d (%d) (%d=>%d)as neighbor, that belongs to ", v, e, VENeighbors[v].size(), E(e,0), E(e,1));
+		//	for (int f : EFlist[e]) {
+		//		std::cout << " face:" << f << "(" << F(f,0) << "|" << F(f, 1) << "|" << F(f, 2) << ")\t";
+		//	}
+		//	std::cout<<std::endl;
+		//}
+
+		/* Set up Mass matrix:: OFF-DIAGONAL */
+		M.resize(V.rows(), V.rows());
+		std::vector<Eigen::Triplet<double>> MTriplet;
+		MTriplet.reserve(10 * V.rows());		// aprox 7 items per row
+		for (int vv = 0; vv < V.rows();++vv){
+			for (int e : VENeighbors[vv]){
+				double triArea = 0.0;
+				for (int f : EFlist[e]) {
+					triArea += abs(dArea(f)) / 2.0;
+				}
+				triArea /= (2*12.0);
+				MTriplet.push_back(Eigen::Triplet<double>(E(e, 0), E(e, 1), triArea));
+				MTriplet.push_back(Eigen::Triplet<double>(E(e, 1), E(e, 0), triArea));
+			}
+		}
+		/* Set up Mass matrix:: DIAGONAL Entries */
+		for (int f = 0; f < F.rows(); ++f) {
+			for (int vv = 0; vv < F.cols(); ++vv) {
+				int tv = F(f, vv);
+				MTriplet.push_back(Eigen::Triplet<double>(tv, tv, dArea(f)/(2.0*6.0)));
+			}
+		}
+		M.setFromTriplets(MTriplet.begin(), MTriplet.end());
+		std::cout << "Mass matrix" << M.block(0, 0, 20, 20) << std::endl; 
+		std::string filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/cube_Mass.mat";
+		//WriteSparseMatrixToMatlab(M, filename);
 	}
 
 	/**
@@ -1871,6 +1958,10 @@ namespace MuLES
 		{
 			Eigen::MatrixXd EVecTemp;
 			Eigen::VectorXd EValTemp;
+			//std::string filename1 = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Cube_massRed.mat";
+			//std::string filename2 = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Cube_stiffRed.mat";
+			//WriteSparseMatrixToMatlab(MK, filename1);
+			//WriteSparseMatrixToMatlab(SK, filename2);
 
 			computeEigenGPU(SK, MK, EVecTemp, EValTemp);
 			XkL = EVecTemp.topLeftCorner(MK.rows(), q);

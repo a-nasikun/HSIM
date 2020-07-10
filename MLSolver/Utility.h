@@ -28,6 +28,7 @@ namespace MuLES
 	void printVector(const Eigen::VectorXd& V, bool isTranspose = false, int numDigit = 16);
 
 	void checkOrthonormality(const Eigen::MatrixXd& EigVect, const Eigen::SparseMatrix<double>& M, Eigen::MatrixXd &OrthMat);
+	void WriteSparseMatrixToMatlab(const Eigen::SparseMatrix<double>& M, const string& filename);
 
 	template <typename DerivedM>
 	void writeDenseMatrixToFile(const Eigen::PlainObjectBase<DerivedM>& M, const string& filename, bool overwrite = false);

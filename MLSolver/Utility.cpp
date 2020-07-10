@@ -6,6 +6,13 @@
 #include <fstream>
 #include <igl/matlab/matlabinterface.h>
 
+/* [MATLAB] */
+#include <MatlabDataArray.hpp>
+#include <MatlabEngine.hpp>
+#include <tuple>
+#include "engine.h"
+#include "mex.h"
+
 #include <chrono>				// For quite precise timing, needed (perhaps) in most sub-task
 
 using namespace std;
@@ -202,7 +209,7 @@ namespace MuLES
 		else text += "\n";
 
 		for (int i = 0; i < V.rows(); ++i) {
-			std::printf(text.c_str(), V(i));
+			printf(text.c_str(), V(i));
 		}
 
 		std::cout << std::endl;
@@ -232,5 +239,58 @@ namespace MuLES
 		//igl::matlab::mleval(&engine, "plot([.5, size(M,1)+0.5], [i - .5, i - .5], 'k-');");
 		//igl::matlab::mleval(&engine, "plot([i - .5, i - .5], [.5, size(M,1)+0.5], 'k-');");
 		//igl::matlab::mleval(&engine, "end");
+	}
+
+	void WriteSparseMatrixToMatlab(const Eigen::SparseMatrix<double>& M, const string& filename)
+	{
+		printf("Saving matrix with the size of M=%dx%d\n", M.rows(), M.cols());
+
+		using namespace matlab::engine;
+		Engine *ep;
+		mxArray *MM = NULL, *MS = NULL, *result = NULL, *eigVecResult, *nEigs;
+
+		const int NNZ_M = M.nonZeros();
+		int nnzMCounter = 0;
+
+		double	*srm = (double*)malloc(NNZ_M * sizeof(double));
+		mwIndex *irm = (mwIndex*)malloc(NNZ_M * sizeof(mwIndex));
+		mwIndex *jcm = (mwIndex*)malloc((M.cols() + 1) * sizeof(mwIndex));
+
+		MM = mxCreateSparse(M.rows(), M.cols(), NNZ_M, mxREAL);
+		srm = mxGetPr(MM);
+		irm = mxGetIr(MM);
+		jcm = mxGetJc(MM);
+
+		// Getting matrix M
+		jcm[0] = nnzMCounter;
+		for (int i = 0; i < M.outerSize(); i++) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(M, i); it; ++it) {
+				srm[nnzMCounter] = it.value();
+				irm[nnzMCounter] = it.row();
+				nnzMCounter++;
+			}
+			jcm[i + 1] = nnzMCounter;
+		}
+
+		// Start Matlab Engine
+		ep = engOpen(NULL);
+		if (!(ep = engOpen(""))) {
+			fprintf(stderr, "\nCan't start MATLAB engine\n");
+			cout << "CANNOT START MATLAB " << endl;
+		}
+		else {
+			cout << "MATLAB STARTS. OH YEAH!!!" << endl;
+		}
+
+		engPutVariable(ep, "MF", MM);
+		// LAPTOP
+		//engEvalString(ep, "save('F:/PROGRAMMING/Localized Vector Fields/Build/ForChristopher/Armadillo/Basis','Basis');");
+		//engEvalString(ep, "save('E:/Local Programming/Localized Bases for Vector Fields/LocalFields_build/ForChristopher/Armadillo/Basis','Basis');");
+
+		// WORKSTATION
+		//engEvalString(ep, "save('E:/Local Programming/Localized Bases for Vector Fields/LocalFields_build/ForChristopher/Armadillo/Basis','Basis');");
+		string saveFile = "save('" + filename + "','MF');";
+		engEvalString(ep, saveFile.c_str());
+
 	}
 }
