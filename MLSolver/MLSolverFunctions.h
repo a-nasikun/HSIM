@@ -55,6 +55,8 @@ namespace MuLES
 		void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k = 0, double scale = 1.0) const override;
 		void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale = 1.0) const override;
 
+		
+
 	private:
 		double			avgEdgeLength;						//!< Average edge length (from the mesh)
 		double			surfaceArea;						//!< Total surface area (from the mesh)

@@ -3,6 +3,11 @@
 #include <omp.h>
 #include <random>
 
+#include <cuda_runtime.h>
+#include "cublas_v2.h"
+#include <cusparse.h>
+#include <cusparse_v2.h>
+
 namespace MuLES
 {
 	
@@ -1005,4 +1010,170 @@ namespace MuLES
 		return EigValsSIM(id);
 	}
 	//template void MLEigenSolver::setSamplingLevels(Eigen::PlainObjectBase<double>& sampSize, int numEigen, double levelRatio);
+
+	void MLEigenSolver::cublasGEMMtest()
+	{
+		chrono::high_resolution_clock::time_point	t1, t2;
+		chrono::duration<double>					duration;	
+		
+		int nRow = 200000, nMid = 500, nCol = 500;
+		Eigen::MatrixXd XkMat(nRow, nCol); XkMat.setZero();
+		Eigen::MatrixXd XMat = Eigen::MatrixXd::Random(nRow, nMid);
+		Eigen::MatrixXd QMat = Eigen::MatrixXd::Random(nMid, nCol);
+
+		cout << "ON <<C>>PU ";
+		t1 = chrono::high_resolution_clock::now();
+		XkMat = XMat*QMat;
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
+		std::cout << "Xk \n" << XkMat.topLeftCorner(10,10) << std::endl;
+		XkMat.setZero();
+
+		cout << "ON <<G>>PU ";
+		t1 = chrono::high_resolution_clock::now();
+
+		cudaError_t cudaStat;		// cudaMalloc status
+		cublasStatus_t stat;		// CUBLAS functions status
+		cublasHandle_t BLAShandle;		// CUBLAS context
+
+
+		double *h_Xk;
+		double *h_X;
+		double *h_Q;
+		int nX = XMat.rows();
+		int mX = XMat.cols();
+		int nQ = QMat.rows();
+		int mQ = QMat.cols();
+
+		// Xk = X*Q;
+		h_Xk = (double*)malloc(nX*mQ * sizeof(double)); // host memory for a
+		h_X = (double*)malloc(nX*mX * sizeof(double)); // host memory for b
+		h_Q = (double*)malloc(nQ*mQ * sizeof(double)); // host memory for c
+		h_Xk = XkMat.data();
+		h_X = XMat.data();
+		h_Q = QMat.data();
+
+		// For the device (i.e. GPU)
+		double *d_Xk;
+		double *d_X;
+		double *d_Q;
+		cudaStat = cudaMalloc((void **)&d_Xk, nX*mQ * sizeof(double));
+		cudaStat = cudaMalloc((void **)&d_X, nX*mX * sizeof(double));
+		cudaStat = cudaMalloc((void **)&d_Q, nQ*mQ * sizeof(double));
+
+		stat = cublasCreate(&BLAShandle);
+		stat = cublasSetMatrix(nX, mX, sizeof(double), h_X, nX, d_X, nX);
+		stat = cublasSetMatrix(nQ, mQ, sizeof(double), h_Q, nQ, d_Q, nQ);
+		stat = cublasSetMatrix(nX, mQ, sizeof(double), h_Xk, nX, d_Xk, nX);
+		double alpha = 1.0;
+		double beta = 0.0;
+
+		stat = cublasDgemm(BLAShandle, CUBLAS_OP_N, CUBLAS_OP_N, nX, mQ, mX, &alpha, d_X, nX, d_Q, nQ, &beta, d_Xk, nX);
+
+		stat = cublasGetMatrix(nX, mQ, sizeof(double), d_Xk, nX, h_Xk, nX);
+		XkMat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Xk, nX, mQ, Eigen::OuterStride<>(nX));
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
+
+		//std::cout << "X \n" << XMat << std::endl;
+		//std::cout << "Q \n" << QMat << std::endl;
+		//std::cout << "Xk \n" << XkMat << std::endl;
+		std::cout << "Xk \n" << XkMat.topLeftCorner(10, 10) << std::endl;
+
+		if (d_Xk) cudaFree(d_Xk);
+		if (d_X) cudaFree(d_X);
+		if (d_Q) cudaFree(d_Q);
+		if (BLAShandle) cublasDestroy(BLAShandle);
+		cudaDeviceReset();
+	}
+
+	void MLEigenSolver::cusparseCSRMMtest()
+	{
+		cusparseHandle_t	cuSpHandle;
+		cusparseStatus_t	cuSpStat;
+		cudaError_t			cudaStat1 = cudaSuccess;
+
+		Eigen::SparseMatrix<double, Eigen::RowMajor> SS = S;
+		/* Some random X matrix */
+		std::cout << "Set up random init matrix X and SX \n";
+		Eigen::MatrixXd X = Eigen::MatrixXd::Random(S.rows(), 100);
+		Eigen::MatrixXd SX = Eigen::MatrixXd::Random(S.rows(), 100);
+
+		std::cout << "Obtain structure of sparse matrix S. \n";
+		cusparseMatDescr_t descrS = 0, descrX = 0;
+		const int m_S = SS.rows();
+		const int n_S = SS.cols();
+		const int lda_S = SS.rows();
+		const int nnz_S = SS.nonZeros();
+		const double *h_csrVal_S = (double*) malloc(nnz_S*sizeof(double));
+		const int *h_csrRowPtr_S = (int*) malloc((m_S + 1) * sizeof(int));
+		const int *h_csrColInd_S = (int*) malloc(nnz_S *sizeof(int));
+		S.makeCompressed();
+		h_csrVal_S = SS.valuePtr();
+		h_csrColInd_S = SS.innerIndexPtr();
+		h_csrRowPtr_S = SS.outerIndexPtr();
+
+		const int m_X = X.rows();
+		const int n_X = X.cols();
+		const int lda_X = X.rows();
+
+		std::cout << "Allocate space for the result of SX=S*X. \n";
+		const int m_SX = SX.rows();
+		const int n_SX = SX.cols();
+		const int lda_SX = SX.rows();
+		double *h_SX = (double*)malloc(m_SX*n_SX * sizeof(double));
+
+		std::cout << "Obtain parameters from sparse matrix X (in CSR format?). \n";
+		double *d_csrVal_S; cudaMalloc(&d_csrVal_S, nnz_S * sizeof(double));
+		int *d_csrRowPtr_S; cudaMalloc(&d_csrRowPtr_S, (m_S+1) * sizeof(int));
+		int *d_csrColInd_S; cudaMalloc(&d_csrColInd_S, nnz_S * sizeof(int));
+
+		std::cout << "Copy X and SX to GPU :";
+		double *d_X; cudaMalloc(&d_X, m_X*n_X * sizeof(double));
+		cudaStat1 = cudaMemcpy(d_X, X.data(), m_X*n_X * sizeof(double), cudaMemcpyHostToDevice);
+		std::cout << "d_X " << cudaStat1 << "| ";
+		double *d_SX; cudaMalloc(&d_SX, m_SX*n_SX * sizeof(double));
+		cudaStat1 = cudaMemcpy(d_SX, SX.data(), m_SX*n_SX * sizeof(double), cudaMemcpyHostToDevice);
+		std::cout << "d_SX " << cudaStat1 << "\n ";
+
+		std::cout << "Value \n" << S.valuePtr() << std::endl;
+		std::cout << "row \n" << h_csrRowPtr_S << std::endl;
+		std::cout << "col \n" << h_csrColInd_S << std::endl;
+
+		std::cout << "Copy S to GPU ";
+		cudaStat1 = cudaMemcpy(d_csrVal_S,		h_csrVal_S,		nnz_S * sizeof(double), cudaMemcpyHostToDevice);
+		std::cout << "val_S " << cudaStat1 << "| ";
+		cudaStat1 = cudaMemcpy(d_csrRowPtr_S,	h_csrRowPtr_S,	(m_S+1)* sizeof(int), cudaMemcpyHostToDevice);
+		std::cout << "row ptr " << cudaStat1 << "| ";
+		cudaStat1 = cudaMemcpy(d_csrColInd_S,	h_csrColInd_S,	nnz_S * sizeof(int), cudaMemcpyHostToDevice);
+		std::cout << "cold indices " << cudaStat1 << "\n";
+		
+		double alpha = 1.0;
+		double beta = 0.0;
+		
+		size_t bufferSize;
+		void* buffer = nullptr;
+
+		std::cout << "Multiplication in GPU \n";
+		cuSpStat = cusparseDcsrmm(cuSpHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, m_S, n_X, n_S, nnz_S, &alpha, descrS, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_X, m_X, &beta, d_SX, m_SX);
+		std::cout << "mult " << cuSpStat << "\n";
+
+		std::cout << "Copy back to CPU \n";
+		cudaStat1 = cudaMemcpy(h_SX, d_SX, m_SX*n_SX * sizeof(double), cudaMemcpyDeviceToHost);
+		std::cout << "SX to CPU " << cudaStat1 << "\n";
+
+		std::cout << "format it to Eigen Matrix \n";
+		SX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_SX, n_S, m_X, Eigen::OuterStride<>(n_S));
+
+		std::cout << "S\n" << S.topLeftCorner(10, 10) << std::endl << std::endl;
+		std::cout << "X\n" << X.topLeftCorner(10, 10) << std::endl << std::endl;
+		std::cout << "SX\n" << SX.topLeftCorner(10, 10) << std::endl << std::endl;
+
+		/*Obtain sparse matrix*/
+
+		
+	}
 }

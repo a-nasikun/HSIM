@@ -10,6 +10,9 @@
 
 #include <queue>
 
+#include <cuda_runtime.h>
+#include "cublas_v2.h"
+
 namespace MuLES
 {
 	/**
@@ -35,8 +38,8 @@ namespace MuLES
 	*/
 	void MLSolverFunctions::constructMassMatrix()
 	{
-		//constructDiagonalMassMatrix();
-		constructConsistentMassMatrix();
+		constructDiagonalMassMatrix();
+		//constructConsistentMassMatrix();
 	}
 
 	void MLSolverFunctions::constructDiagonalMassMatrix()
@@ -2336,6 +2339,7 @@ namespace MuLES
 	//		itersPerLevel(k) = iterCount;
 	//	}
 	//}
+
 
 
 void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int status, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed, int lastConvergedId)

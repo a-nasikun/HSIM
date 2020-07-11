@@ -111,6 +111,9 @@ namespace MuLES
 		const Eigen::VectorXd& getEigenValuesSIM() const;
 		const double getEigenValueSIM(int id) const;
 
+		void cublasGEMMtest();
+		void cusparseCSRMMtest();
+
 
 	protected:
 		/* Mesh-related variables */

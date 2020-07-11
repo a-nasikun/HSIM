@@ -67,6 +67,13 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 	static bool isShowAxis = false;
 
+	if (ImGui::Button("Test GEMM", ImVec2((w - p) / 2.f, 0))) {
+		eigenSolver->cublasGEMMtest();
+	}
+	if (ImGui::Button("Test csrMM", ImVec2((w - p) / 2.f, 0))) {
+		eigenSolver->cusparseCSRMMtest();
+	}
+
 	// Main Algorithm
 	if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::Button("Load##Mesh1", ImVec2((w) / 2.f, 0))) {
