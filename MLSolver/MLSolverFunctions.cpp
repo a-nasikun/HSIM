@@ -11,7 +11,8 @@
 #include <queue>
 
 #include <cuda_runtime.h>
-#include "cublas_v2.h"
+#include "cublas_v2.h"
+
 
 namespace MuLES
 {
@@ -40,6 +41,10 @@ namespace MuLES
 	{
 		constructDiagonalMassMatrix();
 		//constructConsistentMassMatrix();
+
+		std::string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Object" + to_string(V.rows()) +"_Mass.mat";
+		//WriteSparseMatrixToMatlab(M, filename);
+		
 	}
 
 	void MLSolverFunctions::constructDiagonalMassMatrix()
@@ -130,9 +135,7 @@ namespace MuLES
 			}
 		}
 		M.setFromTriplets(MTriplet.begin(), MTriplet.end());
-		std::cout << "Mass matrix" << M.block(0, 0, 20, 20) << std::endl; 
-		std::string filename = "D:/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/cube_Mass.mat";
-		//WriteSparseMatrixToMatlab(M, filename);
+		std::cout << "Mass matrix" << M.block(0, 0, 20, 20) << std::endl; 		
 	}
 
 	/**
@@ -563,6 +566,9 @@ namespace MuLES
 
 					/* Polynomial mapping (3rd Order) */
 					double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
+
+					/* Linear */
+					//double val = (maxDist-aVal) / maxDist;
 					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 				}
 			}
@@ -575,6 +581,9 @@ namespace MuLES
 
 					/* Polynomial mapping (3rd Order) */
 					double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+					
+					/* Linear */
+					//double val = (maxDist - aVal) / maxDist;
 					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 
 				}
@@ -2575,7 +2584,22 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 
 		Eigen::VectorXi sampSize;
 		//setSamplingLevels(sampSize, numEigs, levelRatio);
-		setSamplingLevelsAuto(sampSize, numEigs, levelRatio);
+		int hierarchyMode = 1;
+		switch (hierarchyMode)
+		{
+		case 0:
+			setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);
+			break;
+		case 1:
+			setSamplingLevelsAuto(sampSize, numEigs, levelRatio);
+			break;
+		case 2:
+			setSamplingLevelsSameRate(sampSize, numEigs, levelRatio);
+			break;
+		default:
+			break;
+		}
+		//setSamplingLevelsAuto(sampSize, numEigs, levelRatio);
 		setInitialSystem(sampSize.rows());
 		constructSampleHierarchy(sampSize);
 		constructBasis(basisSupport);
