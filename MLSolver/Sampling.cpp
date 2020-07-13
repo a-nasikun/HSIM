@@ -114,8 +114,8 @@ namespace MuLES
 		std::random_device rd;								// Will be used to obtain a seed for the random number engine
 		std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
 		std::uniform_int_distribution<> dist(0, V.rows());	// From 0 to F.rows()-1
-		//Samples(0) = dist(gen);	
-		Samples(0) = 0;
+		Samples(0) = dist(gen);	
+		//Samples(0) = 0;
 
 		Eigen::VectorXi::Index maxIndex;
 

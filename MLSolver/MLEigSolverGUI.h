@@ -42,6 +42,7 @@ static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
 static double		levelRatio = 10.0;
+static int			hierarchyMode = 2;						// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
@@ -167,6 +168,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			static char lvlRatTxt[10] = "10.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 			levelRatio = atof(lvlRatTxt);
 
+			ImGui::RadioButton("Const.", &hierarchyMode, 0); ImGui::SameLine();
+			ImGui::RadioButton("Auto", &hierarchyMode, 1); ImGui::SameLine();
+			ImGui::RadioButton("Same", &hierarchyMode, 2);
+
 			if (ImGui::Button("[2] Construct Hierarchy##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
 				levelRatio = atof(lvlRatTxt);
@@ -181,8 +186,22 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				std::cout << "Sought modes: " << numOfModes << std::endl;
 
 				/* For 1 level (coarsest level) sampling only*/
-				///eigenSolver->setSamplingLevels(sampSize, numOfModes, levelRatio);
-				eigenSolver->setSamplingLevelsAuto(sampSize, numOfModes, levelRatio);
+				///
+				switch (hierarchyMode)
+				{
+				case 0:
+					eigenSolver->setSamplingLevelsConstantRate(sampSize, numOfModes, levelRatio);
+					break;
+				case 1:
+					eigenSolver->setSamplingLevelsAuto(sampSize, numOfModes, levelRatio);
+					break;
+				case 2:
+					eigenSolver->setSamplingLevelsSameRate(sampSize, numOfModes, levelRatio);					
+					break;
+				default:
+					break;
+				}
+				
 				eigenSolver->setInitialSystem(sampSize.rows());
 				eigenSolver->constructSampleHierarchy(sampSize);
 				numLevels = sampSize.size();
@@ -885,8 +904,20 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					//Sampling
 					cout << "> Creating samples... " << endl;
 					t0 = chrono::high_resolution_clock::now();
-					//setSamplingLevels(eigenSolver, wantedModes[j], sampSize);
-					eigenSolver->setSamplingLevels(sampSize, wantedModes[j], levelRatio[i]);
+					switch (hierarchyMode)
+					{
+					case 0:
+						eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+						break;
+					case 1:
+						eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
+						break;
+					case 2:
+						eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i]);
+						break;
+					default:
+						break;
+					}
 					eigenSolver->setInitialSystem(sampSize.rows());
 					eigenSolver->constructSampleHierarchy(sampSize);
 					t1 = chrono::high_resolution_clock::now();
@@ -1141,9 +1172,24 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					for (int l = 0; l < levelSupport.size(); ++l) {
 						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;
 						//Sampling
-						setSamplingLevels(eigenSolver, levelRatio[i], wantedModes[j], sampSize);
+						switch (hierarchyMode)
+						{
+						case 0:
+							eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+							break;
+						case 1:
+							eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
+							break;
+						case 2:
+							eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i]);
+							break;
+						default:
+							break;
+						}
+						//setSamplingLevels(eigenSolver, levelRatio[i], wantedModes[j], sampSize);
 						eigenSolver->setInitialSystem(sampSize.rows());
 						eigenSolver->constructSampleHierarchy(sampSize);
+						
 
 						// Constructing basis...
 						eigenSolver->setClampBasis(false);
@@ -1187,15 +1233,15 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 0.25 };			
-			vector<int>				wantedModes{ 50, 100, 250, 750};
+			vector<int>				wantedModes{ 250, 750};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 50 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
-			vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
+			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
 			//vector<double>			wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-9, 1e-10 };
-			//vector<double>			wantedTols{ 1e-3 };
+			vector<double>			wantedTols{ 1e-3 };
 			int						maxIters = 50;
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
@@ -1206,8 +1252,23 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					//Sampling
 					cout << "> Creating samples... " << endl;
 					t0 = chrono::high_resolution_clock::now();
-					//setSamplingLevels(eigenSolver, wantedModes[j], sampSize);
-					eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
+					switch (hierarchyMode)
+					{
+					case 0:
+						std::cout << "Simple decay rate: " << levelRatio[i] << std::endl; 
+						eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+						break;
+					case 1:
+						std::cout << "More elaborate decay rate " << std::endl;
+						eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
+						break;
+					case 2:
+						std::cout << "More elaborate but simple decay rate (same ratio)" << std::endl;
+						eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i]);
+						break;
+					default:
+						break;
+					}
 					eigenSolver->setInitialSystem(sampSize.rows());
 					eigenSolver->constructSampleHierarchy(sampSize);
 					t1 = chrono::high_resolution_clock::now();

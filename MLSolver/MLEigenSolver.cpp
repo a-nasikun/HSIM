@@ -112,10 +112,10 @@ namespace MuLES
 	*  @param	numEigen	The number of sought eigenvalues and corresponding eigenvectors.
 	*  @param	levelRatio	The decay rate stating how the DoFs decreases from one level to the next level.
 	*/
-	void MLEigenSolver::setSamplingLevels(Eigen::VectorXi& sampSize, int numEigen, double levelRatio)
+	void MLEigenSolver::setSamplingLevelsConstantRate(Eigen::VectorXi& sampSize, int numEigen, double levelRatio)
 	{
 		double	spRatio = 1.0;
-		int		sizeSubsp = spRatio * 2 * numEigen;
+		int		sizeSubsp =std::max(1000, 2*numEigen);
 
 		vector<int> sampleLevels;
 		sampleLevels.reserve(10);
@@ -213,6 +213,88 @@ namespace MuLES
 		printf("Level %d has %d entries \n", 0, numVert);
 		for (int i = 0; i < sampSize.rows(); ++i) {
 			printf("Level %d has %d entries \n", i+1, sampSize(i));
+		}
+	}
+
+	void MLEigenSolver::setSamplingLevelsSameRate(Eigen::VectorXi& sampSize, int numEigen, double levelRatio)
+	{
+		if (numEigen > V.rows()) {
+			std::cout << "Error! The number of sought eigenvalues should not exceed the number of degree of freedom of the geometry.\n";
+			return;
+		}
+		if (V.rows() < 2000) {
+			sampSize.resize(1);
+			sampSize(0) = V.rows();
+			std::cout << "Since the number of vertices is relatively small, the system will attempt solving it directly in the GPU. \n";
+			return;
+		}
+
+		const double EXP_RAT = levelRatio;
+		int numVert = V.rows();
+		int dimSubSpace = max(2 * numEigen, 1000);
+		double ratInit = (double)numVert / (double)dimSubSpace;
+		double ratio = log(ratInit) / log(EXP_RAT);
+		std::cout << "The ratio of vert to subspace is " << ratInit << " yielding " << ratio << " ratio setup \n";
+
+		if (ratio < 1.0) {
+			sampSize.resize(1);
+			sampSize(0) = dimSubSpace;
+			std::cout << "The ratio is " << ratio << " thus we'll just have 1 level with " << sampSize(0) << " DoFs\n";
+		}
+		else {
+			int numLevels = (int)floor(ratio);
+			sampSize.resize(numLevels);
+			double levelRatio = ratio / (double)numLevels;
+			sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, levelRatio));
+
+			for (int i = 1; i < numLevels; ++i) {
+				sampSize(i) = (int)ceil((double)sampSize(i-1)/ pow(EXP_RAT, levelRatio));
+			}
+
+			//double remainder = ratio - numLevels;
+			//std::cout << "Number of levels: " << numLevels << "+1, with remainder of " << remainder << std::endl;
+
+
+
+			// When the remainder is high, add another level for the coarsest level
+			//if (remainder >= 0.8) {
+			//	numLevels += 1;
+			//	sampSize.resize(numLevels);
+			//	std::cout << "CASE 1: remainder >= 0.8 \n";
+			//	for (int i = 0; i < (numLevels - 1); ++i) {
+			//		sampSize(i) = (int)ceil((double)numVert / pow(EXP_RAT, i + 1));
+			//	}
+			//	sampSize(numLevels - 1) = (int)ceil((double)sampSize(numLevels - 2) / pow(EXP_RAT, remainder));
+			//}
+			//// When the remainder is small, attach it to the level next to finest level
+			//else if (remainder < 0.2) {
+			//	std::cout << "CASE 3: remainder < 0.2 \n";
+			//	sampSize.resize(numLevels);
+			//	sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, 1 + remainder));
+			//	for (int i = 1; i < numLevels; ++i) {
+			//		sampSize(i) = (int)ceil((double)sampSize(i - 1) / EXP_RAT);
+			//	}
+			//}
+			//else {
+			//	std::cout << "CASE 2: 0.2 <= remainder < 0.8 \n";
+			//	Eigen::VectorXd addRatio(numLevels);
+			//	double sumRatio = 0.0;
+			//	for (int i = 0; i < numLevels; ++i) {
+			//		addRatio(i) = pow(2.0, numLevels - i - 1);
+			//		sumRatio += addRatio(i);
+			//	}
+			//
+			//	sampSize.resize(numLevels);
+			//	sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, 1.0 + addRatio(0) * remainder / sumRatio));
+			//	for (int i = 1; i < numLevels; ++i) {
+			//		sampSize(i) = (int)ceil((double)sampSize(i - 1) / pow(EXP_RAT, 1.0 + addRatio(i) * remainder / sumRatio));
+			//	}
+			//}
+		}
+
+		printf("Level %d has %d entries \n", 0, numVert);
+		for (int i = 0; i < sampSize.rows(); ++i) {
+			printf("Level %d has %d entries \n", i + 1, sampSize(i));
 		}
 	}
 	
@@ -1158,7 +1240,7 @@ namespace MuLES
 		void* buffer = nullptr;
 
 		std::cout << "Multiplication in GPU \n";
-		cuSpStat = cusparseDcsrmm(cuSpHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, m_S, n_X, n_S, nnz_S, &alpha, descrS, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_X, m_X, &beta, d_SX, m_SX);
+		//cuSpStat = cusparseDcsrmm(cuSpHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, m_S, n_X, n_S, nnz_S, &alpha, descrS, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_X, m_X, &beta, d_SX, m_SX);
 		std::cout << "mult " << cuSpStat << "\n";
 
 		std::cout << "Copy back to CPU \n";
