@@ -2617,11 +2617,15 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	int nnz_SSp = SK.nonZeros();
 	int m_SDn = XbarK.rows();			// Dense stiffness matrix, projected to Ritz-Raleigh space
 	int n_SDn = XbarK.cols();
+	int m_SDnSym = XbarK.cols();		// Sbar = X^T*S*X
+	int n_SDnSym = XbarK.cols();
 	int m_MSp	= MK.rows();			// Sparse Mass matrix on that level
 	int n_MSp	= MK.cols();
 	int nnz_MSp = MK.nonZeros();
 	int m_MDn = XbarK.rows();			// Dense mass matrix, projected to Ritz-Rayleigh space
 	int n_MDn = XbarK.cols();
+	int m_MDnSym = XbarK.cols();		// Mbar = X^T*M*X
+	int n_MDnSym = XbarK.cols();
 	int m_X = XbarK.rows();				// Dense projection matrix (the solution to linear systems)
 	int n_X = XbarK.cols();
 	int m_Q = XbarK.rows();				// Dense eigenvectors prolonged back
@@ -2635,13 +2639,18 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	double* d_X; cudaMalloc(&d_X, m_X * n_X * sizeof(double));
 	double* d_SDn; cudaMalloc(&d_SDn, m_SDn * n_SDn * sizeof(double));
 	double* d_MDn; cudaMalloc(&d_MDn, m_MDn * n_MDn * sizeof(double));
+	double* d_SDnSym; cudaMalloc(&d_SDnSym, m_SDnSym * n_SDnSym * sizeof(double));
+	double* d_MDnSym; cudaMalloc(&d_MDnSym, m_MDnSym * n_MDnSym * sizeof(double));
 
 	double* h_SDn = (double*)malloc(m_SDn * n_SDn * sizeof(double));
+	double* h_MDn = (double*)malloc(m_MDn * n_MDn * sizeof(double));
+	double* h_SDnSym = (double*)malloc(m_SDnSym * n_SDnSym * sizeof(double));
+	double* h_MDnSym = (double*)malloc(m_MDnSym * n_MDnSym * sizeof(double));
+
 	double* d_csrVal_SSp; cudaMalloc(&d_csrVal_SSp, nnz_SSp * sizeof(double));
 	int* d_csrRowPtr_SSp; cudaMalloc(&d_csrRowPtr_SSp, (m_SSp + 1) * sizeof(int));
 	int* d_csrColInd_SSp; cudaMalloc(&d_csrColInd_SSp, nnz_SSp * sizeof(int));
 
-	double* h_MDn = (double*)malloc(m_MDn * n_MDn * sizeof(double));
 	double* d_csrVal_MSp; cudaMalloc(&d_csrVal_MSp, nnz_MSp * sizeof(double));
 	int* d_csrRowPtr_MSp; cudaMalloc(&d_csrRowPtr_MSp, (m_MSp + 1) * sizeof(int));
 	int* d_csrColInd_MSp; cudaMalloc(&d_csrColInd_MSp, nnz_MSp * sizeof(int));
@@ -2683,22 +2692,46 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	cuSpStat = cusparseSpMM(cuSpHandle, opsNTrans, opsNTrans, &alpha, matSSp, matX, &beta, matSDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferS);
 	cuSpStat = cusparseSpMM(cuSpHandle, opsNTrans, opsNTrans, &alpha, matMSp, matX, &beta, matMDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferM);
 
-	/* GOING BACK TO CPU */
-	std::cout << "A step back to CPU\n";
-	cudaStat = cudaMemcpy(h_SDn, d_SDn, m_SDn * n_SDn * sizeof(double), cudaMemcpyDeviceToHost);
-	cudaStat = cudaMemcpy(h_MDn, d_MDn, m_MDn * n_MDn * sizeof(double), cudaMemcpyDeviceToHost);
+	// =============[SDnSym = XT*SSp*X = XT*SDn and MDnSym = XT*MSP*X = XT*MDn]=============
+	blasStat = cublasCreate(&blasHandle);	
+	blasStat = cublasDgemm(blasHandle, CUBLAS_OP_T, CUBLAS_OP_N, n_X, n_SDn, m_X, &alpha, d_X, m_X, d_SDn, m_SDn, &beta, d_SDnSym, m_SDnSym);
+	std::cout << "S=XT * SX \n" << blasStat << std::endl;
+	blasStat = cublasDgemm(blasHandle, CUBLAS_OP_T, CUBLAS_OP_N, n_X, n_MDn, m_X, &alpha, d_X, m_X, d_MDn, m_MDn, &beta, d_MDnSym, m_MDnSym);
+	std::cout << "M=XT * MX \n" << blasStat << std::endl;
+	//cublasDgemm()
+	//	mX, nQ, nX
 
-	Eigen::MatrixXd SX(m_SSp, n_X), MX(m_MSp, n_X);
-	SX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_SDn, m_SDn, n_SDn, Eigen::OuterStride<>(m_SDn));
-	MX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_MDn, m_MDn, n_MDn, Eigen::OuterStride<>(m_MDn));
+	cudaStat = cudaMemcpy(h_SDnSym, d_SDnSym, m_SDnSym * n_SDnSym * sizeof(double), cudaMemcpyDeviceToHost);
+	std::cout << "Copy to CPU " << cudaStat << std::endl;
+	cudaStat = cudaMemcpy(h_MDnSym, d_MDnSym, m_MDnSym * n_MDnSym * sizeof(double), cudaMemcpyDeviceToHost);
+	std::cout << "Copy to CPU " << cudaStat << std::endl;
 
-	Eigen::MatrixXd Mproj, Sproj, Q;
-	Sproj = XbarK.transpose() * SX;
-	Mproj = XbarK.transpose() * MX;
+	Eigen::MatrixXd Sproj(n_X, n_X), Mproj(n_X, n_X);
+	Sproj = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_SDnSym, m_SDnSym, n_SDnSym, Eigen::OuterStride<>(m_SDnSym));
+	Mproj = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_MDnSym, m_MDnSym, n_MDnSym, Eigen::OuterStride<>(m_MDnSym));
+	std::cout << "(GPU) S proj\n" << Sproj.topLeftCorner(10, 10) << std::endl;
+	std::cout << "(GPU) M proj\n" << Mproj.topLeftCorner(10, 10) << std::endl;
+
+	///* GOING BACK TO CPU */
+	//std::cout << "A step back to CPU\n";
+	//cudaStat = cudaMemcpy(h_SDn, d_SDn, m_SDn * n_SDn * sizeof(double), cudaMemcpyDeviceToHost);
+	//cudaStat = cudaMemcpy(h_MDn, d_MDn, m_MDn * n_MDn * sizeof(double), cudaMemcpyDeviceToHost);
+	//
+	//Eigen::MatrixXd SX(m_SSp, n_X), MX(m_MSp, n_X);
+	//SX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_SDn, m_SDn, n_SDn, Eigen::OuterStride<>(m_SDn));
+	//MX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_MDn, m_MDn, n_MDn, Eigen::OuterStride<>(m_MDn));
+	//
+	//Eigen::MatrixXd Mproj, Sproj, Q;
+	//Sproj = XbarK.transpose() * SX;
+	//Mproj = XbarK.transpose() * MX;
+	Eigen::MatrixXd  Q;
 	//std::cout << "Sproj: \n" << Sproj.topLeftCorner(10, 10) << std::endl;
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
 	cout << "...in " << duration.count() << " seconds." << endl;
+
+	std::cout << "(CPU) S proj\n" << Sproj.topLeftCorner(10, 10) << std::endl;
+	std::cout << "(CPU) M proj\n" << Mproj.topLeftCorner(10, 10) << std::endl;
 
 	t1 = chrono::high_resolution_clock::now();
 	printf("__solve reduced eigenvalue problem. ");
