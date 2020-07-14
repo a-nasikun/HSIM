@@ -114,6 +114,7 @@ namespace MuLES
 
 		void cublasGEMMtest();
 		void cusparseCSRMMtest();
+		void cusparseSpMMtest();
 
 
 	protected:

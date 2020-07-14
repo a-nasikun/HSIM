@@ -1174,6 +1174,8 @@ namespace MuLES
 
 	void MLEigenSolver::cusparseCSRMMtest()
 	{
+		
+
 		cusparseHandle_t	cuSpHandle;
 		cusparseStatus_t	cuSpStat;
 		cudaError_t			cudaStat1 = cudaSuccess;
@@ -1257,5 +1259,133 @@ namespace MuLES
 		/*Obtain sparse matrix*/
 
 		
+	}
+
+	void MLEigenSolver::cusparseSpMMtest()
+	{
+		chrono::high_resolution_clock::time_point	t0, t1, t2;
+		chrono::duration<double>					duration;
+		std::cout << "ON <<G>>PU ";
+		std::cout << "___Set up + allocating memory: ";
+		t1 = chrono::high_resolution_clock::now();
+		t0 = t1;
+		
+		cusparseHandle_t	cuSpHandle;
+		cusparseStatus_t	cuSpStat;
+		cudaError_t			cudaStat1 = cudaSuccess;
+
+		// C = S*B where A is a sparse and B is a dense matrix
+		// Setup the sparse matrix S CPU
+		S.makeCompressed();
+		int m_S = S.rows();
+		int n_S = S.cols();
+		int nnz_S = S.nonZeros();
+
+
+		// Set-up the dense matrix B and C in CPU
+		int m_B = S.rows();
+		int n_B = 100;
+		int m_C = S.rows();
+		int n_C = n_B;
+		double* h_C = (double*)malloc(m_C * n_C * sizeof(double));
+
+
+		//std::cout << "S: \n" << S.topLeftCorner(10, 10) << std::endl;
+		//std::cout << "B: \n" << BMat.topLeftCorner(10, 10) << std::endl;
+		//std::cout << "C: \n" << CMat.topLeftCorner(10, 10) << std::endl;
+
+		// Allocate space in GPU for A, B and C
+
+		double* d_csrVal_S; cudaMalloc(&d_csrVal_S, nnz_S * sizeof(double));
+		int* d_csrRowPtr_S; cudaMalloc(&d_csrRowPtr_S, (m_S + 1) * sizeof(int));
+		int* d_csrColInd_S; cudaMalloc(&d_csrColInd_S, nnz_S * sizeof(int));
+		double* d_B; cudaMalloc(&d_B, m_B * n_B * sizeof(double));
+		double* d_C; cudaMalloc(&d_C, m_C * n_C * sizeof(double));
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "in " << duration.count() << " seconds" << std::endl;
+
+		Eigen::MatrixXd BMat = Eigen::MatrixXd::Random(m_B, n_B);
+		Eigen::MatrixXd CMat(m_C, n_C); CMat.setZero();
+
+		std::cout << "___Copying to memory: ";
+		t1 = chrono::high_resolution_clock::now();
+		// Copy A, B and C to GPU 
+		cudaStat1 = cudaMemcpy(d_csrVal_S, S.valuePtr(), nnz_S * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStat1 = cudaMemcpy(d_csrRowPtr_S, S.outerIndexPtr(), (m_S + 1) * sizeof(int), cudaMemcpyHostToDevice);
+		cudaStat1 = cudaMemcpy(d_csrColInd_S, S.innerIndexPtr(), nnz_S * sizeof(int), cudaMemcpyHostToDevice);
+
+		cudaStat1 = cudaMemcpy(d_B, BMat.data(), m_B * n_B * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStat1 = cudaMemcpy(d_C, CMat.data(), m_C * n_C * sizeof(double), cudaMemcpyHostToDevice);
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "in " << duration.count() << " seconds" << std::endl;
+
+		std::cout << "___Creatign matrices in GPU: ";
+		t1 = chrono::high_resolution_clock::now();
+		cusparseSpMatDescr_t matS;
+		cusparseDnMatDescr_t matB;
+		cusparseDnMatDescr_t matC;
+		void* dBuffer1 = NULL, *dBuffer2 = NULL;
+		size_t bufferSize1 = 0, bufferSize2 = 0;
+		cusparseCreate(&cuSpHandle);
+		cuSpStat = cusparseCreateCsr(&matS, m_S, n_S, nnz_S, d_csrRowPtr_S, d_csrColInd_S, d_csrVal_S, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+		cuSpStat = cusparseCreateDnMat(&matB, m_B, n_B, m_B, d_B, CUDA_R_64F, CUSPARSE_ORDER_COL);
+		cuSpStat = cusparseCreateDnMat(&matC, m_C, n_C, m_C, d_C, CUDA_R_64F, CUSPARSE_ORDER_COL);
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "in " << duration.count() << " seconds" << std::endl;
+
+		double alpha = 1.0;
+		double beta = 0.0;
+
+		std::cout << "___Multiplying in GPU: ";
+		t1 = chrono::high_resolution_clock::now();
+		// Multiply matrix C = A * B in GPU
+		cusparseOperation_t opS = CUSPARSE_OPERATION_NON_TRANSPOSE;
+		cusparseOperation_t opB = CUSPARSE_OPERATION_NON_TRANSPOSE;
+		cuSpStat = cusparseSpMM_bufferSize(cuSpHandle, opS, opB, &alpha, matS, matB, &beta, matC, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, &bufferSize1);
+		cudaMalloc((void**)&dBuffer1, bufferSize1);
+		cuSpStat = cusparseSpMM(cuSpHandle, opS, opB, &alpha, matS, matB, &beta, matC, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBuffer1);
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "in " << duration.count() << " seconds" << std::endl;
+
+		std::cout << "___Copying back to CPU ";
+		t1 = chrono::high_resolution_clock::now();
+		// Copy C to CPU
+		cudaStat1 = cudaMemcpy(h_C, d_C, m_C * n_C * sizeof(double), cudaMemcpyDeviceToHost);
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "in " << duration.count() << " seconds" << std::endl;
+
+		// Format C to Eigen::MatrixXd
+		std::cout << "___Format to Eigen ";
+		t1 = chrono::high_resolution_clock::now();
+		CMat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_C, m_C, n_C, Eigen::OuterStride<>(m_S));
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
+		
+		duration = t2 - t0;
+		cout << "in " << duration.count() << " seconds" << endl;
+
+		//std::cout << "GPU" << CMat.topLeftCorner(10, 10) << std::endl;
+
+		t1 = chrono::high_resolution_clock::now();
+		CMat = S * BMat;
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
+		//std::cout << "CPU" << CMat.topLeftCorner(10, 10) << std::endl;
+
+		if (d_B) cudaFree(d_B);
+		if (d_C) cudaFree(d_C);
+		if (d_csrColInd_S) cudaFree(d_csrColInd_S);
+		if (d_csrVal_S) cudaFree(d_csrVal_S);
+		if (d_csrRowPtr_S) cudaFree(d_csrRowPtr_S);
+		if (cuSpHandle) cusparseDestroy(cuSpHandle);
+		cudaDeviceReset();
 	}
 }

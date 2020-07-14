@@ -71,8 +71,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 	if (ImGui::Button("Test GEMM", ImVec2((w - p) / 2.f, 0))) {
 		eigenSolver->cublasGEMMtest();
 	}
-	if (ImGui::Button("Test csrMM", ImVec2((w - p) / 2.f, 0))) {
-		eigenSolver->cusparseCSRMMtest();
+	if (ImGui::Button("Test SpMM", ImVec2((w - p) / 2.f, 0))) {
+		//eigenSolver->cusparseCSRMMtest();
+		eigenSolver->cusparseSpMMtest();
 	}
 
 	// Main Algorithm
