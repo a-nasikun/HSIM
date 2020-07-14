@@ -784,6 +784,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		ImGui::Checkbox("using parallel solver", &(isUsingParallelSolver));
 		static bool isMultipleSolve = true;
 		ImGui::Checkbox("multiple solve per SIM", &(isMultipleSolve));
+		ImGui::Checkbox("Solve in GPU?", &(eigenSolver->isSIMinGPU));
 
 		static double zhaoShiftParam = 0.25;
 		if (isShiftedSIM) {
@@ -800,6 +801,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		qParam = atof(qParamTxt);
 
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
+			std::cout << "Solve in GPU? " << eigenSolver->isSIMinGPU << std::endl;
 			eigenSolver->setQParam(qParam);
 			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
 			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);

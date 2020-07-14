@@ -1133,7 +1133,7 @@ namespace MuLES
 		h_Xk =(double*)malloc(mX*nQ * sizeof(double)); // host memory for a
 		h_X = (double*)malloc(mX*nX * sizeof(double)); // host memory for b
 		h_Q = (double*)malloc(mQ*nQ * sizeof(double)); // host memory for c
-		h_Xk = XkMat.data();
+		///h_Xk = XkMat.data();
 		h_X = XMat.data();
 		h_Q = QMat.data();
 
@@ -1318,7 +1318,7 @@ namespace MuLES
 		cudaStat1 = cudaMemcpy(d_csrColInd_S, S.innerIndexPtr(), nnz_S * sizeof(int), cudaMemcpyHostToDevice);
 
 		cudaStat1 = cudaMemcpy(d_B, BMat.data(), m_B * n_B * sizeof(double), cudaMemcpyHostToDevice);
-		cudaStat1 = cudaMemcpy(d_C, CMat.data(), m_C * n_C * sizeof(double), cudaMemcpyHostToDevice);
+		//cudaStat1 = cudaMemcpy(d_C, CMat.data(), m_C * n_C * sizeof(double), cudaMemcpyHostToDevice);
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "in " << duration.count() << " seconds" << std::endl;
@@ -1372,14 +1372,14 @@ namespace MuLES
 		duration = t2 - t0;
 		cout << "in " << duration.count() << " seconds" << endl;
 
-		//std::cout << "GPU" << CMat.topLeftCorner(10, 10) << std::endl;
+		std::cout << "GPU" << CMat.topLeftCorner(10, 10) << std::endl;
 
 		t1 = chrono::high_resolution_clock::now();
 		CMat = S * BMat;
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		cout << "in " << duration.count() << " seconds" << endl;
-		//std::cout << "CPU" << CMat.topLeftCorner(10, 10) << std::endl;
+		std::cout << "CPU" << CMat.topLeftCorner(10, 10) << std::endl;
 
 		if (d_B) cudaFree(d_B);
 		if (d_C) cudaFree(d_C);

@@ -12,6 +12,9 @@
 
 #include <cuda_runtime.h>
 #include "cublas_v2.h"
+#include <cusparse.h>
+#include <cusparse_v2.h>
+#include <cusolverDn.h>
 
 
 namespace MuLES
@@ -2478,8 +2481,18 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
+		
+		SK.makeCompressed();
+		MK.makeCompressed();
 
-		int iterStatus = SIMiterationInCPU(XbarK, SK, MK, XkL, AkL, status);
+		int iterStatus;
+		if (isSIMinGPU) {
+			iterStatus = SIMiterationInGPU(XbarK, SK, MK, XkL, AkL, iterCount, status);
+		}
+		else {
+			iterStatus = SIMiterationInCPU(XbarK, SK, MK, XkL, AkL, status);
+		}
+		
 		if (iterStatus < 0) continue;
 
 		/* Convergence Check*
@@ -2584,8 +2597,133 @@ int MLSolverFunctions::SIMiterationInCPU(const Eigen::MatrixXd& XbarK, const Eig
 	return 0;
 }
 
-int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eigen::SparseMatrix<double>& SK, const Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int& GPUeigsolverStatus)
+int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eigen::SparseMatrix<double>& SK, const Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int iterCount, int& GPUeigsolverStatus)
 {
+	chrono::high_resolution_clock::time_point	t0, t1, t2;
+	chrono::duration<double>					duration;
+
+	// Set up CUDA parameters and handles 
+	cudaError_t			cudaStat;										// cudaMalloc status
+	cublasStatus_t		blasStat;										// CUBLAS functions status
+	cublasHandle_t		blasHandle;										// CUBLAS context
+	cusparseHandle_t	cuSpHandle;										// cuSparse context
+	cusparseStatus_t	cuSpStat;										// cuSparse function status
+	cusolverDnHandle_t	cusolverH = NULL;								// cuSolver handle
+	cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;		// cusolver function status
+
+	// Setup the data in CPU + GPU coresponding to matrix sizes
+	int m_SSp	= SK.rows();			// Sparse stiffness/cotangent matrix on that level
+	int n_SSp	= SK.cols();
+	int nnz_SSp = SK.nonZeros();
+	int m_SDn = XbarK.rows();			// Dense stiffness matrix, projected to Ritz-Raleigh space
+	int n_SDn = XbarK.cols();
+	int m_MSp	= MK.rows();			// Sparse Mass matrix on that level
+	int n_MSp	= MK.cols();
+	int nnz_MSp = MK.nonZeros();
+	int m_MDn = XbarK.rows();			// Dense mass matrix, projected to Ritz-Rayleigh space
+	int n_MDn = XbarK.cols();
+	int m_X = XbarK.rows();				// Dense projection matrix (the solution to linear systems)
+	int n_X = XbarK.cols();
+	int m_Q = XbarK.rows();				// Dense eigenvectors prolonged back
+	int n_Q = XbarK.cols();
+	int m_Qr = XbarK.cols();			// Dense eigenvectors in the Ritz-Rayleigh space
+	int n_Qr = m_Qr;
+	int n_A = XbarK.cols();				// Vector storing the eigenvalues
+
+	// =============[SDn = SSp*X and MDn = MSP*X]=============
+	// Allocating space for matrix multiplication
+	double* d_X; cudaMalloc(&d_X, m_X * n_X * sizeof(double));
+	double* d_SDn; cudaMalloc(&d_SDn, m_SDn * n_SDn * sizeof(double));
+	double* d_MDn; cudaMalloc(&d_MDn, m_MDn * n_MDn * sizeof(double));
+
+	double* h_SDn = (double*)malloc(m_SDn * n_SDn * sizeof(double));
+	double* d_csrVal_SSp; cudaMalloc(&d_csrVal_SSp, nnz_SSp * sizeof(double));
+	int* d_csrRowPtr_SSp; cudaMalloc(&d_csrRowPtr_SSp, (m_SSp + 1) * sizeof(int));
+	int* d_csrColInd_SSp; cudaMalloc(&d_csrColInd_SSp, nnz_SSp * sizeof(int));
+
+	double* h_MDn = (double*)malloc(m_MDn * n_MDn * sizeof(double));
+	double* d_csrVal_MSp; cudaMalloc(&d_csrVal_MSp, nnz_MSp * sizeof(double));
+	int* d_csrRowPtr_MSp; cudaMalloc(&d_csrRowPtr_MSp, (m_MSp + 1) * sizeof(int));
+	int* d_csrColInd_MSp; cudaMalloc(&d_csrColInd_MSp, nnz_MSp * sizeof(int));
+
+	// COpying to GPU
+	cudaStat = cudaMemcpy(d_csrVal_SSp,		SK.valuePtr(),		nnz_SSp * sizeof(double),	cudaMemcpyHostToDevice);
+	cudaStat = cudaMemcpy(d_csrRowPtr_SSp,	SK.outerIndexPtr(), (m_SSp + 1) * sizeof(int),	cudaMemcpyHostToDevice);
+	cudaStat = cudaMemcpy(d_csrColInd_SSp,	SK.innerIndexPtr(), nnz_SSp * sizeof(int),		cudaMemcpyHostToDevice);
+	cudaStat = cudaMemcpy(d_csrVal_MSp,		MK.valuePtr(),		nnz_MSp * sizeof(double),	cudaMemcpyHostToDevice);
+	cudaStat = cudaMemcpy(d_csrRowPtr_MSp,	MK.outerIndexPtr(), (m_MSp + 1) * sizeof(int),	cudaMemcpyHostToDevice);
+	cudaStat = cudaMemcpy(d_csrColInd_MSp,	MK.innerIndexPtr(),	nnz_MSp * sizeof(int),		cudaMemcpyHostToDevice);
+
+	cudaStat = cudaMemcpy(d_X, XbarK.data(), m_X * n_X * sizeof(double), cudaMemcpyHostToDevice);
+	//cudaStat = cudaMemcpy(d_C, CMat.data(), m_C * n_C * sizeof(double), cudaMemcpyHostToDevice);
+
+	// Create matrix in GPU
+	cusparseSpMatDescr_t matSSp, matMSp;
+	cusparseDnMatDescr_t matSDn, matMDn;
+	cusparseDnMatDescr_t matX;
+	void* dBufferS = NULL, * dBufferM = NULL;
+	size_t bufferSizeS = 0, bufferSizeM = 0;
+	double alpha = 1.0;
+	double beta = 0.0;
+
+	cusparseCreate(&cuSpHandle);
+	cuSpStat = cusparseCreateCsr(&matSSp, m_SSp, n_SSp, nnz_SSp, d_csrRowPtr_SSp, d_csrColInd_SSp, d_csrVal_SSp, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+	cuSpStat = cusparseCreateCsr(&matMSp, m_MSp, n_MSp, nnz_MSp, d_csrRowPtr_MSp, d_csrColInd_MSp, d_csrVal_MSp, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+	cuSpStat = cusparseCreateDnMat(&matSDn, m_SDn, n_SDn, m_SDn, d_SDn, CUDA_R_64F, CUSPARSE_ORDER_COL);
+	cuSpStat = cusparseCreateDnMat(&matMDn, m_MDn, n_MDn, m_MDn, d_MDn, CUDA_R_64F, CUSPARSE_ORDER_COL);
+	cuSpStat = cusparseCreateDnMat(&matX, m_X, n_X, m_X, d_X, CUDA_R_64F, CUSPARSE_ORDER_COL);
+
+	cusparseOperation_t opsNTrans = CUSPARSE_OPERATION_NON_TRANSPOSE;
+	cusparseOperation_t opsTrans = CUSPARSE_OPERATION_TRANSPOSE;
+
+	cuSpStat = cusparseSpMM_bufferSize(cuSpHandle, opsNTrans, opsNTrans, &alpha, matSSp, matX, &beta, matSDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, &bufferSizeS);
+	cudaMalloc((void**)&dBufferS, bufferSizeS);
+	cuSpStat = cusparseSpMM_bufferSize(cuSpHandle, opsNTrans, opsNTrans, &alpha, matMSp, matX, &beta, matMDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, &bufferSizeM);
+	cudaMalloc((void**)&dBufferM, bufferSizeM);
+	cuSpStat = cusparseSpMM(cuSpHandle, opsNTrans, opsNTrans, &alpha, matSSp, matX, &beta, matSDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferS);
+	cuSpStat = cusparseSpMM(cuSpHandle, opsNTrans, opsNTrans, &alpha, matMSp, matX, &beta, matMDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferM);
+
+	/* GOING BACK TO CPU */
+	std::cout << "A step back to CPU\n";
+	cudaStat = cudaMemcpy(h_SDn, d_SDn, m_SDn * n_SDn * sizeof(double), cudaMemcpyDeviceToHost);
+	cudaStat = cudaMemcpy(h_MDn, d_MDn, m_MDn * n_MDn * sizeof(double), cudaMemcpyDeviceToHost);
+
+	Eigen::MatrixXd SX(m_SSp, n_X), MX(m_MSp, n_X);
+	SX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_SDn, m_SDn, n_SDn, Eigen::OuterStride<>(m_SDn));
+	MX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_MDn, m_MDn, n_MDn, Eigen::OuterStride<>(m_MDn));
+
+	Eigen::MatrixXd Mproj, Sproj, Q;
+	Sproj = XbarK.transpose() * SX;
+	Mproj = XbarK.transpose() * MX;
+	//std::cout << "Sproj: \n" << Sproj.topLeftCorner(10, 10) << std::endl;
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	t1 = chrono::high_resolution_clock::now();
+	printf("__solve reduced eigenvalue problem. ");
+	GPUeigsolverStatus = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+	cout << "__STATUS: " << GPUeigsolverStatus << endl;
+	if (GPUeigsolverStatus != 0) {
+		cout << "___!! COmputation of eigenvalues failed! \n";
+		cout << "____Status: " << GPUeigsolverStatus << endl;
+		//i = Imax;
+		return -1;
+		//break;
+	}
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	t1 = chrono::high_resolution_clock::now();
+	printf("__lifting up/prolongation.");
+	XkL = XbarK * Q;
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	// Create handle and matrices on the first iteration
+
 
 	return 0;
 }

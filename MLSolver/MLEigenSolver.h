@@ -174,6 +174,7 @@ namespace MuLES
 	public:
 		// TEst variable
 		bool isMultipleSolve = true;
+		bool isSIMinGPU = true;
 	};
 }
 
