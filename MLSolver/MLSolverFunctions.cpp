@@ -2373,7 +2373,7 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 	Eigen::VectorXd conv2(q), conv3(q);
 	conv2.setConstant(std::numeric_limits<double>::max());
 	conv3.setConstant(std::numeric_limits<double>::max());
-	Eigen::MatrixXd Mproj, Sproj, Q;
+	//Eigen::MatrixXd Mproj, Sproj, Q;
 
 	do {
 		t1 = chrono::high_resolution_clock::now();
@@ -2479,42 +2479,8 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
 
-		/* Projection of M and K*/
-		t1 = chrono::high_resolution_clock::now();
-		printf("___setting up reduced matrix M and S. ");
-		Sproj = XbarK.transpose() * SK;		// two steps for faster result
-		Sproj = Sproj*XbarK;
-		Mproj = XbarK.transpose() * MK;
-		Mproj = Mproj*XbarK;
-		//Sproj = SK * XbarK;
-		//Sproj = XbarK.transpose() * Sproj;
-		//Mproj = MK * XbarK;
-		//Mproj = XbarK.transpose() * Mproj;
-		t2 = chrono::high_resolution_clock::now();
-		duration = t2 - t1;
-		cout << "...in " << duration.count() << " seconds." << endl;
-
-		t1 = chrono::high_resolution_clock::now();
-		printf("__solve reduced eigenvalue problem. ");
-		status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
-		cout << "__STATUS: " << status << endl;
-		if (status != 0) {
-			cout << "___!! COmputation of eigenvalues failed! \n";
-			cout << "____Status: " << status << endl;
-			//i = Imax;
-			continue;
-			//break;
-		}
-		t2 = chrono::high_resolution_clock::now();
-		duration = t2 - t1;
-		cout << "...in " << duration.count() << " seconds." << endl;
-
-		t1 = chrono::high_resolution_clock::now();
-		printf("__lifting up/prolongation.");
-		XkL = XbarK*Q;
-		t2 = chrono::high_resolution_clock::now();
-		duration = t2 - t1;
-		cout << "...in " << duration.count() << " seconds." << endl;
+		int iterStatus = SIMiterationInCPU(XbarK, SK, MK, XkL, AkL, status);
+		if (iterStatus < 0) continue;
 
 		/* Convergence Check*
 		** Type 2: */
@@ -2570,7 +2536,62 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 
 	} while (!isConverged);
 }
-	void MLSolverFunctions::solve(int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset, double levelRatio, double basisSupport) {
+
+int MLSolverFunctions::SIMiterationInCPU(const Eigen::MatrixXd& XbarK, const Eigen::SparseMatrix<double>& SK, const Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int& GPUeigsolverStatus)
+{
+	chrono::high_resolution_clock::time_point	t0, t1, t2;
+	chrono::duration<double>					duration;
+
+	Eigen::MatrixXd Mproj, Sproj, Q;
+
+	/* Projection of M and K*/
+	t1 = chrono::high_resolution_clock::now();
+	printf("___setting up reduced matrix M and S. ");
+	Sproj = XbarK.transpose() * SK;		// two steps for faster result
+	Sproj = Sproj * XbarK;
+	Mproj = XbarK.transpose() * MK;
+	Mproj = Mproj * XbarK;
+	//Sproj = SK * XbarK;
+	//Sproj = XbarK.transpose() * Sproj;
+	//Mproj = MK * XbarK;
+	//Mproj = XbarK.transpose() * Mproj;
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	t1 = chrono::high_resolution_clock::now();
+	printf("__solve reduced eigenvalue problem. ");
+	GPUeigsolverStatus = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+	cout << "__STATUS: " << GPUeigsolverStatus << endl;
+	if (GPUeigsolverStatus != 0) {
+		cout << "___!! COmputation of eigenvalues failed! \n";
+		cout << "____Status: " << GPUeigsolverStatus << endl;
+		//i = Imax;
+		return -1;
+		//break;
+	}
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	t1 = chrono::high_resolution_clock::now();
+	printf("__lifting up/prolongation.");
+	XkL = XbarK * Q;
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	cout << "...in " << duration.count() << " seconds." << endl;
+
+	return 0;
+}
+
+int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eigen::SparseMatrix<double>& SK, const Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int& GPUeigsolverStatus)
+{
+
+	return 0;
+}
+
+
+void MLSolverFunctions::solve(int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset, double levelRatio, double basisSupport) {
 		constructMassMatrix();
 		initiateAdM();
 		constructStiffnessMatrix();
