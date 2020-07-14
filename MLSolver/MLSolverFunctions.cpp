@@ -2608,7 +2608,7 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	cublasHandle_t		blasHandle;										// CUBLAS context
 	cusparseHandle_t	cuSpHandle;										// cuSparse context
 	cusparseStatus_t	cuSpStat;										// cuSparse function status
-	cusolverDnHandle_t	cusolverH = NULL;								// cuSolver handle
+	cusolverDnHandle_t	cusolverHandle = NULL;								// cuSolver handle (for eigensolver)
 	cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;		// cusolver function status
 
 	// Setup the data in CPU + GPU coresponding to matrix sizes
@@ -2633,6 +2633,9 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	int m_Qr = XbarK.cols();			// Dense eigenvectors in the Ritz-Rayleigh space
 	int n_Qr = m_Qr;
 	int n_A = XbarK.cols();				// Vector storing the eigenvalues
+	int* devInfo = NULL;				// For eigensolver in GPU
+	double* d_work = NULL;
+	int		lwork = 0;
 
 	// =============[SDn = SSp*X and MDn = MSP*X]=============
 	// Allocating space for matrix multiplication
@@ -2654,6 +2657,9 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	double* d_csrVal_MSp; cudaMalloc(&d_csrVal_MSp, nnz_MSp * sizeof(double));
 	int* d_csrRowPtr_MSp; cudaMalloc(&d_csrRowPtr_MSp, (m_MSp + 1) * sizeof(int));
 	int* d_csrColInd_MSp; cudaMalloc(&d_csrColInd_MSp, nnz_MSp * sizeof(int));
+
+	double* d_A; cudaMalloc((void**)&d_A, sizeof(double) * n_A);
+	cudaMalloc((void**)&devInfo, sizeof(int));
 
 	// COpying to GPU
 	cudaStat = cudaMemcpy(d_csrVal_SSp,		SK.valuePtr(),		nnz_SSp * sizeof(double),	cudaMemcpyHostToDevice);
@@ -2705,12 +2711,13 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	std::cout << "Copy to CPU " << cudaStat << std::endl;
 	cudaStat = cudaMemcpy(h_MDnSym, d_MDnSym, m_MDnSym * n_MDnSym * sizeof(double), cudaMemcpyDeviceToHost);
 	std::cout << "Copy to CPU " << cudaStat << std::endl;
-
+	
+	Eigen::MatrixXd  Q;
 	Eigen::MatrixXd Sproj(n_X, n_X), Mproj(n_X, n_X);
 	Sproj = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_SDnSym, m_SDnSym, n_SDnSym, Eigen::OuterStride<>(m_SDnSym));
 	Mproj = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_MDnSym, m_MDnSym, n_MDnSym, Eigen::OuterStride<>(m_MDnSym));
-	std::cout << "(GPU) S proj\n" << Sproj.topLeftCorner(10, 10) << std::endl;
-	std::cout << "(GPU) M proj\n" << Mproj.topLeftCorner(10, 10) << std::endl;
+	///std::cout << "(GPU) S proj\n" << Sproj.topLeftCorner(10, 10) << std::endl;
+	///std::cout << "(GPU) M proj\n" << Mproj.topLeftCorner(10, 10) << std::endl;
 
 	///* GOING BACK TO CPU */
 	//std::cout << "A step back to CPU\n";
@@ -2724,14 +2731,51 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	//Eigen::MatrixXd Mproj, Sproj, Q;
 	//Sproj = XbarK.transpose() * SX;
 	//Mproj = XbarK.transpose() * MX;
-	Eigen::MatrixXd  Q;
-	//std::cout << "Sproj: \n" << Sproj.topLeftCorner(10, 10) << std::endl;
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	cout << "...in " << duration.count() << " seconds." << endl;
+	
+	
+	
+	/////std::cout << "Sproj: \n" << Sproj.topLeftCorner(10, 10) << std::endl;
+	///t2 = chrono::high_resolution_clock::now();
+	///duration = t2 - t1;
+	///cout << "...in " << duration.count() << " seconds." << endl;
+	///
+	///std::cout << "(CPU) S proj\n" << Sproj.topLeftCorner(10, 10) << std::endl;
+	///std::cout << "(CPU) M proj\n" << Mproj.topLeftCorner(10, 10) << std::endl;
 
-	std::cout << "(CPU) S proj\n" << Sproj.topLeftCorner(10, 10) << std::endl;
-	std::cout << "(CPU) M proj\n" << Mproj.topLeftCorner(10, 10) << std::endl;
+	// =============[SOLVING THE EIGENPROBLEM]=============
+	cusolver_status = cusolverDnCreate(&cusolverHandle);
+
+	cusolverEigType_t	itype = CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
+	cusolverEigMode_t	jobz = CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
+	cublasFillMode_t	uplo = CUBLAS_FILL_MODE_UPPER;
+	cusolver_status = cusolverDnDsygvd_bufferSize(cusolverHandle, itype, jobz, uplo, n_MDnSym, d_SDnSym, m_SDnSym, d_MDnSym, m_MDnSym, d_A, &lwork);
+	cudaStat = cudaMalloc((void**)&d_work, sizeof(double) * lwork);
+	std::cout << "Asking for space in GPU " << cudaStat << std::endl;
+	if (cudaStat != 0) {
+		cout << "Error! Cannot request space to solve the eigenproblem." << endl;
+	}
+
+	std::cout << "Solving eigenproblem ";
+	cusolver_status = cusolverDnDsygvd(cusolverHandle, itype, jobz, uplo, n_MDnSym, d_SDnSym, m_SDnSym, d_MDnSym, m_MDnSym, d_A, d_work, lwork, devInfo);
+	std::cout << cusolver_status << std::endl;
+
+	cudaStat = cudaDeviceSynchronize();
+	std::cout << "Sync device " << cudaStat << std::endl;
+
+	std::cout << "Copy eigenpairs to CPU \n";
+	double* h_Q = (double*)malloc(m_SDnSym * n_SDnSym * sizeof(double));
+	double* h_A = (double*)malloc(m_MDnSym * sizeof(double));
+	cudaStat = cudaMemcpy(h_Q, d_SDnSym, sizeof(double) * m_SDnSym * n_SDnSym, cudaMemcpyDeviceToHost);
+	std::cout << cudaStat << std::endl;
+	cudaStat = cudaMemcpy(h_A, d_A, sizeof(double) * m_MDnSym, cudaMemcpyDeviceToHost);
+	std::cout << cudaStat << std::endl;
+
+	Q.resize(m_SDnSym, n_SDnSym);
+	AkL.resize(m_SDnSym);
+	Q = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Q, m_SDnSym, m_SDnSym, Eigen::OuterStride<>(m_SDnSym));
+	AkL = Eigen::Map<Eigen::VectorXd>(h_A, m_SDnSym);
+	std::cout << "GPU: eigVect \n" << Q.topLeftCorner(10, 10) << std::endl;
+	std::cout << "GPU: eigVals \n" << AkL.head(10) << std::endl;
 
 	t1 = chrono::high_resolution_clock::now();
 	printf("__solve reduced eigenvalue problem. ");
@@ -2747,6 +2791,9 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
 	cout << "...in " << duration.count() << " seconds." << endl;
+
+	std::cout << "CPU: eigVect \n" << Q.topLeftCorner(10, 10) << std::endl;
+	std::cout << "CPU: eigVals \n" << AkL.head(10) << std::endl;
 
 	t1 = chrono::high_resolution_clock::now();
 	printf("__lifting up/prolongation.");
