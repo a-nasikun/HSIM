@@ -2659,6 +2659,7 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	int* d_csrColInd_MSp; cudaMalloc(&d_csrColInd_MSp, nnz_MSp * sizeof(int));
 
 	double* d_A; cudaMalloc((void**)&d_A, sizeof(double) * n_A);
+	double* d_Q; cudaMalloc(&d_Q, m_Q * n_Q * sizeof(double));
 	cudaMalloc((void**)&devInfo, sizeof(int));
 
 	// COpying to GPU
@@ -2701,109 +2702,57 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	// =============[SDnSym = XT*SSp*X = XT*SDn and MDnSym = XT*MSP*X = XT*MDn]=============
 	blasStat = cublasCreate(&blasHandle);	
 	blasStat = cublasDgemm(blasHandle, CUBLAS_OP_T, CUBLAS_OP_N, n_X, n_SDn, m_X, &alpha, d_X, m_X, d_SDn, m_SDn, &beta, d_SDnSym, m_SDnSym);
-	std::cout << "S=XT * SX \n" << blasStat << std::endl;
 	blasStat = cublasDgemm(blasHandle, CUBLAS_OP_T, CUBLAS_OP_N, n_X, n_MDn, m_X, &alpha, d_X, m_X, d_MDn, m_MDn, &beta, d_MDnSym, m_MDnSym);
-	std::cout << "M=XT * MX \n" << blasStat << std::endl;
-	//cublasDgemm()
-	//	mX, nQ, nX
+	
 
 	cudaStat = cudaMemcpy(h_SDnSym, d_SDnSym, m_SDnSym * n_SDnSym * sizeof(double), cudaMemcpyDeviceToHost);
-	std::cout << "Copy to CPU " << cudaStat << std::endl;
 	cudaStat = cudaMemcpy(h_MDnSym, d_MDnSym, m_MDnSym * n_MDnSym * sizeof(double), cudaMemcpyDeviceToHost);
-	std::cout << "Copy to CPU " << cudaStat << std::endl;
 	
 	Eigen::MatrixXd  Q;
 	Eigen::MatrixXd Sproj(n_X, n_X), Mproj(n_X, n_X);
 	Sproj = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_SDnSym, m_SDnSym, n_SDnSym, Eigen::OuterStride<>(m_SDnSym));
 	Mproj = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_MDnSym, m_MDnSym, n_MDnSym, Eigen::OuterStride<>(m_MDnSym));
-	///std::cout << "(GPU) S proj\n" << Sproj.topLeftCorner(10, 10) << std::endl;
-	///std::cout << "(GPU) M proj\n" << Mproj.topLeftCorner(10, 10) << std::endl;
-
-	///* GOING BACK TO CPU */
-	//std::cout << "A step back to CPU\n";
-	//cudaStat = cudaMemcpy(h_SDn, d_SDn, m_SDn * n_SDn * sizeof(double), cudaMemcpyDeviceToHost);
-	//cudaStat = cudaMemcpy(h_MDn, d_MDn, m_MDn * n_MDn * sizeof(double), cudaMemcpyDeviceToHost);
-	//
-	//Eigen::MatrixXd SX(m_SSp, n_X), MX(m_MSp, n_X);
-	//SX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_SDn, m_SDn, n_SDn, Eigen::OuterStride<>(m_SDn));
-	//MX = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_MDn, m_MDn, n_MDn, Eigen::OuterStride<>(m_MDn));
-	//
-	//Eigen::MatrixXd Mproj, Sproj, Q;
-	//Sproj = XbarK.transpose() * SX;
-	//Mproj = XbarK.transpose() * MX;
-	
-	
-	
-	/////std::cout << "Sproj: \n" << Sproj.topLeftCorner(10, 10) << std::endl;
-	///t2 = chrono::high_resolution_clock::now();
-	///duration = t2 - t1;
-	///cout << "...in " << duration.count() << " seconds." << endl;
-	///
-	///std::cout << "(CPU) S proj\n" << Sproj.topLeftCorner(10, 10) << std::endl;
-	///std::cout << "(CPU) M proj\n" << Mproj.topLeftCorner(10, 10) << std::endl;
 
 	// =============[SOLVING THE EIGENPROBLEM]=============
 	cusolver_status = cusolverDnCreate(&cusolverHandle);
 
-	cusolverEigType_t	itype = CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
-	cusolverEigMode_t	jobz = CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
-	cublasFillMode_t	uplo = CUBLAS_FILL_MODE_UPPER;
+	cusolverEigType_t	itype = cusolverEigType_t::CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
+	cusolverEigMode_t	jobz = cusolverEigMode_t::CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
+	cublasFillMode_t	uplo = cublasFillMode_t::CUBLAS_FILL_MODE_UPPER;
 	cusolver_status = cusolverDnDsygvd_bufferSize(cusolverHandle, itype, jobz, uplo, n_MDnSym, d_SDnSym, m_SDnSym, d_MDnSym, m_MDnSym, d_A, &lwork);
 	cudaStat = cudaMalloc((void**)&d_work, sizeof(double) * lwork);
-	std::cout << "Asking for space in GPU " << cudaStat << std::endl;
 	if (cudaStat != 0) {
 		cout << "Error! Cannot request space to solve the eigenproblem." << endl;
 	}
 
-	std::cout << "Solving eigenproblem ";
+	
 	cusolver_status = cusolverDnDsygvd(cusolverHandle, itype, jobz, uplo, n_MDnSym, d_SDnSym, m_SDnSym, d_MDnSym, m_MDnSym, d_A, d_work, lwork, devInfo);
-	std::cout << cusolver_status << std::endl;
-
+	if (cusolver_status != 0){
+		std::cout << "Cannot solve the eigenproblem \n";
+		return -1;
+	}
 	cudaStat = cudaDeviceSynchronize();
-	std::cout << "Sync device " << cudaStat << std::endl;
+	
+
+	// MAP TO REduced space on that level
+	blasStat = cublasDgemm(blasHandle, CUBLAS_OP_N, CUBLAS_OP_N, m_X, n_SDnSym, n_X, &alpha, d_X, m_X, d_SDnSym, m_SDnSym, &beta, d_Q, m_Q);
+	std::cout << "Q = X*Q \n" << blasStat << std::endl;
 
 	std::cout << "Copy eigenpairs to CPU \n";
-	double* h_Q = (double*)malloc(m_SDnSym * n_SDnSym * sizeof(double));
-	double* h_A = (double*)malloc(m_MDnSym * sizeof(double));
-	cudaStat = cudaMemcpy(h_Q, d_SDnSym, sizeof(double) * m_SDnSym * n_SDnSym, cudaMemcpyDeviceToHost);
+	double* h_Q = (double*)malloc(m_Q * n_Q * sizeof(double));
+	double* h_A = (double*)malloc(n_Q * sizeof(double));
+	cudaStat = cudaMemcpy(h_Q, d_Q, sizeof(double) * m_Q*n_Q, cudaMemcpyDeviceToHost);
 	std::cout << cudaStat << std::endl;
 	cudaStat = cudaMemcpy(h_A, d_A, sizeof(double) * m_MDnSym, cudaMemcpyDeviceToHost);
 	std::cout << cudaStat << std::endl;
 
-	Q.resize(m_SDnSym, n_SDnSym);
-	AkL.resize(m_SDnSym);
-	Q = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Q, m_SDnSym, m_SDnSym, Eigen::OuterStride<>(m_SDnSym));
-	AkL = Eigen::Map<Eigen::VectorXd>(h_A, m_SDnSym);
-	std::cout << "GPU: eigVect \n" << Q.topLeftCorner(10, 10) << std::endl;
-	std::cout << "GPU: eigVals \n" << AkL.head(10) << std::endl;
+	std::cout << "Copy eigenpairs to CPU \n";
+	XkL.resize(m_Q, n_Q);
+	AkL.resize(n_Q);
+	XkL = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Q, m_Q, n_Q, Eigen::OuterStride<>(m_Q));
+	AkL = Eigen::Map<Eigen::VectorXd>(h_A, n_Q);
 
-	t1 = chrono::high_resolution_clock::now();
-	printf("__solve reduced eigenvalue problem. ");
-	GPUeigsolverStatus = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
-	cout << "__STATUS: " << GPUeigsolverStatus << endl;
-	if (GPUeigsolverStatus != 0) {
-		cout << "___!! COmputation of eigenvalues failed! \n";
-		cout << "____Status: " << GPUeigsolverStatus << endl;
-		//i = Imax;
-		return -1;
-		//break;
-	}
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	cout << "...in " << duration.count() << " seconds." << endl;
-
-	std::cout << "CPU: eigVect \n" << Q.topLeftCorner(10, 10) << std::endl;
-	std::cout << "CPU: eigVals \n" << AkL.head(10) << std::endl;
-
-	t1 = chrono::high_resolution_clock::now();
-	printf("__lifting up/prolongation.");
-	XkL = XbarK * Q;
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	cout << "...in " << duration.count() << " seconds." << endl;
-
-	// Create handle and matrices on the first iteration
-
+	GPUeigsolverStatus = 0;
 
 	return 0;
 }
