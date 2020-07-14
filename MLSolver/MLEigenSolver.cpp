@@ -1111,6 +1111,7 @@ namespace MuLES
 		cout << "in " << duration.count() << " seconds" << endl;
 		std::cout << "Xk \n" << XkMat.topLeftCorner(10,10) << std::endl;
 		XkMat.setZero();
+		std::cout << "Set Zero \n" << XkMat.topLeftCorner(10, 10) << std::endl;
 
 		cout << "ON <<G>>PU ";
 		t1 = chrono::high_resolution_clock::now();
@@ -1123,15 +1124,15 @@ namespace MuLES
 		double *h_Xk;
 		double *h_X;
 		double *h_Q;
-		int nX = XMat.rows();
-		int mX = XMat.cols();
-		int nQ = QMat.rows();
-		int mQ = QMat.cols();
+		int mX = XMat.rows();
+		int nX = XMat.cols();
+		int mQ = QMat.rows();
+		int nQ = QMat.cols();
 
 		// Xk = X*Q;
-		h_Xk = (double*)malloc(nX*mQ * sizeof(double)); // host memory for a
-		h_X = (double*)malloc(nX*mX * sizeof(double)); // host memory for b
-		h_Q = (double*)malloc(nQ*mQ * sizeof(double)); // host memory for c
+		h_Xk =(double*)malloc(mX*nQ * sizeof(double)); // host memory for a
+		h_X = (double*)malloc(mX*nX * sizeof(double)); // host memory for b
+		h_Q = (double*)malloc(mQ*nQ * sizeof(double)); // host memory for c
 		h_Xk = XkMat.data();
 		h_X = XMat.data();
 		h_Q = QMat.data();
@@ -1140,21 +1141,21 @@ namespace MuLES
 		double *d_Xk;
 		double *d_X;
 		double *d_Q;
-		cudaStat = cudaMalloc((void **)&d_Xk, nX*mQ * sizeof(double));
-		cudaStat = cudaMalloc((void **)&d_X, nX*mX * sizeof(double));
-		cudaStat = cudaMalloc((void **)&d_Q, nQ*mQ * sizeof(double));
+		cudaStat = cudaMalloc((void **)&d_Xk, mX*nQ * sizeof(double));
+		cudaStat = cudaMalloc((void **)&d_X,  mX*nX * sizeof(double));
+		cudaStat = cudaMalloc((void **)&d_Q,  mQ*nQ * sizeof(double));
 
 		stat = cublasCreate(&BLAShandle);
-		stat = cublasSetMatrix(nX, mX, sizeof(double), h_X, nX, d_X, nX);
-		stat = cublasSetMatrix(nQ, mQ, sizeof(double), h_Q, nQ, d_Q, nQ);
-		stat = cublasSetMatrix(nX, mQ, sizeof(double), h_Xk, nX, d_Xk, nX);
+		stat = cublasSetMatrix(mX, nX, sizeof(double), h_X, mX, d_X, mX);
+		stat = cublasSetMatrix(mQ, nQ, sizeof(double), h_Q, mQ, d_Q, mQ);
+		stat = cublasSetMatrix(mX, nQ, sizeof(double), h_Xk, mX, d_Xk, mX);
 		double alpha = 1.0;
 		double beta = 0.0;
 
-		stat = cublasDgemm(BLAShandle, CUBLAS_OP_N, CUBLAS_OP_N, nX, mQ, mX, &alpha, d_X, nX, d_Q, nQ, &beta, d_Xk, nX);
-
-		stat = cublasGetMatrix(nX, mQ, sizeof(double), d_Xk, nX, h_Xk, nX);
-		XkMat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Xk, nX, mQ, Eigen::OuterStride<>(nX));
+		stat = cublasDgemm(BLAShandle, CUBLAS_OP_N, CUBLAS_OP_N, mX, nQ, nX, &alpha, d_X, mX, d_Q, mQ, &beta, d_Xk, mX);
+		
+		stat = cublasGetMatrix(mX, nQ, sizeof(double), d_Xk, mX, h_Xk, mX);
+		XkMat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Xk, mX, nQ, Eigen::OuterStride<>(mX));
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
