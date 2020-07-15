@@ -115,6 +115,7 @@ namespace MuLES
 		void cublasGEMMtest();
 		void cusparseCSRMMtest();
 		void cusparseSpMMtest();
+		void cusparseDcsrm2(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& X);
 
 
 	protected:

@@ -2439,7 +2439,6 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		}
 		else
 		{
-
 			//const int		NUM_OF_THREADS = omp_get_num_procs();
 			const int		NUM_OF_THREADS = std::min(q, omp_get_num_procs());
 			cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
@@ -2481,6 +2480,11 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
+
+		std::cout << "CPU: \n" << XbarK.topLeftCorner(10, 10) << std::endl;
+
+
+		cusparseDcsrm2(SK - mu * MK, XbarK);
 		
 		SK.makeCompressed();
 		MK.makeCompressed();
