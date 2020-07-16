@@ -43,8 +43,8 @@ namespace MuLES
 			myfile.open(filename.c_str(), std::ofstream::out | std::ofstream::app);	// append to the end of the text
 
 		if (myfile.is_open()) {
-			cout << "Writing Matrix file to text ";
-			printf("of %dx%d size \n", M.rows(), M.cols());
+			//cout << "Writing Matrix file to text ";
+			//printf("of %dx%d size \n", M.rows(), M.cols());
 			myfile << "#Cols=" << M.cols() << "\n";
 
 			for (int i = 0; i < M.rows(); i++) {
@@ -53,7 +53,7 @@ namespace MuLES
 				}
 				myfile << "\n";
 			}
-			cout << "The file writing is done\n";
+			//cout << "The file writing is done\n";
 			myfile.close();
 		}
 		else cout << "Unable to open file";

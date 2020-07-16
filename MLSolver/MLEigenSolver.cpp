@@ -67,7 +67,7 @@ namespace MuLES
 	*/
 	void MLEigenSolver::initiateAdM()
 	{
-		cout << "> Creating neighborhood structure of the mesh. \n";
+		cout << "____> Creating neighborhood structure of the mesh. \n";
 		AdM.clear();
 		AdM.resize(V.rows());
 
@@ -153,7 +153,7 @@ namespace MuLES
 		if (V.rows() < 2000) {
 			sampSize.resize(1);
 			sampSize(0) = V.rows();
-			std::cout << "Since the number of vertices is relatively small, the system will attempt solving it directly in the GPU. \n";
+			std::cout << "____Since the number of vertices is relatively small, the system will attempt solving it directly in the GPU. \n";
 			return;
 		}
 
@@ -162,23 +162,23 @@ namespace MuLES
 		int dimSubSpace = max(2*numEigen, 1000);
 		double ratInit = (double)numVert / (double)dimSubSpace;
 		double ratio = log(ratInit)/log(EXP_RAT);
-		std::cout << "The ratio of vert to subspace is " << ratInit << " yielding " << ratio << " ratio setup \n";
+		//std::cout << "The ratio of vert to subspace is " << ratInit << " yielding " << ratio << " ratio setup \n";
 
 		if (ratio < 1.0) {
 			sampSize.resize(1);
 			sampSize(0) = dimSubSpace;
-			std::cout << "The ratio is " << ratio << " thus we'll just have 1 level with " << sampSize(0) << " DoFs\n";
+			//std::cout << "The ratio is " << ratio << " thus we'll just have 1 level with " << sampSize(0) << " DoFs\n";
 		}
 		else {
 			int numLevels = (int) floor(ratio);
 			double remainder = ratio - numLevels;
-			std::cout << "Number of levels: " << numLevels << "+1, with remainder of " << remainder << std::endl;
+			//std::cout << "Number of levels: " << numLevels << "+1, with remainder of " << remainder << std::endl;
 
 			// When the remainder is high, add another level for the coarsest level
 			if (remainder >= 0.8) {
 				numLevels += 1;
 				sampSize.resize(numLevels);
-				std::cout << "CASE 1: remainder >= 0.8 \n";
+				//std::cout << "CASE 1: remainder >= 0.8 \n";
 				for (int i = 0; i < (numLevels - 1); ++i) {
 					sampSize(i) = (int)ceil((double)numVert / pow(EXP_RAT,i+1));
 				}
@@ -186,7 +186,7 @@ namespace MuLES
 			}
 			// When the remainder is small, attach it to the level next to finest level
 			else if (remainder < 0.2) {
-				std::cout << "CASE 3: remainder < 0.2 \n";
+				//std::cout << "CASE 3: remainder < 0.2 \n";
 				sampSize.resize(numLevels);
 				sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, 1+remainder));
 				for (int i = 1; i < numLevels; ++i) {
@@ -194,7 +194,7 @@ namespace MuLES
 				}
 			}
 			else {
-				std::cout << "CASE 2: 0.2 <= remainder < 0.8 \n";
+				//std::cout << "CASE 2: 0.2 <= remainder < 0.8 \n";
 				Eigen::VectorXd addRatio(numLevels);
 				double sumRatio = 0.0;
 				for (int i = 0; i < numLevels; ++i) {
@@ -210,9 +210,9 @@ namespace MuLES
 			}
 		}
 
-		printf("Level %d has %d entries \n", 0, numVert);
+		printf("____Level %d has %d entries \n", 0, numVert);
 		for (int i = 0; i < sampSize.rows(); ++i) {
-			printf("Level %d has %d entries \n", i+1, sampSize(i));
+			printf("____Level %d has %d entries \n", i+1, sampSize(i));
 		}
 	}
 
@@ -234,12 +234,12 @@ namespace MuLES
 		int dimSubSpace = max(2 * numEigen, 1000);
 		double ratInit = (double)numVert / (double)dimSubSpace;
 		double ratio = log(ratInit) / log(EXP_RAT);
-		std::cout << "The ratio of vert to subspace is " << ratInit << " yielding " << ratio << " ratio setup \n";
+		//std::cout << "The ratio of vert to subspace is " << ratInit << " yielding " << ratio << " ratio setup \n";
 
 		if (ratio < 1.0) {
 			sampSize.resize(1);
 			sampSize(0) = dimSubSpace;
-			std::cout << "The ratio is " << ratio << " thus we'll just have 1 level with " << sampSize(0) << " DoFs\n";
+			//std::cout << "The ratio is " << ratio << " thus we'll just have 1 level with " << sampSize(0) << " DoFs\n";
 		}
 		else {
 			int numLevels = (int)floor(ratio);
@@ -250,51 +250,11 @@ namespace MuLES
 			for (int i = 1; i < numLevels; ++i) {
 				sampSize(i) = (int)ceil((double)sampSize(i-1)/ pow(EXP_RAT, levelRatio));
 			}
-
-			//double remainder = ratio - numLevels;
-			//std::cout << "Number of levels: " << numLevels << "+1, with remainder of " << remainder << std::endl;
-
-
-
-			// When the remainder is high, add another level for the coarsest level
-			//if (remainder >= 0.8) {
-			//	numLevels += 1;
-			//	sampSize.resize(numLevels);
-			//	std::cout << "CASE 1: remainder >= 0.8 \n";
-			//	for (int i = 0; i < (numLevels - 1); ++i) {
-			//		sampSize(i) = (int)ceil((double)numVert / pow(EXP_RAT, i + 1));
-			//	}
-			//	sampSize(numLevels - 1) = (int)ceil((double)sampSize(numLevels - 2) / pow(EXP_RAT, remainder));
-			//}
-			//// When the remainder is small, attach it to the level next to finest level
-			//else if (remainder < 0.2) {
-			//	std::cout << "CASE 3: remainder < 0.2 \n";
-			//	sampSize.resize(numLevels);
-			//	sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, 1 + remainder));
-			//	for (int i = 1; i < numLevels; ++i) {
-			//		sampSize(i) = (int)ceil((double)sampSize(i - 1) / EXP_RAT);
-			//	}
-			//}
-			//else {
-			//	std::cout << "CASE 2: 0.2 <= remainder < 0.8 \n";
-			//	Eigen::VectorXd addRatio(numLevels);
-			//	double sumRatio = 0.0;
-			//	for (int i = 0; i < numLevels; ++i) {
-			//		addRatio(i) = pow(2.0, numLevels - i - 1);
-			//		sumRatio += addRatio(i);
-			//	}
-			//
-			//	sampSize.resize(numLevels);
-			//	sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, 1.0 + addRatio(0) * remainder / sumRatio));
-			//	for (int i = 1; i < numLevels; ++i) {
-			//		sampSize(i) = (int)ceil((double)sampSize(i - 1) / pow(EXP_RAT, 1.0 + addRatio(i) * remainder / sumRatio));
-			//	}
-			//}
 		}
 
-		printf("Level %d has %d entries \n", 0, numVert);
+		printf("____Level %d has %d entries \n", 0, numVert);
 		for (int i = 0; i < sampSize.rows(); ++i) {
-			printf("Level %d has %d entries \n", i + 1, sampSize(i));
+			printf("____Level %d has %d entries \n", i + 1, sampSize(i));
 		}
 	}
 	
@@ -308,16 +268,13 @@ namespace MuLES
 	*/
 	void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXi& samples)
 	{
-		printf("____Sampling on %d levels \n", samples.size());
 		for (int i = 0; i < samples.size(); ++i) {
 			SubspaceSize[i] = samples(i);
-			printf("______Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
 		}
 		sampleSize = SubspaceSize[0];
 
 		SampleMap.resize(V.rows());
 		MuLES::constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
-		cout << "___Assigning level \n";
 		sampleLevel.resize(V.rows());
 
 		SampleMap.setConstant(-1);
@@ -401,7 +358,7 @@ namespace MuLES
 	*/
 	void MLEigenSolver::formPartitionOfUnityMultiLevel()
 	{
-		cout << "Partition of unity \n";
+		cout << "____> Partition of unity \n";
 		/* Temporary variables */
 		vector<Eigen::Triplet<double>>		diagTrip;
 		Eigen::SparseMatrix<double>			DiagNormMatrix;
@@ -652,9 +609,9 @@ namespace MuLES
 	*/
 	void MLEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType) {}
 
-	void MLEigenSolver::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter) {}
+	void MLEigenSolver::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
 
-	void MLEigenSolver::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter) {}
+	void MLEigenSolver::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
 
 	void MLEigenSolver::solve(int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset, double levelRatio, double basisSupport) {}
 

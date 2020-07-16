@@ -120,26 +120,28 @@ namespace MuLES
 		Eigen::VectorXi::Index maxIndex;
 
 		/* Samples on the coarsest level */
-		printf("Sample %d: %d \n", level - 1, SubspaceSize[level - 1]);
+		printf("____> Sample %d: %d \n", level, SubspaceSize[level - 1]);
 		for (int i = 1; i < SubspaceSize[level - 1]; ++i) {
 			ComputeDijkstra(V, Samples(i - 1), AdM, D);
 			D.maxCoeff(&maxIndex);
 			Samples(i) = maxIndex;
 		}
 		geoDist[level - 1] = D;
-		printf("Range of D[%d]: %.2f -> %.2f \n", level - 1, D.minCoeff(), D.maxCoeff());
+		//printf("Range of D[%d]: %.2f -> %.2f \n", level - 1, D.minCoeff(), D.maxCoeff());
 
 		/* For samples on coarser to finer level*/
 		for (int j = (level - 2); j >= 0; --j)
 		{
-			printf("Sample %d: %d [%d-%d].\n", j, SubspaceSize[j] - SubspaceSize[j + 1], SubspaceSize[j], SubspaceSize[j + 1]);
+			printf("____> Sample %d: %d [%d-%d].\n", j+1, SubspaceSize[j] - SubspaceSize[j + 1], SubspaceSize[j], SubspaceSize[j + 1]);
 			for (int i = SubspaceSize[j + 1]; i < SubspaceSize[j]; ++i) {
 				ComputeDijkstra(V, Samples(i - 1), AdM, D);
 				D.maxCoeff(&maxIndex);
 				Samples(i) = maxIndex;
 			}
 			geoDist[j] = D;
-			printf("Range of D[%d]: %.2f -> %.2f \n", j, D.minCoeff(), D.maxCoeff());
+			//printf("Range of D[%d]: %.2f -> %.2f \n", j, D.minCoeff(), D.maxCoeff());
 		}
+
+		printf("____> Sample %d: %d \n", 0, V.rows());
 	}
 }
