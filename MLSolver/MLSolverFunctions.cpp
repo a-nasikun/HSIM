@@ -52,7 +52,7 @@ namespace MuLES
 
 	void MLSolverFunctions::constructDiagonalMassMatrix()
 	{
-		cout << "> Creating mass matrix for the surface mesh \n";
+		std::cout << "> Creating mass matrix for the surface mesh \n";
 		/* Construct Mass matrix M*/
 		//igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
 		igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_VORONOI, M);
@@ -148,7 +148,7 @@ namespace MuLES
 	*/
 	void MLSolverFunctions::constructStiffnessMatrix()
 	{
-		cout << "> Creating stiffness matrix (Cotangent Laplacian). \n";
+		std::cout << "> Creating stiffness matrix (Cotangent Laplacian). \n";
 		igl::cotmatrix(V, F, S);
 		S = -S;
 	}
@@ -163,7 +163,7 @@ namespace MuLES
 	*/
 	void MLSolverFunctions::constructBasis(double support, int axis, double offset)
 	{
-		cout << "> Constructing multi-level basis \n";
+		std::cout << "> Constructing multi-level basis \n";
 		for (int i = 0; i < level; i++) {
 			maxNeighDist[i] = sqrt((surfaceArea*support) / (M_PI*SubspaceSize[i]));
 			printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
@@ -197,7 +197,7 @@ namespace MuLES
 		// For Timing
 		chrono::high_resolution_clock::time_point	t1, t2;
 		chrono::duration<double>					duration;
-		cout << "___Basis construction (Coarse only)... ";
+		std::cout << "___Basis construction (Coarse only)... ";
 		t1 = chrono::high_resolution_clock::now();
 
 		int coarseSample = SubspaceSize[level - 1];
@@ -280,7 +280,7 @@ namespace MuLES
 		// timing
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
-		cout << "in " << duration.count() << " seconds" << endl;
+		std::cout << "in " << duration.count() << " seconds" << endl;
 	}
 
 	/**
@@ -296,7 +296,7 @@ namespace MuLES
 		// For Timing
 		chrono::high_resolution_clock::time_point	t1, t2;
 		chrono::duration<double>					duration;
-		cout << "[1] Basis (non-smooth) construction \n";
+		std::cout << "[1] Basis (non-smooth) construction \n";
 		t1 = chrono::high_resolution_clock::now();
 
 		Eigen::VectorXd globToLocMap;
@@ -2040,7 +2040,7 @@ namespace MuLES
 			double zhaoParam = zhaoShiftParam;
 			int zhaoShiftId;
 			double mu;
-			double constexpr eps = 1e3*std::numeric_limits<double>::epsilon();
+			double constexpr eps = 1e6*std::numeric_limits<double>::epsilon();
 
 			printf("____<5> Subspace iteration.\n");
 			subspaceIterationMethodHelper(k, SK, MK, XbarK, XkL, AkL, status, numEigs, q, iterCount, maxIter, tol, factorization, isWithShift, true, lastConvergedId);						
@@ -2566,6 +2566,200 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 
 void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter) 
 {
+	chrono::high_resolution_clock::time_point	t0, t1, t2;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
+	int		q = EigVals.rows();
+	int		iterCount = 0;
+	int		factCounter = 0;
+	int		status = 1;
+	bool	isConvergedNotUsed = true;
+	int		lastConvergedId = 1;
+	double  eps = 1e3 * std::numeric_limits<double>::epsilon();
+
+	Eigen::SparseMatrix<double> Id;
+	Id.resize(SL.rows(), SL.cols());
+	Id.setIdentity();
+
+	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
+
+	bool isConverged = false;
+	Eigen::MatrixXd XbarK(EigVects.rows(), q); XbarK.setZero();
+	Eigen::MatrixXd Mproj, Sproj;
+	Eigen::MatrixXd Q;
+	//Eigen::VectorXd Alpha;
+	Eigen::VectorXd conv2(q);
+	conv2.setConstant(std::numeric_limits<double>::max());
+
+	do {
+		// [1] Factorization
+		t1 = chrono::high_resolution_clock::now();
+		if (status != 0)
+		{
+			/* Zhao's proposal on shifting*/
+			if (factCounter == 0) {
+					factorization.compute(SL - mu*ML);
+			}
+			else {
+				eps *= 10;
+				mu = eps;
+				factorization.compute(SL + mu*Id);
+			}
+
+			factCounter++;
+			std::cout << "__> Factorization " << factCounter << " with shift of " << mu; // << std::endl;
+		}
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		/* Stage III: Iterations */
+		std::cout << "Iteration: " << iterCount + 1 << std::endl;
+
+		std::cout << "Solving each RHS ";
+		t1 = chrono::high_resolution_clock::now();
+
+		double tolCheck = tol;
+		tolCheck = std::min(1e-3, tol / 10.0);
+		//if (tol > 0.99e-2) tolCheck = 1e-3;
+
+		if (!isParallelSolverEnabled) {
+			int solveCounter = 0;
+			Eigen::VectorXd v;
+			for (int j = 0; j < q; ++j) {						// easily parallelizeable				
+				if (isConvergedVectsNotUsed && (conv2(j) < tolCheck && j > 0)) continue;
+				v = ML * (EigVects.col(j));
+				XbarK.col(j) = factorization.solve(v);
+
+				if (isMultipleSolve)
+				{
+					v = ML * XbarK.col(j);
+					XbarK.col(j) = factorization.solve(v);
+					//v = MK*XbarK.col(j);
+					//XbarK.col(j) = factorization.solve(v);
+				}
+				solveCounter++;
+			}
+		}
+		else
+		{
+			//const int		NUM_OF_THREADS = omp_get_num_procs();
+			const int		NUM_OF_THREADS = std::min(q, omp_get_num_procs());
+			std::cout << "We are using " << NUM_OF_THREADS << " threads for OpenMP\n";
+			//const int		NUM_OF_THREADS = 2;
+			omp_set_num_threads(NUM_OF_THREADS);
+			int tid, ntids, ipts, istart, iproc;
+			int iCol = 0;
+#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+			{
+				iproc = omp_get_num_procs();
+				tid = omp_get_thread_num();
+				ntids = omp_get_num_threads();
+				ipts = (q + ntids - 1) / ntids;
+				istart = tid * ipts;
+				if (tid == ntids - 1) ipts = q - istart;
+				if (ipts <= 0) ipts = 0;
+
+				Eigen::VectorXd v;
+
+				for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+					if (iCol >= q) continue;
+					if (isConvergedVectsNotUsed && conv2(iCol) < tolCheck && iCol > 0) continue;
+					v = ML * (EigVects.col(iCol));
+					XbarK.col(iCol) = factorization.solve(v);
+
+					if (isMultipleSolve)
+					{
+						v = ML * XbarK.col(iCol);
+						XbarK.col(iCol) = factorization.solve(v);
+						//v = MK*XbarK.col(iCol);
+						//XbarK.col(iCol) = factorization.solve(v);
+					}
+				}
+			}
+		}
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		/* Projection of M and K*/
+		t1 = chrono::high_resolution_clock::now();
+		printf("___setting up reduced matrix M and S. ");
+		Sproj = XbarK.transpose() * SL;		// two steps for faster result
+		Sproj = Sproj * XbarK;
+		Mproj = XbarK.transpose() * ML;
+		Mproj = Mproj * XbarK;
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		t1 = chrono::high_resolution_clock::now();
+		printf("__solve reduced eigenvalue problem. ");
+		status = computeEigenGPUDense(Sproj, Mproj, Q, EigVals);
+		std::cout << "__STATUS: " << status << std::endl;
+		if (status != 0) {
+			cout << "___!! COmputation of eigenvalues failed! \n";
+			cout << "____Status: " << status << endl;
+			continue;
+		}
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		t1 = chrono::high_resolution_clock::now();
+		printf("__lifting up/prolongation.");
+		EigVects = XbarK * Q;
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+		
+
+		/* Convergence Check*
+		** Type 2: */
+		t1 = chrono::high_resolution_clock::now();
+		printf("__Convergence check.");
+		checkConvergenceCat2(EigVects, EigVals, numEigs, ML, SL, conv2);
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "...in " << duration.count() << " seconds." << endl;
+
+		//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+		cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
+
+		//cout << AkL.head(numEigs).transpose() << endl;
+
+		//if (k == 0) {
+		//	EigValsSIMStack.col(iterCount) = EigVects.block(0, 0, numEigs - 1, 1);
+		//	convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+		//}
+
+		iterCount++;
+
+		/* Ignore the first iteration */
+		if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
+			isConverged = true;
+		}
+
+		/* Check convergence */
+		for (int i = lastConvergedId; i < numEigs; ++i) {
+			//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
+			if (conv2(i) < tol) {
+				lastConvergedId = i;
+			}
+			else break;
+		}
+
+		if ((iterCount < maxIter) && (lastConvergedId < (numEigs - 1)))
+			isConverged = false;
+
+		std::cout << "Converged? " << isConverged << std::endl; 
+
+		std::cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
+
+	} while (!isConverged);
+
 
 }
 
@@ -2662,29 +2856,30 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		Mred[i] = U[i-1].transpose() * Mred[i-1] * U[i-1];
 	}
 
-	std::cout << "Check system matrices size: \n";
-	for (unsigned int i = 0; i < nLevel; ++i) {
-		printf("Level %d the mass matrix is: %dx%d \n", i, Mred[i].rows(), Mred[i].cols());
-	}
 
 	std::cout << "Solve eigenproblem in the coarsest level: \n";
 	int		q = qParam * numEigs;
 	computeEigenGPU(Sred[nLevel-1], Mred[nLevel - 1], EigVectsSIM, EigValsSIM);
+
+	std::cout << "Clamping the eigenvalues \n";
 	EigVectsSIM.conservativeResize(Eigen::NoChange_t::NoChange, q);
 	EigValsSIM.conservativeResize(q);
 
-	std::cout << "Eigs: \n" << EigVectsSIM.topLeftCorner(10, 10) << std::endl;
-
-	std::cout << "Prolongation: \n";
 	for (int i = nLevel - 2; i >= 0; --i) {
-		printf("[%d]: PRE! Size [U]: %dx%d | [EigVect]: %dx%d \n",i, U[i].rows(), U[i].cols(), EigVectsSIM.rows(), EigVectsSIM.cols());
-		EigVectsSIM = U[i] * EigVectsSIM;
-		printf("[%d]: POST! Size [U]: %dx%d | [EigVect]: %dx%d \n", i, U[i].rows(), U[i].cols(), EigVectsSIM.rows(), EigVectsSIM.cols());
-		int shiftId = std::floor(zhaoShiftParam * numEigs);
+		std::cout << "[a] Prolongation \n";
+		EigVectsSIM = U[i] * EigVectsSIM;int shiftId = std::floor(zhaoShiftParam * numEigs);
 		double mu = EigValsSIM(shiftId);
-		std::cout << "This! " << i << std::endl;
+
+		std::cout << "[a] SIM on level " << i << std::endl;
+		if (isSIMinGPU) {
+			SIMinGPU(Sred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter);
+		}else {
+			SIMinCPU(Sred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter);
+		}
 	}
-	std::cout << "END! \n";
+
+	EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
+	EigValsSIM.conservativeResize(numEigs);
 
 }
 	/**
