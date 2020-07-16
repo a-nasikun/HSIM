@@ -652,7 +652,13 @@ namespace MuLES
 	*/
 	void MLEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType) {}
 
+	void MLEigenSolver::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter) {}
+
+	void MLEigenSolver::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter) {}
+
 	void MLEigenSolver::solve(int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset, double levelRatio, double basisSupport) {}
+
+	void MLEigenSolver::solve(int numEigs, double tol, int maxIter, double levelRatio, double basisSupport, bool isWithShift) {}
 
 	void MLEigenSolver::performMultiLevelSIM_withShiftOnceConverged(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType) {}
 

@@ -808,7 +808,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::cout << "is iterating over converged ? " << isNotIterateOverConverged << std::endl; 
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->isMultipleSolve = isMultipleSolve;
-			eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
+			//eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
+			eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
 		}
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {

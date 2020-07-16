@@ -46,7 +46,10 @@ namespace MuLES
 		void performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter = 10, double tol = 1e-4, bool isWithShift = true, const ShiftType& shiftType = ShiftType::SHIFT_BATHE) override;
 		void performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter = 10, double tol = 1e-4, bool isWithShift = true, const ShiftType& shiftType = ShiftType::SHIFT_BATHE) override;
 		void performMultiLevelSIM_withShiftOnceConverged(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter = 10, double tol = 1e-4, bool isWithShift = true, const ShiftType& shiftType = ShiftType::SHIFT_BATHE) override;
+		void virtual SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol = 1e-4, int maxIter = 20) override;
+		void virtual SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol = 1e-4, int maxIter = 20) override;
 		void virtual solve(int numEigs, int maxIter = 50, double tol = 1e-4, bool isWithShift = true, const ShiftType& shiftType = ShiftType::SHIFT_BATHE, int axis = 0, double offset = 0.0, double levelRatio = 10.0, double basisSupport=7.5) override;
+		void virtual solve(int numEigs, double tol = 1e-4, int maxIter = 50, double levelRatio = 10.0, double basisSupport = 7.5, bool isWithShift = true) override;
 
 		/* Applications */
 		void constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor);

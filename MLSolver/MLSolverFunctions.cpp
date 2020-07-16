@@ -2064,296 +2064,6 @@ namespace MuLES
 			itersPerLevel(k) = iterCount;
 		}
 	}
-
-	//void MLSolverFunctions::performMultiLevelSIM_withShiftOnceConverged(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
-	//{
-	//	std::cout << "Functions" << std::endl;
-	//
-	//	chrono::high_resolution_clock::time_point	t0, t1, t2;
-	//	chrono::duration<double>					duration;
-	//	t0 = chrono::high_resolution_clock::now();
-	//
-	//	printf("____[1] level: %d \n", k);
-	//	//int		q = max(2 * numEigs, numEigs + 8);
-	//	int		q = qParam*numEigs;
-	//	std::cout << "qParam is" << qParam << std::endl;
-	//
-	//	int iterCount = 0;
-	//	int factCounter = 0;
-	//	int status = 1;
-	//	bool isConvergedNotUsed = true;
-	//
-	//	/* 4: RECURSION */
-	//	if (k == level)			// check if this already in the lowest/coarsest subspace
-	//	{
-	//		XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
-	//		AkL = EigValsReduced.head(q);
-	//		//printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
-	//	}
-	//	// RECURSIVE for level k < max_level
-	//	else
-	//	{
-	//		/* 1: RESTRICTION */
-	//		printf("____<1> Restriction: ");
-	//		t1 = chrono::high_resolution_clock::now();
-	//		Eigen::SparseMatrix<double> SK, MK, Id;
-	//		if (k == 0) {
-	//			SK = SL; MK = ML;
-	//		}
-	//		else {
-	//			SK = U[k - 1].transpose()*SL*U[k - 1];
-	//			MK = U[k - 1].transpose()*ML*U[k - 1];
-	//		}
-	//		Id.resize(SK.rows(), SK.cols());
-	//		Id.setIdentity();
-	//		t2 = chrono::high_resolution_clock::now();
-	//		duration = t2 - t1;
-	//		cout << "...in " << duration.count() << " seconds." << endl;
-	//
-	//
-	//		printf("____<2> Going deeper => \n ################");
-	//		//performMultiLevelSIM_withShiftOnce(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
-	//		performMultiLevelSIM_withShiftOnceConverged(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
-	//
-	//		//printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
-	//
-	//		/* [3] SUBSPACE ITERATION METHOD */
-	//		t1 = chrono::high_resolution_clock::now();
-	//		XkL = U[k] * XkL;
-	//		printf("____<3> Lifting, Init vectors: %dx%d ", XkL.rows(), XkL.cols());
-	//		t2 = chrono::high_resolution_clock::now();
-	//		duration = t2 - t1;
-	//		cout << "...in " << duration.count() << " seconds." << endl;
-	//
-	//		/* Adding a small number on the diagonal, for robustness */
-	//		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-	//
-	//		//printf("____<4> Embedding a small-valued diagonal matrix \n");
-	//
-	//		/* Temporary variables */
-	//		bool isConverged = false;
-	//		Eigen::MatrixXd XbarK(XkL.rows(), q); XbarK.setZero();
-	//		Eigen::MatrixXd XbarTemp, XkTemp; 
-	//		Eigen::VectorXd XbarMap;
-	//		Eigen::MatrixXd Mproj, Sproj;
-	//		Eigen::MatrixXd Q;
-	//		Eigen::VectorXd AkTemp;
-	//		//Eigen::VectorXd Alpha;
-	//		Eigen::VectorXd conv2, conv3;
-	//
-	//		int						firstNZ = 0;
-	//		int						lastConvergedId = 0;
-	//		if (!isClampedBasis) {
-	//			if (F.cols() == 3) {			/* FUNCTION */
-	//				firstNZ = 1;				// first non-zero eigenvalues on the reduced/subspace Function Laplacian
-	//				lastConvergedId = 1;		// first non-zero eigenvalue of the expected eigenvalues
-	//			}
-	//		}
-	//
-	//		/* Shifting only once, at the beginning */
-	//		//double zhaoParam = 0.25;
-	//		double zhaoParam = zhaoShiftParam;
-	//		int zhaoShiftId;
-	//		double mu;
-	//		double eps = 1e3*std::numeric_limits<double>::epsilon();
-	//
-	//		int numNonConverged;
-	//		Eigen::VectorXi nonConvergedVectors(q);
-	//		nonConvergedVectors.setConstant(1);
-	//		vector<int> nonConvergedMap;
-	//		//nonConvergedMap.reserve(q);
-	//
-	//		printf("____<5> Subspace iteration.\n");
-	//		do {
-	//			t1 = chrono::high_resolution_clock::now();
-	//			if (status != 0)
-	//			{
-	//				/* [4] Zhao's proposal */
-	//				//zhaoShiftId = lastConvergedId + min(5, (int)floor(zhaoParam*(numEigs - lastConvergedId)));
-	//				zhaoShiftId = lastConvergedId + (int)floor(zhaoParam*(numEigs - lastConvergedId));
-	//				if (factCounter == 0) {
-	//					if (tol < 1e-9 && k == 0) {
-	//						std::cout << "__On finest level, no shift on really high accuracy!" << std::endl;
-	//						factorization.compute(SK + eps*Id);
-	//					}
-	//					else {
-	//						mu = AkL(zhaoShiftId);
-	//						std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId; // << std::endl;
-	//						factorization.compute(SK - mu*MK);
-	//					}
-	//				}
-	//				else {
-	//					eps *= 10;
-	//					mu = eps;
-	//					factorization.compute(SK + mu*Id);
-	//				}
-	//
-	//				factCounter++;
-	//				std::cout << "__> Factorization " << factCounter << " with shift of " << mu; // << std::endl;
-	//			}
-	//			t2 = chrono::high_resolution_clock::now();
-	//			duration = t2 - t1;
-	//			cout << "...in " << duration.count() << " seconds." << endl;
-	//
-	//			/* Stage III: Iterations */
-	//			printf("Iteration: %d \n", iterCount + 1);
-	//
-	//			numNonConverged = 0;
-	//			nonConvergedMap.clear(); nonConvergedMap.shrink_to_fit();
-	//			nonConvergedMap.reserve(q);
-	//			if (iterCount > 0) {
-	//				for (int j = 0; j < q; ++j) {
-	//					if (conv2(j) > tol) {	// larger than tolerance meaning not converged
-	//						numNonConverged++;
-	//						nonConvergedMap.push_back(j);
-	//					}
-	//					else {
-	//						nonConvergedVectors(j) = -1;
-	//					}
-	//				}
-	//			}
-	//			else {
-	//				for (int j = 0; j < q; ++j) {
-	//					numNonConverged++;
-	//					nonConvergedMap.push_back(j);
-	//				}
-	//			}
-	//			XbarTemp.resize(MK.rows(), numNonConverged);
-	//			printf("From %d vectors, %d have not converged \n", q, numNonConverged);
-	//			printf("XbarTemp: %d x %d \n", XbarTemp.rows(), XbarTemp.cols());
-	//
-	//			std::cout << "Solving each RHS ";
-	//			t1 = chrono::high_resolution_clock::now();
-	//			int convCounter = 0;
-	//			for (int j = 0; j < q; ++j) {						// easily parallelizeable
-	//				Eigen::VectorXd v;
-	//				if (isConvergedNotUsed) {
-	//					if (nonConvergedVectors(j) == 1) {
-	//						v = MK * (XkL.col(j));
-	//						XbarTemp.col(convCounter) = factorization.solve(v);
-	//						convCounter++;
-	//					}
-	//				}
-	//				else {
-	//					v = MK * (XkL.col(j));
-	//					XbarK.col(j) = factorization.solve(v);
-	//				}
-	//			}
-	//			t2 = chrono::high_resolution_clock::now();
-	//			duration = t2 - t1;
-	//			cout << "...in " << duration.count() << " seconds." << endl;
-	//
-	//			/* Projection of M and K*/
-	//			t1 = chrono::high_resolution_clock::now();
-	//			printf("________setting up reduced matrix M and S. ");
-	//			Sproj = XbarTemp.transpose()*SK*XbarTemp;
-	//			Mproj = XbarTemp.transpose()*MK*XbarTemp;
-	//			t2 = chrono::high_resolution_clock::now();
-	//			duration = t2 - t1;
-	//			cout << "...in " << duration.count() << " seconds." << endl;
-	//			printf("Size: %dx%d \n", Sproj.rows(), Sproj.cols());
-	//
-	//			t1 = chrono::high_resolution_clock::now();
-	//			printf("________solve reduced eigenvalue problem. ");
-	//			status = computeEigenGPUDense(Sproj, Mproj, Q, AkTemp);
-	//			cout << "__STATUS: " << status << endl;
-	//			if (status != 0) {
-	//				cout << "___!! COmputation of eigenvalues failed! \n";
-	//				cout << "____Status: " << status << endl;
-	//				//i = Imax;
-	//				continue;
-	//				//break;
-	//			}
-	//			t2 = chrono::high_resolution_clock::now();
-	//			duration = t2 - t1;
-	//			cout << "...in " << duration.count() << " seconds." << endl;
-	//
-	//			t1 = chrono::high_resolution_clock::now();
-	//			printf("________lifting up/prolongation.");
-	//			XkTemp = XbarTemp*Q;
-	//			t2 = chrono::high_resolution_clock::now();
-	//			duration = t2 - t1;
-	//			cout << "...in " << duration.count() << " seconds." << endl;
-	//
-	//			std::cout << "__Mapping to the regular space \n";
-	//			for (int j = 0; j < numNonConverged; ++j) {
-	//				if (nonConvergedVectors(nonConvergedMap[j]) == 1) {
-	//					XkL.col(nonConvergedMap[j]) = XkTemp.col(j);
-	//					AkL(nonConvergedMap[j]) = AkTemp(j);
-	//					//printf("Element NonConv %d is mapped to %d \n", j, nonConvergedMap[j]);
-	//				}
-	//			}
-	//
-	//
-	//			/* Convergence Check*
-	//			** Type 2: */
-	//			checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
-	//			cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
-	//			/* Type 3: */
-	//			//checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
-	//			//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
-	//
-	//			cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
-	//			//cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
-	//
-	//			cout << "Eigenvalues: \n " << AkL.head(numEigs).transpose() << endl;
-	//
-	//			if (k == 0) {
-	//				EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-	//				convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
-	//				//convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
-	//			}
-	//
-	//			iterCount++;
-	//
-	//			/* Ignore the first iteration */
-	//			if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
-	//				isConverged = true;
-	//			}
-	//
-	//			if (status != 0) {
-	//				std::cout << "Cannot solve reduced eigenproblem \n";
-	//				continue;
-	//			}
-	//
-	//			/* Check convergence */
-	//			for (int i = lastConvergedId; i < numEigs; ++i) {
-	//				//cout << "Checking convergence of ID " << i << ": " << conv2(i) << endl;
-	//				if (conv2(i) < tol) {
-	//					lastConvergedId = i;
-	//				}
-	//				else break;
-	//			}
-	//
-	//			if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
-	//				isConverged = false;
-	//
-	//			cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
-	//
-	//		} while (!isConverged);
-	//
-	//		printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
-	//
-	//		/* Print some data when it's on the finest level */
-	//		if (k == 0) {
-	//			cout << "____<7> Storing the convergence data. \n";
-	//			convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
-	//			//convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
-	//			EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
-	//		}
-	//	}
-	//
-	//	t1 = chrono::high_resolution_clock::now();
-	//	duration = t1 - t0;
-	//	cout << "...in " << duration.count() << " seconds." << endl;
-	//	if (k < level) {
-	//		timingPerLevel(k) = duration.count();
-	//		itersPerLevel(k) = iterCount;
-	//	}
-	//}
-
-
-
 void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int status, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed, int lastConvergedId)
 {
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
@@ -2854,6 +2564,16 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	return 0;
 }
 
+void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter) 
+{
+
+}
+
+void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter) 
+{
+
+}
+
 
 void MLSolverFunctions::solve(int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset, double levelRatio, double basisSupport) {
 		constructMassMatrix();
@@ -2897,6 +2617,76 @@ void MLSolverFunctions::solve(int numEigs, int maxIter, double tol, bool isWithS
 		performSubspaceIterationMethod(SIMType::SIM_MultiLevel, numEigs, maxIter, tol, isWithShift);
 	}
 
+	
+void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double levelRatio, double basisSupport, bool isWithShift) 
+{
+	/* [1] Set up the System matrices */
+	constructMassMatrix();
+	initiateAdM();
+	constructStiffnessMatrix();
+
+	/* [2] Set up the Hierarchy */
+	std::cout << "Iterating over converged?" << isConvergedVectsNotUsed << std::endl;
+
+	chrono::high_resolution_clock::time_point	t0, t1;
+	chrono::duration<double>					duration;
+	std::cout << "> Constructing hierarchy... " << std::endl;
+	t0 = chrono::high_resolution_clock::now();
+
+	Eigen::VectorXi sampSize;
+	int hierarchyMode = 1;
+	switch (hierarchyMode){
+	case 0:
+		setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);	break;
+	case 1:
+		setSamplingLevelsAuto(sampSize, numEigs, levelRatio);			break;
+	case 2:
+		setSamplingLevelsSameRate(sampSize, numEigs, levelRatio);		break;
+	default:
+		break;
+	}
+	setInitialSystem(sampSize.rows());
+	constructSampleHierarchy(sampSize);
+	constructBasis(basisSupport);
+
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	std::cout << "in " << duration.count() << " seconds." << std::endl;
+
+	/* Set-up reduced system matrices */
+	const int nLevel = sampSize.rows() + 1;
+	vector<Eigen::SparseMatrix<double>>	Mred(nLevel), Sred(nLevel);
+	Sred[0] = S; Mred[0] = M;
+	for (unsigned int i = 1; i < nLevel; ++i) {
+		Sred[i] = U[i-1].transpose() * Sred[i-1] * U[i-1];
+		Mred[i] = U[i-1].transpose() * Mred[i-1] * U[i-1];
+	}
+
+	std::cout << "Check system matrices size: \n";
+	for (unsigned int i = 0; i < nLevel; ++i) {
+		printf("Level %d the mass matrix is: %dx%d \n", i, Mred[i].rows(), Mred[i].cols());
+	}
+
+	std::cout << "Solve eigenproblem in the coarsest level: \n";
+	int		q = qParam * numEigs;
+	computeEigenGPU(Sred[nLevel-1], Mred[nLevel - 1], EigVectsSIM, EigValsSIM);
+	EigVectsSIM.conservativeResize(Eigen::NoChange_t::NoChange, q);
+	EigValsSIM.conservativeResize(q);
+
+	std::cout << "Eigs: \n" << EigVectsSIM.topLeftCorner(10, 10) << std::endl;
+
+	std::cout << "Prolongation: \n";
+	for (int i = nLevel - 2; i >= 0; --i) {
+		printf("[%d]: PRE! Size [U]: %dx%d | [EigVect]: %dx%d \n",i, U[i].rows(), U[i].cols(), EigVectsSIM.rows(), EigVectsSIM.cols());
+		EigVectsSIM = U[i] * EigVectsSIM;
+		printf("[%d]: POST! Size [U]: %dx%d | [EigVect]: %dx%d \n", i, U[i].rows(), U[i].cols(), EigVectsSIM.rows(), EigVectsSIM.cols());
+		int shiftId = std::floor(zhaoShiftParam * numEigs);
+		double mu = EigValsSIM(shiftId);
+		std::cout << "This! " << i << std::endl;
+	}
+	std::cout << "END! \n";
+
+}
 	/**
 	*  @brief
 	*   Diffusion distance using the spectrum and eigenvector of the Laplace--Beltrami eigenproblem.

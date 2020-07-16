@@ -52,6 +52,8 @@ namespace MuLES
 
 		const int m = S_.rows();
 		const int lda = m;
+		LDEigVec.resize(m, m);
+		LDEigVal.resize(m);
 
 		double *A = (double*)std::malloc(m*lda * sizeof(double));
 		double *B = (double*)std::malloc(m*lda * sizeof(double));
