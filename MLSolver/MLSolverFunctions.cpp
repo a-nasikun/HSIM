@@ -2168,7 +2168,7 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		std::cout << "CPU: \n" << XbarK.topLeftCorner(10, 10) << std::endl;
 
 
-		cusparseDcsrm2(SK - mu * MK, XbarK);
+		//cusparseDcsrm2(SK - mu * MK, XbarK);
 		
 		SK.makeCompressed();
 		MK.makeCompressed();
@@ -2664,6 +2664,8 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
 
+		std::cout << "CPU \n" << Sproj.topLeftCorner(10, 10) << std::endl;
+
 		t1 = chrono::high_resolution_clock::now();
 		printf("__[4] Solve reduced eigenvalue problem. ");
 		status = computeEigenGPUDense(Sproj, Mproj, Q, EigVals);
@@ -2790,6 +2792,13 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	int n_Qr		= m_Qr;
 	int n_A			= EigVects.cols();			// Vector storing the eigenvalues
 	int q			= EigVals.rows();
+
+	/* SIM Variable */
+	bool isConverged = false;
+	Eigen::VectorXd conv2(q);
+	conv2.setConstant(std::numeric_limits<double>::max());
+	int iterCount = 0;
+	int lastConvergedId = 1;
 	
 
 	t2 = chrono::high_resolution_clock::now();
@@ -2849,15 +2858,107 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	cudaMalloc((void**)&d_workLS, lworkInBytes);
 	cuSpStat = cusparseDcsrsm2_analysis(cuSpHandle, algo, opNoTrans, opNoTrans, m_SM, n_X, nnz_SM, &alpha, matSM, d_csrVal_SM, d_csrRowPtr_SM, d_csrColInd_SM, d_MX, m_X, info, policy, d_workLS);
 
-	// Solve
-	cuSpStat = cusparseDcsrsm2_solve(cuSpHandle, algo, opNoTrans, opNoTrans, m_SM, n_X, nnz_SM, &alpha, matSM, d_csrVal_SM, d_csrRowPtr_SM, d_csrColInd_SM, d_MX, m_X, info, policy, d_workLS);
-	
+	do {
+		// Solve
+		cuSpStat = cusparseDcsrsm2_solve(cuSpHandle, algo, opNoTrans, opNoTrans, m_SM, n_X, nnz_SM, &alpha, matSM, d_csrVal_SM, d_csrRowPtr_SM, d_csrColInd_SM, d_MX, m_X, info, policy, d_workLS);
 
+		/* SIM Iteration */
+		/* [1] Projection */
+		double* d_SDn; cudaMalloc(&d_SDn, m_SDn * n_SDn * sizeof(double));
+		double* d_MDn; cudaMalloc(&d_MDn, m_MDn * n_MDn * sizeof(double));
+		double* d_SDnSym; cudaMalloc(&d_SDnSym, m_SDnSym * n_SDnSym * sizeof(double));
+		double* d_MDnSym; cudaMalloc(&d_MDnSym, m_MDnSym * n_MDnSym * sizeof(double));
 
-	/* SIM Iteration */
+		double* d_csrVal_SSp; cudaMalloc(&d_csrVal_SSp, nnz_SSp * sizeof(double));
+		int* d_csrRowPtr_SSp; cudaMalloc(&d_csrRowPtr_SSp, (m_SSp + 1) * sizeof(int));
+		int* d_csrColInd_SSp; cudaMalloc(&d_csrColInd_SSp, nnz_SSp * sizeof(int));
 
+		cudaStat = cudaMemcpy(d_csrVal_SSp, SL.valuePtr(), nnz_SSp * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStat = cudaMemcpy(d_csrRowPtr_SSp, SL.outerIndexPtr(), (m_SSp + 1) * sizeof(int), cudaMemcpyHostToDevice);
+		cudaStat = cudaMemcpy(d_csrColInd_SSp, SL.innerIndexPtr(), nnz_SSp * sizeof(int), cudaMemcpyHostToDevice);
 
+		cusparseSpMatDescr_t matSSp;
+		cusparseDnMatDescr_t matSDn, matMDn;
+		void* dBufferS = NULL, * dBufferM = NULL;
+		size_t bufferSizeS = 0, bufferSizeM = 0;
 
+		cuSpStat = cusparseCreateCsr(&matSSp, m_SSp, n_SSp, nnz_SSp, d_csrRowPtr_SSp, d_csrColInd_SSp, d_csrVal_SSp, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+		cuSpStat = cusparseCreateDnMat(&matSDn, m_SDn, n_SDn, m_SDn, d_SDn, CUDA_R_64F, CUSPARSE_ORDER_COL);
+		cuSpStat = cusparseCreateDnMat(&matMDn, m_MDn, n_MDn, m_MDn, d_MDn, CUDA_R_64F, CUSPARSE_ORDER_COL);
+		//cuSpStat = cusparseCreateDnMat(&matMX, m_X, n_X, m_X, d_MX, CUDA_R_64F, CUSPARSE_ORDER_COL);
+
+		// S1 = S*X and M1=M*S
+		cuSpStat = cusparseSpMM_bufferSize(cuSpHandle, opNoTrans, opNoTrans, &alpha, matSSp, matMX, &beta, matSDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, &bufferSizeS);
+		cudaMalloc((void**)&dBufferS, bufferSizeS);
+		cuSpStat = cusparseSpMM_bufferSize(cuSpHandle, opNoTrans, opNoTrans, &alpha, matMSp, matMX, &beta, matMDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, &bufferSizeM);
+		cudaMalloc((void**)&dBufferM, bufferSizeM);
+
+		cuSpStat = cusparseSpMM(cuSpHandle, opNoTrans, opNoTrans, &alpha, matSSp, matMX, &beta, matSDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferS);
+		cuSpStat = cusparseSpMM(cuSpHandle, opNoTrans, opNoTrans, &alpha, matMSp, matMX, &beta, matMDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferM);
+
+		// SDnSym = XT * S * X
+		blasStat = cublasDgemm(blasHandle, CUBLAS_OP_T, CUBLAS_OP_N, n_X, n_SDn, m_X, &alpha, d_MX, m_X, d_SDn, m_SDn, &beta, d_SDnSym, m_SDnSym);
+		blasStat = cublasDgemm(blasHandle, CUBLAS_OP_T, CUBLAS_OP_N, n_X, n_MDn, m_X, &alpha, d_MX, m_X, d_MDn, m_MDn, &beta, d_MDnSym, m_MDnSym);		
+
+		/* [2] Solving reduced eigenproblem */
+		double* d_A; cudaMalloc((void**)&d_A, sizeof(double) * n_A);
+		double* d_Q; cudaMalloc(&d_Q, m_Q * n_Q * sizeof(double));
+		cudaMalloc((void**)&devInfo, sizeof(int));
+
+		cusolverEigType_t	itype = cusolverEigType_t::CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
+		cusolverEigMode_t	jobz = cusolverEigMode_t::CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
+		cublasFillMode_t	uplo = cublasFillMode_t::CUBLAS_FILL_MODE_UPPER;
+		cusolver_status = cusolverDnDsygvd_bufferSize(cusolverHandle, itype, jobz, uplo, n_MDnSym, d_SDnSym, m_SDnSym, d_MDnSym, m_MDnSym, d_A, &lworkE);
+		cudaStat = cudaMalloc((void**)&d_workE, sizeof(double) * lworkE);
+		if (cudaStat != 0) {
+			cout << "Error! Cannot request space to solve the eigenproblem." << endl;
+		}
+
+		cusolver_status = cusolverDnDsygvd(cusolverHandle, itype, jobz, uplo, n_MDnSym, d_SDnSym, m_SDnSym, d_MDnSym, m_MDnSym, d_A, d_workE, lworkE, devInfo);
+		if (cusolver_status != cudaError::cudaSuccess) {
+			std::cout << "Cannot solve reduced eigenproblem \n";
+			continue;
+		}
+
+		cudaStat = cudaDeviceSynchronize();
+
+		/* [3] Prolongation */
+		blasStat = cublasDgemm(blasHandle, CUBLAS_OP_N, CUBLAS_OP_N, m_X, n_SDnSym, n_X, &alpha, d_MX, m_X, d_SDnSym, m_SDnSym, &beta, d_Q, m_Q);
+		
+		/* [4] Copy to CPU  */
+		double* h_Q = (double*)malloc(m_Q * n_Q * sizeof(double));
+		double* h_A = (double*)malloc(n_Q * sizeof(double));
+		cudaStat = cudaMemcpy(h_Q, d_Q, sizeof(double) * m_Q * n_Q, cudaMemcpyDeviceToHost);
+		cudaStat = cudaMemcpy(h_A, d_A, sizeof(double) * m_MDnSym, cudaMemcpyDeviceToHost);
+
+		EigVects.resize(m_Q, n_Q);
+		EigVals.resize(n_Q);
+		EigVects = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Q, m_Q, n_Q, Eigen::OuterStride<>(m_Q));
+		EigVals = Eigen::Map<Eigen::VectorXd>(h_A, n_Q);
+
+		/* [5] Convergence check */
+		checkConvergenceCat2(EigVects, EigVals, numEigs, ML, SL, conv2);
+		
+		iterCount++;
+
+		/* Ignore the first iteration */
+		if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
+			isConverged = true;
+		}			
+
+		/* Check convergence */
+		for (int i = lastConvergedId; i < numEigs; ++i) {
+			if (conv2(i) < tol) {
+				lastConvergedId = i;
+			}
+			else break;
+		}
+
+		if ((iterCount < maxIter) && (lastConvergedId < (numEigs - 1)))
+			isConverged = false;
+
+		cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
+	} while (!isConverged);
 
 }
 
