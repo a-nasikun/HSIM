@@ -7,6 +7,7 @@
 #include "cublas_v2.h"
 #include <cusparse.h>
 #include <cusparse_v2.h>
+#include <cusolverSp.h>
 
 namespace MuLES
 {
@@ -1353,7 +1354,7 @@ namespace MuLES
 		cudaDeviceReset();
 	}
 
-	void MLEigenSolver::cusparseDcsrm2(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& X)
+	void MLEigenSolver::cusparseDcsrm2(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X)
 	{
 		chrono::high_resolution_clock::time_point	t1, t2;
 		chrono::duration<double>					duration;
@@ -1369,59 +1370,73 @@ namespace MuLES
 		const cusparseSolvePolicy_t policy = cusparseSolvePolicy_t::CUSPARSE_SOLVE_POLICY_NO_LEVEL;
 		size_t						lworkInBytes = 0;
 		char*						d_work = NULL;
+		cudaStream_t				stream = NULL;
 
+		//Eigen::SparseMatrix<double> SMTri = SM.triangularView<Eigen::Lower>();
+		//std::cout << "S: " << SM.nonZeros() << "|| STri: " << SMTri.nonZeros() << std::endl;
 		int m_S = SM.rows();
 		int n_S = SM.cols();
 		int nnz_S = SM.nonZeros();
-		int m_X = X.rows();
-		int n_X = X.cols();		
+		int m_X = B.rows();
+		int n_X = B.cols();	
+		int m_B = B.rows();
+		int n_B = B.cols();
 
-		double* h_B = (double*)malloc(m_X * n_X * sizeof(double));
+		// Buffer
+		const double alpha = 1.0;
+		const double beta = 0.0;
+		const int algo = 0; /* non-block version */
+		cusparseMatDescr_t matSM;
+		cudaStat = cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+		cusparseCreate(&cuSpHandle);
+		cuSpStat = cusparseSetStream(cuSpHandle, stream);
+		cusparseCreateCsrsm2Info(&info);
+
+		cuSpStat = cusparseCreateMatDescr(&matSM);
+		cusparseSetMatIndexBase(matSM, cusparseIndexBase_t::CUSPARSE_INDEX_BASE_ZERO);
+		cusparseSetMatType(matSM, cusparseMatrixType_t::CUSPARSE_MATRIX_TYPE_GENERAL);
+		cusparseSetMatFillMode(matSM, cusparseFillMode_t::CUSPARSE_FILL_MODE_LOWER);
+		cusparseSetMatDiagType(matSM, cusparseDiagType_t::CUSPARSE_DIAG_TYPE_NON_UNIT);
+
+		double* h_B = (double*)malloc(m_B * n_B * sizeof(double));
+		double* h_X = (double*)malloc(m_X * n_X * sizeof(double));
 
 		// Set-up SM on GPU (Sparse)
 		double* d_csrVal_S; cudaMalloc(&d_csrVal_S, nnz_S * sizeof(double));
 		int* d_csrRowPtr_S; cudaMalloc(&d_csrRowPtr_S, (m_S + 1) * sizeof(int));
 		int* d_csrColInd_S; cudaMalloc(&d_csrColInd_S, nnz_S * sizeof(int));
-
-
 		// Set-up X on GPU (Dense)
 		double* d_X; cudaMalloc(&d_X, m_X * n_X * sizeof(double));
 		double* d_B; cudaMalloc(&d_B, m_X * n_X * sizeof(double));
 
-		// Copy to GPU
-		cudaStat = cudaMemcpy(d_csrVal_S, S.valuePtr(), nnz_S * sizeof(double), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_csrRowPtr_S, S.outerIndexPtr(), (m_S + 1) * sizeof(int), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_csrColInd_S, S.innerIndexPtr(), nnz_S * sizeof(int), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_X, X.data(), m_X * n_X * sizeof(double), cudaMemcpyHostToDevice);
 
-		// Buffer
-		double alpha = 1.0;
-		double beta = 0.0;
-		const int algo = 0; /* non-block version */
-		cusparseMatDescr_t matSM;
-		cuSpStat = cusparseCreateMatDescr(&matSM);
-		cusparseSetMatIndexBase(matSM, cusparseIndexBase_t::CUSPARSE_INDEX_BASE_ZERO);
-		cusparseSetMatType(matSM, cusparseMatrixType_t::CUSPARSE_MATRIX_TYPE_SYMMETRIC);
-		cusparseSetMatFillMode(matSM, cusparseFillMode_t::CUSPARSE_FILL_MODE_LOWER);
-		cusparseSetMatDiagType(matSM, cusparseDiagType_t::CUSPARSE_DIAG_TYPE_NON_UNIT);
-		cusparseCreate(&cuSpHandle);
-		cusparseCreateCsrsm2Info(&info);
-		cuSpStat = cusparseDcsrsm2_bufferSizeExt(cuSpHandle, algo, opNoTrans, opNoTrans, m_S, n_X, nnz_S, &alpha, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_X, m_X, info, policy, &lworkInBytes);		
-						
+		// Copy to GPU
+		cudaStat = cudaMemcpy(d_csrVal_S, SM.valuePtr(), nnz_S * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStat = cudaMemcpy(d_csrRowPtr_S, SM.outerIndexPtr(), (m_S + 1) * sizeof(int), cudaMemcpyHostToDevice);
+		cudaStat = cudaMemcpy(d_csrColInd_S, SM.innerIndexPtr(), nnz_S * sizeof(int), cudaMemcpyHostToDevice);
+		cudaStat = cudaMemcpy(d_B, B.data(), m_B * n_B * sizeof(double), cudaMemcpyHostToDevice);
+
+		cuSpStat = cusparseDcsrsm2_bufferSizeExt(cuSpHandle, algo, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE, m_S, n_X, nnz_S, &alpha, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_B, m_B, info, policy, &lworkInBytes);
+		std::cout << "allocate memory: " << cuSpStat << std::endl;
+
 		// Analyze
 		cudaMalloc((void**)&d_work, lworkInBytes);
-		cuSpStat = cusparseDcsrsm2_analysis(cuSpHandle, algo, opNoTrans, opNoTrans, m_S, n_X, nnz_S, &alpha, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_X, m_X, info, policy, d_work);
-		
+		cuSpStat = cusparseDcsrsm2_analysis(cuSpHandle, algo, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE, m_S, n_X, nnz_S, &alpha, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_B, m_X, info, policy, d_work);
+		std::cout << "Factorize: " << cuSpStat << std::endl;
 		// Solve
-		cuSpStat = cusparseDcsrsm2_solve(cuSpHandle, algo, opNoTrans, opNoTrans, m_S, n_X, nnz_S, &alpha, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_X, m_X, info, policy, d_work);
+		cuSpStat = cusparseDcsrsm2_solve(cuSpHandle, algo, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE, m_S, n_X, nnz_S, &alpha, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_B, m_X, info, policy, d_work);
+		std::cout << "Solve system: " << cuSpStat << std::endl;
 
-		cudaStat = cudaMemcpy(h_B, d_X, m_X * n_X * sizeof(double), cudaMemcpyDeviceToHost);
+		cudaStat = cudaMemcpy(h_X, d_B, m_X * n_X * sizeof(double), cudaMemcpyDeviceToHost);
 
 		// Format C to Eigen::MatrixXd
-		Eigen::MatrixXd CMat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_B, m_X, n_X, Eigen::OuterStride<>(m_X));		
-		std::cout << "GPU: \n" << CMat.topLeftCorner(10, 10) << std::endl;
+		Eigen::MatrixXd CMat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_X, m_X, n_X, Eigen::OuterStride<>(m_X));		
+		std::cout << "GPU (X from (S-mu*M)X=M*X0: \n" << CMat.topLeftCorner(10, 10) << std::endl;
+
+		X = CMat;
 
 		if (h_B)			free(h_B);
+		if (h_X)			free(h_X);
 		if (d_X)			cudaFree(d_X);
 		if (d_B)			cudaFree(d_B);
 		if(d_csrVal_S   )	cudaFree(d_csrVal_S);
@@ -1433,5 +1448,71 @@ namespace MuLES
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
+	}
+
+	void MLEigenSolver::cusolverSP(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X)
+	{
+		cusolverSpHandle_t		cuSolverHandle;
+		cusolverStatus_t		cuSolverStat = cusolverStatus_t::CUSOLVER_STATUS_SUCCESS;
+		cusparseStatus_t		cuSpStat;
+		cudaError_t				cudaStat;
+
+		int m_S = SM.rows();
+		int n_S = SM.cols();
+		int nnz_S = SM.nonZeros();
+		int m_X = B.rows();
+		int n_X = B.cols();
+		int m_B = B.rows();
+		int n_B = B.cols();
+
+		double* h_B = (double*)malloc(m_B * n_B * sizeof(double));
+		double* h_X = (double*)malloc(m_X * n_X * sizeof(double));
+
+		// Set-up SM on GPU (Sparse)
+		std::cout << "allocating memory: ";
+		double* d_csrVal_S; cudaStat = cudaMalloc(&d_csrVal_S, nnz_S * sizeof(double));			std::cout << cudaStat << "| ";
+		int* d_csrRowPtr_S; cudaStat = cudaMalloc(&d_csrRowPtr_S, (m_S + 1) * sizeof(int));		std::cout << cudaStat << "| ";
+		int* d_csrColInd_S; cudaStat = cudaMalloc(&d_csrColInd_S, nnz_S * sizeof(int));			std::cout << cudaStat << "| ";
+		// Set-up X on GPU (Dense)
+		double* d_X; cudaStat = cudaMalloc(&d_X, m_X * n_X * sizeof(double));					std::cout << cudaStat << "| ";
+		double* d_B; cudaStat = cudaMalloc(&d_B, m_X * n_X * sizeof(double));					std::cout << std::endl;
+
+
+		// Copy to GPU
+		std::cout << "Copy to GPU: ";
+		cudaStat = cudaMemcpy(d_csrVal_S, SM.valuePtr(), nnz_S * sizeof(double), cudaMemcpyHostToDevice);				std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpy(d_csrRowPtr_S, SM.outerIndexPtr(), (m_S + 1) * sizeof(int), cudaMemcpyHostToDevice);		std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpy(d_csrColInd_S, SM.innerIndexPtr(), nnz_S * sizeof(int), cudaMemcpyHostToDevice);			std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpy(d_B, B.data(), m_B * n_B * sizeof(double), cudaMemcpyHostToDevice);						std::cout << std::endl;
+
+		cuSolverStat = cusolverSpCreate(&cuSolverHandle);
+		std::cout << "Creating handle: " << cuSolverStat << std::endl;
+
+		cusparseMatDescr_t matSM;
+		cuSpStat = cusparseCreateMatDescr(&matSM);
+		cuSpStat = cusparseSetMatIndexBase(matSM, cusparseIndexBase_t::CUSPARSE_INDEX_BASE_ZERO);
+		cuSpStat = cusparseSetMatType(matSM, cusparseMatrixType_t::CUSPARSE_MATRIX_TYPE_GENERAL);
+		cuSpStat = cusparseSetMatFillMode(matSM, cusparseFillMode_t::CUSPARSE_FILL_MODE_LOWER);
+		cuSpStat = cusparseSetMatDiagType(matSM, cusparseDiagType_t::CUSPARSE_DIAG_TYPE_NON_UNIT);
+		std::cout << "Creating matrix description: " << cuSpStat << std::endl;
+
+		double tol = 1e-2;
+		int reorder = 2;
+		int* d_sing;
+		//cudaStat = cudaMalloc(&d_sing, 1 * sizeof(int));
+		//int* h_sing = (int*)malloc(sizeof(int));
+		
+		cuSolverStat = cusolverSpDcsrlsvchol(cuSolverHandle, m_S, nnz_S, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_B, tol, reorder, d_X, d_sing);
+		std::cout << "Solving linear system: " << cuSolverStat << std::endl;
+
+		//cudaStat = cudaMemcpy(h_sing, d_sing, sizeof(int), cudaMemcpyDeviceToHost);
+		std::cout << "Num of singularities: " << *d_sing << std::endl;
+
+		cudaStat = cudaMemcpy(h_X, d_X, m_X * n_X * sizeof(double), cudaMemcpyDeviceToHost);
+		std::cout << "Copy to CPU: " << cudaStat << std::endl;
+
+		X.resize(m_X, n_X);
+		X = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_X, m_X, n_X, Eigen::OuterStride<>(m_X));
+		std::cout << "GPU (X from (S-mu*M)X=M*X0: \n" << X.topLeftCorner(10, 10) << std::endl;
 	}
 }

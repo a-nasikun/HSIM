@@ -2102,6 +2102,12 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		double tolCheck = tol;
 		tolCheck = std::min(1e-3, tol / 10.0);
 		//if (tol > 0.99e-2) tolCheck = 1e-3;
+
+		//SK.makeCompressed();
+		//MK.makeCompressed();
+		//cusparseDcsrm2(SK - mu * MK,  MK*XkL, XbarK);
+		//cusolverSP(SK - mu * MK, MK* XkL, XbarK);
+		//std::cout << "GPU: \n" << XbarK.topLeftCorner(10, 10) << std::endl;
 		
 		if (!isParallelSolverEnabled) {
 			int solveCounter = 0;
@@ -2165,13 +2171,9 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
 
-		std::cout << "CPU: \n" << XbarK.topLeftCorner(10, 10) << std::endl;
+		//std::cout << "CPU: \n" << XbarK.topLeftCorner(10, 10) << std::endl;
 
-
-		//cusparseDcsrm2(SK - mu * MK, XbarK);
 		
-		SK.makeCompressed();
-		MK.makeCompressed();
 
 		int iterStatus;
 		if (isSIMinGPU) {
@@ -2647,7 +2649,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			}
 		}
 
-		std::cout << "XbarK \n" << XbarK.topLeftCorner(10, 10) << std::endl; 
+		std::cout << "[CPU] XbarK \n" << XbarK.topLeftCorner(10, 10) << std::endl; 
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
@@ -2757,13 +2759,13 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	int*						devInfo = NULL;						// For eigensolver in GPU
 	double*						d_workE = NULL;
 	int							lworkE = 0;
-	const int					algo = 0; /* non-block version */
+	int							algo = 0; /* non-block version */
 	cusparseCreate(&cuSpHandle);
 	cublasCreate(&blasHandle);
 	cusolverDnCreate(&cusolverHandle);
 
 	/* S-mu*M on CPU */
-	Eigen::SparseMatrix<double> SM = S - mu*M;
+	Eigen::SparseMatrix<double> SM = SL - mu*ML;
 
 	/* Set-up required matrices */
 	/* Setup the data in CPU + GPU coresponding to matrix sizes */
@@ -2832,7 +2834,12 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		
 	cuSpStat = cusparseSpMM_bufferSize(cuSpHandle, opNoTrans, opNoTrans, &alpha, matMSp, matX0, &beta, matMX, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, &bufferSizeM);
 	cudaMalloc((void**)&dBufferM, bufferSizeM);
-	cuSpStat = cusparseSpMM(cuSpHandle, opNoTrans, opNoTrans, &alpha, matMSp, matX0, &beta, matMX, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferM);	
+	cuSpStat = cusparseSpMM(cuSpHandle, opNoTrans, opNoTrans, &alpha, matMSp, matX0, &beta, matMX, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferM);		
+
+	//==========================
+	// UP TO HERE, THINGS ARE CORRECT!
+	// Overriding the d_MX
+	//========================	
 
 	/* Analysis and factorization in GPU of (S-mu*M) */
 	// Set-up SM on GPU (Sparse)
@@ -2852,15 +2859,51 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	cusparseSetMatDiagType(matSM, cusparseDiagType_t::CUSPARSE_DIAG_TYPE_NON_UNIT);
 	cusparseCreate(&cuSpHandle);
 	cusparseCreateCsrsm2Info(&info);
-	cuSpStat = cusparseDcsrsm2_bufferSizeExt(cuSpHandle, algo, opNoTrans, opNoTrans, m_SM, n_X, nnz_SM, &alpha, matSM, d_csrVal_SM, d_csrRowPtr_SM, d_csrColInd_SM, d_MX, m_X, info, policy, &lworkInBytes);
+	double alphaLS = 1.0;
+	double betaLS = 0.0;
+	cuSpStat = cusparseDcsrsm2_bufferSizeExt(cuSpHandle, algo, opNoTrans, opNoTrans, m_SM, n_X, nnz_SM, &alphaLS, matSM, d_csrVal_SM, d_csrRowPtr_SM, d_csrColInd_SM, d_MX, m_X, info, policy, &lworkInBytes);
+	std::cout << "Allocate buffer: " << cuSpStat << std::endl;
 
 	// Analyze
 	cudaMalloc((void**)&d_workLS, lworkInBytes);
-	cuSpStat = cusparseDcsrsm2_analysis(cuSpHandle, algo, opNoTrans, opNoTrans, m_SM, n_X, nnz_SM, &alpha, matSM, d_csrVal_SM, d_csrRowPtr_SM, d_csrColInd_SM, d_MX, m_X, info, policy, d_workLS);
+	cuSpStat = cusparseDcsrsm2_analysis(cuSpHandle, algo, opNoTrans, opNoTrans, m_SM, n_X, nnz_SM, &alphaLS, matSM, d_csrVal_SM, d_csrRowPtr_SM, d_csrColInd_SM, d_MX, m_X, info, policy, d_workLS);
+	std::cout << "Factorize matrix: " << cuSpStat << std::endl;
 
+	// ============================ Test
+	double* h_Mat = (double*)malloc(m_X * n_X * sizeof(double));
+	cudaStat = cudaMemcpy(h_Mat, d_MX, sizeof(double) * m_X * n_X, cudaMemcpyDeviceToHost);
+	Eigen::MatrixXd Mat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Mat, m_X, n_X, Eigen::OuterStride<>(m_X));
+	std::cout << "[GPU] M*X \n" << Mat.topLeftCorner(10, 10) << std::endl;
+
+	Mat = ML * EigVects;
+	std::cout << "[GPU] M*X \n" << Mat.topLeftCorner(10, 10) << std::endl;
+	// ============================
 	do {
 		// Solve
 		cuSpStat = cusparseDcsrsm2_solve(cuSpHandle, algo, opNoTrans, opNoTrans, m_SM, n_X, nnz_SM, &alpha, matSM, d_csrVal_SM, d_csrRowPtr_SM, d_csrColInd_SM, d_MX, m_X, info, policy, d_workLS);
+		std::cout << "Solve linear system: " << cuSpStat << std::endl;
+		//---------------------------
+		cudaStat = cudaMemcpy(h_Mat, d_MX, sizeof(double) * m_X * n_X, cudaMemcpyDeviceToHost);
+		Mat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Mat, m_X, n_X, Eigen::OuterStride<>(m_X));
+		std::cout << "[GPU] (S-mu*M)Xbar=MX \n" << Mat.topLeftCorner(10, 10) << std::endl;
+
+		//double* h_Mat = (double*)malloc(m_X * n_X * sizeof(double));
+		//cudaStat = cudaMemcpy(h_Mat, d_MX, sizeof(double) * m_X * n_X, cudaMemcpyDeviceToHost);
+		//Eigen::MatrixXd Mat = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Mat, m_X, n_X, Eigen::OuterStride<>(m_X));
+		//std::cout << "[GPU] XbarK \n" << Mat.topLeftCorner(10, 10) << std::endl;
+		
+		/* In CPU */
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> linSolver;
+		linSolver.compute(SM);
+		Eigen::MatrixXd MX = ML * EigVects;
+		Eigen::MatrixXd Xbar(SL.rows(), EigVects.cols());
+		for (int i = 0; i < MX.cols(); ++i) {
+			Eigen::VectorXd v = MX.col(i);
+			Xbar.col(i) = linSolver.solve(v);
+		}
+		std::cout << "[CPU] (S-mu*M)Xbar=MX \n" << Xbar.topLeftCorner(10, 10) << std::endl;
+
+		//----------------------------
 
 		/* SIM Iteration */
 		/* [1] Projection */
