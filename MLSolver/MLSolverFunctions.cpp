@@ -2649,7 +2649,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			}
 		}
 
-		std::cout << "[CPU] XbarK \n" << XbarK.topLeftCorner(10, 10) << std::endl; 
+		//std::cout << "[CPU] XbarK \n" << XbarK.topLeftCorner(10, 10) << std::endl; 
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
@@ -2666,7 +2666,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
 
-		std::cout << "CPU \n" << Sproj.topLeftCorner(10, 10) << std::endl;
+		//std::cout << "CPU \n" << Sproj.topLeftCorner(10, 10) << std::endl;
 
 		t1 = chrono::high_resolution_clock::now();
 		printf("__[4] Solve reduced eigenvalue problem. ");
@@ -2700,7 +2700,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		//std::cout << AkL.head(numEigs).transpose() << std::endl;
 
 		if (k == 0) {
-			EigValsSIMStack.col(iterCount) = EigVects.block(0, 0, numEigs - 1, 1);
+			EigValsSIMStack.col(iterCount) = EigVals.head(numEigs);
 			convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
 		}
 
@@ -3046,6 +3046,11 @@ void MLSolverFunctions::solve(int numEigs, int maxIter, double tol, bool isWithS
 		
 		// SHIFT is FAKE-ly used to switch between DISCARDING the converged and not!
 		performSubspaceIterationMethod(SIMType::SIM_MultiLevel, numEigs, maxIter, tol, isWithShift);
+
+		t1 = chrono::high_resolution_clock::now();
+		duration = t1 - t0;
+		cout << "in " << duration.count() << " seconds." << endl;
+		std::cout << "TOTAL H-SiM time in " << duration.count() << " seconds." << std::endl;
 	}
 
 	
@@ -3055,7 +3060,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	chrono::duration<double>					duration;
 
 	std::cout << "[1] Construct system matrices... \n";
-	t0 = t1 = chrono::high_resolution_clock::now();
+	t1 = chrono::high_resolution_clock::now();
 
 	/* [1] Set up the System matrices */
 	constructMassMatrix();
@@ -3070,6 +3075,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	/* [2] Set up the Hierarchy */
 	std::cout << "[2] Constructing hierarchy... " << std::endl;
 	t1 = chrono::high_resolution_clock::now();
+	t0 = t1;
 
 	Eigen::VectorXi sampSize;
 	int hierarchyMode = 1;
@@ -3102,9 +3108,6 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		Mred[i] = U[i-1].transpose() * Mred[i-1] * U[i-1];
 	}
 
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	std::cout << "in " << duration.count() << " seconds." << std::endl;
 
 	/* Set-up matrices for logging purposes */
 	EigValsSIMStack.resize(numEigs, maxIter);
@@ -3113,6 +3116,10 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	convergence2Stacks.setZero();
 	timingPerLevel.resize(nLevel);
 	itersPerLevel.resize(nLevel);
+
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	std::cout << "in " << duration.count() << " seconds." << std::endl;
 
 	std::cout << "[4] Solve eigenproblem in the coarsest level:... ";
 	t1 = chrono::high_resolution_clock::now();
@@ -3125,11 +3132,12 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
 	std::cout << "in " << duration.count() << " seconds." << std::endl;
-
+	timingPerLevel(nLevel-1) = duration.count();
 
 	for (int i = nLevel - 2; i >= 0; --i) {
 		std::cout << "[5] SIM [a] Prolongation...";
-		t01 = t1 = chrono::high_resolution_clock::now();		
+		t1 = chrono::high_resolution_clock::now();		
+		t01 = t1;
 
 		EigVectsSIM = U[i] * EigVectsSIM;int shiftId = std::floor(zhaoShiftParam * numEigs);
 		double mu = EigValsSIM(shiftId);
@@ -3151,24 +3159,24 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		duration = t2 - t1;
 		std::cout << "   in " << duration.count() << " seconds." << std::endl;
 
-		if (i <= level) {
+		if (i < nLevel-1) {
 			duration = t2 - t01;
 			timingPerLevel(i) = duration.count();
 		}
 	}
 
-	EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
-	EigValsSIM.conservativeResize(numEigs);
-
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t0;
 	std::cout << "TOTAL H-SiM time in " << duration.count() << " seconds." << std::endl;
 
+	EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
+	EigValsSIM.conservativeResize(numEigs);
 
 	/* Write the convergence information to an external file. */
 	std::cout << "Write the log to files." << std::endl;
 	string modelName = "Model_" + to_string(V.rows()) + "_" + to_string(V.cols());
 	string fileConv = "../../Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string(0) + "_" + (isWithShift ? "shift_" + to_string(3) + "_" : "") + to_string(tol) + ".txt";
+	std::cout << "File path: " << fileConv << std::endl;
 	writeDenseMatrixToFile(itersPerLevel, fileConv);
 	writeDenseMatrixToFile(timingPerLevel, fileConv);
 	writeDenseMatrixToFile(EigValsSIMStack, fileConv);

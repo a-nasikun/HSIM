@@ -36,11 +36,16 @@ namespace MuLES
 	template <typename DerivedM>
 	void writeDenseMatrixToFile(const Eigen::PlainObjectBase<DerivedM>& M, const string& filename, bool overwrite)
 	{
-		ofstream myfile;
+		ofstream myfile;		
+		myfile.clear();
+		myfile.close();
+
 		if (overwrite)
 			myfile.open(filename.c_str(), std::ofstream::out);						// overwrite existing content
 		else
 			myfile.open(filename.c_str(), std::ofstream::out | std::ofstream::app);	// append to the end of the text
+
+		//ofstream myfile(filename.c_str(), std::ofstream::out | std::ofstream::app);
 
 		if (myfile.is_open()) {
 			//cout << "Writing Matrix file to text ";
@@ -54,7 +59,9 @@ namespace MuLES
 				myfile << "\n";
 			}
 			//cout << "The file writing is done\n";
+			myfile.clear();
 			myfile.close();
+			//delete myfile;
 		}
 		else cout << "Unable to open file";
 	}
