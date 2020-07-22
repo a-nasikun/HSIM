@@ -1003,7 +1003,6 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->setQParam(qParam);
 
-
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
 
@@ -1079,54 +1078,39 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			*/
 
 			int maxIters = 25;
+			std::vector<double>		levelRatio{ 16 };
+			std::vector<double>		levelSupport{ 7.5 };
 			//vector<int> wantedModes{ 50, 100, 250 };
 			//vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
-			vector<int> wantedModes{ 50, 250 };
-			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
-			//vector<double> wantedTols{ 1e-3};
+			vector<int> wantedModes{ 50 };
+			//vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
+			vector<double> wantedTols{ 1e-3};
 			eigenSolver->setZhaoShiftParam(0.25);
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
-				for (int k = 0; k<wantedTols.size(); ++k) {
-					//// ML-with shift
-					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-					//// ML no shift
-					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-					// random
-					eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-					// // bathe init vector
-					//eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-				}
-			}
-
-			/*  Testing on :
-			*	(5) NL non smooth (with shift)
-			*	(6) ML non smooth (without shift)
-			*/
-			//eigenSolver->constructBasisNonSmooth(5.0);
-			//eigenSolver->solveRestrictedProblem();
-			//eigenSolver->setZhaoShiftParam(0.15);
-			//for (int j = 0; j < wantedModes.size(); ++j) {
-			//	for (int k = 0; k<wantedTols.size(); ++k) {
-			//		// ML-with shift (non-smooth)
-			//		eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-			//		// ML no shift (non-smooth)
-			//		eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-			//	}
-			//}
-			//
-			///*  Testing on :
-			//*	(7) SGP as warm start
-			//*/
-			//eigenSolver->constructBasisCoarseOnly(12.5);
-			//eigenSolver->solveRestrictedProblem();
-			//
-			//for (int j = 0; j < wantedModes.size(); ++j) {
-			//	for (int k = 0; k<wantedTols.size(); ++k) {
-			//		// ML-with shift (non-smooth)
-			//		eigenSolver->performSubspaceIterationMethod(typeMap[1], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
-			//	}
-			//}
+				for (int i = 0; i < levelRatio.size(); ++i) {
+					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
+					for (int l = 0; l < levelSupport.size(); ++l) {
+						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;
+						for (int k = 0; k < wantedTols.size(); ++k) {
+							//// ML-with shift
+							//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+							//// ML no shift
+							//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+							
+							// new HSIM
+							//eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+							// random
+							eigenSolver->setParallelSolverFlag(true);
+							eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+							eigenSolver->setParallelSolverFlag(false);
+							eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+							// // bathe init vector
+							//eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+						}	// End for tolerance
+					}		// End for lever support
+				}			// End for level ratio
+			}				// End for wanted modes			
 		}
 
 		if (ImGui::Button("Scripted (5) Shift", ImVec2(w, 0))) {
@@ -1362,12 +1346,13 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			Eigen::VectorXi			sampSize;
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
 			std::vector<double>		levelRatio{ 16 };
-			//std::vector<double>		levelSupport{ 5.0, 7.5, 10.0, 12.5, 15.0, 20.0 };
+			//std::vector<double>		levelRatio{ 4,8,16,24 };
+			//std::vector<double>		levelSupport{ 5.0, 7.5, 12.5, 20.0 };
 			std::vector<double>		levelSupport{ 7.5 };
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 0.25 };
-			vector<int>				wantedModes{ 50, 100, 250, 1000 };
+			vector<int>				wantedModes{ 50, 100, 250};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 50 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };

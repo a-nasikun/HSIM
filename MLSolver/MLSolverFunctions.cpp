@@ -761,7 +761,7 @@ namespace MuLES
 		int					lastConvergedId = 1;
 		double eps;
 		if (F.cols() == 4) eps = 1e-2 * std::numeric_limits<double>::epsilon();
-		else			eps = 1e7 * std::numeric_limits<double>::epsilon();
+		else			eps = 1e6 * std::numeric_limits<double>::epsilon();
 
 		/* Selecting the appropriate subspace iteration method */
 		bool isNormalized = false;
