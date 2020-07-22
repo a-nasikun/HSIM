@@ -948,7 +948,7 @@ namespace MuLES
 			** Type 2: */
 			std::cout << "__Check convergence \n" ;
 			t0 = chrono::high_resolution_clock::now();
-			checkConvergenceCat2(Xk, Alpha, numEigs, ML, S, conv2);
+			checkConvergenceCat2(Xk, Alpha, numEigs, ML, ML, S, conv2); 	// need to be MK^{-1}
 			//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 			t1 = chrono::high_resolution_clock::now();
 			duration = t1 - t0;
@@ -1239,7 +1239,7 @@ namespace MuLES
 
 				/* Convergence Check*
 				** Type 2: */
-				checkConvergenceCat2(Xk, Alpha, numEigs, ML, SL, conv2);
+				checkConvergenceCat2(Xk, Alpha, numEigs, ML, ML, SL, conv2); 	// need to be ML^{-1}
 				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 				/* Type 3: */
 				checkConvergenceCat3(Q, Alpha, numEigs, isWithShift, mu, conv3);
@@ -1694,7 +1694,7 @@ namespace MuLES
 	
 					/* Convergence Check*
 					** Type 2: */
-					checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
+					checkConvergenceCat2(XkL, AkL, numEigs, MK, MK, SK, conv2);	// need to be MK^{-1}
 					cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 					/* Type 3: */
 					checkConvergenceCat3(Q, AkL, numEigs, isWithShift, mu, conv3);
@@ -2189,7 +2189,7 @@ void MLSolverFunctions::subspaceIterationMethodHelper(int k, Eigen::SparseMatrix
 		** Type 2: */
 		t1 = chrono::high_resolution_clock::now();
 		printf("__Convergence check.");
-		checkConvergenceCat2(XkL, AkL, numEigs, MK, SK, conv2);
+		checkConvergenceCat2(XkL, AkL, numEigs, MK, MK, SK, conv2);	// need to be MK^{-1}
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
@@ -2540,7 +2540,7 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	return 0;
 }
 
-void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) 
+void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k)
 {
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
 	chrono::duration<double>					duration;
@@ -2690,7 +2690,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		/* Convergence Check*/
 		t1 = chrono::high_resolution_clock::now();
 		printf("__[6] Convergence check.");
-		checkConvergenceCat2(EigVects, EigVals, numEigs, ML, SL, conv2);
+		checkConvergenceCat2(EigVects, EigVals, numEigs, ML, MLinv, SL, conv2);
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
@@ -2733,7 +2733,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	}
 }
 
-void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) 
+void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k)
 {
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
 	chrono::duration<double>					duration;
@@ -2980,7 +2980,7 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		EigVals = Eigen::Map<Eigen::VectorXd>(h_A, n_Q);
 
 		/* [5] Convergence check */
-		checkConvergenceCat2(EigVects, EigVals, numEigs, ML, SL, conv2);
+		checkConvergenceCat2(EigVects, EigVals, numEigs, ML, MLinv, SL, conv2);
 		
 		iterCount++;
 
@@ -3102,11 +3102,12 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	std::cout << "[3] Setup reduced system matrices ... ";
 	t1 = chrono::high_resolution_clock::now();
 	const int nLevel = sampSize.rows() + 1;
-	vector<Eigen::SparseMatrix<double>>	Mred(nLevel), Sred(nLevel);
-	Sred[0] = S; Mred[0] = M;
+	vector<Eigen::SparseMatrix<double>>	Mred(nLevel), Sred(nLevel), MInvRed(nLevel);
+	Sred[0] = S; Mred[0] = M; MInvRed[0] = Minv;
 	for (unsigned int i = 1; i < nLevel; ++i) {
 		Sred[i] = U[i-1].transpose() * Sred[i-1] * U[i-1];
 		Mred[i] = U[i-1].transpose() * Mred[i-1] * U[i-1];
+		MInvRed[i] = U[i - 1].transpose() * MInvRed[i - 1] * U[i - 1];
 	}
 
 
@@ -3158,9 +3159,9 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		t1 = chrono::high_resolution_clock::now();
 
 		if (isSIMinGPU) {
-			SIMinGPU(Sred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+			SIMinGPU(Sred[i], Mred[i], MInvRed[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
 		}else {
-			SIMinCPU(Sred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+			SIMinCPU(Sred[i], Mred[i], MInvRed[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
 		}
 
 		t2 = chrono::high_resolution_clock::now();

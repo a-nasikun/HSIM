@@ -589,9 +589,9 @@ namespace MuLES
 	*/
 	void MLEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType) {}
 
-	void MLEigenSolver::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
+	void MLEigenSolver::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
 
-	void MLEigenSolver::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
+	void MLEigenSolver::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
 
 	void MLEigenSolver::solve(int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset, double levelRatio, double basisSupport) {}
 
@@ -616,7 +616,7 @@ namespace MuLES
 	*  @param	SK			Stiffness matrix in the Ritz subspace 
 	*  @param	convRate	Vector storing the convergence rate of each pair of eigenvalue and eigenvector in Ritz subspace	
 	*/
-	void MLEigenSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const
+	void MLEigenSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& MKinv, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const
 	{
 		convRate.resize(A.rows());
 
@@ -649,8 +649,8 @@ namespace MuLES
 				diff = Kq - AMq;
 				//diff = KQ.col(i) - A(i)*AMQ.col(i);
 
-				double n1 = diff.transpose()*MK*diff;
-				double n2 = Kq.transpose()*MK*Kq;
+				double n1 = diff.transpose()*MKinv*diff;
+				double n2 = Kq.transpose()*MKinv*Kq;
 				//double n1 = Diff.col(i).transpose()*MK*Diff.col(i);
 				//double n2 = KQ.col(i).transpose()*MK*KQ.col(i);
 				convRate(iCol) = sqrt(n1 / n2);
