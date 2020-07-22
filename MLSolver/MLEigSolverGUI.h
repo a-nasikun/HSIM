@@ -38,11 +38,12 @@ string				model			= "Sphere40k";
 static int			SIMtype			= 2;
 static int			problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
 static int			matType			= 0;					// material type (for hessian/linear elasticity)
-static int			defAxis = 0;							// axis in selecting the partial eigenproblem
+static int			defAxis			= 0;					// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
-static double		levelRatio = 10.0;
-static int			hierarchyMode = 2;						// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
+static double		levelRatio		= 10.0;
+static double		numOfSupport	= 7.5;
+static int			hierarchyMode	= 1;						// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
@@ -186,6 +187,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				//setSamplingLevels(eigenSolver, levelRatio, numOfModes, sampSize);		
 				std::cout << "Sought modes: " << numOfModes << std::endl;
 
+				eigenSolver->hierarchyMode = hierarchyMode;
 				/* For 1 level (coarsest level) sampling only*/
 				///
 				switch (hierarchyMode)
@@ -234,7 +236,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				static char clampRegionTxt[10] = "0.01"; ImGui::InputText("Selection", clampRegionTxt, 10);
 				clampRegion = atof(clampRegionTxt);
 			}
-			static double numOfSupport;
+			
 			static char numSupTxt[15] = "7.5"; ImGui::InputText("Num of Supports", numSupTxt, 6);
 
 			if (ImGui::Button("[3] Construct Basis##1", ImVec2(w, 0))) {
@@ -758,8 +760,6 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(2, MLEigenSolver::ShiftType::SHIFT_GONG));
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(3, MLEigenSolver::ShiftType::SHIFT_ZHAO));
 
-
-
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
 			static char maxIterTxt[10] = "20"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
@@ -801,6 +801,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		qParam = atof(qParamTxt);
 
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
+			std::cout << "Hierarchy " << hierarchyMode << std::endl;
 			std::cout << "Solve in GPU? " << eigenSolver->isSIMinGPU << std::endl;
 			eigenSolver->setQParam(qParam);
 			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
@@ -808,13 +809,14 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::cout << "is iterating over converged ? " << isNotIterateOverConverged << std::endl; 
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->isMultipleSolve = isMultipleSolve;
+			eigenSolver->hierarchyMode = hierarchyMode;
 			//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
 
 			if(eigenSolver->isSIMinGPU)
 				//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
-				eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
+				eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, numOfSupport);
 			else 
-				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
+				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
 				//eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
 		}
 
@@ -1160,7 +1162,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->setQParam(qParam);
-
+			eigenSolver->isMultipleSolve = isMultipleSolve;
+			eigenSolver->hierarchyMode = hierarchyMode;
+			
 			Eigen::VectorXi sampSize;
 			//double numOfSupport = 5.0;
 
@@ -1233,17 +1237,17 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->setQParam(qParam);
 			eigenSolver->isMultipleSolve = isMultipleSolve;
-
+			eigenSolver->hierarchyMode = hierarchyMode;
 
 			Eigen::VectorXi			sampSize;
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
-			std::vector<double>		levelRatio{ 10 };
+			std::vector<double>		levelRatio{ 16 };
 			//std::vector<double>		levelSupport{ 5.0, 7.5, 10.0, 12.5, 15.0, 20.0 };
 			std::vector<double>		levelSupport{ 7.5 };
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 0.25 };			
-			vector<int>				wantedModes{ 250, 750};
+			vector<int>				wantedModes{50, 100, 250, 1000, 2500};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 50 };
@@ -1344,29 +1348,33 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			}
 		}
 
-		if (ImGui::Button("Scripted (7) Disc. Converged", ImVec2(w, 0))) {
+		if (ImGui::Button("Scripted (7) HSIM", ImVec2(w, 0))) {
 
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
 
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+			eigenSolver->isMultipleSolve = isMultipleSolve;
+			eigenSolver->hierarchyMode = hierarchyMode;
+
 			Eigen::VectorXi			sampSize;
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
-			std::vector<double>		levelRatio{ 10 };
+			std::vector<double>		levelRatio{ 16 };
 			//std::vector<double>		levelSupport{ 5.0, 7.5, 10.0, 12.5, 15.0, 20.0 };
 			std::vector<double>		levelSupport{ 7.5 };
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 0.25 };
-			vector<int>				wantedModes{ 50, 200, 500};
-			std::vector<double>		qParam{ 2.0, 1.5 };
-			//vector<int>				wantedModes{ 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
-			//vector<int>				wantedModes{ 500, 750, 1000 };
+			vector<int>				wantedModes{ 50, 100, 250, 1000 };
+			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
+			//vector<int>				wantedModes{ 50 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
-			//vector<double>			wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
-			//vector<double>			wantedTols{ 1e-10 };
-			vector<double>			wantedTols{ 1e-4 };
+			vector<double>			wantedTols{ 1e-3 };
 			int						maxIters = 50;
+			std::vector<double>		qParam{ 1.5 };
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
@@ -1387,11 +1395,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 								std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
 								for (int k = 0; k < wantedTols.size(); ++k) {
 									std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
-									// Our current solver (shift as FALSE)
-									eigenSolver->solve(wantedModes[j], maxIters, wantedTols[k], false, MuLES::MLEigenSolver::ShiftType::SHIFT_BATHE, 0, 0, levelRatio[i], levelSupport[l]);
-									// Do not include the converged ones into consideratoin (shift as TRUE)
-									eigenSolver->solve(wantedModes[j], maxIters, wantedTols[k], true, MuLES::MLEigenSolver::ShiftType::SHIFT_BATHE, 0, 0, levelRatio[i], levelSupport[l]);
-								}	// toleransi
+									eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+								}	// tolerance
 							}		// zhao's shift param
 						}			// qParam
 					}				// support radius
@@ -1481,8 +1486,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			tol = atof(toleTxt);
 			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
 			//std::vector<double>		tolVect{ 5e-2, 1e-2, 1e-3, 1e-4, 1e-5 };
-			std::vector<double>		tolVect{1e-1, 5.0e-2, 1e-4 };
-			vector<int>				wantedModes{ 250 };
+			std::vector<double>		tolVect{1e-3, 5.0e-2, 1e-1 };
+			vector<int>				wantedModes{ 50, 100, 250 };
 			//vector<int>				wantedModes{ 100, 150, 250 };
 			//eigToCompute = atoi(numEig);
 			Eigen::MatrixXd EigVects;

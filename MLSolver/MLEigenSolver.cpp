@@ -171,43 +171,22 @@ namespace MuLES
 			//std::cout << "The ratio is " << ratio << " thus we'll just have 1 level with " << sampSize(0) << " DoFs\n";
 		}
 		else {
-			int numLevels = (int) floor(ratio);
+			int numLevels = (int)floor(ratio);
 			double remainder = ratio - numLevels;
 			//std::cout << "Number of levels: " << numLevels << "+1, with remainder of " << remainder << std::endl;
 
-			// When the remainder is high, add another level for the coarsest level
-			if (remainder >= 0.8) {
-				numLevels += 1;
-				sampSize.resize(numLevels);
-				//std::cout << "CASE 1: remainder >= 0.8 \n";
-				for (int i = 0; i < (numLevels - 1); ++i) {
-					sampSize(i) = (int)ceil((double)numVert / pow(EXP_RAT,i+1));
-				}
-				sampSize(numLevels - 1) = (int)ceil((double)sampSize(numLevels-2) / pow(EXP_RAT, remainder));
-			}
-			// When the remainder is small, attach it to the level next to finest level
-			else if (remainder < 0.2) {
-				//std::cout << "CASE 3: remainder < 0.2 \n";
-				sampSize.resize(numLevels);
-				sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, 1+remainder));
-				for (int i = 1; i < numLevels; ++i) {
-					sampSize(i) = (int)ceil((double)sampSize(i - 1) / EXP_RAT);
-				}
-			}
-			else {
 				//std::cout << "CASE 2: 0.2 <= remainder < 0.8 \n";
-				Eigen::VectorXd addRatio(numLevels);
-				double sumRatio = 0.0;
-				for (int i = 0; i < numLevels; ++i) {
-					addRatio(i) = pow(2.0, numLevels-i-1);
-					sumRatio += addRatio(i);
-				}
+			Eigen::VectorXd addRatio(numLevels);
+			double sumRatio = 0.0;
+			for (int i = 0; i < numLevels; ++i) {
+				addRatio(i) = pow(2.0, numLevels - i - 1);
+				sumRatio += addRatio(i);
+			}
 
-				sampSize.resize(numLevels);
-				sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, 1.0+ addRatio(0)*remainder/sumRatio));
-				for (int i = 1; i < numLevels; ++i) {
-					sampSize(i) = (int)ceil((double)sampSize(i-1) / pow(EXP_RAT, 1.0+addRatio(i)*remainder/sumRatio));
-				}
+			sampSize.resize(numLevels);
+			sampSize(0) = (int)ceil((double)numVert / pow(EXP_RAT, 1.0 + addRatio(0) * remainder / sumRatio));
+			for (int i = 1; i < numLevels; ++i) {
+				sampSize(i) = (int)ceil((double)sampSize(i - 1) / pow(EXP_RAT, 1.0 + addRatio(i) * remainder / sumRatio));
 			}
 		}
 

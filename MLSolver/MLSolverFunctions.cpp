@@ -2572,7 +2572,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		{
 			t1 = chrono::high_resolution_clock::now();
 			/* Zhao's proposal on shifting*/
-			if (factCounter == 0) {
+			if (factCounter == 0 && mu>std::numeric_limits<double>::epsilon()) {
 					factorization.compute(SL - mu*ML);
 			}
 			else {
@@ -2721,7 +2721,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 
 		if ((iterCount < maxIter) && (lastConvergedId < (numEigs - 1)))
 			isConverged = false;
-		std::cout << "__["<<iterCount << "] Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
+		std::cout << "_____ ["<<iterCount << "] Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
 				
 		itersPerLevel(k) = iterCount;
 
@@ -3058,6 +3058,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 {
 	chrono::high_resolution_clock::time_point	t0, t1, t2, t01;
 	chrono::duration<double>					duration;
+	Eigen::Vector2d	HSIMtime; HSIMtime.setZero();
 
 	std::cout << "[1] Construct system matrices... \n";
 	t1 = chrono::high_resolution_clock::now();
@@ -3078,7 +3079,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	t0 = t1;
 
 	Eigen::VectorXi sampSize;
-	int hierarchyMode = 1;
+	
 	switch (hierarchyMode){
 	case 0:
 		setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);	break;
@@ -3124,6 +3125,10 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	std::cout << "[4] Solve eigenproblem in the coarsest level:... ";
 	t1 = chrono::high_resolution_clock::now();
 
+	duration = t1 - t0;
+	HSIMtime(0) = duration.count();
+
+
 	int		q = qParam * numEigs;
 	computeEigenGPU(Sred[nLevel-1], Mred[nLevel - 1], EigVectsSIM, EigValsSIM);
 	EigVectsSIM.conservativeResize(Eigen::NoChange_t::NoChange, q);
@@ -3133,6 +3138,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	duration = t2 - t1;
 	std::cout << "in " << duration.count() << " seconds." << std::endl;
 	timingPerLevel(nLevel-1) = duration.count();
+	itersPerLevel(nLevel - 1) = 0;
 
 	for (int i = nLevel - 2; i >= 0; --i) {
 		std::cout << "[5] SIM [a] Prolongation...";
@@ -3140,7 +3146,9 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		t01 = t1;
 
 		EigVectsSIM = U[i] * EigVectsSIM;int shiftId = std::floor(zhaoShiftParam * numEigs);
-		double mu = EigValsSIM(shiftId);
+		double mu;
+		mu = EigValsSIM(shiftId);
+		if (!isWithShift) mu = 0.0;
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
@@ -3165,12 +3173,13 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		}
 	}
 
+	EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
+	EigValsSIM.conservativeResize(numEigs);
+
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t0;
 	std::cout << "TOTAL H-SiM time in " << duration.count() << " seconds." << std::endl;
-
-	EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
-	EigValsSIM.conservativeResize(numEigs);
+	HSIMtime(1) = duration.count() - HSIMtime(0);
 
 	/* Write the convergence information to an external file. */
 	std::cout << "Write the log to files." << std::endl;
@@ -3178,6 +3187,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	string fileConv = "../../Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string(0) + "_" + (isWithShift ? "shift_" + to_string(3) + "_" : "") + to_string(tol) + ".txt";
 	std::cout << "File path: " << fileConv << std::endl;
 	writeDenseMatrixToFile(itersPerLevel, fileConv);
+	writeDenseMatrixToFile(HSIMtime, fileConv);
 	writeDenseMatrixToFile(timingPerLevel, fileConv);
 	writeDenseMatrixToFile(EigValsSIMStack, fileConv);
 	string fileEigs = "../../Data/" + modelName + "_Convergence2Stack_" + to_string(numEigs) + "_method_" + to_string(0) + "_" + (isWithShift ? "shift_" + to_string(3) + "_" : "") + to_string(tol) + ".txt";

@@ -132,7 +132,7 @@ namespace MuLES
 		/* For samples on coarser to finer level*/
 		for (int j = (level - 2); j >= 0; --j)
 		{
-			printf("____> Sample %d: %d [%d-%d].\n", j+1, SubspaceSize[j] - SubspaceSize[j + 1], SubspaceSize[j], SubspaceSize[j + 1]);
+			printf("____> Sample %d: %d.\n", j+1, SubspaceSize[j]);
 			for (int i = SubspaceSize[j + 1]; i < SubspaceSize[j]; ++i) {
 				ComputeDijkstra(V, Samples(i - 1), AdM, D);
 				D.maxCoeff(&maxIndex);
