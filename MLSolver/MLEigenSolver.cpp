@@ -673,18 +673,18 @@ namespace MuLES
 	*  @param	SK			Stiffness matrix in the Ritz subspace
 	*  @param	convRate	Vector storing the convergence rate of each pair of eigenvalue and eigenvector in Ritz subspace
 	*/
-	void MLEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, bool isWithShift, double mu, Eigen::VectorXd& convRate) const
+	void MLEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::MatrixXd& M, int num, bool isWithShift, double mu, Eigen::VectorXd& convRate) const
 	{
-		convRate.resize(A.rows());
+		std::cout << "MU: " << mu << std::endl;		
 
-		for (int i = 0; i < num; ++i)
-		{
-			double a2 = A(i)*A(i);
-			double qTq = Q.col(i).transpose()*Q.col(i);
+		convRate.resize(A.rows());
+		for (int i = 0; i < A.rows(); ++i) {
+			double a2 = A(i) * A(i);
+			double qTq = Q.col(i).transpose() * Q.col(i);
 			if (isWithShift) qTq += mu * (2 * A(i) - mu);
 			double rat = a2 / qTq;
-			double conv = abs(1.0 - rat);
-			convRate(i) = sqrt(conv);
+			double con = abs(1.0 - rat);
+			convRate(i) = sqrt(con);
 		}
 	}
 		

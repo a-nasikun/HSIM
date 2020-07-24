@@ -568,10 +568,10 @@ namespace MuLES
 					if (isClampedBasis && V(i, axis) < xBound) continue;
 
 					/* Polynomial mapping (3rd Order) */
-					double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
+					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
 
 					/* Linear */
-					//double val = (maxDist-aVal) / maxDist;
+					double val = (maxDist-aVal) / maxDist;
 					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 				}
 			}
@@ -583,10 +583,10 @@ namespace MuLES
 					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
 
 					/* Polynomial mapping (3rd Order) */
-					double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
 					
 					/* Linear */
-					//double val = (maxDist - aVal) / maxDist;
+					double val = (maxDist - aVal) / maxDist;
 					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 
 				}
@@ -761,7 +761,7 @@ namespace MuLES
 		int					lastConvergedId = 1;
 		double eps;
 		if (F.cols() == 4) eps = 1e-2 * std::numeric_limits<double>::epsilon();
-		else			eps = 1e6 * std::numeric_limits<double>::epsilon();
+		else			eps = 1e10 * std::numeric_limits<double>::epsilon();
 
 		/* Selecting the appropriate subspace iteration method */
 		bool isNormalized = false;
@@ -956,7 +956,7 @@ namespace MuLES
 			cout << "Conv 2 \n" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
 
 			/* Type 3: */
-			checkConvergenceCat3(Q, Alpha, numEigs, isWithShift, mu, conv3);
+			checkConvergenceCat3(Q, Alpha, Mproj, numEigs, true, mu, conv3);
 			//cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 			cout << "Conv 3 \n" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
 
@@ -1242,7 +1242,7 @@ namespace MuLES
 				checkConvergenceCat2(Xk, Alpha, numEigs, ML, ML, SL, conv2); 	// need to be ML^{-1}
 				cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 				/* Type 3: */
-				checkConvergenceCat3(Q, Alpha, numEigs, isWithShift, mu, conv3);
+				checkConvergenceCat3(Q, Alpha, Mproj, numEigs, false, mu, conv3);
 				cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 
 				cout << Alpha.head(numEigs).transpose() << endl;
@@ -1697,7 +1697,7 @@ namespace MuLES
 					checkConvergenceCat2(XkL, AkL, numEigs, MK, MK, SK, conv2);	// need to be MK^{-1}
 					cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 					/* Type 3: */
-					checkConvergenceCat3(Q, AkL, numEigs, isWithShift, mu, conv3);
+					checkConvergenceCat3(Q, AkL, Mproj, numEigs, false, mu, conv3);
 					cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 	
 					cout << AkL.head(numEigs).transpose() << endl;
@@ -2563,6 +2563,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
 	Eigen::VectorXd conv2(q);
+	Eigen::VectorXd Alpha;
 	conv2.setConstant(std::numeric_limits<double>::max());
 	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 
@@ -2595,6 +2596,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		
 		std::cout << "__[2] Solving each RHS ";
 		t1 = chrono::high_resolution_clock::now();
+		std::cout << "MU: " << mu << std::endl;
 
 		/* Solve each RHS on CPU */
 		double tolCheck = tol;
@@ -2606,11 +2608,13 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			for (int j = 0; j < q; ++j) {									
 				if (isConvergedVectsNotUsed && (conv2(j) < tolCheck && j > 0)) continue;
 				v = ML * (EigVects.col(j));
-				XbarK.col(j) = factorization.solve(v);
+				XbarK.col(j) = factorization.solve(v);				
 
 				if (isMultipleSolve)
 				{
-					v = ML * XbarK.col(j);
+					double n2 = XbarK.col(j).transpose() * ML * XbarK.col(j);
+					XbarK.col(j) = XbarK.col(j) / sqrt(n2);
+					v = ML * XbarK.col(j);					
 					XbarK.col(j) = factorization.solve(v);
 				}
 				solveCounter++;
@@ -2642,14 +2646,14 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 					XbarK.col(iCol) = factorization.solve(v);
 
 					if (isMultipleSolve){
+						double n2 = XbarK.col(iCol).transpose() * ML * XbarK.col(iCol);
+						XbarK.col(iCol) = XbarK.col(iCol) / sqrt(n2);
 						v = ML * XbarK.col(iCol);
 						XbarK.col(iCol) = factorization.solve(v);
 					}
 				}
 			}
 		}
-
-		//std::cout << "[CPU] XbarK \n" << XbarK.topLeftCorner(10, 10) << std::endl; 
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
@@ -2666,11 +2670,9 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
 
-		//std::cout << "CPU \n" << Sproj.topLeftCorner(10, 10) << std::endl;
-
 		t1 = chrono::high_resolution_clock::now();
 		printf("__[4] Solve reduced eigenvalue problem. ");
-		status = computeEigenGPUDense(Sproj, Mproj, Q, EigVals);
+		status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
 		if (status != 0) {
 			cout << "___Error!! Computation of eigenvalues failed! \n";
 			continue;
@@ -2682,22 +2684,26 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		t1 = chrono::high_resolution_clock::now();
 		printf("__[5] Prolongation.");
 		EigVects = XbarK * Q;
+		EigVals = Alpha;
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
-		
 
 		/* Convergence Check*/
 		t1 = chrono::high_resolution_clock::now();
-		printf("__[6] Convergence check.");
-		checkConvergenceCat2(EigVects, EigVals, numEigs, ML, MLinv, SL, conv2);
+		printf("__[6] Convergence check.");		
+		checkConvergenceCat3(Q, EigVals, Mproj, numEigs, true, mu, conv2);
+		//cout << "Conv 3 \n" << conv2.head(numEigs).transpose() << endl;
+		//checkConvergenceCat2(EigVects, Alpha, numEigs, ML, MLinv, SL, conv2);
+		//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+		printf("mu is %.16f \n", mu);
 
 		//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
 		std::cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
-		//std::cout << AkL.head(numEigs).transpose() << std::endl;
+		//std::cout <<"Eigenvalues"<< Alpha.head(numEigs).transpose() << std::endl;
 
 		if (k == 0) {
 			EigValsSIMStack.col(iterCount) = EigVals.head(numEigs);
@@ -3149,7 +3155,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		EigVectsSIM = U[i] * EigVectsSIM;int shiftId = std::floor(zhaoShiftParam * numEigs);
 		double mu;
 		mu = EigValsSIM(shiftId);
-		if (!isWithShift) mu = 0.0;
+		//if (!isWithShift) mu = 0.0;
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
@@ -3173,6 +3179,20 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 			timingPerLevel(i) = duration.count();
 		}
 	}
+
+	// Posterior Sturm check
+	std::cout << "[6] Posterior Sturm check...\n";
+	t1 = chrono::high_resolution_clock::now();
+
+	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> linSolver;
+	linSolver.compute(S - EigValsSIM(numEigs-1)*M);
+	int negEntryD=(linSolver.vectorD().array() < 0.0).count();
+	std::cout << "____computed modes:" << numEigs << "| Sturm's check: " << negEntryD << std::endl;
+	
+	t2 = chrono::high_resolution_clock::now();
+	duration = t2 - t1;
+	std::cout << "____in " << duration.count() << " seconds." << std::endl;
+	HSIMtime(1) = duration.count() - HSIMtime(0);
 
 	EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
 	EigValsSIM.conservativeResize(numEigs);

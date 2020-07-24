@@ -65,7 +65,7 @@ namespace MuLES
 		void virtual solve(int numEigs, int maxIter = 50, double tol = 1e-4, bool isWithShift = true, const ShiftType& shiftType = ShiftType::SHIFT_BATHE, int axis = 0, double offset = 0.0, double levelRatio=10.0, double basisSupport=7.5);
 		void virtual solve(int numEigs, double tol = 1e-4, int maxIter = 50, double levelRatio = 10.0, double basisSupport = 7.5, bool isWithShift = true);
 		void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& MKinv, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const;
-		void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, bool isWithShift, double mu, Eigen::VectorXd& convRate) const;
+		void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::MatrixXd& M, int num, bool isWithShift, double mu, Eigen::VectorXd& convRate) const;
 
 		/* Computing the reference eigenproblem */
 		void computeRefEigenProblem(int numEigs, const EigenSolverType& solverType, int maxIters = 1000, double tol = 1e-10);

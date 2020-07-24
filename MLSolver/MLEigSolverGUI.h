@@ -1082,7 +1082,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::vector<double>		levelSupport{ 7.5 };
 			//vector<int> wantedModes{ 50, 100, 250 };
 			//vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
-			vector<int> wantedModes{ 50 };
+			vector<int> wantedModes{ 1000 };
 			//vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
 			vector<double> wantedTols{ 1e-3};
 			eigenSolver->setZhaoShiftParam(0.25);
