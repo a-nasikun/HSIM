@@ -724,8 +724,8 @@ namespace MuLES
 		writeDenseMatrixToFile(EigValsSIMStack, fileConv);
 		string fileEigs = "../../Data/" + modelName + "_Convergence2Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
 		writeDenseMatrixToFile(convergence2Stacks, fileEigs);
-		//fileEigs = "../../Data/" + modelName + "_Convergence3Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
-		//writeDenseMatrixToFile(convergence3Stacks, fileEigs);
+		fileEigs = "../../Data/" + modelName + "_Convergence3Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
+		writeDenseMatrixToFile(convergence3Stacks, fileEigs);
 	}
 	
 	/**
@@ -761,7 +761,7 @@ namespace MuLES
 		int					lastConvergedId = 1;
 		double eps;
 		if (F.cols() == 4) eps = 1e-2 * std::numeric_limits<double>::epsilon();
-		else			eps = 1e10 * std::numeric_limits<double>::epsilon();
+		else			eps = 1e6 * std::numeric_limits<double>::epsilon();
 
 		/* Selecting the appropriate subspace iteration method */
 		bool isNormalized = false;
@@ -907,7 +907,7 @@ namespace MuLES
 			duration = t1 - t0;
 			cout << "...in " << duration.count() << " seconds." << endl;
 
-			Eigen::MatrixXd XXX;
+			//Eigen::MatrixXd XXX;
 			//performSIMIteration(SL, ML, XbarK, XXX, Alpha);
 
 			/* Projection of M and K*/
@@ -2598,6 +2598,13 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		t1 = chrono::high_resolution_clock::now();
 		std::cout << "MU: " << mu << std::endl;
 
+		//cusolverSP(SL - mu * ML, M * EigVects, XbarK);
+		//std::cout << "[GPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
+
+		//if (k == 0) {
+		//	Eigen::MatrixXd ME = ML * EigVects;
+		//	cuSolverCholTest(SL - mu * ML, ME, XbarK);
+		//}
 		/* Solve each RHS on CPU */
 		double tolCheck = tol;
 		tolCheck = std::min(1e-3, tol / 10.0);
@@ -2655,6 +2662,8 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			}
 		}
 
+		std::cout << "[CPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
+
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
@@ -2691,11 +2700,15 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 
 		/* Convergence Check*/
 		t1 = chrono::high_resolution_clock::now();
-		printf("__[6] Convergence check.");		
-		checkConvergenceCat3(Q, EigVals, Mproj, numEigs, true, mu, conv2);
-		//cout << "Conv 3 \n" << conv2.head(numEigs).transpose() << endl;
-		//checkConvergenceCat2(EigVects, Alpha, numEigs, ML, MLinv, SL, conv2);
-		//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+		printf("__[6] Convergence check.");	
+		if (convergedCriteria == 3) {
+			checkConvergenceCat3(Q, EigVals, Mproj, numEigs, true, mu, conv2);
+			//cout << "Conv 3 \n" << conv2.head(numEigs).transpose() << endl;
+		}
+		else {
+			checkConvergenceCat2(EigVects, Alpha, numEigs, ML, MLinv, SL, conv2);
+			//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+		}
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
@@ -2727,7 +2740,8 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 
 		if ((iterCount < maxIter) && (lastConvergedId < (numEigs - 1)))
 			isConverged = false;
-		std::cout << "_____ ["<<iterCount << "] Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
+		std::cout << "_____ [" << iterCount << "] Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId);
+		std::cout << " (next=" << conv2(lastConvergedId+1)<<")" << std::endl;
 				
 		itersPerLevel(k) = iterCount;
 
@@ -3108,12 +3122,12 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	std::cout << "[3] Setup reduced system matrices ... ";
 	t1 = chrono::high_resolution_clock::now();
 	const int nLevel = sampSize.rows() + 1;
-	vector<Eigen::SparseMatrix<double>>	Mred(nLevel), Sred(nLevel), MInvRed(nLevel);
-	Sred[0] = S; Mred[0] = M; MInvRed[0] = Minv;
+	vector<Eigen::SparseMatrix<double>>	Mred(nLevel), Sred(nLevel);			// MInvRed(nLevel);
+	Sred[0] = S; Mred[0] = M;												// MInvRed[0] = Minv;
 	for (unsigned int i = 1; i < nLevel; ++i) {
 		Sred[i] = U[i-1].transpose() * Sred[i-1] * U[i-1];
 		Mred[i] = U[i-1].transpose() * Mred[i-1] * U[i-1];
-		MInvRed[i] = U[i - 1].transpose() * MInvRed[i - 1] * U[i - 1];
+		//MInvRed[i] = U[i - 1].transpose() * MInvRed[i - 1] * U[i - 1];
 	}
 
 
@@ -3165,9 +3179,9 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		t1 = chrono::high_resolution_clock::now();
 
 		if (isSIMinGPU) {
-			SIMinGPU(Sred[i], Mred[i], MInvRed[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+			SIMinGPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
 		}else {
-			SIMinCPU(Sred[i], Mred[i], MInvRed[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+			SIMinCPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
 		}
 
 		t2 = chrono::high_resolution_clock::now();

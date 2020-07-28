@@ -848,7 +848,7 @@ namespace MuLES
 	}
 
 	/* Sparse spectra eigensolver */
-	void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, int type, int numIters, double tol)
+	void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, int& numIterUsed, int type, int numIters, double tol)
 	{
 		//cout << "Computing eigenproblem in Spectra...";
 		//chrono::high_resolution_clock::time_point	t1, t2;
@@ -866,7 +866,7 @@ namespace MuLES
 		typeMap.insert(std::pair<int, int>(1, Spectra::SMALLEST_MAGN));
 		const int paramType = typeMap[type];
 
-		Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> spectraSolver(&SOp, &MOp, numEigs, 2 * numEigs);
+		Spectra::SymGEigsSolver<double, Spectra::SMALLEST_MAGN, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> spectraSolver(&SOp, &MOp, numEigs, 2 * numEigs);
 
 
 		cout << "Trying to initiate \n";
@@ -880,6 +880,7 @@ namespace MuLES
 			//EigVec = spectraSolver.eigenvectors().rowwise().reverse();
 			EigVal = spectraSolver.eigenvalues();
 			EigVec = spectraSolver.eigenvectors();
+			numIterUsed = spectraSolver.num_iterations();
 			cout << "Yes! Made it! \n";
 		}
 		else {

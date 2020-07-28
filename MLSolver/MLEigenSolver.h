@@ -120,6 +120,7 @@ namespace MuLES
 		void cusparseSpMMtest();
 		void cusparseDcsrm2(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 		void cusolverSP(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
+		void cuSolverCholTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 
 
 	protected:
@@ -179,8 +180,9 @@ namespace MuLES
 	public:
 		// TEst variable
 		bool isMultipleSolve = true;
-		bool isSIMinGPU = true;
+		bool isSIMinGPU = false;
 		int hierarchyMode = 1;
+		int convergedCriteria = 2;			// 2: more expensive: relative L-2 norm of residual && 3: cheaper a^2/qTq
 	};
 }
 

@@ -6,9 +6,10 @@
 #include <cuda_runtime.h>
 #include "cublas_v2.h"
 #include <cusparse.h>
+#include <cusolverDn.h>
 #include <cusparse_v2.h>
 #include <cusolverSp.h>
-
+#include <cusolver_common.h> 
 namespace MuLES
 {
 	
@@ -700,6 +701,7 @@ namespace MuLES
 	*/
 	void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& solverType, int maxIters, double tol)
 	{
+		int numIterUsed;
 		switch (solverType)
 		{
 		case EigenSolverType::EIG_SOLVER_MATLAB:
@@ -708,7 +710,8 @@ namespace MuLES
 			//computeEigenMatlab2(S, M, numEigs, EigVectsRef, EigValsRef);
 			break;
 		case EigenSolverType::EIG_SOLVER_SPECTRA:
-			computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, maxIters, tol);
+			computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, numIterUsed, 1, maxIters, tol);
+			std::cout << "Number of iterations: " << numIterUsed << std::endl;
 			break;
 		case EigenSolverType::EIG_SOLVER_CUDA:
 			if (M.rows() > 7500) {
@@ -786,13 +789,14 @@ namespace MuLES
 		MLoc = SelMatrix.transpose()*M*SelMatrix;
 
 		cout << "____Computing the eigenproblem with selector. \n";
+		int numIterUsed;
 		switch (solverType)
 		{
 		case EigenSolverType::EIG_SOLVER_MATLAB:
 			computeEigenMatlab2(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef);
 			break;
 		case EigenSolverType::EIG_SOLVER_SPECTRA:
-			computeEigenSpectraSparse(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef, 0, 50, 1e-2);
+			computeEigenSpectraSparse(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef, numIterUsed, 0, 500, 1e-2);
 			break;
 		case EigenSolverType::EIG_SOLVER_CUDA:
 			if (MLoc.rows() > 7500) {
@@ -1435,6 +1439,7 @@ namespace MuLES
 		cusolverStatus_t		cuSolverStat = cusolverStatus_t::CUSOLVER_STATUS_SUCCESS;
 		cusparseStatus_t		cuSpStat;
 		cudaError_t				cudaStat;
+		cudaStream_t			stream = NULL;
 
 		int m_S = SM.rows();
 		int n_S = SM.cols();
@@ -1456,16 +1461,21 @@ namespace MuLES
 		double* d_X; cudaStat = cudaMalloc(&d_X, m_X * n_X * sizeof(double));					std::cout << cudaStat << "| ";
 		double* d_B; cudaStat = cudaMalloc(&d_B, m_X * n_X * sizeof(double));					std::cout << std::endl;
 
+		cuSolverStat = cusolverSpCreate(&cuSolverHandle);
+		std::cout << "Creating handle: " << cuSolverStat << std::endl;
+		cudaStat = cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+		std::cout << "Creating stream: " << cudaStat << std::endl;
+
+		cuSolverStat = cusolverSpSetStream(cuSolverHandle, stream);
+		assert(CUSOLVER_STATUS_SUCCESS == status);
+
 
 		// Copy to GPU
 		std::cout << "Copy to GPU: ";
 		cudaStat = cudaMemcpy(d_csrVal_S, SM.valuePtr(), nnz_S * sizeof(double), cudaMemcpyHostToDevice);				std::cout << cudaStat << "| ";
 		cudaStat = cudaMemcpy(d_csrRowPtr_S, SM.outerIndexPtr(), (m_S + 1) * sizeof(int), cudaMemcpyHostToDevice);		std::cout << cudaStat << "| ";
 		cudaStat = cudaMemcpy(d_csrColInd_S, SM.innerIndexPtr(), nnz_S * sizeof(int), cudaMemcpyHostToDevice);			std::cout << cudaStat << "| ";
-		cudaStat = cudaMemcpy(d_B, B.data(), m_B * n_B * sizeof(double), cudaMemcpyHostToDevice);						std::cout << std::endl;
-
-		cuSolverStat = cusolverSpCreate(&cuSolverHandle);
-		std::cout << "Creating handle: " << cuSolverStat << std::endl;
+		cudaStat = cudaMemcpy(d_B, B.data(), m_B * n_B * sizeof(double), cudaMemcpyHostToDevice);						std::cout << std::endl;		
 
 		cusparseMatDescr_t matSM;
 		cuSpStat = cusparseCreateMatDescr(&matSM);
@@ -1475,23 +1485,347 @@ namespace MuLES
 		cuSpStat = cusparseSetMatDiagType(matSM, cusparseDiagType_t::CUSPARSE_DIAG_TYPE_NON_UNIT);
 		std::cout << "Creating matrix description: " << cuSpStat << std::endl;
 
+
+		//int isSym;
+		//cuSolverStat = cusolverSpXcsrissymHost(cuSolverHandle, m_S, n_X, matSM, SM.outerIndexPtr(), SM.outerIndexPtr(), SM.innerIndexPtr(), &isSym);
+		//std::cout << "Symmetry? " << isSym << std::endl;
+
 		double tol = 1e-2;
 		int reorder = 2;
-		int* d_sing;
+		int* d_sing = NULL;
 		//cudaStat = cudaMalloc(&d_sing, 1 * sizeof(int));
 		//int* h_sing = (int*)malloc(sizeof(int));
-		
-		cuSolverStat = cusolverSpDcsrlsvchol(cuSolverHandle, m_S, nnz_S, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_B, tol, reorder, d_X, d_sing);
+
+		cuSolverStat = cusolverSpDcsrlsvcholHost(cuSolverHandle, m_S, nnz_S, matSM, SM.valuePtr(), SM.outerIndexPtr(), SM.innerIndexPtr(), B.data(), tol, reorder, h_X, d_sing);		
+		//cuSolverStat = cusolverSpDcsrlsvchol(cuSolverHandle, m_S, nnz_S, matSM, d_csrVal_S, d_csrRowPtr_S, d_csrColInd_S, d_B, tol, reorder, d_X, d_sing);
 		std::cout << "Solving linear system: " << cuSolverStat << std::endl;
 
 		//cudaStat = cudaMemcpy(h_sing, d_sing, sizeof(int), cudaMemcpyDeviceToHost);
 		std::cout << "Num of singularities: " << *d_sing << std::endl;
 
-		cudaStat = cudaMemcpy(h_X, d_X, m_X * n_X * sizeof(double), cudaMemcpyDeviceToHost);
-		std::cout << "Copy to CPU: " << cudaStat << std::endl;
+		//cudaStat = cudaMemcpy(h_X, d_X, m_X * n_X * sizeof(double), cudaMemcpyDeviceToHost);
+		//std::cout << "Copy to CPU: " << cudaStat << std::endl;
 
 		X.resize(m_X, n_X);
 		X = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_X, m_X, n_X, Eigen::OuterStride<>(m_X));
 		std::cout << "GPU (X from (S-mu*M)X=M*X0: \n" << X.topLeftCorner(10, 10) << std::endl;
+	}
+
+
+	void printMatrix(int m, int n, const double* A, int lda, const char* name)
+	{
+		for (int row = 0; row < m; row++) {
+			for (int col = 0; col < n; col++) {
+				double Areg = A[row + col * lda];
+				printf("%s(%d,%d) = %f\n", name, row + 1, col + 1, Areg);
+			}
+		}
+	}
+
+	void MLEigenSolver::cuSolverCholTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X)
+	{
+		SM.makeCompressed();
+		struct  testOpts {
+			char* sparse_mat_filename;   // by switch -F<filename>
+			const char* testFunc; // by switch -R<name>
+			const char* reorder; // by switch -P<name>
+			int lda; // by switch -lda<int>
+		};
+
+		struct testOpts opts;
+		opts.testFunc = "chol";
+		opts.reorder = "symamd";
+		opts.lda = SM.rows();
+		cusolverSpHandle_t handle = NULL;
+		cusparseHandle_t cusparseHandle = NULL; /* used in residual evaluation */
+		cudaStream_t stream = NULL;
+		cusparseMatDescr_t descrA = NULL;
+		cusolverStatus_t cuSolverStat = cusolverStatus_t::CUSOLVER_STATUS_SUCCESS;
+		cusparseStatus_t		cuSpStat;
+		cudaError_t				cudaStat;
+		
+
+		int rowsA	= SM.rows(); /* number of rows of A */
+		int colsA	= SM.cols(); /* number of columns of A */
+		int nnzA	= SM.nonZeros(); /* number of nonzeros of A */
+		int baseA	= 0; /* base index in CSR format */
+
+		/* CSR(A) from I/O */
+		int* h_csrRowPtrA = NULL; (int*)malloc((colsA+1) * sizeof(int));	 //S.outerIndexPtr();
+		int* h_csrColIndA = NULL; (int*)malloc(nnzA* sizeof(int));			//S.innerIndexPtr();
+		double* h_csrValA = NULL; (double*)malloc(nnzA* sizeof(double));	//S.valuePtr();
+
+		double* h_z ; (double*)malloc(rowsA * sizeof(double));  /* z = B \ (Q*b) */
+		double* h_x ; (double*)malloc(rowsA * sizeof(double));  /* x = A \ b */
+		double* h_b ; (double*)malloc(rowsA * sizeof(double));  // B.col(0).data(); /* b = ones(n,1) */
+		double* h_Qb; (double*)malloc(rowsA * sizeof(double));  /* Q*b */
+		double* h_r ; (double*)malloc(rowsA * sizeof(double));  /* r = b - A*x */
+
+		int* h_Q = NULL; /* <int> n */
+						 /* reorder to reduce zero fill-in */
+						 /* Q = symrcm(A) or Q = symamd(A) */
+		/* B = Q*A*Q' or B = A(Q,Q) by MATLAB notation */
+		int* h_csrRowPtrB = NULL; (int*)malloc((colsA + 1) * sizeof(int));  /* <int> n+1 */
+		int* h_csrColIndB = NULL; (int*)malloc(nnzA * sizeof(int));			/* <int> nnzA */
+		double* h_csrValB = NULL; (double*)malloc(nnzA * sizeof(double));	/* <double> nnzA */
+		int* h_mapBfromA  = NULL; (int*)malloc(nnzA * sizeof(int));			/* <int> nnzA */
+
+		size_t size_perm = 0;
+		void* buffer_cpu = NULL; /* working space for permutation: B = Q*A*Q^T */
+
+	/* device copy of A: used in residual evaluation */
+		int* d_csrRowPtrA = NULL;
+		int* d_csrColIndA = NULL;
+		double* d_csrValA = NULL;
+
+		/* device copy of B: used in B*z = Q*b */
+		int* d_csrRowPtrB = NULL;
+		int* d_csrColIndB = NULL;
+		double* d_csrValB = NULL;
+
+		int* d_Q = NULL; /* device copy of h_Q */
+		double* d_z = NULL; /* z = B \ Q*b */
+		double* d_x = NULL; /* x = A \ b */
+		double* d_b = NULL; /* a copy of h_b */
+		double* d_Qb = NULL; /* a copy of h_Qb */
+		double* d_r = NULL; /* r = b - A*x */
+
+		double tol = std::numeric_limits<double>::epsilon()/1000;
+		const int reorder = 0; /* no reordering */
+		int singularity = 0; /* -1 if A is invertible under tol. */
+
+		/* the constants are used in residual evaluation, r = b - A*x */
+		const double minus_one = -1.0;
+		const double one = 1.0;
+
+		double b_inf = 0.0;
+		double x_inf = 0.0;
+		double r_inf = 0.0;
+		double A_inf = 0.0;
+		int errors = 0;
+		int issym = 0;
+
+		double start, stop;
+		double time_solve_cpu;
+		double time_solve_gpu;
+
+		cuSolverStat	= cusolverSpCreate(&handle);			std::cout << "Create handle: " << cuSolverStat << std::endl;
+		cuSpStat		= cusparseCreate(&cusparseHandle);		std::cout << "Create handle: " << cuSpStat << std::endl;
+
+	 	cudaStat = cudaStreamCreate(&stream);
+		std::cout << "Create stream: " << cudaStat << std::endl;
+
+		/* bind stream to cusparse and cusolver*/
+		cuSolverStat	= cusolverSpSetStream(handle, stream);				std::cout << "set handle + stream : " << cuSolverStat << std::endl;
+		cuSpStat		= cusparseSetStream(cusparseHandle, stream);		std::cout << "set handle + stream : " << cuSpStat << std::endl;
+
+		std::cout << "Matrix stat: ";
+		cusparseCreateMatDescr(&descrA);
+		cuSpStat = cusparseSetMatIndexBase(descrA, cusparseIndexBase_t::CUSPARSE_INDEX_BASE_ZERO);  std::cout<<cuSpStat << ": ";
+		cuSpStat = cusparseSetMatType(descrA, cusparseMatrixType_t::CUSPARSE_MATRIX_TYPE_GENERAL);	std::cout<<cuSpStat << ": ";
+		cuSpStat = cusparseSetMatFillMode(descrA, cusparseFillMode_t::CUSPARSE_FILL_MODE_LOWER);	std::cout<<cuSpStat << ": ";
+		cuSpStat = cusparseSetMatDiagType(descrA, cusparseDiagType_t::CUSPARSE_DIAG_TYPE_NON_UNIT);	std::cout<<cuSpStat << "\n ";
+
+		h_z = (double*)malloc(sizeof(double) * colsA);
+		h_x = (double*)malloc(sizeof(double) * colsA);
+		h_b = (double*)malloc(sizeof(double) * rowsA);
+		h_Qb = (double*)malloc(sizeof(double) * rowsA);
+		h_r = (double*)malloc(sizeof(double) * rowsA);
+		h_b = B.col(0).data();
+
+
+		h_Q = (int*)malloc(sizeof(int) * colsA);
+		h_csrRowPtrB = (int*)malloc(sizeof(int) * (rowsA + 1));
+		h_csrColIndB = (int*)malloc(sizeof(int) * nnzA);
+		h_csrValB = (double*)malloc(sizeof(double) * nnzA);
+		h_mapBfromA = (int*)malloc(sizeof(int) * nnzA);
+
+		h_csrRowPtrA = (int*)malloc(sizeof(int) * (rowsA + 1));
+		h_csrColIndA = (int*)malloc(sizeof(int) * nnzA);
+		h_csrValA = (double*)malloc(sizeof(double) * nnzA);
+		h_csrRowPtrA = SM.outerIndexPtr();
+		h_csrColIndA = SM.innerIndexPtr();
+		h_csrValA = SM.valuePtr();		
+
+
+		std::cout << "Allocating memory in GPU" << std::endl;
+		cudaStat = cudaMalloc((void**)&d_csrRowPtrA, sizeof(int)* (rowsA + 1));        std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_csrColIndA, sizeof(int)* nnzA);		       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_csrValA, sizeof(double)* nnzA);		       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_csrRowPtrB, sizeof(int)* (rowsA + 1));	       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_csrColIndB, sizeof(int)* nnzA);		       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_csrValB, sizeof(double)* nnzA);		       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_Q, sizeof(int)* colsA);				       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_z, sizeof(double)* colsA);				       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_x, sizeof(double)* colsA);				       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_b, sizeof(double)* rowsA);				       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_Qb, sizeof(double)* rowsA);			       std::cout << cudaStat << "| ";
+		cudaStat = cudaMalloc((void**)&d_r, sizeof(double)* rowsA);				       std::cout << cudaStat << std::endl;
+
+		cuSolverStat = cusolverSpXcsrissymHost(handle, rowsA, nnzA, descrA, h_csrRowPtrA, h_csrRowPtrA+1, h_csrColIndA, &issym);
+		//cuSolverStat = cusolverSpXcsrissymHost(handle, rowsA, nnzA, descrA, SM.outerIndexPtr(), SM.outerIndexPtr() + 1, SM.innerIndexPtr(), &issym);
+		std::cout << issym << "|| Check symmetry: " << cuSolverStat << std::endl;
+
+		if (!issym) {
+			printf("Error: A has no symmetric pattern, please use LU or QR \n");
+		}
+
+		printf("step 2: reorder the matrix A to minimize zero fill-in\n");
+		printf("        if the user choose a reordering by -P=symrcm, -P=symamd or -P=metis\n");
+		cuSolverStat = cusolverSpXcsrsymrcmHost(handle, rowsA, nnzA,descrA, h_csrRowPtrA, h_csrColIndA,h_Q);
+		std::cout << "Reordereing the matrix: " << cuSolverStat << std::endl;
+
+		printf("step 2.2: B = A(Q,Q) \n");
+
+		memcpy(h_csrRowPtrB, h_csrRowPtrA, sizeof(int) * (rowsA + 1));
+		memcpy(h_csrColIndB, h_csrColIndA, sizeof(int) * nnzA);
+
+		std::cout << "Reordering the RHS vectors" << std::endl;
+		 cusolverSpXcsrperm_bufferSizeHost(
+			handle, rowsA, colsA, nnzA,
+			descrA, h_csrRowPtrB, h_csrColIndB,
+			h_Q, h_Q,
+			&size_perm);
+
+		if (buffer_cpu)
+		{
+			free(buffer_cpu);
+		}
+		buffer_cpu = (void*)malloc(sizeof(char) * size_perm);
+
+		/* h_mapBfromA = Identity */
+		for (int j = 0; j < nnzA; j++)
+		{
+			h_mapBfromA[j] = j;
+		}
+		cuSolverStat = cusolverSpXcsrpermHost(
+			handle, rowsA, colsA, nnzA,
+			descrA, h_csrRowPtrB, h_csrColIndB,
+			h_Q, h_Q,
+			h_mapBfromA,
+			buffer_cpu);
+
+		std::cout << "Permutation matrix: " << cuSolverStat << std::endl;
+
+		/* B = A( mapBfromA ) */
+		for (int j = 0; j < nnzA; j++)
+		{
+			h_csrValB[j] = h_csrValA[h_mapBfromA[j]];
+		}		
+
+		/* h_Qb = b(Q) */
+		for (int row = 0; row < rowsA; row++) {
+			h_Qb[row] = h_b[h_Q[row]];
+		}
+
+		printf("step 4: prepare data on device\n");
+		cudaStat = cudaMemcpyAsync(d_csrRowPtrA, h_csrRowPtrA, sizeof(int) * (rowsA + 1), cudaMemcpyHostToDevice, stream); std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpyAsync(d_csrColIndA, h_csrColIndA, sizeof(int) * nnzA, cudaMemcpyHostToDevice, stream);		   std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpyAsync(d_csrValA, h_csrValA, sizeof(double) * nnzA, cudaMemcpyHostToDevice, stream);		   std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpyAsync(d_csrRowPtrB, h_csrRowPtrB, sizeof(int) * (rowsA + 1), cudaMemcpyHostToDevice, stream); std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpyAsync(d_csrColIndB, h_csrColIndB, sizeof(int) * nnzA, cudaMemcpyHostToDevice, stream);		   std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpyAsync(d_csrValB, h_csrValB, sizeof(double) * nnzA, cudaMemcpyHostToDevice, stream);		   std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpyAsync(d_b, h_b, sizeof(double) * rowsA, cudaMemcpyHostToDevice, stream);					   std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpyAsync(d_Qb, h_Qb, sizeof(double) * rowsA, cudaMemcpyHostToDevice, stream);					   std::cout << cudaStat << "| ";
+		cudaStat = cudaMemcpyAsync(d_Q, h_Q, sizeof(int) * rowsA, cudaMemcpyHostToDevice, stream);						   std::cout << cudaStat << "| ";
+																														   std::cout << cudaStat << std::endl;
+		printf("step 7: solve A*x = b on GPU\n");
+
+		/* solve B*z = Q*b */
+		cusolverSpDcsrlsvchol(
+				handle, rowsA, nnzA,
+				descrA, d_csrValB, d_csrRowPtrB, d_csrColIndB,
+				d_Qb, tol, reorder, d_z, &singularity);
+
+		
+		cudaDeviceSynchronize();
+		std::cout << "Singularity: " << singularity << std::endl;
+		if (0 <= singularity)
+		{
+			printf("WARNING: the matrix is singular at row %d under tol (%E)\n", singularity, tol);
+		}
+		/* Q*x = z */
+		cusparseDsctr(cusparseHandle,
+			rowsA,
+			d_z,
+			d_Q,
+			d_x,
+			CUSPARSE_INDEX_BASE_ZERO);
+		cudaDeviceSynchronize();
+
+		cudaMemcpyAsync(h_x, d_x, sizeof(double) * rowsA, cudaMemcpyDeviceToHost, stream);
+		Eigen::VectorXd result(S.rows());
+		result = Eigen::Map<Eigen::VectorXd>(h_x, S.rows());
+		std::cout << result.head(15).transpose() << std::endl;
+
+		printf("step 8: evaluate residual r = b - A*x (result on GPU)\n");
+		cudaMemcpyAsync(d_r, d_b, sizeof(double) * rowsA, cudaMemcpyDeviceToDevice, stream);
+
+		cusparseSpMatDescr_t matA = NULL;
+		cusparseCreateCsr(
+			&matA, rowsA, colsA, nnzA, d_csrRowPtrA, d_csrColIndA, d_csrValA, CUSPARSE_INDEX_32I,
+			CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+		cusparseDnVecDescr_t vecx = NULL;
+		cusparseDnVecDescr_t vecAx = NULL;
+		cusparseCreateDnVec(&vecx, colsA, d_x, CUDA_R_64F);
+		cusparseCreateDnVec(&vecAx, rowsA, d_r, CUDA_R_64F);
+
+		/* Allocate workspace for cuSPARSE */
+		size_t bufferSize = 0;
+		cusparseSpMV_bufferSize(
+			cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
+			&one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &bufferSize);
+		void* buffer = NULL;
+		cudaMalloc(&buffer, bufferSize);
+
+		cusparseSpMV(
+			cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
+			&one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &buffer);
+
+		cudaMemcpyAsync(h_x, d_x, sizeof(double) * colsA, cudaMemcpyDeviceToHost, stream);
+		cudaMemcpyAsync(h_r, d_r, sizeof(double) * rowsA, cudaMemcpyDeviceToHost, stream);
+		/* wait until h_x and h_r are ready */
+		cudaDeviceSynchronize();
+
+		
+		if (handle)				{ cusolverSpDestroy(handle); }
+		if (cusparseHandle)		{ cusparseDestroy(cusparseHandle); }
+		if (stream)				{ cudaStreamDestroy(stream); }
+		if (descrA)				{ cusparseDestroyMatDescr(descrA); }
+		if (matA)				{ cusparseDestroySpMat(matA); }
+		if (vecx)				{ cusparseDestroyDnVec(vecx); }
+		if (vecAx)				{ cusparseDestroyDnVec(vecAx); }
+
+		if (h_csrValA)			{ free(h_csrValA); }
+		if (h_csrRowPtrA)		{ free(h_csrRowPtrA); }
+		if (h_csrColIndA)		{ free(h_csrColIndA); }
+		if (h_z)				{ free(h_z); }
+		if (h_x)				{ free(h_x); }
+		if (h_b)				{ free(h_b); }
+		if (h_Qb)				{ free(h_Qb); }
+		if (h_r)				{ free(h_r); }
+
+		if (h_Q)				{ free(h_Q); }
+
+		if (h_csrRowPtrB)		{ free(h_csrRowPtrB); }
+		if (h_csrColIndB)		{ free(h_csrColIndB); }
+		if (h_csrValB)			{ free(h_csrValB); }
+		if (h_mapBfromA)		{ free(h_mapBfromA); }
+
+		if (buffer_cpu)			{ free(buffer_cpu); }
+
+		if (d_csrValA)			{ cudaFree(d_csrValA); }
+		if (d_csrRowPtrA)		{ cudaFree(d_csrRowPtrA); }
+		if (d_csrColIndA)		{ cudaFree(d_csrColIndA); }
+		if (d_csrValB)			{ cudaFree(d_csrValB); }
+		if (d_csrRowPtrB)		{ cudaFree(d_csrRowPtrB); }
+		if (d_csrColIndB)		{ cudaFree(d_csrColIndB); }
+		if (d_Q)				{ cudaFree(d_Q); }
+		if (d_z)				{ cudaFree(d_z); }
+		if (d_x)				{ cudaFree(d_x); }
+		if (d_b)				{ cudaFree(d_b); }
+		if (d_Qb)				{ cudaFree(d_Qb);}
+		if (d_r)				{ cudaFree(d_r); }
+
 	}
 }

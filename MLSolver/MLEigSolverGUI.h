@@ -75,6 +75,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 	if (ImGui::Button("Test SpMM", ImVec2((w - p) / 2.f, 0))) {
 		//eigenSolver->cusparseCSRMMtest();
 		eigenSolver->cusparseSpMMtest();
+		//eigenSolver->cuSolverCholTest(eigenSolver->getStiffnessMatrix(), eigenSolver->getEigenVectorsRef(), VColor);
 	}
 
 	// Main Algorithm
@@ -167,7 +168,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 
 			/* For Hierarchy and Sampling */
-			static char lvlRatTxt[10] = "10.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
+			static char lvlRatTxt[10] = "16.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 			levelRatio = atof(lvlRatTxt);
 
 			ImGui::RadioButton("Const.", &hierarchyMode, 0); ImGui::SameLine();
@@ -792,9 +793,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			ImGui::RadioButton("Wilson##ItohShift", &shiftType, 1);			
 			ImGui::RadioButton("Gong##Shift",		&shiftType, 2);			ImGui::SameLine();
 			ImGui::RadioButton("Zhao##Shift",		&shiftType, 3);
-			static char zhaoTxt[10] = "0.25";		ImGui::InputText("Zhao shift", zhaoTxt, 10);
+			static char zhaoTxt[32] = "0.33333333333333333333333333333";		ImGui::InputText("Zhao shift", zhaoTxt, 10);
 			zhaoShiftParam = atof(zhaoTxt);
 		}
+		ImGui::RadioButton("Crit.2##Converge", &(eigenSolver->convergedCriteria), 2);			ImGui::SameLine();
+		ImGui::RadioButton("Crit.3##Converge", &(eigenSolver->convergedCriteria), 3);
 
 		static double qParam;
 		static char qParamTxt[10] = "1.5"; ImGui::InputText("q Param", qParamTxt, 10);
@@ -813,7 +816,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
 
 			if(eigenSolver->isSIMinGPU)
-				//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
+				//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
 				eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, numOfSupport);
 			else 
 				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
@@ -1080,9 +1083,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			int maxIters = 25;
 			std::vector<double>		levelRatio{ 16 };
 			std::vector<double>		levelSupport{ 7.5 };
-			//vector<int> wantedModes{ 50, 100, 250 };
-			//vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
 			vector<int> wantedModes{ 1000 };
+			//vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
+			//vector<int> wantedModes{ 1000 };
 			//vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
 			vector<double> wantedTols{ 1e-3};
 			eigenSolver->setZhaoShiftParam(0.25);
@@ -1351,13 +1354,13 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::vector<double>		levelSupport{ 7.5 };
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
-			std::vector<double>		levelZhaoParam{ 0.25 };
-			vector<int>				wantedModes{ 50, 100, 250};
+			std::vector<double>		levelZhaoParam{ 1.0/3.0 };
+			vector<int>				wantedModes{ 50, 100, 250, 1000};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 50 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
-			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
-			vector<double>			wantedTols{ 1e-3 };
+			vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
+			//vector<double>			wantedTols{ 1e-2 };
 			int						maxIters = 50;
 			std::vector<double>		qParam{ 1.5 };
 
@@ -1380,6 +1383,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 								std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
 								for (int k = 0; k < wantedTols.size(); ++k) {
 									std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
+									eigenSolver->convergedCriteria = 2;
+									eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+									eigenSolver->convergedCriteria = 3;
 									eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
 								}	// tolerance
 							}		// zhao's shift param
@@ -1425,8 +1431,6 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			clampRegion = atof(selScale);
 		}
 
-
-
 		if (ImGui::Button("Compute Reference##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
 
@@ -1468,16 +1472,25 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		}
 
 		if (ImGui::Button("Spectra Test", ImVec2(w, 0))) {
+			if (eigenSolver->getV().rows() < 1) return;
+
+			eigenSolver->constructMassMatrix();
+			eigenSolver->initiateAdM();
+			eigenSolver->constructStiffnessMatrix();
+
 			tol = atof(toleTxt);
 			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
 			//std::vector<double>		tolVect{ 5e-2, 1e-2, 1e-3, 1e-4, 1e-5 };
-			std::vector<double>		tolVect{1e-3, 5.0e-2, 1e-1 };
-			vector<int>				wantedModes{ 50, 100, 250 };
+			//std::vector<double>		tolVect{1e-3, 5.0e-2, 1e-1 };
+			std::vector<double>		tolVect{1e-2, 1e-4 };
+			vector<int>				wantedModes{ 50, 250 };
+			//vector<int>				wantedModes{ 50 };
 			//vector<int>				wantedModes{ 100, 150, 250 };
 			//eigToCompute = atoi(numEig);
 			Eigen::MatrixXd EigVects;
 			Eigen::VectorXd EigVals;
 			Eigen::VectorXd timing(1);
+			int numIterUsed;
 
 			cout << "> Computing reference eigenproblem ";
 			chrono::high_resolution_clock::time_point	t0, t1;
@@ -1489,7 +1502,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					t0 = chrono::high_resolution_clock::now();
 
 					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
-					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, 1, 5000, tolVect[i]);
+					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, numIterUsed, 1, 5000, tolVect[i]);
 					
 					Eigen::VectorXd conv2;
 					eigenSolver->checkConvergenceCat2(EigVects, EigVals, wantedModes[j], eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(),  conv2);
@@ -1501,21 +1514,24 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					cout << "\n in " << duration.count() << " seconds." << endl;
 					timing(0) = duration.count();
 
+					Eigen::VectorXd numIterVect(1);
+					numIterVect(0) = numIterUsed;
+
 					string modelName = "Sphere_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
 					string filename = "../../Data/" + modelName + "_EigVects-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(EigVects, filename);
 					filename = "../../Data/" + modelName + "_EigVals-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(EigVals, filename);
 					filename = "../../Data/" + modelName + "_Tolerance-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
+					writeDenseMatrixToFile(numIterVect, filename);
 					writeDenseMatrixToFile(timing, filename);
 					writeDenseMatrixToFile(conv2, filename);
-
 
 					//cout << "Ref eigenvalues: \n" << EigVals << std::endl;
 					cout << "Ref eigenvalues: \n";
 					//std::cout << EigVals(0) << std::endl;
 					//printVector(EigVals.tail(wantedModes[j]));
-					printVector(EigVals.head(wantedModes[j]));
+					printVector(EigVals.head(wantedModes[j]), true);
 				}
 			}
 		}
