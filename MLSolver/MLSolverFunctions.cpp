@@ -715,6 +715,9 @@ namespace MuLES
 		duration = t1 - t0;
 		cout << "...in " << duration.count() << " seconds." << endl;
 
+		// Sturm's check
+		sturmCheck(S, M, EigValsSIM);
+
 		/* Write the convergence information to an external file. */
 		string modelName = "Sphere_" + to_string(V.rows()) + "_" + to_string(F.cols());
 		string fileConv = "../../Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
@@ -761,7 +764,8 @@ namespace MuLES
 		int					lastConvergedId = 1;
 		double eps;
 		if (F.cols() == 4) eps = 1e-2 * std::numeric_limits<double>::epsilon();
-		else			eps = 1e6 * std::numeric_limits<double>::epsilon();
+		//else			eps = 1e7 * std::numeric_limits<double>::epsilon();
+		else			eps = 1e10 * std::numeric_limits<double>::epsilon();
 
 		/* Selecting the appropriate subspace iteration method */
 		bool isNormalized = false;
@@ -989,7 +993,7 @@ namespace MuLES
 				convergenceCheck = false;
 
 		} while (!convergenceCheck);
-
+		
 		convergence2Stacks.conservativeResize(Eigen::NoChange, k);
 		convergence3Stacks.conservativeResize(Eigen::NoChange, k);
 		EigValsSIMStack.conservativeResize(Eigen::NoChange, k);
@@ -1003,7 +1007,6 @@ namespace MuLES
 
 		timingPerLevel(0) = duration.count();
 		itersPerLevel(0) = k;
-
 	}
 
 	/**
@@ -1398,7 +1401,7 @@ namespace MuLES
 				cout << "____<5> Storing convergence data. \n";
 				convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
 				convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
-				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
+				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);			
 			}
 			itersPerLevel(k) = iterCount;
 		}
@@ -2027,6 +2030,7 @@ namespace MuLES
 				EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
 				convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
 				//convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
+				
 			}
 		}
 
@@ -2596,7 +2600,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		
 		std::cout << "__[2] Solving each RHS ";
 		t1 = chrono::high_resolution_clock::now();
-		std::cout << "MU: " << mu << std::endl;
+		//std::cout << "MU: " << mu << std::endl;
 
 		//cusolverSP(SL - mu * ML, M * EigVects, XbarK);
 		//std::cout << "[GPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
@@ -2662,7 +2666,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			}
 		}
 
-		std::cout << "[CPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
+		//std::cout << "[CPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
@@ -2724,6 +2728,9 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		}
 
 		iterCount++;
+		if(numEigs>750)
+			if (iterCount >= 2) 
+				isMultipleSolve = false;
 
 		/* Ignore the first iteration */
 		if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
@@ -3040,11 +3047,12 @@ void MLSolverFunctions::solve(int numEigs, int maxIter, double tol, bool isWithS
 
 		Eigen::VectorXi sampSize;
 		//setSamplingLevels(sampSize, numEigs, levelRatio);
-		int hierarchyMode = 1;
+		int hierarchyMode = 0;
 		switch (hierarchyMode)
 		{
 		case 0:
-			setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);
+			//setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);
+			setSamplingLevelFixedNum(sampSize, numEigs, levelRatio);
 			break;
 		case 1:
 			setSamplingLevelsAuto(sampSize, numEigs, levelRatio);
@@ -3102,7 +3110,8 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	
 	switch (hierarchyMode){
 	case 0:
-		setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);	break;
+		//setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);	break;
+		setSamplingLevelFixedNum(sampSize, numEigs, levelRatio);		break;
 	case 1:
 		setSamplingLevelsAuto(sampSize, numEigs, levelRatio);			break;
 	case 2:
@@ -3166,9 +3175,13 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		t1 = chrono::high_resolution_clock::now();		
 		t01 = t1;
 
-		EigVectsSIM = U[i] * EigVectsSIM;int shiftId = std::floor(zhaoShiftParam * numEigs);
+		EigVectsSIM = U[i] * EigVectsSIM;
+		int shiftId = std::floor(zhaoShiftParam * numEigs);
 		double mu;
 		mu = EigValsSIM(shiftId);
+		printf("Shift param: %.2f | shift ID: %d | mu:", zhaoShiftParam, shiftId);
+		//std::cout << "mu:" << mu << std::cout;
+		std::cout << mu << std::endl;
 		//if (!isWithShift) mu = 0.0;
 
 		t2 = chrono::high_resolution_clock::now();
@@ -3177,6 +3190,8 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 
 		std::cout << "[a] SIM on level " << i << std::endl;
 		t1 = chrono::high_resolution_clock::now();
+		
+		//if (numEigs >= 750) zhaoShiftParam = 0.25;
 
 		if (isSIMinGPU) {
 			SIMinGPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
@@ -3194,19 +3209,6 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		}
 	}
 
-	// Posterior Sturm check
-	std::cout << "[6] Posterior Sturm check...\n";
-	t1 = chrono::high_resolution_clock::now();
-
-	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> linSolver;
-	linSolver.compute(S - EigValsSIM(numEigs-1)*M);
-	int negEntryD=(linSolver.vectorD().array() < 0.0).count();
-	std::cout << "____computed modes:" << numEigs << "| Sturm's check: " << negEntryD << std::endl;
-	
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	std::cout << "____in " << duration.count() << " seconds." << std::endl;
-	HSIMtime(1) = duration.count() - HSIMtime(0);
 
 	EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
 	EigValsSIM.conservativeResize(numEigs);
@@ -3215,6 +3217,9 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	duration = t2 - t0;
 	std::cout << "TOTAL H-SiM time in " << duration.count() << " seconds." << std::endl;
 	HSIMtime(1) = duration.count() - HSIMtime(0);
+
+	// Sturm's check
+	sturmCheck(S, M, EigValsSIM);
 
 	/* Write the convergence information to an external file. */
 	std::cout << "Write the log to files." << std::endl;
@@ -3227,6 +3232,8 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	writeDenseMatrixToFile(EigValsSIMStack, fileConv);
 	string fileEigs = "../../Data/" + modelName + "_Convergence2Stack_" + to_string(numEigs) + "_method_" + to_string(0) + "_" + (isWithShift ? "shift_" + to_string(3) + "_" : "") + to_string(tol) + ".txt";
 	writeDenseMatrixToFile(convergence2Stacks, fileEigs);
+
+	
 }
 	/**
 	*  @brief

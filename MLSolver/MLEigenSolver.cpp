@@ -174,6 +174,7 @@ namespace MuLES
 		else {
 			int numLevels = (int)floor(ratio);
 			double remainder = ratio - numLevels;
+			//numLevels += 1;
 			//std::cout << "Number of levels: " << numLevels << "+1, with remainder of " << remainder << std::endl;
 
 				//std::cout << "CASE 2: 0.2 <= remainder < 0.8 \n";
@@ -234,6 +235,31 @@ namespace MuLES
 		}
 
 		printf("____Level %d has %d entries \n", 0, numVert);
+		for (int i = 0; i < sampSize.rows(); ++i) {
+			printf("____Level %d has %d entries \n", i + 1, sampSize(i));
+		}
+	}
+
+	void MLEigenSolver::setSamplingLevelFixedNum(Eigen::VectorXi& sampSize, int numEigen, double levelRatio)
+	{
+		int numLevelDif = 0;
+		if (V.rows() > 100000) {
+			numLevelDif = 2;
+		}
+		else {
+			numLevelDif = 1;
+		}
+
+		int dimSubSpace = max(2 * numEigen, 1000);
+		double ratio = (double)V.rows() / dimSubSpace;
+		ratio = log(ratio) / log(levelRatio);
+
+		sampSize.resize(numLevelDif);
+		for (int i = 0; i < numLevelDif; ++i) {
+			sampSize(i) = ceil((double)V.rows() / (pow(pow(levelRatio, ratio / numLevelDif),i+1)));
+		}
+
+		printf("____Level %d has %d entries \n", 0, V.rows());
 		for (int i = 0; i < sampSize.rows(); ++i) {
 			printf("____Level %d has %d entries \n", i + 1, sampSize(i));
 		}
@@ -687,6 +713,16 @@ namespace MuLES
 			double con = abs(1.0 - rat);
 			convRate(i) = sqrt(con);
 		}
+	}
+
+	int MLEigenSolver::sturmCheck(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::VectorXd& eigvals)
+	{
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> linSolver;
+		double mu = eigvals(eigvals.size() - 1);
+		linSolver.compute(SL - mu*ML);
+		int negEntryD = (linSolver.vectorD().array() < 0.0).count();
+		std::cout << "____computed modes:" << eigvals.rows() << "| Sturm's check: " << negEntryD << std::endl;
+		return negEntryD;
 	}
 		
 	/**

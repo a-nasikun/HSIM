@@ -43,7 +43,7 @@ static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
 static double		levelRatio		= 10.0;
 static double		numOfSupport	= 7.5;
-static int			hierarchyMode	= 1;						// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
+static int			hierarchyMode	= 1;						// 0: fixed num level, 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
@@ -171,7 +171,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			static char lvlRatTxt[10] = "16.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 			levelRatio = atof(lvlRatTxt);
 
-			ImGui::RadioButton("Const.", &hierarchyMode, 0); ImGui::SameLine();
+			ImGui::RadioButton("Fixed.", &hierarchyMode, 0); ImGui::SameLine();
 			ImGui::RadioButton("Auto", &hierarchyMode, 1); ImGui::SameLine();
 			ImGui::RadioButton("Same", &hierarchyMode, 2);
 
@@ -194,7 +194,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				switch (hierarchyMode)
 				{
 				case 0:
-					eigenSolver->setSamplingLevelsConstantRate(sampSize, numOfModes, levelRatio);
+					//eigenSolver->setSamplingLevelsConstantRate(sampSize, numOfModes, levelRatio);
+					eigenSolver->setSamplingLevelFixedNum(sampSize, numOfModes, levelRatio);
 					break;
 				case 1:
 					eigenSolver->setSamplingLevelsAuto(sampSize, numOfModes, levelRatio);
@@ -206,8 +207,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					break;
 				}
 				
-				eigenSolver->setInitialSystem(sampSize.rows());
-				eigenSolver->constructSampleHierarchy(sampSize);
+				///eigenSolver->setInitialSystem(sampSize.rows());
+				///eigenSolver->constructSampleHierarchy(sampSize);
 				numLevels = sampSize.size();
 
 				t1 = chrono::high_resolution_clock::now();
@@ -813,6 +814,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->isMultipleSolve = isMultipleSolve;
 			eigenSolver->hierarchyMode = hierarchyMode;
+			std::cout << "Hierarchy mode: " << eigenSolver->hierarchyMode << std::endl;
+			std::cout << "Level ratio: " << levelRatio << std::endl;
 			//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
 
 			if(eigenSolver->isSIMinGPU)
@@ -922,7 +925,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					switch (hierarchyMode)
 					{
 					case 0:
-						eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+						//eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+						eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i]);
 						break;
 					case 1:
 						eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
@@ -1073,6 +1077,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->setQParam(qParam);
+			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
+			eigenSolver->isMultipleSolve = isMultipleSolve;
+			eigenSolver->hierarchyMode = hierarchyMode;
 
 			/*  Testing on :
 			*	(1) random
@@ -1083,12 +1090,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			int maxIters = 25;
 			std::vector<double>		levelRatio{ 16 };
 			std::vector<double>		levelSupport{ 7.5 };
-			vector<int> wantedModes{ 1000 };
+			//vector<int> wantedModes{ 50,250,1000, 2500, 4000 };
 			//vector<int> wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000, 2000 };
-			//vector<int> wantedModes{ 1000 };
+			vector<int> wantedModes{  2500,4000 };
 			//vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
-			vector<double> wantedTols{ 1e-3};
-			eigenSolver->setZhaoShiftParam(0.25);
+			vector<double> wantedTols{ 1e-2};
+			//eigenSolver->setZhaoShiftParam(0.25);
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for (int i = 0; i < levelRatio.size(); ++i) {
@@ -1176,7 +1183,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						switch (hierarchyMode)
 						{
 						case 0:
-							eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+							//eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+							eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i]);
 							break;
 						case 1:
 							eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
@@ -1257,7 +1265,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					{
 					case 0:
 						std::cout << "Simple decay rate: " << levelRatio[i] << std::endl; 
-						eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+						//eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
+						eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i]);
 						break;
 					case 1:
 						std::cout << "More elaborate decay rate " << std::endl;
@@ -1355,12 +1364,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 1.0/3.0 };
-			vector<int>				wantedModes{ 50, 100, 250, 1000};
+			//vector<int>				wantedModes{ 1000};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
-			//vector<int>				wantedModes{ 50 };
+			vector<int>				wantedModes{ 50, 250, 1000 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
-			vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
-			//vector<double>			wantedTols{ 1e-2 };
+			//vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
+			vector<double>			wantedTols{ 1e-2 };
 			int						maxIters = 50;
 			std::vector<double>		qParam{ 1.5 };
 
@@ -1385,8 +1394,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 									std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
 									eigenSolver->convergedCriteria = 2;
 									eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
-									eigenSolver->convergedCriteria = 3;
-									eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+									//eigenSolver->convergedCriteria = 3;
+									//eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
 								}	// tolerance
 							}		// zhao's shift param
 						}			// qParam
@@ -1482,8 +1491,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
 			//std::vector<double>		tolVect{ 5e-2, 1e-2, 1e-3, 1e-4, 1e-5 };
 			//std::vector<double>		tolVect{1e-3, 5.0e-2, 1e-1 };
-			std::vector<double>		tolVect{1e-2, 1e-4 };
-			vector<int>				wantedModes{ 50, 250 };
+			std::vector<double>		tolVect{1e-2 };
+			vector<int>				wantedModes{ 50, 250, 1000, 2500};
 			//vector<int>				wantedModes{ 50 };
 			//vector<int>				wantedModes{ 100, 150, 250 };
 			//eigToCompute = atoi(numEig);
@@ -1502,7 +1511,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					t0 = chrono::high_resolution_clock::now();
 
 					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
-					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, numIterUsed, 1, 5000, tolVect[i]);
+					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, numIterUsed, 1, 20000, tolVect[i]);
 					
 					Eigen::VectorXd conv2;
 					eigenSolver->checkConvergenceCat2(EigVects, EigVals, wantedModes[j], eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(),  conv2);

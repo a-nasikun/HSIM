@@ -41,6 +41,7 @@ namespace MuLES
 		void setSamplingLevelsConstantRate(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
 		void setSamplingLevelsAuto(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
 		void setSamplingLevelsSameRate(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
+		void setSamplingLevelFixedNum(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
 		void constructSampleHierarchy(const Eigen::VectorXi& samples);	// Constructing multi-level samples
 		void virtual constructBasis(double support, int axis = 0, double offset = 0.0);											// Constructing multi-level basis
 		void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0);
@@ -66,6 +67,7 @@ namespace MuLES
 		void virtual solve(int numEigs, double tol = 1e-4, int maxIter = 50, double levelRatio = 10.0, double basisSupport = 7.5, bool isWithShift = true);
 		void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, int num, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& MKinv, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const;
 		void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::MatrixXd& M, int num, bool isWithShift, double mu, Eigen::VectorXd& convRate) const;
+		int sturmCheck(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::VectorXd& eigvals);
 
 		/* Computing the reference eigenproblem */
 		void computeRefEigenProblem(int numEigs, const EigenSolverType& solverType, int maxIters = 1000, double tol = 1e-10);
@@ -181,7 +183,7 @@ namespace MuLES
 		// TEst variable
 		bool isMultipleSolve = true;
 		bool isSIMinGPU = false;
-		int hierarchyMode = 1;
+		int hierarchyMode = 2;				// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
 		int convergedCriteria = 2;			// 2: more expensive: relative L-2 norm of residual && 3: cheaper a^2/qTq
 	};
 }
