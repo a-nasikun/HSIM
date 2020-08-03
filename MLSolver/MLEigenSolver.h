@@ -69,6 +69,9 @@ namespace MuLES
 		void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::MatrixXd& M, int num, bool isWithShift, double mu, Eigen::VectorXd& convRate) const;
 		int sturmCheck(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::VectorXd& eigvals);
 
+		void virtual solveBMG(int numEigs, double tol = 1e-4, int maxIter = 50, double levelRatio = 10.0, double basisSupport = 7.5, bool isWithShift = true);
+		void virtual BMGiter(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol = 1e-4, int maxIter = 20, int k = 0);
+
 		/* Computing the reference eigenproblem */
 		void computeRefEigenProblem(int numEigs, const EigenSolverType& solverType, int maxIters = 1000, double tol = 1e-10);
 		void computeRefEigenProblemWithSelector(int numEigs, const EigenSolverType& solverType, int axis = 0, double offset = 0.0);
@@ -121,8 +124,8 @@ namespace MuLES
 		void cusparseCSRMMtest();
 		void cusparseSpMMtest();
 		void cusparseDcsrm2(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
-		void cusolverSP(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
-		void cuSolverCholTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
+		//void cusolverSP(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
+		//void cuSolverCholTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 
 
 	protected:

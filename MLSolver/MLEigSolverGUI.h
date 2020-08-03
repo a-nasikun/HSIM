@@ -74,7 +74,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 	}
 	if (ImGui::Button("Test SpMM", ImVec2((w - p) / 2.f, 0))) {
 		//eigenSolver->cusparseCSRMMtest();
-		eigenSolver->cusparseSpMMtest();
+		//eigenSolver->cusparseSpMMtest();
 		//eigenSolver->cuSolverCholTest(eigenSolver->getStiffnessMatrix(), eigenSolver->getEigenVectorsRef(), VColor);
 	}
 
@@ -824,6 +824,26 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			else 
 				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
 				//eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
+		}
+
+		if (ImGui::Button("BMG Solver", ImVec2(w, 0))) {
+			std::cout << "Solve in GPU? " << eigenSolver->isSIMinGPU << std::endl;
+			eigenSolver->setQParam(qParam);
+			eigenSolver->setZhaoShiftParam(zhaoShiftParam);
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			std::cout << "is iterating over converged ? " << isNotIterateOverConverged << std::endl;
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->isMultipleSolve = isMultipleSolve;
+			eigenSolver->hierarchyMode = hierarchyMode;
+			std::cout << "Hierarchy mode: " << eigenSolver->hierarchyMode << std::endl;
+			std::cout << "Level ratio: " << levelRatio << std::endl;
+			//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
+
+			//if (eigenSolver->isSIMinGPU)
+			//	//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
+			//	eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, numOfSupport);
+			//else
+				eigenSolver->solveBMG(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
 		}
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
