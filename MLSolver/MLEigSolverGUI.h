@@ -207,14 +207,16 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					break;
 				}
 				
-				///eigenSolver->setInitialSystem(sampSize.rows());
-				///eigenSolver->constructSampleHierarchy(sampSize);
+				eigenSolver->setInitialSystem(sampSize.rows());
+				eigenSolver->constructSampleHierarchy(sampSize);
 				numLevels = sampSize.size();
 
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
 			}
+
+			
 
 
 			ImGui::Text("Show sample dist");
@@ -240,6 +242,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 			
 			static char numSupTxt[15] = "7.5"; ImGui::InputText("Num of Supports", numSupTxt, 6);
+
 
 			if (ImGui::Button("[3] Construct Basis##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) {
@@ -275,7 +278,25 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 				if (i<(eigenSolver->getLevel()-1)) ImGui::SameLine(0, p);
 			}
+			static int sample1 = 0, sample2 = 0;
+			static int levelViz = 0;
+			static char Sample1Txt[10] = "0"; ImGui::InputText("Sample ID 1", Sample1Txt, 10);
+			sample1 = atoi(Sample1Txt);
+			static char Sample2Txt[10] = "0"; ImGui::InputText("Sample ID 2", Sample2Txt, 10);
+			sample2 = atoi(Sample2Txt);
+			ImGui::RadioButton("1", &levelViz, 0); ImGui::SameLine();
+			ImGui::RadioButton("2", &levelViz, 1); 
 
+
+			if (ImGui::Button("Visualize hierarchy", ImVec2(w, 0))) {
+				std::cout << "Level in GUI: " << levelViz << std::endl;
+				int sampleID = 0;
+				if (levelViz == 0)
+					sampleID = sample1;
+				else 
+					sampleID = sample2;
+				eigenSolver->visualizeHierarchy(viewer, levelViz, sampleID);
+			}
 
 			if (ImGui::Button("[3] Coarse Basis only##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) {

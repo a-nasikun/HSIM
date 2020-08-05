@@ -3,6 +3,11 @@
 #include <omp.h>
 #include <random>
 
+#include <igl/exact_geodesic.h>
+#include <igl/isolines.h>
+#include <igl/jet.h>
+#include <igl/avg_edge_length.h>
+
 #include <cuda_runtime.h>
 #include "cublas_v2.h"
 #include <cusparse.h>
@@ -931,6 +936,51 @@ namespace MuLES
 		}
 	}
 
+	void MLEigenSolver::visualizeHierarchy(igl::opengl::glfw::Viewer &viewer, int k, int sourceID)
+	{
+		Eigen::VectorXi VS, FS, VT, FT;
+		Eigen::MatrixXd IsoV, IsoE;
+		//VS.resize(1);
+		//VS << sourceID;
+		//VT.setLinSpaced(V.rows(), 0, V.rows() - 1);
+		Eigen::VectorXd dist; // 
+		dist.resize(V.rows());
+		dist.setConstant(std::numeric_limits<double>::max());
+
+		//std::cout << "Computing geodesic distance to vertex " << sourceID << "..." << std::endl;
+		//igl::exact_geodesic(V, F, VS, FS, VT, FT, d);
+
+
+		ComputeDijkstra(V, Sample(sourceID), AdM, dist);
+		//GeodesicFromHeat(V, F, S, M, Sample(sourceID), dist);
+
+		Eigen::MatrixXd FCol(F.rows(), F.cols());
+		FCol.setConstant(0.93333333);		
+
+		std::cout << "Dist: " << dist.head(10).transpose() << std::endl;
+		std::cout << "Cutoff" << maxNeighDist[k] << std::endl;		
+
+		for (int i = 0; i < F.rows(); ++i) {
+			for (int j = 0; j < F.cols(); ++j) {
+				if (dist(F(i, j)) < maxNeighDist[k]) {
+					if(k==1)
+						FCol.row(i)<< 251.0/255.0, 143.0/255.0, 103.0/255.0;
+					else 
+						FCol.row(i) << 108.0/255.0, 212.0/255.0, 255.0/255.0;
+				}
+			}
+		}
+		std::cout << "Level:" << k << "| maxDist:" << maxNeighDist[k] << std::endl;
+		viewer.data().set_colors(FCol);		
+		viewer.data().points.resize(0, 6);
+		if(k==1)
+			viewer.data().add_points(V.row(Sample(sourceID)), Eigen::RowVector3d(0.93, 0.1, 0.1));
+		else 
+			viewer.data().add_points(V.row(Sample(sourceID)), Eigen::RowVector3d(0.3, 0.1, 0.9));
+		
+
+		//igl::isolines(V, F, dist, 10, IsoV, IsoE);
+	}
 	/**
 	*  @brief	Getter for the vertex. Request the matrix storing the vertex coordinates.
 	*/

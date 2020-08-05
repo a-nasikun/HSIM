@@ -37,6 +37,10 @@
 #include <Spectra/SymGEigsSolver.h>
 #include <Spectra/MatOp/SparseCholesky.h>
 
+#include <igl/avg_edge_length.h>
+#include <igl/grad.h>
+#include <igl/doublearea.h>
+
 namespace MuLES
 {
 	/* Computing Eigenstructure in GPU */
@@ -1148,5 +1152,92 @@ namespace MuLES
 		//Eigen::VectorXd comp1 = factor.solve(xk);
 		//Eigen::VectorXd comp2 = factor.solve(rhs);
 		//x = comp1 + comp2;	
+	}
+
+	void GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::SparseMatrix<double>&S, const Eigen::SparseMatrix<double>&M, int sourceID, Eigen::VectorXd& dist)
+	{
+		std::cout << "setup heat equation \n";
+		/* Heat Equation */
+		double tau = igl::avg_edge_length(V, F);
+		tau = tau*tau;
+		Eigen::VectorXd input(V.rows()), diff;
+		input.setZero();
+		input(sourceID) = 1.0;
+		Eigen::SparseMatrix<double> LHS = M + tau*S;
+		Eigen::VectorXd rhs = M*input; 
+
+		std::cout << "solve heat equation \n";
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>  linSolver;
+		linSolver.compute(LHS);
+		diff = linSolver.solve(rhs);
+
+		std::cout << "Setup gradient matrix \n";
+		Eigen::SparseMatrix<double> Grad;
+		igl::grad(V, F, Grad);		
+
+		std::cout << "Re-arrange gradient \n";
+		// Re-Arrange Gradient
+		vector<Eigen::Triplet<double>> GTriplet;
+		GTriplet.reserve(Grad.nonZeros());
+		int nRows = F.rows(), nCols = Grad.cols();
+
+		std::cout << "New grad form old one \n";
+		/* Getting the sum of every non-zero elements in a row */
+		for (int k = 0; k < Grad.outerSize(); ++k) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(Grad, k); it; ++it) {
+				if (it.row() < nRows) {					// values for x-coordinates
+					GTriplet.push_back(Eigen::Triplet<double>(3 * it.row(), it.col(), it.value()));
+				}
+				else if (it.row() < 2 * nRows) {		// values for y-coordinates
+					GTriplet.push_back(Eigen::Triplet<double>(3 * (it.row() - nRows) + 1, it.col(), it.value()));
+				}
+				else {									// values for z-coordinates
+					GTriplet.push_back(Eigen::Triplet<double>(3 * (it.row() - 2 * nRows) + 2, it.col(), it.value()));
+				}
+			}
+		}
+		Grad.resize(0, 0);
+		Grad.resize(3 * nRows, nCols);
+		Grad.setFromTriplets(GTriplet.begin(), GTriplet.end());
+
+		std::cout << "Obtaining gradient \n";
+		Eigen::VectorXd grad = Grad*diff;
+		Eigen::Vector3d localGrad;
+
+		std::cout << "Normalizing gradients \n";
+		for (int i = 0; i < F.rows(); i++)
+		{
+			localGrad = grad.block(3 * i, 0, 3, 1);
+			localGrad.normalize();
+			grad.block(3 * i, 0, 3, 1) = -1.0*localGrad;
+		}
+
+		std::cout << "Creating face-based mass matrix \n";
+		/* Face mass matrix*/
+		Eigen::SparseMatrix<double> MF(3*F.rows(), 3*F.rows());
+		vector<Eigen::Triplet<double>> MTriplet;
+		MTriplet.reserve(3*F.rows());
+		Eigen::VectorXd dArea;
+		igl::doublearea(V, F, dArea);
+
+		for (int i = 0; i < F.rows(); ++i) {
+			for (int j = 0; j < 3; ++j) {
+				MTriplet.push_back(Eigen::Triplet<double>(3*i+j, 3*i+j, dArea(i) / 2.0));
+			}
+		}
+		MF.setFromTriplets(MTriplet.begin(), MTriplet.end());
+
+		std::cout << "Obtaining distance \n";
+		printf("Grad: %dx%d | MF:%dx%d | grad: %d \n", Grad.rows(), Grad.cols(), MF.rows(), MF.cols(), grad.rows());
+		rhs = Grad.transpose()*MF*grad;
+
+		printf("LHS:%dx%d | rhs: %d \n", S.rows(), S.cols(), rhs.rows());
+
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SparseSolver;
+		SparseSolver.compute(S);
+		dist = SparseSolver.solve(rhs);
+		std::cout << dist.head(10).transpose() << std::endl;
+
+		//dist = diff;
 	}
 }

@@ -82,6 +82,7 @@ namespace MuLES
 		void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale = 1.0) const;
 		void visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer);
 		void visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k);
+		void visualizeHierarchy(igl::opengl::glfw::Viewer &viewer, int k=0, int sourceID=0);
 
 		/* Some setters and getters */
 		Eigen::MatrixXd getV() const;
