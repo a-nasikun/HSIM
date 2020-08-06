@@ -157,7 +157,7 @@ namespace MuLES
 
 	void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio)
 	{
-		cout << "> Scaling the mesh to have a unit length \n";
+		//cout << "> Scaling the mesh to have a unit length \n";
 		Eigen::Vector3d minV;
 		Eigen::Vector3d maxV;
 		Eigen::Vector3d length;
@@ -199,7 +199,7 @@ namespace MuLES
 			length(i) = maxV(i) - minV(i);
 		}
 		maxVal = length.maxCoeff();
-		cout << "____after scaling: " << maxVal << endl;
+		//cout << "____after scaling: " << maxVal << endl;
 	}
 
 	void printVector(const Eigen::VectorXd& V, bool isTranspose, int numDigit)

@@ -171,9 +171,14 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			static char lvlRatTxt[10] = "16.0"; ImGui::InputText("Levels ratio", lvlRatTxt, 10);
 			levelRatio = atof(lvlRatTxt);
 
-			ImGui::RadioButton("Fixed.", &hierarchyMode, 0); ImGui::SameLine();
+			ImGui::RadioButton("Fixed", &hierarchyMode, 0); ImGui::SameLine();
 			ImGui::RadioButton("Auto", &hierarchyMode, 1); ImGui::SameLine();
 			ImGui::RadioButton("Same", &hierarchyMode, 2);
+
+			static bool isSampleBounded = true;
+			ImGui::SameLine();
+			ImGui::Checkbox("Bounded?", &isSampleBounded);
+
 
 			if (ImGui::Button("[2] Construct Hierarchy##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
@@ -195,13 +200,13 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				{
 				case 0:
 					//eigenSolver->setSamplingLevelsConstantRate(sampSize, numOfModes, levelRatio);
-					eigenSolver->setSamplingLevelFixedNum(sampSize, numOfModes, levelRatio);
+					eigenSolver->setSamplingLevelFixedNum(sampSize, numOfModes, levelRatio, isSampleBounded);
 					break;
 				case 1:
-					eigenSolver->setSamplingLevelsAuto(sampSize, numOfModes, levelRatio);
+					eigenSolver->setSamplingLevelsAuto(sampSize, numOfModes, levelRatio, isSampleBounded);
 					break;
 				case 2:
-					eigenSolver->setSamplingLevelsSameRate(sampSize, numOfModes, levelRatio);					
+					eigenSolver->setSamplingLevelsSameRate(sampSize, numOfModes, levelRatio, isSampleBounded);
 					break;
 				default:
 					break;
@@ -214,9 +219,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
-			}
-
-			
+			}			
 
 
 			ImGui::Text("Show sample dist");

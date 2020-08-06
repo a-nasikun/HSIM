@@ -1,4 +1,5 @@
 #include "Visualization.h"
+#include "Utility.h"
 
 using namespace std;
 
@@ -22,7 +23,12 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	Eigen::MatrixXd MCol;
 	const int totLevel = sampleSize.size();
 	cout << "Visualizing the samples \n";
-	cout << "Total level: " << totLevel << endl;	
+	cout << "Total level: " << totLevel << endl;
+
+	Eigen::Vector3d maxVal;
+	maxVal << viewer.data().V.col(0).maxCoeff() - viewer.data().V.col(0).minCoeff(), viewer.data().V.col(1).maxCoeff() - viewer.data().V.col(1).minCoeff(), viewer.data().V.col(2).maxCoeff() - viewer.data().V.col(2).minCoeff();
+	double pointSphereScale = 0.0125 * maxVal.maxCoeff();
+	string sphereModelFile = "../Models/small_sphere/small_sphere.obj";
 
 	if (totLevel < 12) 
 	{
@@ -61,19 +67,52 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	//printf("Data points size: %dx%d \n", viewer.data().points.rows(), viewer.data().points.cols());
 
 	/* Lowest level */
+	//
+	Eigen::RowVector3d sphereCol1(221.0/255.0, 4.0/255.0, 38.0/255.0);
+	std::cout << "Loading Mesh \n";
+	std::cout << "Num of mesh: " << viewer.data_list.size() << std::endl;
+	//for (int i = 0; i < 30; i++)
 	for (int i = 0; i < sampleSize[totLevel-1]; i++)
 	{
-		viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(0));
-		if (i == 0)
-			std::cout << "Color: " << MCol.row(0)*255.0 << std::endl;
-	}
+		viewer.load_mesh_from_file(sphereModelFile);
+		MuLES::scaleMesh(viewer.data_list[i + 1].V, viewer.data_list[i + 1].F, pointSphereScale);
+		Eigen::MatrixXd transVect(viewer.data_list[i+1].V.rows(),3);
+		for(int j=0; j<viewer.data_list[i + 1].V.rows(); ++j)			
+			transVect.row(j) = viewer.data_list[0].V.row(Sample(i)) + nEps*viewer.data_list[0].V_normals.row(Sample(i));
 
+		viewer.data_list[i+1].V = viewer.data_list[i+1].V + transVect;
+		viewer.data_list[i+1].set_colors(sphereCol1);
+		viewer.data_list[i+1].show_lines = false;
+		//viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(0));
+		//if (i == 0)
+		//	std::cout << "Color: " << MCol.row(0)*255.0 << std::endl;
+	}
+	std::cout << "Num of mesh: " << viewer.data_list.size() << std::endl;
+
+	Eigen::RowVector3d sphereCol2(29.0/255.0, 51.0/255.0, 84.0/255.0);
 	for (int k = (totLevel-1); k > 0; k--) {
+		std::cout << "Level" << k << std::endl;
 		for (int i = sampleSize[k]; i < sampleSize[k-1]; i++)
 		{
-			viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(totLevel - k));
+			printf("i=%d |", i);
+			viewer.load_mesh_from_file(sphereModelFile);
+			printf("meshID=%d (/%d) |", i+1, viewer.data_list.size());
+			MuLES::scaleMesh(viewer.data_list[i+1].V, viewer.data_list[i+1].F, pointSphereScale);
+			Eigen::MatrixXd transVect(viewer.data_list[i+1].V.rows(), 3);
+			for (int j = 0; j<viewer.data_list[i+1].V.rows(); ++j)
+				transVect.row(j) = viewer.data_list[0].V.row(Sample(i)) + nEps*viewer.data_list[0].V_normals.row(Sample(i));
+			printf("transVect: %dx%d|", transVect.rows(), transVect.cols());
+			viewer.data_list[i+1].V = viewer.data_list[i+1].V + transVect;
+			viewer.data_list[i+1].set_colors(sphereCol2);
+			viewer.data_list[i+1].show_lines = false;
+			std::cout << "setting done! \n";
+			//viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(totLevel - k));
 		}
+		std::cout << "Num of mesh: " << viewer.data_list.size() << std::endl;
 	}	
+	viewer.selected_data_index = 0;
+	viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
+
 }
 
 void visualizeSample_1(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps)
