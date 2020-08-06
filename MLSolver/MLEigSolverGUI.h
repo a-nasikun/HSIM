@@ -295,7 +295,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					sampleID = sample1;
 				else 
 					sampleID = sample2;
-				eigenSolver->visualizeHierarchy(viewer, levelViz, sampleID);
+				eigenSolver->visualizeHierarchy(viewer, 2, sample1, sample2);
 			}
 
 			if (ImGui::Button("[3] Coarse Basis only##1", ImVec2(w, 0))) {

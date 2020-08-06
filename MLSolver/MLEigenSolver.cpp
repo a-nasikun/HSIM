@@ -958,11 +958,11 @@ namespace MuLES
 			ComputeDijkstra(V, Sample(sourceID), AdM, dist);
 		}
 		else {
-			//GeodesicFromHeat(V, F, S, M, Sample(sourceID), dist);
-			VS.resize(1);
-			VS << Sample(sourceID);
-			VT.setLinSpaced(V.rows(), 0, V.rows() - 1);
-			igl::exact_geodesic(V, F, VS, FS, VT, FT, dist);
+			GeodesicFromHeat(V, F, S, M, Sample(sourceID), dist);
+			//VS.resize(1);
+			//VS << Sample(sourceID);
+			//VT.setLinSpaced(V.rows(), 0, V.rows() - 1);
+			//igl::exact_geodesic(V, F, VS, FS, VT, FT, dist);
 		}
 
 		Eigen::MatrixXd FCol(F.rows(), F.cols());
@@ -975,9 +975,13 @@ namespace MuLES
 			for (int j = 0; j < F.cols(); ++j) {
 				if (dist(F(i, j)) < maxNeighDist[k]) {
 					if(k==1)
-						FCol.row(i)<< 251.0/255.0, 143.0/255.0, 103.0/255.0;
+						//FCol.row(i) << 251.0/255.0, 143.0/255.0, 103.0/255.0;		// red-sih
+						FCol.row(i) << 247.0/255.0, 202.0/255.0, 205.0/255.0;		// red-sih
+						//FCol.row(i) << 248.0/255.0, 173.0/255.0, 157.0/255.0;		// red-sih
 					else 
-						FCol.row(i) << 108.0/255.0, 212.0/255.0, 255.0/255.0;
+						//FCol.row(i) << 233.0/255.0, 255.0/255.0, 249.0/255.0;
+						FCol.row(i) << 158.0/255.0, 216.0/255.0, 219.0/255.0;
+						//FCol.row(i) << 108.0/255.0, 212.0/255.0, 255.0/255.0;		// blue-sih					
 				}
 			}
 		}
@@ -985,10 +989,78 @@ namespace MuLES
 		viewer.data().set_colors(FCol);		
 		viewer.data().points.resize(0, 6);
 		if(k==1)
-			viewer.data().add_points(V.row(Sample(sourceID)), Eigen::RowVector3d(0.93, 0.1, 0.1));
+			viewer.data().add_points(V.row(Sample(sourceID)), Eigen::RowVector3d(221.0/255.0, 4.0/255.0, 38.0/255.0));
 		else 
-			viewer.data().add_points(V.row(Sample(sourceID)), Eigen::RowVector3d(0.3, 0.1, 0.9));
+			viewer.data().add_points(V.row(Sample(sourceID)), Eigen::RowVector3d(29.0/255.0, 51.0/255.0, 84.0/255.0));
 		
+
+		//igl::isolines(V, F, dist, 10, IsoV, IsoE);
+	}
+
+	void MLEigenSolver::visualizeHierarchy(igl::opengl::glfw::Viewer &viewer, int levels, int sample1, int sample2)
+	{
+		Eigen::VectorXi VS, FS, VT, FT;
+		Eigen::MatrixXd IsoV, IsoE;
+		bool isUsingHeat = true;
+
+		Eigen::MatrixXd FCol(F.rows(), F.cols());
+		FCol.setConstant(0.93333333);
+
+		/* Domain viz for level 2 */
+		Eigen::VectorXd dist;
+		if (!isUsingHeat) {
+			dist.resize(V.rows());
+			dist.setConstant(std::numeric_limits<double>::max());
+			ComputeDijkstra(V, Sample(sample2), AdM, dist);
+		}
+		else {
+			GeodesicFromHeat(V, F, S, M, Sample(sample2), dist);
+			//VS.resize(1);
+			//VS << Sample(sourceID);
+			//VT.setLinSpaced(V.rows(), 0, V.rows() - 1);
+			//igl::exact_geodesic(V, F, VS, FS, VT, FT, dist);
+		}
+
+		for (int i = 0; i < F.rows(); ++i) {
+			for (int j = 0; j < F.cols(); ++j) {
+				if (dist(F(i, j)) < maxNeighDist[1]) {
+						//FCol.row(i) << 251.0/255.0, 143.0/255.0, 103.0/255.0;		// red-sih
+						FCol.row(i) << 247.0 / 255.0, 202.0 / 255.0, 205.0 / 255.0;		// red-sih
+						//FCol.row(i) << 248.0/255.0, 173.0/255.0, 157.0/255.0;		// red-sih		
+				}
+			}
+		}
+		std::cout << "Level 1 | maxDist:" << maxNeighDist[1] << std::endl;
+		viewer.data().add_points(V.row(Sample(sample2)), Eigen::RowVector3d(221.0 / 255.0, 4.0 / 255.0, 38.0 / 255.0));
+		
+
+		/* LEVEL 0 */
+		if (!isUsingHeat) {
+			dist.resize(V.rows());
+			dist.setConstant(std::numeric_limits<double>::max());
+			ComputeDijkstra(V, Sample(sample1), AdM, dist);
+		}
+		else {
+			GeodesicFromHeat(V, F, S, M, Sample(sample1), dist);
+			//VS.resize(1);
+			//VS << Sample(sourceID);
+			//VT.setLinSpaced(V.rows(), 0, V.rows() - 1);
+			//igl::exact_geodesic(V, F, VS, FS, VT, FT, dist);
+		}
+
+		for (int i = 0; i < F.rows(); ++i) {
+			for (int j = 0; j < F.cols(); ++j) {
+				if (dist(F(i, j)) < maxNeighDist[0]) {
+					//FCol.row(i) << 233.0/255.0, 255.0/255.0, 249.0/255.0;
+					FCol.row(i) << 158.0 / 255.0, 216.0 / 255.0, 219.0 / 255.0;
+					//FCol.row(i) << 108.0/255.0, 212.0/255.0, 255.0/255.0;		// blue-sih					
+				}
+			}
+		}
+		std::cout << "Level: 0| maxDist:" << maxNeighDist[0] << std::endl;
+		viewer.data().set_colors(FCol);
+		viewer.data().add_points(V.row(Sample(sample1)), Eigen::RowVector3d(29.0 / 255.0, 51.0 / 255.0, 84.0 / 255.0));
+
 
 		//igl::isolines(V, F, dist, 10, IsoV, IsoE);
 	}

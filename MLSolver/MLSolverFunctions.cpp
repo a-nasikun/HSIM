@@ -3418,34 +3418,67 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 		// Xh is equal to EigVectsHtilde at this stage
 
 		// [4] Algorithm 2 step 3: coarse grid eigensolve in the enriched space
-		std::cout << "Combining the reduced and enrichment \n";		
-		XHh.resize(EigVectsHtilde.rows(), EigVectsHbar.cols() + EigVectsHtilde.cols());
-		XHh.leftCols(EigVectsHbar.cols()) =  EigVectsHbar;
-		XHh.rightCols(EigVectsHtilde.cols()) = EigVectsHtilde;
-		std::cout << "left:" << EigVectsHbar.col(1).transpose()*Mred[i] * EigVectsHbar.col(1) << std::endl;
-		std::cout << "right:" << EigVectsHtilde.col(1).transpose()*Mred[i] * EigVectsHtilde.col(1) << std::endl;
-		printf("Red: %dx%d | enrichment: %dx%d | combine: %dx%d \n", EigVectsHbar.rows(), EigVectsHbar.cols(), EigVectsHtilde.rows(), EigVectsHtilde.cols(), XHh.rows(), XHh.cols() );
+		///std::cout << "Combining the reduced and enrichment \n";		
+		///XHh.resize(EigVectsHtilde.rows(), EigVectsHbar.cols() + EigVectsHtilde.cols());
+		///XHh.leftCols(EigVectsHbar.cols()) =  EigVectsHbar;
+		///XHh.rightCols(EigVectsHtilde.cols()) = EigVectsHtilde;
+		///std::cout << "left:" << EigVectsHbar.col(1).transpose()*Mred[i] * EigVectsHbar.col(1) << std::endl;
+		///std::cout << "right:" << EigVectsHtilde.col(1).transpose()*Mred[i] * EigVectsHtilde.col(1) << std::endl;
+		///printf("Red: %dx%d | enrichment: %dx%d | combine: %dx%d \n", EigVectsHbar.rows(), EigVectsHbar.cols(), EigVectsHtilde.rows(), EigVectsHtilde.cols(), XHh.rows(), XHh.cols() );
+		///
+		///std::cout << "Solving eigen problem in enriched space \n";
+		///std::cout << "__[1] projection.\n";
+		///Sproj = XHh.transpose()*Sred[i] * XHh;
+		///Mproj = XHh.transpose()*Mred[i] * XHh;
+		///
+		///std::cout << "__[2] Solving reduced eigenproblem: ";
+		///status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		///std::cout << status << std::endl;
+		///std::cout << "EigVals:\n" << Alpha.transpose() << std::endl;
+		///
+		///std::cout << "__[3] Prolongation \n";
+		///EigVectsHbar = XHh * Q.topLeftCorner(Q.rows(), numEigs);
 
-		std::cout << "Solving eigen problem in enriched space \n";
-		std::cout << "__[1] projection.\n";
-		Sproj = XHh.transpose()*Sred[i] * XHh;
-		Mproj = XHh.transpose()*Mred[i] * XHh;
-		
-		std::cout << "__[2] Solving reduced eigenproblem: ";
-		status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
-		std::cout << status << std::endl;
-		std::cout << "EigVals:\n" << Alpha.transpose() << std::endl;
+		/* Step 4: COARSE LEVEL WITH ENRICHED SPACE */
+		Eigen::SparseMatrix<double> M00;
+		Eigen::MatrixXd M01, M10, M11;
+		Eigen::SparseMatrix<double> S00;
+		Eigen::MatrixXd S01, S10, S11;
 
-		std::cout << "__[3] Prolongation \n";
-		EigVectsHbar = XHh * Q.topLeftCorner(Q.rows(), numEigs);
+		M00 = Mred[i+1];
+		M01 = U[i].transpose()*Mred[i]*EigVectsHtilde;
+		M10 = EigVectsHtilde.transpose()*Mred[i]*U[i];
+		M11 = EigVectsHtilde.transpose()*Mred[i]*EigVectsHtilde;
+
+		S00 = Sred[i+1];
+		S01 = U[i].transpose()*Sred[i] * EigVectsHtilde;
+		S10 = EigVectsHtilde.transpose()*Sred[i] * U[i];
+		S11 = EigVectsHtilde.transpose()*Sred[i] * EigVectsHtilde;
+
+		Eigen::MatrixXd SHh(S00.rows()+S10.rows(), S00.cols()+S01.cols()), 
+						MHh(M00.rows()+M10.rows(), M00.cols()+M01.cols());
+		MHh.topLeftCorner(M00.rows(), M00.cols())		= M00;
+		MHh.bottomLeftCorner(M10.rows(), M10.cols())	= M10;
+		MHh.topRightCorner(M01.rows(), M01.cols())		= M01;
+		MHh.bottomRightCorner(M11.rows(), M11.cols())	= M11;
+		SHh.topLeftCorner(S00.rows(), S00.cols())		= S00;
+		SHh.bottomLeftCorner(S10.rows(), S10.cols())	= S10;
+		SHh.topRightCorner(S01.rows(), S01.cols())		= S01;
+		SHh.bottomRightCorner(S11.rows(), S11.cols())	= S11;
+
+		computeEigenGPUDense(SHh, MHh, EigVectsHbar, EigValsHbar);		
+		EigVectsHbar.conservativeResize(Eigen::NoChange, numEigs);
+		EigVectsHbar = EigVectsHtilde * EigVectsHbar;
+		EigValsHbar.conservativeResize(numEigs);
+
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "   in " << duration.count() << " seconds." << std::endl;
 	}
 
-	EigValsRef = Alpha.head(numEigs);
-	EigVectsRef = EigVectsHbar;
+	EigValsRef = EigValsHbar.head(numEigs);
+	EigVectsRef = EigVectsHtilde;
 
 	Eigen::VectorXd conv2;
 	checkConvergenceCat2(EigVectsRef, EigValsRef, numEigs, M, M, S, conv2);

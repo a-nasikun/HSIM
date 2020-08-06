@@ -83,6 +83,7 @@ namespace MuLES
 		void visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer &viewer);
 		void visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer &viewer, int k);
 		void visualizeHierarchy(igl::opengl::glfw::Viewer &viewer, int k=0, int sourceID=0);
+		void visualizeHierarchy(igl::opengl::glfw::Viewer &viewer, int levels = 0, int sample1 = 0, int sample2=0);
 
 		/* Some setters and getters */
 		Eigen::MatrixXd getV() const;

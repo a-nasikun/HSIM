@@ -29,8 +29,8 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	//
 	//	/* Predefined color*/
 		MCol.resize(11, 3);
-		MCol.row(0)  = Eigen::RowVector3d(228.0,  26.0,  28.0) / 255.0;
-	 	MCol.row(1)  = Eigen::RowVector3d(77.0, 225.0, 74.0) / 255.0;
+		MCol.row(0)  = Eigen::RowVector3d(221.0/255.0, 4.0/255.0, 38.0/255.0);
+	 	MCol.row(1)  = Eigen::RowVector3d(29.0/255.0, 51.0/255.0, 84.0/255.0);
 	 	//MCol.row(2)  = Eigen::RowVector3d( 77.0, 175.0,  74.0) / 255.0;
 		MCol.row(2) = Eigen::RowVector3d(55.0, 126.0, 184.0) / 255.0; 
 	 	MCol.row(3)  = Eigen::RowVector3d(152.0,  78.0, 163.0) / 255.0;

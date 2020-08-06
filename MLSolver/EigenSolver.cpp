@@ -1236,6 +1236,10 @@ namespace MuLES
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SparseSolver;
 		SparseSolver.compute(S);
 		dist = SparseSolver.solve(rhs);
+		double minVal = dist.minCoeff();
+		Eigen::VectorXd minValVec(dist.rows());
+		minValVec.setConstant(minVal);
+		dist = dist - minValVec;
 		std::cout << dist.head(10).transpose() << std::endl;
 
 		//dist = diff;
