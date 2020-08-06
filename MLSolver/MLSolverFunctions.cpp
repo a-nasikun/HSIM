@@ -3268,11 +3268,11 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 	switch (hierarchyMode) {
 	case 0:
 		//setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);	break;
-		setSamplingLevelFixedNum(sampSize, numEigs, levelRatio);		break;
+		setSamplingLevelFixedNum(sampSize, numEigs, levelRatio, false);		break;
 	case 1:
-		setSamplingLevelsAuto(sampSize, numEigs, levelRatio);			break;
+		setSamplingLevelsAuto(sampSize, numEigs, levelRatio, false);			break;
 	case 2:
-		setSamplingLevelsSameRate(sampSize, numEigs, levelRatio);		break;
+		setSamplingLevelsSameRate(sampSize, numEigs, levelRatio, false);		break;
 	default:
 		break;
 	}

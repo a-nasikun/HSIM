@@ -39,9 +39,9 @@ namespace MuLES
 
 		/* Construction of the subspace and/or hierarchy */
 		void setSamplingLevelsConstantRate(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
-		void setSamplingLevelsAuto(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
-		void setSamplingLevelsSameRate(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
-		void setSamplingLevelFixedNum(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
+		void setSamplingLevelsAuto(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0, bool isFixedLowBound=true);
+		void setSamplingLevelsSameRate(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0, bool isFixedLowBound = true);
+		void setSamplingLevelFixedNum(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0, bool isFixedLowBound = true);
 		void constructSampleHierarchy(const Eigen::VectorXi& samples);	// Constructing multi-level samples
 		void virtual constructBasis(double support, int axis = 0, double offset = 0.0);											// Constructing multi-level basis
 		void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0);

@@ -151,7 +151,7 @@ namespace MuLES
 			sampSize(ii) = sampleLevels[ii];
 	}
 
-	void MLEigenSolver::setSamplingLevelsAuto(Eigen::VectorXi& sampSize, int numEigen, double levelRatio)
+	void MLEigenSolver::setSamplingLevelsAuto(Eigen::VectorXi& sampSize, int numEigen, double levelRatio, bool isFixedLowBound)
 	{
 		if (numEigen > V.rows()) {
 			std::cout << "Error! The number of sought eigenvalues should not exceed the number of degree of freedom of the geometry.\n";
@@ -165,8 +165,12 @@ namespace MuLES
 		}
 
 		const double EXP_RAT = levelRatio;
+		int lowBound;
+		if		(isFixedLowBound)	{ lowBound = 1000; }
+		else						{ lowBound = 2 * numEigen; }
+
 		int numVert = V.rows();
-		int dimSubSpace = max(2*numEigen, 1000);
+		int dimSubSpace = max(2*numEigen, lowBound);
 		double ratInit = (double)numVert / (double)dimSubSpace;
 		double ratio = log(ratInit)/log(EXP_RAT);
 		//std::cout << "The ratio of vert to subspace is " << ratInit << " yielding " << ratio << " ratio setup \n";
@@ -203,7 +207,7 @@ namespace MuLES
 		}
 	}
 
-	void MLEigenSolver::setSamplingLevelsSameRate(Eigen::VectorXi& sampSize, int numEigen, double levelRatio)
+	void MLEigenSolver::setSamplingLevelsSameRate(Eigen::VectorXi& sampSize, int numEigen, double levelRatio, bool isFixedLowBound)
 	{
 		if (numEigen > V.rows()) {
 			std::cout << "Error! The number of sought eigenvalues should not exceed the number of degree of freedom of the geometry.\n";
@@ -217,8 +221,11 @@ namespace MuLES
 		}
 
 		const double EXP_RAT = levelRatio;
+		int lowBound;
+		if (isFixedLowBound) { lowBound = 1000; }
+		else { lowBound = 2 * numEigen; }
 		int numVert = V.rows();
-		int dimSubSpace = max(2 * numEigen, 1000);
+		int dimSubSpace = max(2 * numEigen, lowBound);
 		double ratInit = (double)numVert / (double)dimSubSpace;
 		double ratio = log(ratInit) / log(EXP_RAT);
 		//std::cout << "The ratio of vert to subspace is " << ratInit << " yielding " << ratio << " ratio setup \n";
@@ -245,17 +252,17 @@ namespace MuLES
 		}
 	}
 
-	void MLEigenSolver::setSamplingLevelFixedNum(Eigen::VectorXi& sampSize, int numEigen, double levelRatio)
+	void MLEigenSolver::setSamplingLevelFixedNum(Eigen::VectorXi& sampSize, int numEigen, double levelRatio, bool isFixedLowBound)
 	{
 		int numLevelDif = 0;
-		if (V.rows() > 100000) {
-			numLevelDif = 2;
-		}
-		else {
-			numLevelDif = 1;
-		}
+		if (V.rows() > 100000) { numLevelDif = 2;}
+		else {					 numLevelDif = 1;}
 
-		int dimSubSpace = max(2 * numEigen, 1000);
+		int lowBound;
+		if (isFixedLowBound) { lowBound = 1000; }
+		else { lowBound = 2 * numEigen; }
+
+		int dimSubSpace = max(2 * numEigen, lowBound);
 		double ratio = (double)V.rows() / dimSubSpace;
 		ratio = log(ratio) / log(levelRatio);
 
@@ -940,19 +947,23 @@ namespace MuLES
 	{
 		Eigen::VectorXi VS, FS, VT, FT;
 		Eigen::MatrixXd IsoV, IsoE;
+		bool isUsingHeat = true;
 		//VS.resize(1);
 		//VS << sourceID;
-		//VT.setLinSpaced(V.rows(), 0, V.rows() - 1);
-		Eigen::VectorXd dist; // 
-		dist.resize(V.rows());
-		dist.setConstant(std::numeric_limits<double>::max());
-
-		//std::cout << "Computing geodesic distance to vertex " << sourceID << "..." << std::endl;
-		//igl::exact_geodesic(V, F, VS, FS, VT, FT, d);
-
-
-		ComputeDijkstra(V, Sample(sourceID), AdM, dist);
-		//GeodesicFromHeat(V, F, S, M, Sample(sourceID), dist);
+		//
+		Eigen::VectorXd dist; 
+		if (!isUsingHeat) {
+			dist.resize(V.rows());
+			dist.setConstant(std::numeric_limits<double>::max());
+			ComputeDijkstra(V, Sample(sourceID), AdM, dist);
+		}
+		else {
+			//GeodesicFromHeat(V, F, S, M, Sample(sourceID), dist);
+			VS.resize(1);
+			VS << Sample(sourceID);
+			VT.setLinSpaced(V.rows(), 0, V.rows() - 1);
+			igl::exact_geodesic(V, F, VS, FS, VT, FT, dist);
+		}
 
 		Eigen::MatrixXd FCol(F.rows(), F.cols());
 		FCol.setConstant(0.93333333);		
