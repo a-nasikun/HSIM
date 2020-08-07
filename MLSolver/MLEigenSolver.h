@@ -126,8 +126,9 @@ namespace MuLES
 		void cusparseCSRMMtest();
 		void cusparseSpMMtest();
 		void cusparseDcsrm2(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
-		//void cusolverSP(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
-		//void cuSolverCholTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
+		void cusolverSP(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
+		void cuSolverCholTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
+		void cuLinearSolverTest();
 
 
 	protected:

@@ -77,6 +77,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		//eigenSolver->cusparseCSRMMtest();
 		//eigenSolver->cusparseSpMMtest();
 		//eigenSolver->cuSolverCholTest(eigenSolver->getStiffnessMatrix(), eigenSolver->getEigenVectorsRef(), VColor);
+	
+		
+		eigenSolver->cuLinearSolverTest();
 	}
 
 	// Main Algorithm

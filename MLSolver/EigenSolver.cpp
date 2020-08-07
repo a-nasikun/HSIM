@@ -353,6 +353,8 @@ namespace MuLES
 		std::cout << "S1 benchmark=" << S1bm.topLeftCorner(10, 10) << std::endl;
 		printf("S1:%dx%d | S1bm: %dx%d \n", S1.rows(), S1.cols(), S1bm.rows(), S1bm.cols());
 
+		return 0;
+
 	}
 
 	//void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
