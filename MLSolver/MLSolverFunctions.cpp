@@ -3449,6 +3449,7 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 		M01 = U[i].transpose()*Mred[i]*EigVectsHtilde;
 		M10 = EigVectsHtilde.transpose()*Mred[i]*U[i];
 		M11 = EigVectsHtilde.transpose()*Mred[i]*EigVectsHtilde;
+		printf("MH: %dx%d | Uh: %dx%d | Ph:%dx%d \n", Mred[i+1].rows(), Mred[i+1].cols(), EigVectsHtilde.rows(), EigVectsHtilde.cols(), U[i].rows(), U[i].cols());
 
 		S00 = Sred[i+1];
 		S01 = U[i].transpose()*Sred[i] * EigVectsHtilde;
@@ -3457,16 +3458,25 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 
 		Eigen::MatrixXd SHh(S00.rows()+S10.rows(), S00.cols()+S01.cols()), 
 						MHh(M00.rows()+M10.rows(), M00.cols()+M01.cols());
-		MHh.topLeftCorner(M00.rows(), M00.cols())		= M00;
+		MHh.topLeftCorner(M00.rows(), M00.cols())		= M00.toDense();
 		MHh.bottomLeftCorner(M10.rows(), M10.cols())	= M10;
 		MHh.topRightCorner(M01.rows(), M01.cols())		= M01;
 		MHh.bottomRightCorner(M11.rows(), M11.cols())	= M11;
-		SHh.topLeftCorner(S00.rows(), S00.cols())		= S00;
+		SHh.topLeftCorner(S00.rows(), S00.cols())		= S00.toDense();
 		SHh.bottomLeftCorner(S10.rows(), S10.cols())	= S10;
 		SHh.topRightCorner(S01.rows(), S01.cols())		= S01;
 		SHh.bottomRightCorner(S11.rows(), S11.cols())	= S11;
 
-		computeEigenGPUDense(SHh, MHh, EigVectsHbar, EigValsHbar);		
+		printf("SHh:%dx%d (S00:%dx%d | S01:%dx%d | S11:%dx%d) \n", SHh.rows(), SHh.cols(), S00.rows(), S00.cols(), S01.rows(), S01.cols(), S11.rows(), S11.cols());
+		std::cout << SHh.topLeftCorner(10, 10) << std::endl;
+		std::cout << S00.topLeftCorner(10, 10) << std::endl;
+		Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(SHh);
+		int rank = lu_decomp.rank();
+		printf("Matrix rank: %d | size: %dx%d \n", rank, SHh.rows(), SHh.cols());			
+
+		//computeEigenGPUDense(SHh, MHh, EigVectsHbar, EigValsHbar);
+		computeEigenMatlabDense(SHh, MHh, numEigs, EigVectsHbar, EigValsHbar, "");
+		std::cout  << "Matlab solver \n" << EigValsHbar.transpose() << std::endl;
 		EigVectsHbar.conservativeResize(Eigen::NoChange, numEigs);
 		EigVectsHbar = EigVectsHtilde * EigVectsHbar;
 		EigValsHbar.conservativeResize(numEigs);
