@@ -44,6 +44,7 @@ static double		eigScale		= 1.005;
 static double		levelRatio		= 10.0;
 static double		numOfSupport	= 7.5;
 static int			hierarchyMode	= 1;						// 0: fixed num level, 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
+static double		sphereScaleRatio= 0.05;
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
@@ -424,7 +425,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		/* VISUALIZATION WINDOW */
 		if (ImGui::CollapsingHeader("Visualization##MLEigSolver1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			/* For Sampling */
-			static double nEps = 0.005;
+			// 0.005 for sphere
+			static double nEps = 0.0005;
 			if (ImGui::Button("Show Samples##1", ImVec2((w), 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1) {
 					cout << "Error! Make sure you compute new samples before viewing them." << endl;
@@ -433,10 +435,15 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				boolShowSamples = !boolShowSamples;
 				if (boolShowSamples) {
-					visualizeSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps);
+					visualizeSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps, sphereScaleRatio);
 				}
 				else {
 					viewer.data().points.resize(0, 6);
+					int numMeshes = viewer.data_list.size();
+					for (int i = numMeshes-1; i >= 1; --i) {
+						//printf("Delete mesh %d from %d \n", i, viewer.data_list.size());
+						viewer.erase_mesh(i);
+					}
 				}
 				viewer.data().point_size = 10.0f;
 			}
@@ -685,13 +692,19 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		if (ImGui::Button("Bolder", ImVec2((w-p) / 2.f, 0))) {
 			viewer.data().line_width *= 2.0f;
 		}
-
+		
+		static double nEps = 0.0005;
 		if (ImGui::Button("Smaller", ImVec2((w - p) / 2.f, 0))) {
 			viewer.data().point_size *= 1.0/1.5f;
+			sphereScaleRatio /= 2.5;
+			scaleSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps, sphereScaleRatio);
 		}
 		ImGui::SameLine(0, p);
+
 		if (ImGui::Button("Larger", ImVec2((w - p) / 2.f, 0))) {
 			viewer.data().point_size *= 1.5f;
+			sphereScaleRatio *= 2.5;
+			scaleSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps, sphereScaleRatio);
 		}
 
 		ImGui::Separator(); 

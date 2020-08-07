@@ -18,7 +18,7 @@ void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V
 	}
 }
 
-void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize, double nEps)
+void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize, double nEps, double scaleRatio)
 {
 	Eigen::MatrixXd MCol;
 	const int totLevel = sampleSize.size();
@@ -27,7 +27,8 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 
 	Eigen::Vector3d maxVal;
 	maxVal << viewer.data().V.col(0).maxCoeff() - viewer.data().V.col(0).minCoeff(), viewer.data().V.col(1).maxCoeff() - viewer.data().V.col(1).minCoeff(), viewer.data().V.col(2).maxCoeff() - viewer.data().V.col(2).minCoeff();
-	double pointSphereScale = 0.0125 * maxVal.maxCoeff();
+	double pointSphereScale = scaleRatio * maxVal.maxCoeff(); 
+	//0.0125 for sphere
 	string sphereModelFile = "../Models/small_sphere/small_sphere.obj";
 
 	if (totLevel < 12) 
@@ -94,18 +95,14 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 		std::cout << "Level" << k << std::endl;
 		for (int i = sampleSize[k]; i < sampleSize[k-1]; i++)
 		{
-			printf("i=%d |", i);
 			viewer.load_mesh_from_file(sphereModelFile);
-			printf("meshID=%d (/%d) |", i+1, viewer.data_list.size());
 			MuLES::scaleMesh(viewer.data_list[i+1].V, viewer.data_list[i+1].F, pointSphereScale);
 			Eigen::MatrixXd transVect(viewer.data_list[i+1].V.rows(), 3);
 			for (int j = 0; j<viewer.data_list[i+1].V.rows(); ++j)
 				transVect.row(j) = viewer.data_list[0].V.row(Sample(i)) + nEps*viewer.data_list[0].V_normals.row(Sample(i));
-			printf("transVect: %dx%d|", transVect.rows(), transVect.cols());
 			viewer.data_list[i+1].V = viewer.data_list[i+1].V + transVect;
 			viewer.data_list[i+1].set_colors(sphereCol2);
 			viewer.data_list[i+1].show_lines = false;
-			std::cout << "setting done! \n";
 			//viewer.data().add_points(V.row(Sample(i)) + nEps*viewer.data().V_normals.row(Sample(i)), MCol.row(totLevel - k));
 		}
 		std::cout << "Num of mesh: " << viewer.data_list.size() << std::endl;
@@ -113,6 +110,41 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	viewer.selected_data_index = 0;
 	viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
 
+}
+
+void scaleSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize, double nEps, double scaleRatio)
+{
+	std::cout << "Scaling the points\n";
+	Eigen::Vector3d maxVal;
+	maxVal << viewer.data().V.col(0).maxCoeff() - viewer.data().V.col(0).minCoeff(), viewer.data().V.col(1).maxCoeff() - viewer.data().V.col(1).minCoeff(), viewer.data().V.col(2).maxCoeff() - viewer.data().V.col(2).minCoeff();
+
+	double pointSphereScale = scaleRatio * maxVal.maxCoeff();
+	for (int i = 0; i < viewer.data_list.size()-1; ++i) {
+		if (i == 0) {
+			cout << "Prior scaling: " << viewer.data_list[i + 1].V.maxCoeff() << std::endl;
+			cout << viewer.data_list[i + 1].V.row(0) << std::endl;
+		}
+		Eigen::MatrixXd transVect(viewer.data_list[i + 1].V.rows(), 3);
+		for (int j = 0; j<viewer.data_list[i + 1].V.rows(); ++j)
+			transVect.row(j) = viewer.data_list[0].V.row(Sample(i)) + nEps*viewer.data_list[0].V_normals.row(Sample(i));
+
+		viewer.data_list[i + 1].V = viewer.data_list[i + 1].V - transVect;
+		if (i == 0) {
+			cout << "Prior scaling: " << viewer.data_list[i + 1].V.maxCoeff() << std::endl;
+			cout << viewer.data_list[i + 1].V.row(0) << std::endl;
+		}
+		MuLES::scaleMesh(viewer.data_list[i + 1].V, viewer.data_list[i + 1].F, pointSphereScale);
+		if (i == 0) {
+			cout << "After scaling: " << viewer.data_list[i + 1].V.maxCoeff() << std::endl;
+			cout << viewer.data_list[i + 1].V.row(0) << std::endl;
+		}
+		viewer.data_list[i + 1].V = viewer.data_list[i + 1].V + transVect;
+		if (i == 0) {
+			cout << "After scaling: " << viewer.data_list[i + 1].V.maxCoeff() << std::endl;
+			printf("ID %d of %d\n", i, viewer.data_list.size());
+			cout << viewer.data_list[i + 1].V.row(0) << std::endl;
+		}
+	}
 }
 
 void visualizeSample_1(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps)

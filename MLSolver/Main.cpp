@@ -27,8 +27,9 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Chinese_dragon_quad_PGP_small_wavelength/894_dragon_tris.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Dragon/dragon.obj";
 	//meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
-	meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere10k.off";
-	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Kitten-watertight/366_kitten_final.obj";
+	//meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere40k.off";
+	//meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_43243.obj";
+	meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Kitten-watertight/366_kitten_final.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/blade_smooth/blade_smooth.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Fertility/Fertility.obj";

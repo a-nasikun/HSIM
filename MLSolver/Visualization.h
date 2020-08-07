@@ -7,7 +7,8 @@
 
 /* Visualize the samples */
 void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, double nEps = 0.001);
-void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps=0.001);
+void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps=0.001, double scaleRatio = 0.005);
+void scaleSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps=0.001, double scaleRatio = 0.005);
 void visualizeSample_1(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps=0.001);
 void visualizeSample_2(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps = 0.001);
 void visualizeSample_3(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const std::vector<int> &sampleSize, double nEps = 0.001);
