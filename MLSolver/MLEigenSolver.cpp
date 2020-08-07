@@ -15,6 +15,7 @@
 #include <cusparse_v2.h>
 #include <cusolverSp.h>
 #include <cusolver_common.h> 
+#include "cusolverSp_LOWLEVEL_PREVIEW.h"
 namespace MuLES
 {
 	
@@ -2016,21 +2017,22 @@ namespace MuLES
 		return norminf;
 	}
 
-	void MLEigenSolver::cuLinearSolverTest()
+	void MLEigenSolver::cuLinearSolverTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X)
 	{
-		//Matrix constructrions
-		int matSize = 100;
-		Eigen::SparseMatrix<double> MM(matSize, matSize);
-		Eigen::VectorXd b(matSize), x(matSize);
-		Eigen::MatrixXd X;
-		b.setConstant(1.0);
-
-		std::vector<Eigen::Triplet<double>> MTriplet;
-		MTriplet.reserve(3 * matSize);
-		for (int i = 0; i < matSize; ++i) {
-			MTriplet.push_back(Eigen::Triplet<double>(i, i, 5.0));
-		}
-		MM.setFromTriplets(MTriplet.begin(), MTriplet.end());
+		////Matrix constructrions
+		//int matSize = 100;
+		//Eigen::SparseMatrix<double> MM(matSize, matSize);
+		//Eigen::VectorXd b(matSize), x(matSize);
+		//Eigen::MatrixXd X(matSize,1);
+		//b.setConstant(50.0);
+		//std::cout <<"b=\n " << b.head(10).transpose() << std::endl;
+		//
+		//std::vector<Eigen::Triplet<double>> MTriplet;
+		//MTriplet.reserve(3 * matSize);
+		//for (int i = 0; i < matSize; ++i) {
+		//	MTriplet.push_back(Eigen::Triplet<double>(i, i, 10.0));
+		//}
+		//MM.setFromTriplets(MTriplet.begin(), MTriplet.end());
 
 		// ======================== GPU : BEGIN ======================
 		cusolverSpHandle_t handle = NULL;
@@ -2038,9 +2040,9 @@ namespace MuLES
 		cudaStream_t stream = NULL;
 		cusparseMatDescr_t descrA = NULL;
 
-		int rowsA = MM.rows(); /* number of rows of A */
-		int colsA = MM.cols(); /* number of columns of A */
-		int nnzA = MM.nonZeros(); /* number of nonzeros of A */
+		int rowsA = SM.rows(); /* number of rows of A */
+		int colsA = SM.cols(); /* number of columns of A */
+		int nnzA = SM.nonZeros(); /* number of nonzeros of A */
 		int baseA = 0; /* base index in CSR format */
 
 		/* CSR(A) from I/O */
@@ -2050,9 +2052,9 @@ namespace MuLES
 		h_csrRowPtrA	= (int*)malloc((rowsA+1)* sizeof(int)); // host memory for a
 		h_csrColIndA	= (int*)malloc(nnzA * sizeof(int));
 		h_csrValA		= (double*)malloc(nnzA*sizeof(double));	
-		h_csrValA = MM.valuePtr();
-		h_csrRowPtrA = MM.outerIndexPtr();
-		h_csrColIndA = MM.innerIndexPtr();
+		h_csrValA		= SM.valuePtr();
+		h_csrRowPtrA	= SM.outerIndexPtr();
+		h_csrColIndA	= SM.innerIndexPtr();
 
 
 		double* h_z = NULL; /* z = B \ (Q*b) */
@@ -2060,6 +2062,8 @@ namespace MuLES
 		double* h_b = NULL; /* b = ones(n,1) */
 		double* h_Qb = NULL; /* Q*b */
 		double* h_r = NULL; /* r = b - A*x */
+		//h_b = (double*)malloc(rowsA*sizeof(double));
+		//h_b = B.col(0).data();
 
 		int* h_Q = NULL; /* <int> n */
 						 /* reorder to reduce zero fill-in */
@@ -2128,6 +2132,7 @@ namespace MuLES
 		h_b = (double*)malloc(sizeof(double) * rowsA);
 		h_Qb = (double*)malloc(sizeof(double) * rowsA);
 		h_r = (double*)malloc(sizeof(double) * rowsA);
+		h_b = B.col(0).data();
 
 		h_Q = (int*)malloc(sizeof(int) * colsA);
 		h_csrRowPtrB = (int*)malloc(sizeof(int) * (rowsA + 1));
@@ -2210,11 +2215,11 @@ namespace MuLES
 			h_csrValB[j] = h_csrValA[h_mapBfromA[j]];
 		}
 
-		printf("step 3: b(j) = 1 + j/n \n");
-		for (int row = 0; row < rowsA; row++)
-		{
-			h_b[row] = 1.0 + ((double)row) / ((double)rowsA);
-		}
+		//printf("step 3: b(j) = 1 + j/n \n");
+		//for (int row = 0; row < rowsA; row++)
+		//{
+		//	h_b[row] = 1.0 + ((double)row) / ((double)rowsA);
+		//}
 
 		/* h_Qb = b(Q) */
 		for (int row = 0; row < rowsA; row++) {
@@ -2250,6 +2255,13 @@ namespace MuLES
 		void* buffer = NULL;
 		cudaMalloc(&buffer, bufferSize);
 
+		cusparseSpMV(cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
+			        &one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &buffer);			
+		cudaMemcpyAsync(h_r, d_r, sizeof(double)*rowsA, cudaMemcpyDeviceToHost, stream);
+		/* wait until h_r is ready */
+		cudaDeviceSynchronize();
+			
+
 		printf("step 7: solve A*x = b on GPU\n");
 		
 		cusolverSpDcsrlsvchol(
@@ -2278,8 +2290,11 @@ namespace MuLES
 		x_inf = vec_norminf(colsA, h_x);
 		r_inf = vec_norminf(rowsA, h_r);
 
-		x.resize(MM.rows());
-		x = Eigen::Map<Eigen::VectorXd>(h_x, MM.rows());
+		Eigen::VectorXd X1;
+		X1.resize(SM.rows());
+		X1 = Eigen::Map<Eigen::VectorXd>(h_x, SM.rows());
+		X.resize(SM.rows(), 1);
+		X.col(0) = X1;
 
 		// only cholesky and qr have GPU version
 		printf("(GPU) |b - A*x| = %E \n", r_inf);
@@ -2292,9 +2307,9 @@ namespace MuLES
 		cudaDeviceSynchronize();
 		// ======================== GPU : END ======================
 
-		std::cout << "MM" << MM.topLeftCorner(10, 10) << std::endl;
-		std::cout << "b" << b.head(10).transpose() << std::endl;
-		std::cout << "x" << x << std::endl;
+		//std::cout << "MM" << MM.topLeftCorner(10, 10) << std::endl;
+		//std::cout << "b" << b.head(10).transpose() << std::endl;
+		//std::cout << "x" << x << std::endl;
 
 		std::cout << "Cleaning up \n";
 	
@@ -2338,5 +2353,215 @@ namespace MuLES
 		if (d_r) { cudaFree(d_r); }
 
 		std::cout << "Return to main function \n";
+	}
+
+	void MLEigenSolver::cusparseLinearSolverLLTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X)
+	{
+		////Matrix constructrions
+		//int matSize = 100;
+		//Eigen::SparseMatrix<double> SM(matSize, matSize);
+		//Eigen::VectorXd b(matSize), x(matSize);
+		////Eigen::MatrixXd X(matSize,1);
+		//b.setConstant(50.0);
+		//std::cout <<"b=\n " << b.head(10).transpose() << std::endl;
+		//
+		//std::vector<Eigen::Triplet<double>> MTriplet;
+		//MTriplet.reserve(3 * matSize);
+		//for (int i = 0; i < matSize; ++i) {
+		//	MTriplet.push_back(Eigen::Triplet<double>(i, i, 10.0));
+		//}
+		//SM.setFromTriplets(MTriplet.begin(), MTriplet.end());
+
+		// GPU implementation
+		cusolverSpHandle_t cusolverSpH = NULL; // reordering, permutation and 1st LU factorization
+		cusparseHandle_t   cusparseH = NULL;   // residual evaluation
+		cudaStream_t stream = NULL;
+		cusparseMatDescr_t descrA = NULL; // A is a base-0 general matrix
+		csrcholInfo_t d_info = NULL; // opaque info structure for LU with parital pivoting
+
+		int rowsA = SM.rows(); // number of rows of A
+		int colsA = SM.cols(); // number of columns of A
+		int nnzA = SM.nonZeros(); // number of nonzeros of A
+		int baseA = 0; // base index in CSR format
+
+		int* h_csrRowPtrA = NULL; // <int> n+1 
+		int* h_csrColIndA = NULL; // <int> nnzA 
+		double* h_csrValA = NULL; // <double> nnzA 		
+		h_csrRowPtrA = (int*)malloc((rowsA + 1) * sizeof(int)); // host memory for a
+		h_csrColIndA = (int*)malloc(nnzA * sizeof(int));
+		h_csrValA = (double*)malloc(nnzA * sizeof(double));
+		h_csrValA = SM.valuePtr();
+		h_csrRowPtrA = SM.outerIndexPtr();
+		h_csrColIndA = SM.innerIndexPtr();
+
+		double* h_x = NULL; // <double> n,  x = A \ b
+		double* h_b = NULL; // <double> n, b = ones(m,1)
+		double* h_r = NULL; // <double> n, r = b - A*x
+
+		size_t size_internal = 0;
+		size_t size_chol = 0; // size of working space for csrlu
+		void* buffer_cpu = NULL; // working space for Cholesky
+		void* buffer_gpu = NULL; // working space for Cholesky
+
+		int* d_csrRowPtrA = NULL; // <int> n+1
+		int* d_csrColIndA = NULL; // <int> nnzA
+		double* d_csrValA = NULL; // <double> nnzA
+		double* d_x = NULL; // <double> n, x = A \ b 
+		double* d_b = NULL; // <double> n, a copy of h_b
+		double* d_r = NULL; // <double> n, r = b - A*x
+
+		// the constants used in residual evaluation, r = b - A*x
+		const double minus_one = -1.0;
+		const double one = 1.0;
+		// the constant used in cusolverSp
+		// singularity is -1 if A is invertible under tol
+		// tol determines the condition of singularity
+		int singularity = 0;
+		const double tol = 1.e-14;
+
+		double x_inf = 0.0; // |x|
+		double r_inf = 0.0; // |r|
+		double A_inf = 0.0; // |A|
+		int errors = 0;
+
+		cusolverSpCreate(&cusolverSpH);
+		cusparseCreate(&cusparseH);
+		cudaStreamCreate(&stream);
+		cusolverSpSetStream(cusolverSpH, stream);
+		cusparseSetStream(cusparseH, stream);
+		cusparseCreateMatDescr(&descrA);
+		cusparseSetMatType(descrA, CUSPARSE_MATRIX_TYPE_GENERAL);
+
+		cusparseSetMatIndexBase(descrA, CUSPARSE_INDEX_BASE_ZERO);
+
+		h_x = (double*)malloc(sizeof(double) * colsA);
+		h_b = (double*)malloc(sizeof(double) * rowsA);
+		h_r = (double*)malloc(sizeof(double) * rowsA);
+		h_b = B.col(0).data();
+
+		assert(NULL != h_x);
+		assert(NULL != h_b);
+		assert(NULL != h_r);
+
+		cudaMalloc((void**)&d_csrRowPtrA, sizeof(int) * (rowsA + 1));
+		cudaMalloc((void**)&d_csrColIndA, sizeof(int) * nnzA);
+		cudaMalloc((void**)&d_csrValA, sizeof(double) * nnzA);
+		cudaMalloc((void**)&d_x, sizeof(double) * colsA);
+		cudaMalloc((void**)&d_b, sizeof(double) * rowsA);
+		cudaMalloc((void**)&d_r, sizeof(double) * rowsA);
+
+		cusparseSpMatDescr_t matA = NULL;
+		cusparseCreateCsr(
+			&matA, rowsA, colsA, nnzA, d_csrRowPtrA, d_csrColIndA, d_csrValA, CUSPARSE_INDEX_32I,
+			CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+
+		cusparseDnVecDescr_t vecx = NULL;
+		cusparseCreateDnVec(&vecx, colsA, d_x, CUDA_R_64F);
+		cusparseDnVecDescr_t vecAx = NULL;
+		cusparseCreateDnVec(&vecAx, rowsA, d_r, CUDA_R_64F);
+
+		/* Allocate workspace for cuSPARSE */
+		size_t bufferSize = 0;
+		cusparseSpMV_bufferSize(
+			cusparseH, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
+			&one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &bufferSize);
+		void* buffer = NULL;
+		cudaMalloc(&buffer, bufferSize);
+
+		printf("step 9: create opaque info structure\n");
+		cusolverSpCreateCsrcholInfo(&d_info);
+
+		cudaMemcpy(d_csrRowPtrA, h_csrRowPtrA, sizeof(int) * (rowsA + 1), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_csrColIndA, h_csrColIndA, sizeof(int) * nnzA, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_csrValA, h_csrValA, sizeof(double) * nnzA, cudaMemcpyHostToDevice);
+		cudaMemcpy(d_b, h_b, sizeof(double) * rowsA, cudaMemcpyHostToDevice);
+
+		printf("step 10: analyze chol(A) to know structure of L\n");
+		cusolverSpXcsrcholAnalysis(
+			cusolverSpH, rowsA, nnzA,
+			descrA, d_csrRowPtrA, d_csrColIndA,
+			d_info);
+
+		printf("step 11: workspace for chol(A)\n");
+		cusolverSpDcsrcholBufferInfo(
+			cusolverSpH, rowsA, nnzA,
+			descrA, d_csrValA, d_csrRowPtrA, d_csrColIndA,
+			d_info,
+			&size_internal,
+			&size_chol);
+
+		if (buffer_gpu) {
+			cudaFree(buffer_gpu);
+		}
+		cudaMalloc(&buffer_gpu, sizeof(char) * size_chol);
+
+		printf("step 12: compute A = L*L^T \n");
+		cusolverSpDcsrcholFactor(
+			cusolverSpH, rowsA, nnzA,
+			descrA, d_csrValA, d_csrRowPtrA, d_csrColIndA,
+			d_info,
+			buffer_gpu);
+
+		printf("step 13: check if the matrix is singular \n");
+		cusolverSpDcsrcholZeroPivot(
+			cusolverSpH, d_info, tol, &singularity);
+
+		if (0 <= singularity) {
+			fprintf(stderr, "Error: A is not invertible, singularity=%d\n", singularity);
+			return;
+		}
+
+		printf("step 14: solve A*x = b \n");
+		cusolverSpDcsrcholSolve(
+			cusolverSpH, rowsA, d_b, d_x, d_info, buffer_gpu);
+
+		cudaMemcpy(d_r, h_b, sizeof(double) * rowsA, cudaMemcpyHostToDevice);
+		cudaMemcpyAsync(h_x, d_x, sizeof(double) * colsA, cudaMemcpyDeviceToHost, stream);
+
+		cusparseSpMV(
+			cusparseH, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
+			&one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &buffer);
+
+		cudaMemcpy(h_r, d_r, sizeof(double) * rowsA, cudaMemcpyDeviceToHost);
+
+		r_inf = vec_norminf(rowsA, h_r);
+
+		printf("(GPU) |b - A*x| = %E \n", r_inf);
+		//printf("(GPU) |b - A*x|/(|A|*|x|) = %E \n", r_inf / (A_inf * x_inf));
+
+		Eigen::VectorXd X1;
+		X1.resize(SM.rows());
+		X1 = Eigen::Map<Eigen::VectorXd>(h_x, SM.rows());
+		X.resize(SM.rows(), 1);
+		X.col(0) = X1;
+		std::cout << "X1 \n" << X1.head(10).transpose() << std::endl;
+
+		// Cleaning up
+		if (cusolverSpH) { cusolverSpDestroy(cusolverSpH); }
+		if (cusparseH  ) { cusparseDestroy(cusparseH); }
+		if (stream     ) { cudaStreamDestroy(stream); }
+		if (descrA     ) { cusparseDestroyMatDescr(descrA); }
+		if (d_info     ) { cusolverSpDestroyCsrcholInfo(d_info); }
+		if (matA       ) { cusparseDestroySpMat(matA); }
+		if (vecx       ) { cusparseDestroyDnVec(vecx); }
+		if (vecAx      ) { cusparseDestroyDnVec(vecAx); }
+
+		//if (h_csrValA   ) { free(h_csrValA); }
+		//if (h_csrRowPtrA) { free(h_csrRowPtrA); }
+		//if (h_csrColIndA) { free(h_csrColIndA); }
+		//
+		//if (h_x   ) { free(h_x); }
+		//if (h_b   ) { free(h_b); }
+		//if (h_r   ) { free(h_r); }
+
+		if (buffer_cpu) { free(buffer_cpu); }
+		if (buffer_gpu) { cudaFree(buffer_gpu); }
+
+		if (d_csrValA   ) { cudaFree(d_csrValA); }
+		if (d_csrRowPtrA) { cudaFree(d_csrRowPtrA); }
+		if (d_csrColIndA) { cudaFree(d_csrColIndA); }
+		if (d_x) { cudaFree(d_x); }
+		if (d_b) { cudaFree(d_b); }
+		if (d_r) { cudaFree(d_r); }
 	}
 }

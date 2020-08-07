@@ -73,15 +73,63 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 	if (ImGui::Button("Test GEMM", ImVec2((w - p) / 2.f, 0))) {
 		eigenSolver->cublasGEMMtest();
 	}
+	ImGui::SameLine();
 	if (ImGui::Button("Test SpMM", ImVec2((w - p) / 2.f, 0))) {
+		chrono::high_resolution_clock::time_point	t1, t2;
+		chrono::duration<double>					duration;
+
 		//eigenSolver->cusparseCSRMMtest();
 		//eigenSolver->cusparseSpMMtest();
 		//eigenSolver->cuSolverCholTest(eigenSolver->getStiffnessMatrix(), eigenSolver->getEigenVectorsRef(), VColor);
 	
+		Eigen::MatrixXd RHS(eigenSolver->getStiffnessMatrix().rows(), 1), X;
+		RHS.setOnes();
+		RHS = eigenSolver->getMassMatrix() * RHS;
+		eigenSolver->cusparseLinearSolverLLTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
+		std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
+		std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "in " << duration.count() << " seconds" << endl;
 		
-		eigenSolver->cuLinearSolverTest();
 	}
 
+	if (ImGui::Button("Compare solvers\n", ImVec2(w, 0))) {
+		chrono::high_resolution_clock::time_point	t1, t2;
+		chrono::duration<double>					duration;
+
+		Eigen::MatrixXd RHS(eigenSolver->getStiffnessMatrix().rows(), 1), X;
+		RHS.setOnes();
+		RHS = eigenSolver->getMassMatrix() * RHS;
+
+		// GPU
+		std::cout << "GPU Impleentation" << std::endl;
+		t1 = chrono::high_resolution_clock::now();
+
+		eigenSolver->cuLinearSolverTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
+		std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
+		std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "in " << duration.count() << " seconds" << endl;
+
+		// CPU
+		std::cout << "CPU Impleentation" << std::endl;
+		t1 = chrono::high_resolution_clock::now();
+
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> linSolver;
+		linSolver.compute(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())));
+		X.col(0)=linSolver.solve(RHS.col(0));
+		
+		std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
+		std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "in " << duration.count() << " seconds" << endl;
+	}
 	// Main Algorithm
 	if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::Button("Load##Mesh1", ImVec2((w) / 2.f, 0))) {

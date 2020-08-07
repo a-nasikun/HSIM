@@ -1,5 +1,5 @@
-#ifndef ML_EIGEN_SOLVER
-#define ML_EIGEN_SOLVER
+#ifndef ML_EIGEN_SOLVER_H
+#define ML_EIGEN_SOLVER_H
 
 //#include "Basis.h"
 #include "Utility.h"
@@ -128,7 +128,8 @@ namespace MuLES
 		void cusparseDcsrm2(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 		void cusolverSP(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 		void cuSolverCholTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
-		void cuLinearSolverTest();
+		void cuLinearSolverTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
+		void cusparseLinearSolverLLTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 
 
 	protected:
@@ -194,5 +195,5 @@ namespace MuLES
 	};
 }
 
-#endif // !ML_EIGEN_SOLVER
+#endif // !ML_EIGEN_SOLVER_H
 
