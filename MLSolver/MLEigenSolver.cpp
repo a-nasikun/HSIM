@@ -2168,16 +2168,16 @@ namespace MuLES
 		cusolverSpXcsrissymHost(
 			handle, rowsA, nnzA, descrA, h_csrRowPtrA, h_csrRowPtrA + 1, h_csrColIndA, &issym);
 		
+		
 		if (!issym)	{
 			printf("Error: A has no symmetric pattern, please use LU or QR \n");
 		}
 
 		printf("step 2: reorder the matrix A to minimize zero fill-in\n");
 		printf("        if the user choose a reordering by -P=symrcm, -P=symamd or -P=metis\n");
-		cusolverSpXcsrsymamdHost(
-			handle, rowsA, nnzA,
-			descrA, h_csrRowPtrA, h_csrColIndA,
-			h_Q);
+		//cusolverSpXcsrsymamdHost(handle, rowsA, nnzA,descrA, h_csrRowPtrA, h_csrColIndA,h_Q);
+		//cusolverSpXcsrsymrcmHost(handle, rowsA, nnzA,descrA, h_csrRowPtrA, h_csrColIndA,h_Q);
+		cusolverSpXcsrmetisndHost(handle, rowsA, nnzA,descrA, h_csrRowPtrA, h_csrColIndA,NULL, /* default setting. */			h_Q);
 
 		printf("step 2.2: B = A(Q,Q) \n");
 
@@ -2274,21 +2274,21 @@ namespace MuLES
 		cusparseDsctr(cusparseHandle, rowsA, d_z, d_Q, d_x, CUSPARSE_INDEX_BASE_ZERO);
 		cudaDeviceSynchronize();
 
-		printf("step 8: evaluate residual r = b - A*x (result on GPU)\n");
-		cudaMemcpyAsync(d_r, d_b, sizeof(double) * rowsA, cudaMemcpyDeviceToDevice, stream);
-
-		cusparseSpMV(
-			cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
-			&one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &buffer);
+		///printf("step 8: evaluate residual r = b - A*x (result on GPU)\n");
+		///cudaMemcpyAsync(d_r, d_b, sizeof(double) * rowsA, cudaMemcpyDeviceToDevice, stream);
+		///
+		///cusparseSpMV(
+		///	cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
+		///	&one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &buffer);
 
 		cudaMemcpyAsync(h_x, d_x, sizeof(double) * colsA, cudaMemcpyDeviceToHost, stream);
-		cudaMemcpyAsync(h_r, d_r, sizeof(double) * rowsA, cudaMemcpyDeviceToHost, stream);
+		///cudaMemcpyAsync(h_r, d_r, sizeof(double) * rowsA, cudaMemcpyDeviceToHost, stream);
 		/* wait until h_x and h_r are ready */
-		cudaDeviceSynchronize();
+		///cudaDeviceSynchronize();
 
-		b_inf = vec_norminf(rowsA, h_b);
-		x_inf = vec_norminf(colsA, h_x);
-		r_inf = vec_norminf(rowsA, h_r);
+		///b_inf = vec_norminf(rowsA, h_b);
+		///x_inf = vec_norminf(colsA, h_x);
+		///r_inf = vec_norminf(rowsA, h_r);
 
 		Eigen::VectorXd X1;
 		X1.resize(SM.rows());
@@ -2297,14 +2297,14 @@ namespace MuLES
 		X.col(0) = X1;
 
 		// only cholesky and qr have GPU version
-		printf("(GPU) |b - A*x| = %E \n", r_inf);
-		printf("(GPU) |A| = %E \n", A_inf);
-		printf("(GPU) |x| = %E \n", x_inf);
-		printf("(GPU) |b| = %E \n", b_inf);
-		printf("(GPU) |b - A*x|/(|A|*|x| + |b|) = %E \n", r_inf / (A_inf * x_inf + b_inf));
+		///printf("(GPU) |b - A*x| = %E \n", r_inf);
+		///printf("(GPU) |A| = %E \n", A_inf);
+		///printf("(GPU) |x| = %E \n", x_inf);
+		///printf("(GPU) |b| = %E \n", b_inf);
+		///printf("(GPU) |b - A*x|/(|A|*|x| + |b|) = %E \n", r_inf / (A_inf * x_inf + b_inf));
 
 
-		cudaDeviceSynchronize();
+		///cudaDeviceSynchronize();
 		// ======================== GPU : END ======================
 
 		//std::cout << "MM" << MM.topLeftCorner(10, 10) << std::endl;
@@ -2357,6 +2357,14 @@ namespace MuLES
 
 	void MLEigenSolver::cusparseLinearSolverLLTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X)
 	{
+		chrono::high_resolution_clock::time_point	t0, t1, t2;
+		chrono::duration<double>					duration;
+
+
+		std::cout << "[1] Set-up GPU system \n";
+		t0 = chrono::high_resolution_clock::now();
+		t1 = t0;
+
 		////Matrix constructrions
 		//int matSize = 100;
 		//Eigen::SparseMatrix<double> SM(matSize, matSize);
@@ -2434,6 +2442,14 @@ namespace MuLES
 
 		cusparseSetMatIndexBase(descrA, CUSPARSE_INDEX_BASE_ZERO);
 
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
+
+
+		std::cout << "[2] Allocating memory \n";
+		t1 = chrono::high_resolution_clock::now();
+
 		h_x = (double*)malloc(sizeof(double) * colsA);
 		h_b = (double*)malloc(sizeof(double) * rowsA);
 		h_r = (double*)malloc(sizeof(double) * rowsA);
@@ -2468,6 +2484,13 @@ namespace MuLES
 		void* buffer = NULL;
 		cudaMalloc(&buffer, bufferSize);
 
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
+
+		std::cout << "[3] Copying data to GPU \n";
+		t1 = chrono::high_resolution_clock::now();
+
 		printf("step 9: create opaque info structure\n");
 		cusolverSpCreateCsrcholInfo(&d_info);
 
@@ -2476,11 +2499,26 @@ namespace MuLES
 		cudaMemcpy(d_csrValA, h_csrValA, sizeof(double) * nnzA, cudaMemcpyHostToDevice);
 		cudaMemcpy(d_b, h_b, sizeof(double) * rowsA, cudaMemcpyHostToDevice);
 
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
+
+		std::cout << "[2] Analysing the structure of matrix \n";
+		t1 = chrono::high_resolution_clock::now();
+
 		printf("step 10: analyze chol(A) to know structure of L\n");
 		cusolverSpXcsrcholAnalysis(
 			cusolverSpH, rowsA, nnzA,
 			descrA, d_csrRowPtrA, d_csrColIndA,
 			d_info);
+
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
+
+		std::cout << "[2] Allocating workspace for program \n";
+		t1 = chrono::high_resolution_clock::now();
 
 		printf("step 11: workspace for chol(A)\n");
 		cusolverSpDcsrcholBufferInfo(
@@ -2495,6 +2533,12 @@ namespace MuLES
 		}
 		cudaMalloc(&buffer_gpu, sizeof(char) * size_chol);
 
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
+
+		
+		t1 = chrono::high_resolution_clock::now();
 		printf("step 12: compute A = L*L^T \n");
 		cusolverSpDcsrcholFactor(
 			cusolverSpH, rowsA, nnzA,
@@ -2508,27 +2552,45 @@ namespace MuLES
 
 		if (0 <= singularity) {
 			fprintf(stderr, "Error: A is not invertible, singularity=%d\n", singularity);
-			return;
+			//return;
 		}
 
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
+
+
+		t1 = chrono::high_resolution_clock::now();
 		printf("step 14: solve A*x = b \n");
 		cusolverSpDcsrcholSolve(
 			cusolverSpH, rowsA, d_b, d_x, d_info, buffer_gpu);
 
-		cudaMemcpy(d_r, h_b, sizeof(double) * rowsA, cudaMemcpyHostToDevice);
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
+
+		std::cout << "[2] Copy to CPU memory \n";
+		t1 = chrono::high_resolution_clock::now();
 		cudaMemcpyAsync(h_x, d_x, sizeof(double) * colsA, cudaMemcpyDeviceToHost, stream);
+		//cudaMemcpy(d_r, h_b, sizeof(double) * rowsA, cudaMemcpyHostToDevice);
+		//
+		//cusparseSpMV(
+		//	cusparseH, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
+		//	&one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &buffer);
+		//
+		//cudaMemcpy(h_r, d_r, sizeof(double) * rowsA, cudaMemcpyDeviceToHost);
 
-		cusparseSpMV(
-			cusparseH, CUSPARSE_OPERATION_NON_TRANSPOSE, &minus_one, matA, vecx,
-			&one, vecAx, CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &buffer);
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
 
-		cudaMemcpy(h_r, d_r, sizeof(double) * rowsA, cudaMemcpyDeviceToHost);
+		//r_inf = vec_norminf(rowsA, h_r);
 
-		r_inf = vec_norminf(rowsA, h_r);
-
-		printf("(GPU) |b - A*x| = %E \n", r_inf);
+		//printf("(GPU) |b - A*x| = %E \n", r_inf);
 		//printf("(GPU) |b - A*x|/(|A|*|x|) = %E \n", r_inf / (A_inf * x_inf));
 
+		std::cout << "[2] Map to Eigen \n";
+		t1 = chrono::high_resolution_clock::now();
 		Eigen::VectorXd X1;
 		X1.resize(SM.rows());
 		X1 = Eigen::Map<Eigen::VectorXd>(h_x, SM.rows());
@@ -2536,6 +2598,12 @@ namespace MuLES
 		X.col(0) = X1;
 		std::cout << "X1 \n" << X1.head(10).transpose() << std::endl;
 
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
+
+		std::cout << "[2] Cleaning up \n";
+		t1 = chrono::high_resolution_clock::now();
 		// Cleaning up
 		if (cusolverSpH) { cusolverSpDestroy(cusolverSpH); }
 		if (cusparseH  ) { cusparseDestroy(cusparseH); }
@@ -2563,5 +2631,9 @@ namespace MuLES
 		if (d_x) { cudaFree(d_x); }
 		if (d_b) { cudaFree(d_b); }
 		if (d_r) { cudaFree(d_r); }
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "    in " << duration.count() << " seconds." << std::endl;
 	}
 }

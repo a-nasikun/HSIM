@@ -123,8 +123,8 @@ namespace MuLES
 		const double getEigenValueSIM(int id) const;
 
 		void cublasGEMMtest();
-		void cusparseCSRMMtest();
-		void cusparseSpMMtest();
+		void cusparseCSRMMtest();		// old GPU (cuda 8.1?)
+		void cusparseSpMMtest();		// modern GPU (CUDA 11.0)
 		void cusparseDcsrm2(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 		void cusolverSP(const Eigen::SparseMatrix<double> SM, const Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 		void cuSolverCholTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);

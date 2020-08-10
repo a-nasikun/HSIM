@@ -79,19 +79,19 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		chrono::duration<double>					duration;
 
 		//eigenSolver->cusparseCSRMMtest();
-		//eigenSolver->cusparseSpMMtest();
+		eigenSolver->cusparseSpMMtest();
 		//eigenSolver->cuSolverCholTest(eigenSolver->getStiffnessMatrix(), eigenSolver->getEigenVectorsRef(), VColor);
 	
-		Eigen::MatrixXd RHS(eigenSolver->getStiffnessMatrix().rows(), 1), X;
-		RHS.setOnes();
-		RHS = eigenSolver->getMassMatrix() * RHS;
-		eigenSolver->cusparseLinearSolverLLTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
-		std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
-		std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
-
-		t2 = chrono::high_resolution_clock::now();
-		duration = t2 - t1;
-		std::cout << "in " << duration.count() << " seconds" << endl;
+		//Eigen::MatrixXd RHS(eigenSolver->getStiffnessMatrix().rows(), 1), X;
+		//RHS.setOnes();
+		//RHS = eigenSolver->getMassMatrix() * RHS;
+		//eigenSolver->cusparseLinearSolverLLTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
+		//std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
+		//std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
+		//
+		//t2 = chrono::high_resolution_clock::now();
+		//duration = t2 - t1;
+		//std::cout << "in " << duration.count() << " seconds" << endl;
 		
 	}
 
@@ -107,9 +107,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		std::cout << "GPU Impleentation" << std::endl;
 		t1 = chrono::high_resolution_clock::now();
 
-		eigenSolver->cuLinearSolverTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
+		//eigenSolver->cuLinearSolverTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
+		eigenSolver->cusparseLinearSolverLLTest(eigenSolver->getStiffnessMatrix() - ((1e-10) * (eigenSolver->getMassMatrix())), RHS, X);
 		std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
-		std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
+		if(X.col(0).rows()>0) std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
 
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
@@ -120,6 +121,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		t1 = chrono::high_resolution_clock::now();
 
 		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> linSolver;
+		X.resize(RHS.rows(), RHS.cols());
 		linSolver.compute(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())));
 		X.col(0)=linSolver.solve(RHS.col(0));
 		
@@ -1599,8 +1601,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
 			//std::vector<double>		tolVect{ 5e-2, 1e-2, 1e-3, 1e-4, 1e-5 };
 			//std::vector<double>		tolVect{1e-3, 5.0e-2, 1e-1 };
-			std::vector<double>		tolVect{1e-2 };
-			vector<int>				wantedModes{ 50, 250, 1000, 2500};
+			std::vector<double>		tolVect{5e-2 };
+			vector<int>				wantedModes{25,  50, 250, 1000, 2500};
 			//vector<int>				wantedModes{ 50 };
 			//vector<int>				wantedModes{ 100, 150, 250 };
 			//eigToCompute = atoi(numEig);
@@ -1621,15 +1623,16 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
 					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, numIterUsed, 1, 20000, tolVect[i]);
 					
-					Eigen::VectorXd conv2;
-					eigenSolver->checkConvergenceCat2(EigVects, EigVals, wantedModes[j], eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(),  conv2);
-					std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
-					//tol /= 10000;
-
+					
 					t1 = chrono::high_resolution_clock::now();
 					duration = t1 - t0;
 					cout << "\n in " << duration.count() << " seconds." << endl;
 					timing(0) = duration.count();
+					
+					Eigen::VectorXd conv2;
+					eigenSolver->checkConvergenceCat2(EigVects, EigVals, wantedModes[j], eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(),  conv2);
+					std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
+					//tol /= 10000;
 
 					Eigen::VectorXd numIterVect(1);
 					numIterVect(0) = numIterUsed;
