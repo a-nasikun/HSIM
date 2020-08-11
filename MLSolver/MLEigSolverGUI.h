@@ -95,6 +95,12 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		
 	}
 
+	if (ImGui::Button("Projection\n", ImVec2(w, 0))) {
+		Eigen::SparseMatrix<double> MU;
+		printf("Basis:%dx%d (%d nnz) \n", eigenSolver->getBasisMatrix().rows(), eigenSolver->getBasisMatrix().cols(), eigenSolver->getBasisMatrix().nonZeros());
+		eigenSolver->cuSparseProjection(eigenSolver->getBasisMatrix(), eigenSolver->getMassMatrix(), MU);
+	}
+
 	if (ImGui::Button("Compare solvers\n", ImVec2(w, 0))) {
 		chrono::high_resolution_clock::time_point	t1, t2;
 		chrono::duration<double>					duration;

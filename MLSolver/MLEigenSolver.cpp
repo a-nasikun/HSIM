@@ -2643,13 +2643,17 @@ namespace MuLES
 		cusparseStatus_t			cuSpStat = cusparseStatus_t::CUSPARSE_STATUS_SUCCESS;
 		cusparseOperation_t			NoTrans = cusparseOperation_t::CUSPARSE_OPERATION_NON_TRANSPOSE;
 		cudaError					cudaStat = cudaError::cudaSuccess;
+		cusparseHandle_t			cuSpHandle;
 		
+		std::cout << "Getting the basis matrix \n";
 		Eigen::SparseMatrix<double> U, UT;
 		U = Basis;
 		UT = Basis.transpose();
 		U.makeCompressed();
 		UT.makeCompressed();
+		Mat.makeCompressed();
 
+		std::cout << "Setup matrix dimensions/size \n";
 		/* Variable on size */
 		int m_U = U.rows();
 		int n_U = U.cols();
@@ -2660,15 +2664,23 @@ namespace MuLES
 		int m_Mat = Mat.rows();
 		int n_Mat = Mat.cols();
 		int nnz_Mat = Mat.nonZeros();
+		int m_MU = Mat.rows();
+		int n_MU = U.cols();
+		int nnz_MU = 40 * m_MU;
+		int m_UTMU = n_MU;
+		int n_UTMU = n_MU;
+		int nnz_UTMU = 70 * n_MU;
 
 		double alpha = 1.0;
 		double beta = 0.0;
 
+		std::cout << "Allocating memory in GPU \n";
 		cusparseSpMatDescr_t matUT;
 		cusparseSpMatDescr_t matU;
 		cusparseSpMatDescr_t matM;
 		cusparseSpMatDescr_t matMU;
 		cusparseSpMatDescr_t matUTMU;
+		cusparseCreate(&cuSpHandle);
 
 		double* d_csrVal_U; cudaMalloc(&d_csrVal_U, nnz_U * sizeof(double));
 		int* d_csrRowPtr_U; cudaMalloc(&d_csrRowPtr_U, (m_U + 1) * sizeof(int));
@@ -2682,67 +2694,144 @@ namespace MuLES
 		int* d_csrRowPtr_Mat; cudaMalloc(&d_csrRowPtr_Mat, (m_Mat + 1) * sizeof(int));
 		int* d_csrColInd_Mat; cudaMalloc(&d_csrColInd_Mat, nnz_Mat * sizeof(int));
 
-		cudaStat = cudaMemcpy(d_csrVal_U, U.valuePtr(), nnz_U * sizeof(double), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_csrRowPtr_U, U.outerIndexPtr(), (m_U + 1) * sizeof(int), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_csrColInd_U, U.innerIndexPtr(), nnz_U * sizeof(int), cudaMemcpyHostToDevice);
+		//double* d_csrVal_MU; cudaMalloc(&d_csrVal_MU,nnz_MU * sizeof(double));
+		//int* d_csrRowPtr_MU; cudaMalloc(&d_csrRowPtr_MU, (m_MU + 1) * sizeof(int));
+		//int* d_csrColInd_MU; cudaMalloc(&d_csrColInd_MU, nnz_MU * sizeof(int));
 
-		cudaStat = cudaMemcpy(d_csrVal_UT, UT.valuePtr(), nnz_UT * sizeof(double), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_csrRowPtr_UT, UT.outerIndexPtr(), (m_UT + 1) * sizeof(int), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_csrColInd_UT, UT.innerIndexPtr(), nnz_UT * sizeof(int), cudaMemcpyHostToDevice);
+		double* d_csrVal_UTMU; cudaMalloc(&d_csrVal_UTMU, nnz_UTMU * sizeof(double));
+		int* d_csrRowPtr_UTMU; cudaMalloc(&d_csrRowPtr_UTMU, (m_UTMU + 1) * sizeof(int));
+		int* d_csrColInd_UTMU; cudaMalloc(&d_csrColInd_UTMU, nnz_UTMU * sizeof(int));
 
-		cudaStat = cudaMemcpy(d_csrVal_Mat, Mat.valuePtr(), nnz_Mat * sizeof(double), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_csrRowPtr_Mat, Mat.outerIndexPtr(), (m_Mat + 1) * sizeof(int), cudaMemcpyHostToDevice);
-		cudaStat = cudaMemcpy(d_csrColInd_Mat, Mat.innerIndexPtr(), nnz_Mat * sizeof(int), cudaMemcpyHostToDevice);
+		std::cout << "Copying data to GPU \n";
 
-		cuSpStat = cusparseCreateCsr(&matUT, m_UT, n_UT, nnz_UT, d_csrRowPtr_UT, d_csrColInd_UT, d_csrVal_UT, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
-		cuSpStat = cusparseCreateCsr(&matU, m_U, n_U, nnz_U, d_csrRowPtr_U, d_csrColInd_U, d_csrVal_U, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
-		cuSpStat = cusparseCreateCsr(&matM, m_Mat, n_Mat, nnz_Mat, d_csrRowPtr_Mat, d_csrColInd_Mat, d_csrVal_Mat, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+		cudaStat = cudaMemcpy(d_csrVal_U, U.valuePtr(), nnz_U * sizeof(double), cudaMemcpyHostToDevice);				std::cout << cudaStat << "|";
+		cudaStat = cudaMemcpy(d_csrRowPtr_U, U.outerIndexPtr(), (m_U + 1) * sizeof(int), cudaMemcpyHostToDevice);		std::cout << cudaStat << "|";
+		cudaStat = cudaMemcpy(d_csrColInd_U, U.innerIndexPtr(), nnz_U * sizeof(int), cudaMemcpyHostToDevice);			std::cout << cudaStat << "\n";
+
+		cudaStat = cudaMemcpy(d_csrVal_UT, UT.valuePtr(), nnz_UT * sizeof(double), cudaMemcpyHostToDevice);				std::cout << cudaStat << "|";
+		cudaStat = cudaMemcpy(d_csrRowPtr_UT, UT.outerIndexPtr(), (m_UT + 1) * sizeof(int), cudaMemcpyHostToDevice);	std::cout << cudaStat << "|";
+		cudaStat = cudaMemcpy(d_csrColInd_UT, UT.innerIndexPtr(), nnz_UT * sizeof(int), cudaMemcpyHostToDevice);		std::cout << cudaStat << "\n";
+
+		cudaStat = cudaMemcpy(d_csrVal_Mat, Mat.valuePtr(), nnz_Mat * sizeof(double), cudaMemcpyHostToDevice);			std::cout << cudaStat << "|";
+		cudaStat = cudaMemcpy(d_csrRowPtr_Mat, Mat.outerIndexPtr(), (m_Mat + 1) * sizeof(int), cudaMemcpyHostToDevice);	std::cout << cudaStat << "|";
+		cudaStat = cudaMemcpy(d_csrColInd_Mat, Mat.innerIndexPtr(), nnz_Mat * sizeof(int), cudaMemcpyHostToDevice);		std::cout << cudaStat << "\n";
+
+		std::cout << "Copying matrix MU where MU = M*U \n";
+		Eigen::SparseMatrix<double> Id(Basis.rows(), Basis.cols());
+		Id.setZero();
+		Id.makeCompressed();
+		int nnz_ID = Id.nonZeros();
+		printf("ID=%dx%d (%d nnzs)\n", Id.rows(), Id.cols(), Id.nonZeros());
+		std::cout << "Allocate values arrays: ";	double* d_csrVal_MU; cudaStat = cudaMalloc(&d_csrVal_MU, nnz_ID * sizeof(double));				std::cout << cudaStat;
+		std::cout << "| row arrays: ";				int* d_csrRowPtr_MU; cudaStat = cudaMalloc(&d_csrRowPtr_MU, (Id.rows() + 1) * sizeof(int));		std::cout << cudaStat;
+		std::cout << "| columns arrays: ";			int* d_csrColInd_MU; cudaStat = cudaMalloc(&d_csrColInd_MU, nnz_ID * sizeof(int));				std::cout << cudaStat << std::endl;
 
 
-		cusparseStatus_t CUSPARSEAPI cusparseSpGEMM_workEstimation(cusparseHandle_t      handle,
-				cusparseOperation_t   opA,
-				cusparseOperation_t   opB,
-				const void* alpha,
-				cusparseSpMatDescr_t  matA,
-				cusparseSpMatDescr_t  matB,
-				const void* beta,
-				cusparseSpMatDescr_t  matC,
-				cudaDataType          computeType,
-				cusparseSpGEMMAlg_t   alg,
-				cusparseSpGEMMDescr_t spgemmDescr,
-				size_t * bufferSize1,
-				void* externalBuffer1);
+		cudaStat = cudaMemcpy(d_csrVal_MU, Id.valuePtr(), nnz_ID * sizeof(double), cudaMemcpyHostToDevice);					std::cout << "Copying values to GPU : " << cudaStat;
+		cudaStat = cudaMemcpy(d_csrRowPtr_MU, Id.outerIndexPtr(), (Basis.rows() + 1) * sizeof(int), cudaMemcpyHostToDevice);		std::cout << "| row arrays: " << cudaStat;
+		cudaStat = cudaMemcpy(d_csrColInd_MU, Id.innerIndexPtr(), nnz_ID * sizeof(int), cudaMemcpyHostToDevice);			std::cout << "| columns arrays: " << cudaStat << std::endl;
 
-		cusparseStatus_t CUSPARSEAPI
-			cusparseSpGEMM_compute(cusparseHandle_t      handle,
-				cusparseOperation_t   opA,
-				cusparseOperation_t   opB,
-				const void* alpha,
-				cusparseSpMatDescr_t  matA,
-				cusparseSpMatDescr_t  matB,
-				const void* beta,
-				cusparseSpMatDescr_t  matC,
-				cudaDataType          computeType,
-				cusparseSpGEMMAlg_t   alg,
-				cusparseSpGEMMDescr_t spgemmDescr,
-				void* externalBuffer1,
-				size_t * bufferSize2,
-				void* externalBuffer2);
+		std::cout << "Creating matrices in GPU \n";
+		cuSpStat = cusparseCreateCsr(&matUT, m_UT, n_UT, nnz_UT, d_csrRowPtr_UT, d_csrColInd_UT, d_csrVal_UT, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);				std::cout << "Creating matrix on GPU (UT)"<< cuSpStat << "|";
+		cuSpStat = cusparseCreateCsr(&matU, m_U, n_U, nnz_U, d_csrRowPtr_U, d_csrColInd_U, d_csrVal_U, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);						std::cout << "(U)" << cuSpStat << "|";
+		cuSpStat = cusparseCreateCsr(&matM, m_Mat, n_Mat, nnz_Mat, d_csrRowPtr_Mat, d_csrColInd_Mat, d_csrVal_Mat, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);			std::cout << "(M)" << cuSpStat << "|";
+		cuSpStat = cusparseCreateCsr(&matMU, m_MU, n_MU, nnz_MU, d_csrRowPtr_MU, d_csrColInd_MU, d_csrVal_MU, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);				std::cout << "(MU)" << cuSpStat << "|";
+		cuSpStat = cusparseCreateCsr(&matUTMU, m_UTMU, n_UTMU, nnz_UTMU, d_csrRowPtr_UTMU, d_csrColInd_UTMU, d_csrVal_UTMU, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);	std::cout << "(UTMU)" << cuSpStat << "|\n";
 
-		cusparseStatus_t CUSPARSEAPI
-			cusparseSpGEMM_copy(cusparseHandle_t      handle,
-				cusparseOperation_t   opA,
-				cusparseOperation_t   opB,
-				const void* alpha,
-				cusparseSpMatDescr_t  matA,
-				cusparseSpMatDescr_t  matB,
-				const void* beta,
-				cusparseSpMatDescr_t  matC,
-				cudaDataType          computeType,
-				cusparseSpGEMMAlg_t   alg,
-				cusparseSpGEMMDescr_t spgemmDescr,
-				void* externalBuffer2);
+		void* dBuffer1 = NULL, * dBuffer2 = NULL;
+		size_t bufferSize1 = 0, bufferSize2 = 0;
 
-		cuSpStat = cusparseSpGEMM_destroyDescr(spGEMMDesc);
+		cuSpStat = cusparseSpGEMM_createDescr(&spGEMMDesc);
+
+		std::cout << "Preparing matrix multiplication \n";
+		cusparseSpGEMM_workEstimation(cuSpHandle, NoTrans, NoTrans, &alpha, matM, matU, &beta, matMU, CUDA_R_64F, cusparseSpGEMMAlg_t::CUSPARSE_SPGEMM_DEFAULT, spGEMMDesc, &bufferSize1, NULL);
+		cudaMalloc((void**)&dBuffer1, bufferSize1);
+		cusparseSpGEMM_workEstimation(cuSpHandle, NoTrans, NoTrans, &alpha, matM, matU, &beta, matMU, CUDA_R_64F, cusparseSpGEMMAlg_t::CUSPARSE_SPGEMM_DEFAULT, spGEMMDesc, &bufferSize1, dBuffer1);
+		std::cout << "buffer size 1: " << bufferSize1 << std::endl;
+
+		std::cout << "Multiplying \n";
+		cusparseSpGEMM_compute(cuSpHandle, NoTrans, NoTrans, &alpha, matM, matU, &beta, matMU, CUDA_R_64F, cusparseSpGEMMAlg_t::CUSPARSE_SPGEMM_DEFAULT, spGEMMDesc, &bufferSize2, NULL);
+		cudaMalloc((void**)&dBuffer2, bufferSize2);
+		cusparseSpGEMM_compute(cuSpHandle, NoTrans, NoTrans, &alpha, matM, matU, &beta, matMU, CUDA_R_64F, cusparseSpGEMMAlg_t::CUSPARSE_SPGEMM_DEFAULT, spGEMMDesc, &bufferSize2, dBuffer2);
+		std::cout << "buffer size 2: " << bufferSize2 << std::endl;
+
+		int64_t d_m_MU, d_n_MU, d_nnz_MU;
+		cusparseSpMatGetSize(matMU, &d_m_MU, &d_n_MU, &d_nnz_MU);
+		cudaMalloc((void**)&d_csrColInd_MU, d_nnz_MU * sizeof(int));
+		cudaMalloc((void**)&d_csrVal_MU, d_nnz_MU * sizeof(double));
+		printf("MU:%dx%d <%d nonzeros> \n", d_m_MU, d_n_MU, d_nnz_MU);
+
+		std::cout << "Copying data from GPU to CPU \n";
+		cusparseCsrSetPointers(matMU, d_csrRowPtr_MU, d_csrColInd_MU, d_csrVal_MU);
+
+		//cusparseSpGEMM_copy(cuSpHandle, NoTrans, NoTrans, &alpha, matM, matU, &beta, matMU, CUDA_R_64F, cusparseSpGEMMAlg_t::CUSPARSE_SPGEMM_DEFAULT, spGEMMDesc);
+		cusparseSpGEMM_copy(cuSpHandle, NoTrans, NoTrans, &alpha, matM, matU, &beta, matMU, CUDA_R_64F, cusparseSpGEMMAlg_t::CUSPARSE_SPGEMM_DEFAULT, spGEMMDesc);
+		
+		//double* h_Q = (double*)malloc(m_Q * n_Q * sizeof(double));
+		//double* h_A = (double*)malloc(n_Q * sizeof(double));
+		//cudaStat = cudaMemcpy(h_Q, d_Q, sizeof(double) * m_Q * n_Q, cudaMemcpyDeviceToHost);
+		//cudaStat = cudaMemcpy(h_A, d_A, sizeof(double) * m_MDnSym, cudaMemcpyDeviceToHost);
+		//
+		//EigVects.resize(m_Q, n_Q);
+		//EigVals.resize(n_Q);
+		//EigVects = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(h_Q, m_Q, n_Q, Eigen::OuterStride<>(m_Q));
+		//EigVals = Eigen::Map<Eigen::VectorXd>(h_A, n_Q);
+
+		std::cout << "Settign up Eigen sparse matrix \n";
+		MatRed.resize(M.rows(), U.cols());
+		cudaStat = cudaMemcpy(MatRed.valuePtr(), d_csrVal_MU, nnz_MU * sizeof(double), cudaMemcpyDeviceToHost);
+		cudaStat = cudaMemcpy(MatRed.outerIndexPtr(), d_csrRowPtr_Mat, (m_MU + 1) * sizeof(int), cudaMemcpyDeviceToHost);
+		cudaStat = cudaMemcpy(MatRed.innerIndexPtr(), d_csrColInd_Mat, nnz_MU * sizeof(int), cudaMemcpyDeviceToHost);
+		std::cout << "CUDA: MU=\n" << MatRed.topLeftCorner(10, 10) << std::endl;
+
+		/* CPU-based Implementation */
+		Eigen::SparseMatrix<double> CPU_MU = Mat * Basis;
+		std::cout << "CPU: MU=\n" << CPU_MU.topLeftCorner(10, 10) << std::endl;
+
+		//cusparseStatus_t CUSPARSEAPI cusparseSpGEMM_workEstimation(cusparseHandle_t      handle,
+		//		cusparseOperation_t   opA,
+		//		cusparseOperation_t   opB,
+		//		const void* alpha,
+		//		cusparseSpMatDescr_t  matA,
+		//		cusparseSpMatDescr_t  matB,
+		//		const void* beta,
+		//		cusparseSpMatDescr_t  matC,
+		//		cudaDataType          computeType,
+		//		cusparseSpGEMMAlg_t   alg,
+		//		cusparseSpGEMMDescr_t spgemmDescr,
+		//		size_t * bufferSize1,
+		//		void* externalBuffer1);
+		//
+		//cusparseStatus_t CUSPARSEAPI
+		//	cusparseSpGEMM_compute(cusparseHandle_t      handle,
+		//		cusparseOperation_t   opA,
+		//		cusparseOperation_t   opB,
+		//		const void* alpha,
+		//		cusparseSpMatDescr_t  matA,
+		//		cusparseSpMatDescr_t  matB,
+		//		const void* beta,
+		//		cusparseSpMatDescr_t  matC,
+		//		cudaDataType          computeType,
+		//		cusparseSpGEMMAlg_t   alg,
+		//		cusparseSpGEMMDescr_t spgemmDescr,
+		//		void* externalBuffer1,
+		//		size_t * bufferSize2,
+		//		void* externalBuffer2);
+		//
+		//cusparseStatus_t CUSPARSEAPI
+		//	cusparseSpGEMM_copy(cusparseHandle_t      handle,
+		//		cusparseOperation_t   opA,
+		//		cusparseOperation_t   opB,
+		//		const void* alpha,
+		//		cusparseSpMatDescr_t  matA,
+		//		cusparseSpMatDescr_t  matB,
+		//		const void* beta,
+		//		cusparseSpMatDescr_t  matC,
+		//		cudaDataType          computeType,
+		//		cusparseSpGEMMAlg_t   alg,
+		//		cusparseSpGEMMDescr_t spgemmDescr,
+		//		void* externalBuffer2);
+		//
+		//cuSpStat = cusparseSpGEMM_destroyDescr(spGEMMDesc);
 	}
 }
