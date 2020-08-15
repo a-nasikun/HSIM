@@ -2764,6 +2764,7 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 {
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
 	chrono::duration<double>					duration;
+
 	
 	std::cout << "IN GPU! \n";
 	std::cout << "Variable decs \n";
@@ -2840,24 +2841,23 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	//double* d_X0; cudaMalloc(&d_X0, m_X * n_X * sizeof(double));
 	//double* d_MX; cudaMalloc(&d_MX, m_X * n_X * sizeof(double));
 
-	double* d_csrVal_MSp; cudaMalloc(&d_csrVal_MSp, nnz_MSp * sizeof(double));
-	int* d_csrRowPtr_MSp; cudaMalloc(&d_csrRowPtr_MSp, (m_MSp + 1) * sizeof(int));
-	int* d_csrColInd_MSp; cudaMalloc(&d_csrColInd_MSp, nnz_MSp * sizeof(int));
+	double* d_csrVal_MSp; cudaStat = cudaMalloc(&d_csrVal_MSp, nnz_MSp * sizeof(double));		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
+	int* d_csrRowPtr_MSp; cudaStat = cudaMalloc(&d_csrRowPtr_MSp, (m_MSp + 1) * sizeof(int));	if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
+	int* d_csrColInd_MSp; cudaStat = cudaMalloc(&d_csrColInd_MSp, nnz_MSp * sizeof(int));		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
 
-	double* d_csrVal_SSp; cudaMalloc(&d_csrVal_SSp, nnz_SSp * sizeof(double));
-	int* d_csrRowPtr_SSp; cudaMalloc(&d_csrRowPtr_SSp, (m_SSp + 1) * sizeof(int));
-	int* d_csrColInd_SSp; cudaMalloc(&d_csrColInd_SSp, nnz_SSp * sizeof(int));
+	double* d_csrVal_SSp; cudaStat = cudaMalloc(&d_csrVal_SSp, nnz_SSp * sizeof(double));		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
+	int* d_csrRowPtr_SSp; cudaStat = cudaMalloc(&d_csrRowPtr_SSp, (m_SSp + 1) * sizeof(int));	if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
+	int* d_csrColInd_SSp; cudaStat = cudaMalloc(&d_csrColInd_SSp, nnz_SSp * sizeof(int));		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
 	
 	//cudaStat = cudaMemcpy(d_X0, EigVects.data(), m_X * n_X * sizeof(double), cudaMemcpyHostToDevice);
-	cudaStat = cudaMemcpy(d_csrVal_MSp, ML.valuePtr(), nnz_MSp * sizeof(double), cudaMemcpyHostToDevice);
-	cudaStat = cudaMemcpy(d_csrRowPtr_MSp, ML.outerIndexPtr(), (m_MSp + 1) * sizeof(int), cudaMemcpyHostToDevice);
-	cudaStat = cudaMemcpy(d_csrColInd_MSp, ML.innerIndexPtr(), nnz_MSp * sizeof(int), cudaMemcpyHostToDevice);
+	cudaStat = cudaMemcpy(d_csrVal_MSp, ML.valuePtr(), nnz_MSp * sizeof(double), cudaMemcpyHostToDevice);			if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
+	cudaStat = cudaMemcpy(d_csrRowPtr_MSp, ML.outerIndexPtr(), (m_MSp + 1) * sizeof(int), cudaMemcpyHostToDevice);	if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
+	cudaStat = cudaMemcpy(d_csrColInd_MSp, ML.innerIndexPtr(), nnz_MSp * sizeof(int), cudaMemcpyHostToDevice);		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
 
-	cudaStat = cudaMemcpy(d_csrVal_SSp, SL.valuePtr(), nnz_SSp * sizeof(double), cudaMemcpyHostToDevice);
-	cudaStat = cudaMemcpy(d_csrRowPtr_SSp, SL.outerIndexPtr(), (m_SSp + 1) * sizeof(int), cudaMemcpyHostToDevice);
-	cudaStat = cudaMemcpy(d_csrColInd_SSp, SL.innerIndexPtr(), nnz_SSp * sizeof(int), cudaMemcpyHostToDevice);
-
-	
+	cudaStat = cudaMemcpy(d_csrVal_SSp, SL.valuePtr(), nnz_SSp * sizeof(double), cudaMemcpyHostToDevice);			if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
+	cudaStat = cudaMemcpy(d_csrRowPtr_SSp, SL.outerIndexPtr(), (m_SSp + 1) * sizeof(int), cudaMemcpyHostToDevice);	if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
+	cudaStat = cudaMemcpy(d_csrColInd_SSp, SL.innerIndexPtr(), nnz_SSp * sizeof(int), cudaMemcpyHostToDevice);		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
+		
 	cusparseSpMatDescr_t matMSp, matSSp;
 	//cusparseDnMatDescr_t matMX;
 	//cusparseDnMatDescr_t matX0;
@@ -2867,7 +2867,9 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	double beta = 0.0;
 	
 	cuSpStat = cusparseCreateCsr(&matMSp, m_MSp, n_MSp, nnz_MSp, d_csrRowPtr_MSp, d_csrColInd_MSp, d_csrVal_MSp, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);	
+	if (cuSpStat != cusparseStatus_t::CUSPARSE_STATUS_SUCCESS)	std::cout << "Cannot create matrix! \n";
 	cuSpStat = cusparseCreateCsr(&matSSp, m_SSp, n_SSp, nnz_SSp, d_csrRowPtr_SSp, d_csrColInd_SSp, d_csrVal_SSp, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+	if (cuSpStat != cusparseStatus_t::CUSPARSE_STATUS_SUCCESS)	std::cout << "Cannot create matrix! \n";
 
 	/* Zhao's proposal on shifting*/
 	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -2947,28 +2949,29 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	
 		/* SIM Iteration */
 		/* [1] Projection */
-		double* d_SDn; cudaMalloc(&d_SDn, m_SDn * n_SDn * sizeof(double));
-		double* d_MDn; cudaMalloc(&d_MDn, m_MDn * n_MDn * sizeof(double));
-		double* d_SDnSym; cudaMalloc(&d_SDnSym, m_SDnSym * n_SDnSym * sizeof(double));
-		double* d_MDnSym; cudaMalloc(&d_MDnSym, m_MDnSym * n_MDnSym * sizeof(double));		
+		double* d_SDn;		cudaStat=cudaMalloc(&d_SDn, m_SDn * n_SDn * sizeof(double));				if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";	
+		double* d_MDn;		cudaStat=cudaMalloc(&d_MDn, m_MDn * n_MDn * sizeof(double));				if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
+		double* d_SDnSym;	cudaStat=cudaMalloc(&d_SDnSym, m_SDnSym * n_SDnSym * sizeof(double));		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
+		double* d_MDnSym;	cudaStat=cudaMalloc(&d_MDnSym, m_MDnSym * n_MDnSym * sizeof(double));		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
 		
 		cusparseDnMatDescr_t matSDn, matMDn;
 		cusparseDnMatDescr_t matXbar;
 		void* dBufferS = NULL, * dBufferM = NULL;
 		size_t bufferSizeS = 0, bufferSizeM = 0;
 
-		double* d_Xbar; cudaMalloc(&d_Xbar, m_X * n_X * sizeof(double));
-		cudaStat = cudaMemcpy(d_Xbar, XbarK.data(), m_X * n_X * sizeof(double), cudaMemcpyHostToDevice);
+		double* d_Xbar; 
+		cudaStat = cudaMalloc(&d_Xbar, m_X * n_X * sizeof(double));												if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
+		cudaStat = cudaMemcpy(d_Xbar, XbarK.data(), m_X * n_X * sizeof(double), cudaMemcpyHostToDevice);		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
 	
-		cuSpStat = cusparseCreateDnMat(&matSDn, m_SDn, n_SDn, m_SDn, d_SDn, CUDA_R_64F, CUSPARSE_ORDER_COL);
-		cuSpStat = cusparseCreateDnMat(&matMDn, m_MDn, n_MDn, m_MDn, d_MDn, CUDA_R_64F, CUSPARSE_ORDER_COL);
-		cuSpStat = cusparseCreateDnMat(&matXbar, m_X, n_X, m_X, d_Xbar, CUDA_R_64F, CUSPARSE_ORDER_COL);
+		cuSpStat = cusparseCreateDnMat(&matSDn, m_SDn, n_SDn, m_SDn, d_SDn, CUDA_R_64F, CUSPARSE_ORDER_COL);	if (cuSpStat != cusparseStatus_t::CUSPARSE_STATUS_SUCCESS)	std::cout << "Cannot create matrix! \n";
+		cuSpStat = cusparseCreateDnMat(&matMDn, m_MDn, n_MDn, m_MDn, d_MDn, CUDA_R_64F, CUSPARSE_ORDER_COL);	if (cuSpStat != cusparseStatus_t::CUSPARSE_STATUS_SUCCESS)	std::cout << "Cannot create matrix! \n";
+		cuSpStat = cusparseCreateDnMat(&matXbar, m_X, n_X, m_X, d_Xbar, CUDA_R_64F, CUSPARSE_ORDER_COL);		if (cuSpStat != cusparseStatus_t::CUSPARSE_STATUS_SUCCESS)	std::cout << "Cannot create matrix! \n";
 	
 		// S1 = S*X and M1=M*S
 		cuSpStat = cusparseSpMM_bufferSize(cuSpHandle, opNoTrans, opNoTrans, &alpha, matSSp, matXbar, &beta, matSDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, &bufferSizeS);
-		cudaMalloc((void**)&dBufferS, bufferSizeS);
+		cudaStat = cudaMalloc((void**)&dBufferS, bufferSizeS);
 		cuSpStat = cusparseSpMM_bufferSize(cuSpHandle, opNoTrans, opNoTrans, &alpha, matMSp, matXbar, &beta, matMDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, &bufferSizeM);
-		cudaMalloc((void**)&dBufferM, bufferSizeM);
+		cudaStat = cudaMalloc((void**)&dBufferM, bufferSizeM);
 	
 		cuSpStat = cusparseSpMM(cuSpHandle, opNoTrans, opNoTrans, &alpha, matSSp, matXbar, &beta, matSDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferS);
 		cuSpStat = cusparseSpMM(cuSpHandle, opNoTrans, opNoTrans, &alpha, matMSp, matXbar, &beta, matMDn, CUDA_R_64F, CUSPARSE_MM_ALG_DEFAULT, dBufferM);
@@ -3015,14 +3018,25 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	
 		/* [5] Convergence check */
 		checkConvergenceCat2(EigVects, EigVals, numEigs, ML, MLinv, SL, conv2);
+		std::cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
 		
+		if (k == 0) {
+			EigValsSIMStack.col(iterCount) = EigVals.head(numEigs);
+			convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+		}
+
 		iterCount++;
-	
+		if (numEigs > 750)
+			if (iterCount >= 2)
+				isMultipleSolve = false;
+		
+
 		/* Ignore the first iteration */
 		if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
 			isConverged = true;
-		}			
-	
+		}
+
+
 		/* Check convergence */
 		for (int i = lastConvergedId; i < numEigs; ++i) {
 			if (conv2(i) < tol) {
@@ -3030,9 +3044,13 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			}
 			else break;
 		}
-	
+
 		if ((iterCount < maxIter) && (lastConvergedId < (numEigs - 1)))
 			isConverged = false;
+		std::cout << "_____ [" << iterCount << "] Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId);
+		std::cout << " (next=" << conv2(lastConvergedId + 1) << ")" << std::endl;
+
+		itersPerLevel(k) = iterCount;
 	
 		cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
 
@@ -3051,6 +3069,11 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		if (h_Q)					free(h_Q);
 
 	} while (!isConverged);
+
+	if (k == 0) {
+		EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
+		convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
+	}
 
 	if (d_csrVal_MSp)					cudaFree(d_csrVal_MSp);
 	if (d_csrRowPtr_MSp)				cudaFree(d_csrRowPtr_MSp);

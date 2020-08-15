@@ -2726,7 +2726,6 @@ namespace MuLES
 		std::cout << "| row arrays: ";				int* d_csrRowPtr_MU; cudaStat = cudaMalloc(&d_csrRowPtr_MU, (Id.rows() + 1) * sizeof(int));		std::cout << cudaStat;
 		std::cout << "| columns arrays: ";			int* d_csrColInd_MU; cudaStat = cudaMalloc(&d_csrColInd_MU, nnz_ID * sizeof(int));				std::cout << cudaStat << std::endl;
 
-
 		cudaStat = cudaMemcpy(d_csrVal_MU, Id.valuePtr(), nnz_ID * sizeof(double), cudaMemcpyHostToDevice);					std::cout << "Copying values to GPU : " << cudaStat;
 		cudaStat = cudaMemcpy(d_csrRowPtr_MU, Id.outerIndexPtr(), (Basis.rows() + 1) * sizeof(int), cudaMemcpyHostToDevice);		std::cout << "| row arrays: " << cudaStat;
 		cudaStat = cudaMemcpy(d_csrColInd_MU, Id.innerIndexPtr(), nnz_ID * sizeof(int), cudaMemcpyHostToDevice);			std::cout << "| columns arrays: " << cudaStat << std::endl;

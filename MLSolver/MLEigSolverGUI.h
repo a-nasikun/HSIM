@@ -1509,9 +1509,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 								for (int k = 0; k < wantedTols.size(); ++k) {
 									std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
 									eigenSolver->convergedCriteria = 2;
+									eigenSolver->isSIMinGPU = false;
 									eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
 									//eigenSolver->convergedCriteria = 3;
-									//eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+									eigenSolver->isSIMinGPU = true;
+									eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
 								}	// tolerance
 							}		// zhao's shift param
 						}			// qParam
