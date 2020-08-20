@@ -2580,6 +2580,10 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			if (factCounter == 0 && mu>std::numeric_limits<double>::epsilon()) {
 					factorization.compute(SL - mu*ML);
 			}
+			//else if (factCounter==0 && zhaoShiftParam < std::numeric_limits<double>::epsilon()) {
+			//	std::cout << "No shift! \n";
+			//	factorization.compute(SL);
+			//}
 			else {
 				eps *= 10;
 				mu = eps;
@@ -2728,9 +2732,9 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		}
 
 		iterCount++;
-		if(numEigs>750)
-			if (iterCount >= 2) 
-				isMultipleSolve = false;
+		///if(numEigs>750)
+		///	if (iterCount >= 2) 
+		///		isMultipleSolve = false;
 
 		/* Ignore the first iteration */
 		if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
@@ -3433,6 +3437,8 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		setSamplingLevelsAuto(sampSize, numEigs, levelRatio);			break;
 	case 2:
 		setSamplingLevelsSameRate(sampSize, numEigs, levelRatio);		break;
+	case 3:
+		setSamplingLevelFixedLevels(sampSize, numEigs, level+1);		break;
 	default:
 		break;
 	}

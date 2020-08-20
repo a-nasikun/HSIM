@@ -42,6 +42,7 @@ namespace MuLES
 		void setSamplingLevelsAuto(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0, bool isFixedLowBound=true);
 		void setSamplingLevelsSameRate(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0, bool isFixedLowBound = true);
 		void setSamplingLevelFixedNum(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0, bool isFixedLowBound = true);
+		void setSamplingLevelFixedLevels(Eigen::VectorXi& sampSize, int numEigen = 50, int numLevels = 3, bool isFixedLowBound = true);
 		void constructSampleHierarchy(const Eigen::VectorXi& samples);	// Constructing multi-level samples
 		void virtual constructBasis(double support, int axis = 0, double offset = 0.0);											// Constructing multi-level basis
 		void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0);
@@ -191,7 +192,7 @@ namespace MuLES
 		// TEst variable
 		bool isMultipleSolve = true;
 		bool isSIMinGPU = false;
-		int hierarchyMode = 2;				// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
+		int hierarchyMode = 2;				// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0); 3:fixed levels
 		int convergedCriteria = 2;			// 2: more expensive: relative L-2 norm of residual && 3: cheaper a^2/qTq
 	};
 }

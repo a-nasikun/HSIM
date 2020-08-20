@@ -278,6 +278,28 @@ namespace MuLES
 		}
 	}
 	
+	void MLEigenSolver::setSamplingLevelFixedLevels(Eigen::VectorXi& sampSize, int numEigen, int numLevels, bool isFixedLowBound)
+	{
+		int numLevelDif = numLevels-1;
+
+		int lowBound;
+		if (isFixedLowBound) { lowBound = 1000; }
+		else { lowBound = 2 * numEigen; }
+
+		int dimSubSpace = max(2 * numEigen, lowBound);
+		double ratio = (double)V.rows() / dimSubSpace;
+		ratio = pow(ratio, 1.0 / (double)numLevelDif);
+
+		sampSize.resize(numLevelDif);
+		for (int i = 0; i < numLevelDif; ++i) {
+			sampSize(i) = ceil((double)V.rows() / (pow(ratio, i + 1)));
+		}
+
+		printf("____Level %d has %d entries \n", 0, V.rows());
+		for (int i = 0; i < sampSize.rows(); ++i) {
+			printf("____Level %d has %d entries \n", i + 1, sampSize(i));
+		}
+	}
 	/**
 	*  @brief	 Construct the number of samples in every level via farthest point sampling. 
 	*  @details	
