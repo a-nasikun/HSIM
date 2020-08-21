@@ -97,6 +97,7 @@ namespace MuLES
 		bool getClampBasis() const;
 		void setClampBasis(bool isClamped);
 		int getLevel() const;
+		void setLevel(int n);
 		int getSampleSize() const;
 		const Eigen::VectorXi& getSample() const;
 		const vector<int>& getSubspaceSize() const;

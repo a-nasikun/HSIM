@@ -43,7 +43,7 @@ static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
 static double		levelRatio		= 10.0;
 static double		numOfSupport	= 7.5;
-static int			hierarchyMode	= 1;						// 0: fixed num level, 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
+static int			hierarchyMode	= 3;						// 0: fixed num level, 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
 static double		sphereScaleRatio= 0.05;
 static int			numLevels		= 3;
 
@@ -216,7 +216,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			
 			static	Eigen::VectorXd colorVect;
 			static bool	isClampedBasis = false;
-			static int numLevels;
+			
 
 			/* Setup stiffness Matrix */
 			if (ImGui::Button("[1] Construct Stiffness Matrix##1", ImVec2(w, 0))) {
@@ -319,7 +319,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				clampRegion = atof(clampRegionTxt);
 			}
 			
-			static char numSupTxt[15] = "7.5"; ImGui::InputText("Num of Supports", numSupTxt, 6);
+			static char numSupTxt[15] = "7.0"; ImGui::InputText("Num of Supports", numSupTxt, 6);
 			if (ImGui::Button("Set support##1", ImVec2(w, 0))) {
 				numOfSupport = atof(numSupTxt);
 			}
@@ -876,9 +876,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(3, MLEigenSolver::ShiftType::SHIFT_ZHAO));
 
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_DefaultOpen)) {
-			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
+			static char numModesTxt[10] = "50"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
 			static char maxIterTxt[10] = "20"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
-			static char tolTxt[15] = "0.0001"; ImGui::InputText("Tolerance##1", tolTxt, 15);
+			static char tolTxt[15] = "0.01"; ImGui::InputText("Tolerance##1", tolTxt, 15);
 			numOfModes	= atoi(numModesTxt);
 			maxIter		= atoi(maxIterTxt);
 			tol			= atof(tolTxt);
@@ -929,6 +929,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->hierarchyMode = hierarchyMode;
 			std::cout << "Hierarchy mode: " << eigenSolver->hierarchyMode << std::endl;
 			std::cout << "Level ratio: " << levelRatio << std::endl;
+			eigenSolver->setLevel(numLevels-1);
+			std::cout << "Num levels: " << eigenSolver->getLevel() << std::endl;
 			//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
 
 			if(eigenSolver->isSIMinGPU)
@@ -1501,30 +1503,31 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
 			std::vector<double>		levelRatio{ 16.0 };
 			//std::vector<double>		levelRatio{ 4,8,16,24 };
-			std::vector<double>		 levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
-			//std::vector<double>		levelSupport{ 7.5 };
+			//std::vector<double>		 levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
+			std::vector<double>		levelSupport{ 7 };
 			//std::vector<double>	levelZhaoParam{0.0, 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
-			std::vector<double>		levelZhaoParam{ 0.25 };			
-			//std::vector<double>		levelZhaoParam{ 1.0/3.0 };
-			vector<int>				wantedModes{100, 400, 750};
+			//std::vector<double>		levelZhaoParam{ 0.25 };			
+			std::vector<double>		levelZhaoParam{ 1.0/3.0 };
+			vector<int>				wantedModes{50, 300,750};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 50, 250, 1000 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
-			vector<double>			wantedTols{1e-2, 1e-4 };
+			vector<double>			wantedTols{1e-2 };
 			int						maxIters = 20;
 			std::vector<double>		qParam{ 1.5 };
-
+			vector<int>				HSIMlevels = { 2,3,4,5};
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
-				if (wantedModes[j] > 225) eigenSolver->hierarchyMode = 0;
-				if (wantedModes[j] > 225) levelZhaoParam[0] = 0.25;
+				//if (wantedModes[j] > 225) eigenSolver->hierarchyMode = 0;
+				if (wantedModes[j] >= 225) levelZhaoParam[0] = 0.25;
+				if (wantedModes[j] >= 2000) levelZhaoParam[0] = 0.2;
 
 				for (int i = 0; i < levelRatio.size(); ++i) {
-					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;					
+					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
 
 					for (int l = 0; l < levelSupport.size(); ++l) {
-						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;		
+						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;
 
 						for (int n = 0; n < qParam.size(); ++n) {
 							eigenSolver->setQParam(qParam[n]);
@@ -1536,18 +1539,23 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 								std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
 								for (int k = 0; k < wantedTols.size(); ++k) {
 									std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
-									//eigenSolver->convergedCriteria = 2;
-									//eigenSolver->isSIMinGPU = false;
-									eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
-									//eigenSolver->convergedCriteria = 3;
-									//eigenSolver->isSIMinGPU = true;
-									//eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+									for (int o = 0; o < HSIMlevels.size(); ++o) {
+										//eigenSolver->convergedCriteria = 2;
+										//eigenSolver->isSIMinGPU = false;
+										eigenSolver->setLevel(HSIMlevels[o]-1);
+										eigenSolver->hierarchyMode = 3;
+										eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+										//eigenSolver->convergedCriteria = 3;
+										//eigenSolver->isSIMinGPU = true;
+										//eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+									}// number of levels
 								}	// tolerance
 							}		// zhao's shift param
 						}			// qParam
 					}				// support radius
 				}					// level ratio
 			}						// wanted modes
+			
 		}
 	}
 

@@ -1133,6 +1133,11 @@ namespace MuLES
 	/** @brief	Obtain number of levels in the hierarchy. */
 	int MLEigenSolver::getLevel() const { return level; }
 
+	void  MLEigenSolver::setLevel(int n)
+	{
+		level = n;
+	}
+
 	/**  @brief	Obtain the size of the samples. */
 	int MLEigenSolver::getSampleSize() const { return sampleSize; }
 
