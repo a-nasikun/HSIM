@@ -46,6 +46,7 @@ static double		numOfSupport	= 7.5;
 static int			hierarchyMode	= 3;						// 0: fixed num level, 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0)
 static double		sphereScaleRatio= 0.05;
 static int			numLevels		= 3;
+//static bool			isSampleBounded = true;
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
@@ -247,9 +248,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				numLevels = atoi(numLevelsTxt);
 			}
 
-			static bool isSampleBounded = true;
+			
 			ImGui::SameLine();
-			ImGui::Checkbox("Bounded?", &isSampleBounded);
+			ImGui::Checkbox("Bounded?", &(eigenSolver->isSampleBounded));
 
 
 			if (ImGui::Button("[2] Construct Hierarchy##1", ImVec2(w, 0))) {
@@ -272,16 +273,16 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				{
 				case 0:
 					//eigenSolver->setSamplingLevelsConstantRate(sampSize, numOfModes, levelRatio);
-					eigenSolver->setSamplingLevelFixedNum(sampSize, numOfModes, levelRatio, isSampleBounded);
+					eigenSolver->setSamplingLevelFixedNum(sampSize, numOfModes, levelRatio, (eigenSolver->isSampleBounded));
 					break;
 				case 1:
-					eigenSolver->setSamplingLevelsAuto(sampSize, numOfModes, levelRatio, isSampleBounded);
+					eigenSolver->setSamplingLevelsAuto(sampSize, numOfModes, levelRatio, (eigenSolver->isSampleBounded));
 					break;
 				case 2:
-					eigenSolver->setSamplingLevelsSameRate(sampSize, numOfModes, levelRatio, isSampleBounded);
+					eigenSolver->setSamplingLevelsSameRate(sampSize, numOfModes, levelRatio, (eigenSolver->isSampleBounded));
 					break;
 				case 3:
-					eigenSolver->setSamplingLevelFixedLevels(sampSize, numOfModes, numLevels, isSampleBounded);
+					eigenSolver->setSamplingLevelFixedLevels(sampSize, numOfModes, numLevels, (eigenSolver->isSampleBounded));
 					break;
 				default:
 					break;
@@ -772,14 +773,14 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		static double nEps = 0.0005;
 		if (ImGui::Button("Smaller", ImVec2((w - p) / 2.f, 0))) {
 			viewer.data().point_size *= 1.0/1.5f;
-			sphereScaleRatio /= 2.5;
+			sphereScaleRatio /= 1.5;
 			scaleSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps, sphereScaleRatio);
 		}
 		ImGui::SameLine(0, p);
 
 		if (ImGui::Button("Larger", ImVec2((w - p) / 2.f, 0))) {
 			viewer.data().point_size *= 1.5f;
-			sphereScaleRatio *= 2.5;
+			sphereScaleRatio *= 1.5;
 			scaleSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps, sphereScaleRatio);
 		}
 
@@ -931,7 +932,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::cout << "Level ratio: " << levelRatio << std::endl;
 			eigenSolver->setLevel(numLevels-1);
 			std::cout << "Num levels: " << eigenSolver->getLevel() << std::endl;
-			//eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, 7.5, isShiftedSIM);
+			std::cout << "Multiple solve: " << eigenSolver->isMultipleSolve << std::endl;
 
 			if(eigenSolver->isSIMinGPU)
 				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
@@ -1061,16 +1062,16 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					{
 					case 0:
 						//eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
-						eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i]);
+						eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 						break;
 					case 1:
-						eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
+						eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 						break;
 					case 2:
-						eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i]);
+						eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 						break;
 					case 3:
-						eigenSolver->setSamplingLevelFixedLevels(sampSize, wantedModes[j], numLevels);		
+						eigenSolver->setSamplingLevelFixedLevels(sampSize, wantedModes[j], numLevels, eigenSolver->isSampleBounded);
 						break;
 					default:
 						break;
@@ -1322,16 +1323,16 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						{
 						case 0:
 							//eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
-							eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i]);
+							eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 							break;
 						case 1:
-							eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
+							eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 							break;
 						case 2:
-							eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i]);
+							eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 							break;
 						case 3:
-							eigenSolver->setSamplingLevelFixedLevels(sampSize, wantedModes[j], numLevels);
+							eigenSolver->setSamplingLevelFixedLevels(sampSize, wantedModes[j], numLevels, eigenSolver->isSampleBounded);
 							break;
 						default:
 							break;
@@ -1407,18 +1408,18 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					case 0:
 						std::cout << "Simple decay rate: " << levelRatio[i] << std::endl; 
 						//eigenSolver->setSamplingLevelsConstantRate(sampSize, wantedModes[j], levelRatio[i]);
-						eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i]);
+						eigenSolver->setSamplingLevelFixedNum(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 						break;
 					case 1:
 						std::cout << "More elaborate decay rate " << std::endl;
-						eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i]);
+						eigenSolver->setSamplingLevelsAuto(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 						break;
 					case 2:
 						std::cout << "More elaborate but simple decay rate (same ratio)" << std::endl;
-						eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i]);
+						eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 						break;
 					case 3:
-						eigenSolver->setSamplingLevelFixedLevels(sampSize, wantedModes[j], numLevels);
+						eigenSolver->setSamplingLevelFixedLevels(sampSize, wantedModes[j], numLevels, eigenSolver->isSampleBounded);
 						break;
 					default:
 						break;
@@ -1505,23 +1506,24 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>		levelRatio{ 4,8,16,24 };
 			//std::vector<double>		 levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
 			std::vector<double>		levelSupport{ 7 };
-			//std::vector<double>	levelZhaoParam{0.0, 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
-			//std::vector<double>		levelZhaoParam{ 0.25 };			
-			std::vector<double>		levelZhaoParam{ 1.0/3.0 };
-			vector<int>				wantedModes{50, 300,750};
+			//std::vector<double>	levelZhaoParam{ 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
+			std::vector<double>		levelZhaoParam{ 0.0 };			
+			//std::vector<double>		levelZhaoParam{ 1.0/3.0 };
+			vector<int>				wantedModes{50, 250, 1000};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 50, 250, 1000 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
-			vector<double>			wantedTols{1e-2 };
+			vector<double>			wantedTols{1e-4 };
 			int						maxIters = 20;
 			std::vector<double>		qParam{ 1.5 };
-			vector<int>				HSIMlevels = { 2,3,4,5};
+			//vector<int>				HSIMlevels = { 2,3,4,5};
+			vector<int>				HSIMlevels = {2 };
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
-				//if (wantedModes[j] > 225) eigenSolver->hierarchyMode = 0;
 				if (wantedModes[j] >= 225) levelZhaoParam[0] = 0.25;
-				if (wantedModes[j] >= 2000) levelZhaoParam[0] = 0.2;
+				//if (wantedModes[j] >= 2000) levelZhaoParam[0] = 0.2;
+				if (wantedModes[j] >= 225) HSIMlevels[0] = 3;
 
 				for (int i = 0; i < levelRatio.size(); ++i) {
 					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
@@ -1849,4 +1851,4 @@ void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEi
 		sampSize(ii) = sampleLevels[ii];
 }
 
-#endif // !FAST_SPECTRUM_GUI
+#endif // FAST_SPECTRUM_GUI

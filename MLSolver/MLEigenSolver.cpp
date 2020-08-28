@@ -711,8 +711,8 @@ namespace MuLES
 				diff = Kq - AMq;
 				//diff = KQ.col(i) - A(i)*AMQ.col(i);
 
-				double n1 = diff.transpose()*MKinv*diff;
-				double n2 = Kq.transpose()*MKinv*Kq;
+				double n1 = diff.transpose()*MK*diff;
+				double n2 = Kq.transpose()*MK*Kq;
 				//double n1 = Diff.col(i).transpose()*MK*Diff.col(i);
 				//double n2 = KQ.col(i).transpose()*MK*KQ.col(i);
 				convRate(iCol) = sqrt(n1 / n2);
@@ -1078,8 +1078,8 @@ namespace MuLES
 			for (int j = 0; j < F.cols(); ++j) {
 				if (dist(F(i, j)) < maxNeighDist[0]) {
 					//FCol.row(i) << 233.0/255.0, 255.0/255.0, 249.0/255.0;
-					FCol.row(i) << 158.0 / 255.0, 216.0 / 255.0, 219.0 / 255.0;
-					//FCol.row(i) << 108.0/255.0, 212.0/255.0, 255.0/255.0;		// blue-sih					
+					//FCol.row(i) << 158.0 / 255.0, 216.0 / 255.0, 219.0 / 255.0;
+					FCol.row(i) << 108.0/255.0, 212.0/255.0, 255.0/255.0;		// blue-sih					
 				}
 			}
 		}

@@ -2557,7 +2557,8 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	int		status = 1;
 	int		lastConvergedId = 1;
 	bool	isConverged = false;
-	double  eps = 1e6 * std::numeric_limits<double>::epsilon();
+	double  eps = 1e7 * std::numeric_limits<double>::epsilon();
+	bool	isMultipleSolveLevel = isMultipleSolve;
 
 	Eigen::SparseMatrix<double> Id;
 	Id.resize(SL.rows(), SL.cols());
@@ -2577,22 +2578,25 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		{
 			t1 = chrono::high_resolution_clock::now();
 			/* Zhao's proposal on shifting*/
-			if (factCounter == 0 && mu>std::numeric_limits<double>::epsilon()) {
-					factorization.compute(SL - mu*ML);
+			if (factCounter == 0 && mu>10*std::numeric_limits<double>::epsilon()) {
+				std::cout << "__[1] case 1: Factorization " << factCounter << " with shift of " << mu; // << std::endl;
+				factorization.compute(SL - mu*ML);
 			}
-			//else if (factCounter==0 && zhaoShiftParam < std::numeric_limits<double>::epsilon()) {
-			//	std::cout << "No shift! \n";
-			//	factorization.compute(SL);
-			//}
+			else if (factCounter==0 && zhaoShiftParam <= 10*std::numeric_limits<double>::epsilon()) {
+				std::cout << "No shift! \n";
+				factorization.compute(SL + eps*Id);
+				std::cout << "__[1] case 3: Factorization " << factCounter << " with shift of " << eps; // << std::endl;
+			}
 			else {
 				eps *= 10;
 				mu = eps;
 				factorization.compute(SL + mu*Id);
+				std::cout << "__[1] case 3: Factorization " << factCounter << " with shift of " << mu; // << std::endl;
 			}
 			factCounter++;
 			t2 = chrono::high_resolution_clock::now();
 
-			std::cout << "__[1] Factorization " << factCounter << " with shift of " << mu; // << std::endl;
+			
 
 			duration = t2 - t1;
 			std::cout << " in " << duration.count() << " seconds." << std::endl;
@@ -2625,7 +2629,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 				v = ML * (EigVects.col(j));
 				XbarK.col(j) = factorization.solve(v);				
 
-				if (isMultipleSolve)
+				if (isMultipleSolveLevel)
 				{
 					double n2 = XbarK.col(j).transpose() * ML * XbarK.col(j);
 					XbarK.col(j) = XbarK.col(j) / sqrt(n2);
@@ -2660,7 +2664,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 					v = ML * (EigVects.col(iCol));
 					XbarK.col(iCol) = factorization.solve(v);
 
-					if (isMultipleSolve){
+					if (isMultipleSolveLevel){
 						double n2 = XbarK.col(iCol).transpose() * ML * XbarK.col(iCol);
 						XbarK.col(iCol) = XbarK.col(iCol) / sqrt(n2);
 						v = ML * XbarK.col(iCol);
@@ -2732,10 +2736,10 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		}
 
 		iterCount++;
-		///if(numEigs>750)
-		///	if (iterCount >= 2) 
-		///		isMultipleSolve = false;
-
+		//if(numEigs>=750)
+		//	if (iterCount >= 2) 
+		//		isMultipleSolveLevel = false;
+		
 		/* Ignore the first iteration */
 		if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
 			isConverged = true;
@@ -2834,6 +2838,7 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	conv2.setConstant(std::numeric_limits<double>::max());
 	int iterCount = 0;
 	int lastConvergedId = 1;
+	bool	isMultipleSolveLevel = isMultipleSolve;
 	
 	
 	t2 = chrono::high_resolution_clock::now();
@@ -2900,7 +2905,7 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 				v = ML * (EigVects.col(j));
 				XbarK.col(j) = factorization.solve(v);
 
-				if (isMultipleSolve)
+				if (isMultipleSolveLevel)
 				{
 					double n2 = XbarK.col(j).transpose() * ML * XbarK.col(j);
 					XbarK.col(j) = XbarK.col(j) / sqrt(n2);
@@ -2935,7 +2940,7 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 					v = ML * (EigVects.col(iCol));
 					XbarK.col(iCol) = factorization.solve(v);
 
-					if (isMultipleSolve) {
+					if (isMultipleSolveLevel) {
 						double n2 = XbarK.col(iCol).transpose() * ML * XbarK.col(iCol);
 						XbarK.col(iCol) = XbarK.col(iCol) / sqrt(n2);
 						v = ML * XbarK.col(iCol);
@@ -3032,7 +3037,7 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		iterCount++;
 		if (numEigs > 750)
 			if (iterCount >= 2)
-				isMultipleSolve = false;
+				isMultipleSolveLevel = false;
 		
 
 		/* Ignore the first iteration */
@@ -3376,11 +3381,13 @@ void MLSolverFunctions::solve(int numEigs, int maxIter, double tol, bool isWithS
 		switch (hierarchyMode) {
 		case 0:
 			//setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);	break;
-			setSamplingLevelFixedNum(sampSize, numEigs, levelRatio);		break;
+			setSamplingLevelFixedNum(sampSize, numEigs, levelRatio, isSampleBounded);		break;
 		case 1:
-			setSamplingLevelsAuto(sampSize, numEigs, levelRatio);			break;
+			setSamplingLevelsAuto(sampSize, numEigs, levelRatio, isSampleBounded);			break;
 		case 2:
-			setSamplingLevelsSameRate(sampSize, numEigs, levelRatio);		break;
+			setSamplingLevelsSameRate(sampSize, numEigs, levelRatio, isSampleBounded);		break;
+		case 3:
+			setSamplingLevelFixedLevels(sampSize, numEigs, level + 1, isSampleBounded);		break;
 		default:
 			break;
 		}
@@ -3432,13 +3439,13 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	switch (hierarchyMode){
 	case 0:
 		//setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);	break;
-		setSamplingLevelFixedNum(sampSize, numEigs, levelRatio);		break;
+		setSamplingLevelFixedNum(sampSize, numEigs, levelRatio, isSampleBounded);		break;
 	case 1:
-		setSamplingLevelsAuto(sampSize, numEigs, levelRatio);			break;
+		setSamplingLevelsAuto(sampSize, numEigs, levelRatio, isSampleBounded);			break;
 	case 2:
-		setSamplingLevelsSameRate(sampSize, numEigs, levelRatio);		break;
+		setSamplingLevelsSameRate(sampSize, numEigs, levelRatio, isSampleBounded);		break;
 	case 3:
-		setSamplingLevelFixedLevels(sampSize, numEigs, level+1);		break;
+		setSamplingLevelFixedLevels(sampSize, numEigs, level+1, isSampleBounded);		break;
 	default:
 		break;
 	}
@@ -3481,11 +3488,10 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	duration = t1 - t0;
 	HSIMtime(0) = duration.count();
 
-
 	int		q = qParam * numEigs;
 	computeEigenGPU(Sred[nLevel-1], Mred[nLevel - 1], EigVectsSIM, EigValsSIM);
 	EigVectsSIM.conservativeResize(Eigen::NoChange_t::NoChange, q);
-	EigValsSIM.conservativeResize(q);
+	EigValsSIM.conservativeResize(q);	
 
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
@@ -3510,6 +3516,13 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "in " << duration.count() << " seconds." << std::endl;
+
+		/* Check residual of the approximation */
+		//Eigen::VectorXd residTemp;
+		//checkConvergenceCat2(EigVectsSIM, EigValsSIM, numEigs, Mred[i],Mred[i],Sred[i], residTemp);
+		//std::cout << "Level" << nLevel << "\nResidual: \n" << residTemp.head(numEigs) << std::endl << std::endl;
+		//std::cout << "EigVals: " << EigValsSIM.head(numEigs).transpose() << std::endl << std::endl;
+
 
 		std::cout << "[a] SIM on level " << i << std::endl;
 		t1 = chrono::high_resolution_clock::now();
@@ -3591,11 +3604,13 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 	switch (hierarchyMode) {
 	case 0:
 		//setSamplingLevelsConstantRate(sampSize, numEigs, levelRatio);	break;
-		setSamplingLevelFixedNum(sampSize, numEigs, levelRatio, false);		break;
+		setSamplingLevelFixedNum(sampSize, numEigs, levelRatio, isSampleBounded);		break;
 	case 1:
-		setSamplingLevelsAuto(sampSize, numEigs, levelRatio, false);			break;
+		setSamplingLevelsAuto(sampSize, numEigs, levelRatio, isSampleBounded);			break;
 	case 2:
-		setSamplingLevelsSameRate(sampSize, numEigs, levelRatio, false);		break;
+		setSamplingLevelsSameRate(sampSize, numEigs, levelRatio, isSampleBounded);		break;
+	case 3:
+		setSamplingLevelFixedLevels(sampSize, numEigs, level + 1, isSampleBounded);		break;
 	default:
 		break;
 	}

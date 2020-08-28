@@ -195,6 +195,7 @@ namespace MuLES
 		bool isSIMinGPU = false;
 		int hierarchyMode = 2;				// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0); 3:fixed levels
 		int convergedCriteria = 2;			// 2: more expensive: relative L-2 norm of residual && 3: cheaper a^2/qTq
+		bool isSampleBounded = true;
 	};
 }
 
