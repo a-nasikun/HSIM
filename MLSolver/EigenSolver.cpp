@@ -36,6 +36,8 @@
 //#include <Spectra/GenEigsRealShiftSolver.h>
 #include <Spectra/SymGEigsSolver.h>
 #include <Spectra/MatOp/SparseCholesky.h>
+#include <Spectra/MatOp/SparseSymShiftSolve.h>
+#include <Spectra/SymEigsShiftSolver.h>
 
 #include <igl/avg_edge_length.h>
 #include <igl/grad.h>
@@ -892,6 +894,43 @@ namespace MuLES
 		else {
 			std::cout << "Computation failed " << spectraSolver.info() << " \n";
 			std::cout << "Converged eigenpairs " << spectraSolver.compute() << std::endl;
+		}
+
+		//t2 = chrono::high_resolution_clock::now();
+		//duration = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
+		//cout << "in " << duration.count()/1000 << " seconds." << endl;
+	}
+
+	/* Sparse spectra eigensolver */
+	void computeEigenSpectraSparse(Eigen::SparseMatrix<double>& S, const int& numEigs, Eigen::MatrixXd& EigVec, Eigen::VectorXd& EigVal, int& numIterUsed, int type, int numIters, double tol)
+	{
+		//cout << "Computing eigenproblem in Spectra...";
+		//chrono::high_resolution_clock::time_point	t1, t2;
+		//chrono::duration<double>					duration;
+
+		printf("S:%dx%d \n", S.rows(), S.cols());
+				
+		Spectra::SparseSymShiftSolve<double> SOp(S);
+
+		Spectra::SymEigsShiftSolver<double, Spectra::LARGEST_MAGN, Spectra::SparseSymShiftSolve<double>> eigSolver(&SOp, numEigs, 2*numEigs, 0.0);
+
+		cout << "Trying to initiate \n";
+		eigSolver.init();
+		std::cout << "Trying to solve | " << numEigs << " eigenpairs |" << numIters << "max iters |" << tol << " tolerance \n";
+		int info = eigSolver.compute(numIters, tol, Spectra::LARGEST_MAGN);
+		cout << "Result of solving: " << info << endl;
+
+		if (eigSolver.info() == Spectra::SUCCESSFUL) {
+			EigVal = eigSolver.eigenvalues().reverse();
+			EigVec = eigSolver.eigenvectors().rowwise().reverse();
+			//EigVal = eigSolver.eigenvalues();
+			//EigVec = eigSolver.eigenvectors();
+			numIterUsed = eigSolver.num_iterations();
+			cout << "Yes! Made it! \n";
+		}
+		else {
+			std::cout << "Computation failed " << eigSolver.info() << " \n";
+			std::cout << "Converged eigenpairs " << eigSolver.compute() << std::endl;
 		}
 
 		//t2 = chrono::high_resolution_clock::now();

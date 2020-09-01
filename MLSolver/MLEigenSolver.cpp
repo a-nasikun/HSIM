@@ -776,6 +776,35 @@ namespace MuLES
 	*/
 	void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& solverType, int maxIters, double tol)
 	{
+		/*Creating transformation of S1Q1=AMQ1 to S2Q2=AQ2
+		**where S2=M^-1/2 * S1 * M^-1/2 */
+
+		Eigen::SparseMatrix<double> MhalfNeg(M.rows(), M.cols());
+		Eigen::SparseMatrix<double> Strans(S.rows(), S.cols());
+		vector<Eigen::Triplet<double>> MTriplet;
+		MTriplet.reserve(M.nonZeros());
+
+		Eigen::VectorXd IdVect(S.rows());
+		IdVect.setOnes();
+		Eigen::SparseMatrix<double> Mtrans;
+
+		for (int k = 0; k < M.outerSize(); ++k) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(M, k); it; ++it) {
+				double val = 1.0 / sqrt(it.value());
+				MTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), val));
+			}
+		}
+		MhalfNeg.setFromTriplets(MTriplet.begin(), MTriplet.end());
+		MTriplet.clear();
+		MTriplet.shrink_to_fit();
+		Strans = MhalfNeg * S * MhalfNeg;
+		Mtrans = MhalfNeg * M * MhalfNeg;
+		double val = IdVect.transpose() * Mtrans * IdVect;
+		std::cout << "Identity check: " << val << std::endl;
+		std::cout << "M diag: " << M.diagonal().head(50).transpose() << std::endl;
+		std::cout << "M^{-1/2} diag: " << MhalfNeg.diagonal().head(50).transpose() << std::endl;
+		std::cout << "M trans: " << Mtrans.diagonal().head(50).transpose() << std::endl;
+
 		int numIterUsed;
 		switch (solverType)
 		{
@@ -785,7 +814,9 @@ namespace MuLES
 			//computeEigenMatlab2(S, M, numEigs, EigVectsRef, EigValsRef);
 			break;
 		case EigenSolverType::EIG_SOLVER_SPECTRA:
-			computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, numIterUsed, 1, maxIters, tol);
+			//computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, numIterUsed, 1, maxIters, tol);
+			computeEigenSpectraSparse(Strans, numEigs, EigVectsRef, EigValsRef, numIterUsed, 1, maxIters, tol);
+			EigVectsRef = MhalfNeg * EigVectsRef;
 			std::cout << "Number of iterations: " << numIterUsed << std::endl;
 			break;
 		case EigenSolverType::EIG_SOLVER_CUDA:

@@ -72,6 +72,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 	static bool isShowAxis = false;
 
+	static int sample1 = 0, sample2 = 0;
+
 	if (ImGui::Button("Test GEMM", ImVec2((w - p) / 2.f, 0))) {
 		eigenSolver->cublasGEMMtest();
 	}
@@ -359,7 +361,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 				if (i<(eigenSolver->getLevel()-1)) ImGui::SameLine(0, p);
 			}
-			static int sample1 = 0, sample2 = 0;
+			
 			static int levelViz = 0;
 			static char Sample1Txt[10] = "0"; ImGui::InputText("Sample ID 1", Sample1Txt, 10);
 			sample1 = atoi(Sample1Txt);
@@ -504,6 +506,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			/* For Sampling */
 			// 0.005 for sphere
 			static double nEps = 0.0005;
+			
 			if (ImGui::Button("Show Samples##1", ImVec2((w), 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1) {
 					cout << "Error! Make sure you compute new samples before viewing them." << endl;
@@ -512,7 +515,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				boolShowSamples = !boolShowSamples;
 				if (boolShowSamples) {
-					visualizeSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps, sphereScaleRatio);
+					visualizeSampleMulti(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps, sphereScaleRatio, sample1, sample2);
+					printf("Sample %d=%d | Sample %d=%d \n", sample1, eigenSolver->getSample()[sample1], sample2, eigenSolver->getSample()[sample2]);
 				}
 				else {
 					viewer.data().points.resize(0, 6);
@@ -1507,23 +1511,23 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>		 levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
 			std::vector<double>		levelSupport{ 7 };
 			//std::vector<double>	levelZhaoParam{ 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
-			std::vector<double>		levelZhaoParam{ 0.0 };			
+			std::vector<double>		levelZhaoParam{ 0.1 };			
 			//std::vector<double>		levelZhaoParam{ 1.0/3.0 };
-			vector<int>				wantedModes{50, 250, 1000};
+			vector<int>				wantedModes{25, 100, 200, 300, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 50, 250, 1000 };
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
-			vector<double>			wantedTols{1e-4 };
+			vector<double>			wantedTols{1e-2 };
 			int						maxIters = 20;
 			std::vector<double>		qParam{ 1.5 };
 			//vector<int>				HSIMlevels = { 2,3,4,5};
 			vector<int>				HSIMlevels = {2 };
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
-				if (wantedModes[j] >= 225) levelZhaoParam[0] = 0.25;
+				//if (wantedModes[j] >= 225) levelZhaoParam[0] = 0.25;
 				//if (wantedModes[j] >= 2000) levelZhaoParam[0] = 0.2;
-				if (wantedModes[j] >= 225) HSIMlevels[0] = 3;
+				if (wantedModes[j] >= 200) HSIMlevels[0] = 3;
 
 				for (int i = 0; i < levelRatio.size(); ++i) {
 					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
@@ -1599,6 +1603,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (ImGui::Button("Compute Reference##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
 
+			Eigen::VectorXd convRate;
 			eigToCompute = atoi(numEig);	
 			tol = stof(toleTxt);
 			maxIter = stoi(maxItersTxt);
@@ -1620,7 +1625,30 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			duration = t1 - t0;
 			cout << " in " << duration.count() << " seconds." << endl;
 
-			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
+			std::cout << "Num of modes: " << eigenSolver->getEigenValuesRef().rows() << std::endl;
+			//cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef().transpose() << endl;
+			eigenSolver->checkConvergenceCat2(eigenSolver->getEigenVectorsRef(), eigenSolver->getEigenValuesRef(), eigToCompute, eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), convRate);
+			std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
+
+
+			Eigen::MatrixXd NormEigVectRef(eigenSolver->getEigenVectorsRef().rows(), eigenSolver->getEigenVectorsRef().cols());
+			Eigen::VectorXd EVect;
+			for (int i = 0; i < eigenSolver->getEigenValuesRef().rows(); ++i)
+			{
+				EVect = eigenSolver->getEigenVectorsRef().col(i);
+				double norm1 = EVect.transpose() * eigenSolver->getMassMatrix() * EVect;
+				EVect = EVect / sqrt(norm1);
+				NormEigVectRef.col(i) = EVect;
+				double norm2 = NormEigVectRef.col(i).transpose() * eigenSolver->getMassMatrix() * NormEigVectRef.col(i);
+				//cout << " " << norm2;
+			}
+			//std::cout << std::endl;
+
+			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef().transpose() << endl;
+			eigenSolver->checkConvergenceCat2(NormEigVectRef, eigenSolver->getEigenValuesRef(), eigToCompute, eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), convRate);
+			std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
+
+			
 		}
 		
 		Eigen::MatrixXd OrthMat;
@@ -1647,8 +1675,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
 			//std::vector<double>		tolVect{ 5e-2, 1e-2, 1e-3, 1e-4, 1e-5 };
 			//std::vector<double>		tolVect{1e-3, 5.0e-2, 1e-1 };
-			std::vector<double>		tolVect{5e-2 };
-			vector<int>				wantedModes{25,  50, 250, 1000, 2500};
+			std::vector<double>		tolVect{1e-2 };
+			vector<int>				wantedModes{50, 250, 1000};
 			//vector<int>				wantedModes{ 50 };
 			//vector<int>				wantedModes{ 100, 150, 250 };
 			//eigToCompute = atoi(numEig);
@@ -1667,7 +1695,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					t0 = chrono::high_resolution_clock::now();
 
 					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
-					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, numIterUsed, 1, 20000, tolVect[i]);
+					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, numIterUsed, 1, 20000, tolVect[i]);
+					computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), wantedModes[j], EigVects, EigVals, numIterUsed, 1, 20000, tolVect[i]);
 					
 					
 					t1 = chrono::high_resolution_clock::now();
@@ -1677,7 +1706,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					
 					Eigen::VectorXd conv2;
 					eigenSolver->checkConvergenceCat2(EigVects, EigVals, wantedModes[j], eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(),  conv2);
-					std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
+					//std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
 					//tol /= 10000;
 
 					Eigen::VectorXd numIterVect(1);
@@ -1685,7 +1714,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 					string modelName = "Sphere_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
 					string filename = "../../Data/" + modelName + "_EigVects-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
-					writeDenseMatrixToFile(EigVects, filename);
+					//writeDenseMatrixToFile(EigVects, filename);
 					filename = "../../Data/" + modelName + "_EigVals-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
 					writeDenseMatrixToFile(EigVals, filename);
 					filename = "../../Data/" + modelName + "_Tolerance-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
@@ -1694,10 +1723,10 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					writeDenseMatrixToFile(conv2, filename);
 
 					//cout << "Ref eigenvalues: \n" << EigVals << std::endl;
-					cout << "Ref eigenvalues: \n";
+					//cout << "Ref eigenvalues: \n";
 					//std::cout << EigVals(0) << std::endl;
 					//printVector(EigVals.tail(wantedModes[j]));
-					printVector(EigVals.head(wantedModes[j]), true);
+					///printVector(EigVals.head(wantedModes[j]), true);
 				}
 			}
 		}

@@ -18,7 +18,7 @@ void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V
 	}
 }
 
-void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize, double nEps, double scaleRatio)
+void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V, const Eigen::MatrixXi &F, const Eigen::VectorXi &Sample, const vector<int> &sampleSize, double nEps, double scaleRatio, int sample1, int sample2)
 {
 	Eigen::MatrixXd MCol;
 	const int totLevel = sampleSize.size();
@@ -72,11 +72,14 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	Eigen::RowVector3d sphereCol1(221.0/255.0, 4.0/255.0, 38.0/255.0);
 	std::cout << "Loading Mesh \n";
 	std::cout << "Num of mesh: " << viewer.data_list.size() << std::endl;
+	
 	//for (int i = 0; i < 30; i++)
 	for (int i = 0; i < sampleSize[totLevel-1]; i++)
 	{
+		double spScale = 1.0;
+		if (i == sample1 || i == sample2) spScale = 1.5;
 		viewer.load_mesh_from_file(sphereModelFile);
-		MuLES::scaleMesh(viewer.data_list[i + 1].V, viewer.data_list[i + 1].F, pointSphereScale);
+		MuLES::scaleMesh(viewer.data_list[i + 1].V, viewer.data_list[i + 1].F, spScale*pointSphereScale);
 		Eigen::MatrixXd transVect(viewer.data_list[i+1].V.rows(),3);
 		for(int j=0; j<viewer.data_list[i + 1].V.rows(); ++j)			
 			transVect.row(j) = viewer.data_list[0].V.row(Sample(i)) + nEps*viewer.data_list[0].V_normals.row(Sample(i));
@@ -92,11 +95,14 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 
 	Eigen::RowVector3d sphereCol2(29.0/255.0, 51.0/255.0, 84.0/255.0);
 	for (int k = (totLevel-1); k > 0; k--) {
-		std::cout << "Level" << k << std::endl;
+		std::cout << "Level" << k << std::endl;		
 		for (int i = sampleSize[k]; i < sampleSize[k-1]; i++)
 		{
+			double spScale = 1.0;
+			if (i == sample1 || i == sample2) spScale = 1.5;
+
 			viewer.load_mesh_from_file(sphereModelFile);
-			MuLES::scaleMesh(viewer.data_list[i+1].V, viewer.data_list[i+1].F, pointSphereScale);
+			MuLES::scaleMesh(viewer.data_list[i+1].V, viewer.data_list[i+1].F, spScale * pointSphereScale);
 			Eigen::MatrixXd transVect(viewer.data_list[i+1].V.rows(), 3);
 			for (int j = 0; j<viewer.data_list[i+1].V.rows(); ++j)
 				transVect.row(j) = viewer.data_list[0].V.row(Sample(i)) + nEps*viewer.data_list[0].V_normals.row(Sample(i));
