@@ -17,7 +17,7 @@
 #include <cusolverDn.h>
 
 
-namespace MuLES
+namespace HSIM
 {
 	/**
 	*  @brief	Compuete the area of each triangle constituting the triangle mesh represantion.
@@ -38,7 +38,7 @@ namespace MuLES
 	*  @details
 	*	For Laplace--Beltrami eigenproblem,
 	*	we generally use the lumped mass matrix (i.e. diagonal mass matrix).
-	*  @see	MuLES::MLSolverFunctions::constructMassMatrix()
+	*  @see	HSIM::MLSolverFunctions::constructMassMatrix()
 	*/
 	void MLSolverFunctions::constructMassMatrix()
 	{
@@ -633,7 +633,7 @@ namespace MuLES
 	*   Main call to subspaceiteration method (SIM).
 	*  @details
 	*	It will then call the specific type of SIM according to what user selects.
-	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	type		Desired type of SIM to perform. One of HSIM::MLEigenSolver::SIMType enum types.
 	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
 	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
 	*  @param	tol			Convergence threshold, as relative residual value.
@@ -737,7 +737,7 @@ namespace MuLES
 	*  @details
 	*	This is the standard implementation of SIM, with various possible definition of starting vectors,
 	*	but without shifting strategy. It also has the convergence control via relative residual and maximum iterations
-	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	type		Desired type of SIM to perform. One of HSIM::MLEigenSolver::SIMType enum types.
 	*  @param	SL			Stifness matrix (Laplacian operator) used for this solver. Described explicitly since it might be called not in the finest level
 	*  @param	ML			The (lumped) Mass matrix used for this solver. Described explicitly since it might be called not in the finest level
 	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
@@ -1015,7 +1015,7 @@ namespace MuLES
 	*  @details
 	*	This is the standard implementation of SIM with shifting strategy, with various possible definition of starting vectors.
 	*	It also has the convergence control via relative residual and maximum iterations
-	*  @param	type		Desired type of SIM to perform. One of MuLES::MLEigenSolver::SIMType enum types.
+	*  @param	type		Desired type of SIM to perform. One of HSIM::MLEigenSolver::SIMType enum types.
 	*  @param	numEigs		Number of sought eigenpairs (eigenvalues and eigenvectors)
 	*  @param	maxIter		Maximum number of iterations before giving up, and return the value from last iterations.
 	*  @param	tol			Convergence threshold, as relative residual value.
@@ -3903,7 +3903,7 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 	*  @brief	Visualize the selected eigenvector corresponding to a certain eigenvalue.
 	*  @param	viewer		GUI for model interaction.
 	*  @param	id			ID/index of eigenvector to show (i.e. the ID of the corresponding eigenvalue).
-	*  @param	eigType		Type of the eigenvector to show, from MuLES::MLEigenSolver::EigenVectorType enum type.
+	*  @param	eigType		Type of the eigenvector to show, from HSIM::MLEigenSolver::EigenVectorType enum type.
 	*  @param	scale		(If applicable) Ratio for scaling of the basis.
 	*/
 	void MLSolverFunctions::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const

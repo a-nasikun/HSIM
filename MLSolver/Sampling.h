@@ -7,7 +7,7 @@
 
 using namespace std;
 
-namespace MuLES
+namespace HSIM
 {
 	/* Enum for different sampling method */
 	enum SamplingType {

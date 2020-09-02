@@ -2,7 +2,7 @@
 #define ML_SOLVER_FUNCTIONS
 
 #include "MLEigenSolver.h"
-namespace MuLES
+namespace HSIM
 {
 	/**
 	*  @brief Multilevel solver for `Laplace--Beltrami eigenproblem`.

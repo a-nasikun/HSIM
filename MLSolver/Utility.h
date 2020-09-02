@@ -11,7 +11,7 @@
 #include <Eigen/Eigen>
 
 using namespace std;
-namespace MuLES
+namespace HSIM
 {
 	/* Data structure for Priority Queue */
 	struct VertexPair {

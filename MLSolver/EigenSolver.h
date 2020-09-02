@@ -5,7 +5,7 @@
 
 using namespace std;
 
-namespace MuLES
+namespace HSIM
 {
 	/* Computing Eigenstructure in GPU or via Matlab */
 	int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal);

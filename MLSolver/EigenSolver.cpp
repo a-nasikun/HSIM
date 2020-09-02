@@ -18,6 +18,7 @@
 #include <tuple>
 #include "engine.h"
 #include "mex.h"
+#include <igl/matlab/matlabinterface.h> 
 
 /* [CUDA] */
 #include "cuda_runtime.h"
@@ -25,9 +26,6 @@
 #include "cusparse.h"
 #include "cusolverDn.h"
 #include "cusolverSp.h"
-
-// Matlab interface
-#include <igl/matlab/matlabinterface.h> 
 
 // SPECTRA EIGENSOLVER
 //#include <Spectra/GenEigsSolver.h>
@@ -43,7 +41,7 @@
 #include <igl/grad.h>
 #include <igl/doublearea.h>
 
-namespace MuLES
+namespace HSIM
 {
 	/* Computing Eigenstructure in GPU */
 	/* This code is mostly taken from CUDA's cuSOLVER's example codes */

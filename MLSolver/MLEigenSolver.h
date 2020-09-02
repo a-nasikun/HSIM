@@ -8,7 +8,7 @@
 #include "Visualization.h"
 
 #include <igl/opengl/glfw/Viewer.h>
-namespace MuLES
+namespace HSIM
 {
 	/**
 	*  @brief The base class for our multilevel eigenproblem. 

@@ -7,7 +7,7 @@
 #include <chrono>
 #include <iostream>
 
-namespace MuLES
+namespace HSIM
 {
 	/* Construct random n number of samples */
 	void constructRandomSample(Eigen::VectorXi &Sample, const Eigen::MatrixXd &V, int n)

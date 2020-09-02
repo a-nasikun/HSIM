@@ -79,7 +79,7 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 		double spScale = 1.0;
 		if (i == sample1 || i == sample2) spScale = 1.5;
 		viewer.load_mesh_from_file(sphereModelFile);
-		MuLES::scaleMesh(viewer.data_list[i + 1].V, viewer.data_list[i + 1].F, spScale*pointSphereScale);
+		HSIM::scaleMesh(viewer.data_list[i + 1].V, viewer.data_list[i + 1].F, spScale*pointSphereScale);
 		Eigen::MatrixXd transVect(viewer.data_list[i+1].V.rows(),3);
 		for(int j=0; j<viewer.data_list[i + 1].V.rows(); ++j)			
 			transVect.row(j) = viewer.data_list[0].V.row(Sample(i)) + nEps*viewer.data_list[0].V_normals.row(Sample(i));
@@ -102,7 +102,7 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 			if (i == sample1 || i == sample2) spScale = 1.5;
 
 			viewer.load_mesh_from_file(sphereModelFile);
-			MuLES::scaleMesh(viewer.data_list[i+1].V, viewer.data_list[i+1].F, spScale * pointSphereScale);
+			HSIM::scaleMesh(viewer.data_list[i+1].V, viewer.data_list[i+1].F, spScale * pointSphereScale);
 			Eigen::MatrixXd transVect(viewer.data_list[i+1].V.rows(), 3);
 			for (int j = 0; j<viewer.data_list[i+1].V.rows(); ++j)
 				transVect.row(j) = viewer.data_list[0].V.row(Sample(i)) + nEps*viewer.data_list[0].V_normals.row(Sample(i));
@@ -139,7 +139,7 @@ void scaleSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &
 			cout << "Prior scaling: " << viewer.data_list[i + 1].V.maxCoeff() << std::endl;
 			cout << viewer.data_list[i + 1].V.row(0) << std::endl;
 		}
-		MuLES::scaleMesh(viewer.data_list[i + 1].V, viewer.data_list[i + 1].F, pointSphereScale);
+		HSIM::scaleMesh(viewer.data_list[i + 1].V, viewer.data_list[i + 1].F, pointSphereScale);
 		if (i == 0) {
 			cout << "After scaling: " << viewer.data_list[i + 1].V.maxCoeff() << std::endl;
 			cout << viewer.data_list[i + 1].V.row(0) << std::endl;

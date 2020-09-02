@@ -20,7 +20,7 @@
 #include "MLSolverFunctions.h"
 
 using namespace std;
-using namespace MuLES;
+using namespace HSIM;
 
 enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
 static int			numOfModes		= 25;
@@ -30,7 +30,7 @@ static int			eigToCompute    = 500;
 bool				boolShowSamples = false;
 bool				useNonSmoothBasis = false; 
 //static int			numOfSample		= 250;
-static int			sampleType		= MuLES::Sample_Farthest_Point; 
+static int			sampleType		= HSIM::Sample_Farthest_Point; 
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
@@ -151,15 +151,20 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 								  // Load mesh + display the correct mesh
 			int numOfModel = viewer.data_list.size();
-			printf("mesh that we have  now: %d \n", viewer.data_list.size());
+			printf("mesh that we have  now: %d (%d vertices) \n", viewer.data_list.size(),viewer.data().V.rows());
 
 			if (numOfModel > 0) {
-				tempV = viewer.data_list[0].V;
-				tempF = viewer.data_list[0].F;
-				viewer.data_list.clear();
-			}
+				if (viewer.data_list[0].V.rows() > 1){					
+					tempV = viewer.data_list[0].V;
+					tempF = viewer.data_list[0].F;
+					viewer.data_list.clear();
+				}		
+				
+			} 
 
 			viewer.open_dialog_load_mesh();
+			numOfModel = viewer.data_list.size();
+			printf("mesh that we have  now: %d (%d vertices) \n", viewer.data_list.size(), viewer.data().V.rows());
 
 			// if no mesh is selected, re-used the old one
 			if (viewer.data_list.size() < 1) {
@@ -1016,7 +1021,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 					// // bathe init vector
 					//eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-					eigenSolver->solve(wantedModes[j], maxIters, wantedTols[k], true, MuLES::MLEigenSolver::ShiftType::SHIFT_ZHAO, 0, 0.0, levelRatio, 7.5);
+					eigenSolver->solve(wantedModes[j], maxIters, wantedTols[k], true, HSIM::MLEigenSolver::ShiftType::SHIFT_ZHAO, 0, 0.0, levelRatio, 7.5);
 				}
 			}			
 		}
