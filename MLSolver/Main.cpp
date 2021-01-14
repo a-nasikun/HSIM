@@ -3,6 +3,7 @@
 #include "MLEigSolverGUI.h"
 #include "MLTest.h"
 #include <igl/unproject_onto_mesh.h>
+#include <igl/edges.h>
 
 /* [MAIN FUNCTION THAT CALLS EVERYTHING ELSE] */
 int main(int argc, char *argv[])
@@ -31,12 +32,15 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Kitten-watertight/366_kitten_final.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_120k_irreg.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_150k_irreg.obj";
+	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_270k_irreg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Dragon/dragon.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/blade_smooth/blade_smooth.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Dinosaur/dinosaur.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Vase-lion/177_vase-lion.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Fertility/Fertility.obj";
-	meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Rocker-arm/38_rocker-arm_270k.off";
+	//meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Rocker-arm/38_rocker-arm_270k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM-Eros_full_resolution/428_Eros_800000triangles_edited.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Bimba_1M faces_clean_watertight/bimba.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Large_Ones/771_oil_pump_1Mfaces_holes_filled2.off";
@@ -47,14 +51,22 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Neptune_clean__watertight_4M triangles/803_neptune_4Mtriangles_manifold.off";
 		
 	eigenSolver->readMesh(meshFile);
+	//scaleMesh(eigenSolver->getV(), eigenSolver->getF(), 1.0);
 
+	Eigen::MatrixXi EE;
+	igl::edges(eigenSolver->getF(), EE);
+	int nV = eigenSolver->getV().rows();
+	int nF = eigenSolver->getF().rows();
+	int nE = EE.rows();
+	int nG = 1 - ((nV - nE + nF) / 2);
+	printf("V=%d | E=%d | F=%d => genus=%d \n", nV, nE, nF, nG);
 
 	//testInit(viewer, eigenSolver, meshFile);
 	//runMLSolverTest(viewer, eigenSolver);
 			
 	menu.callback_draw_viewer_window = [&]()
 	{
-		reducedSpaceMenu(viewer, menu, eigenSolver);
+		showHSIMMenu(viewer, menu, eigenSolver);
 		SIMMenu(viewer, menu, eigenSolver);
 		//ImGui::ShowDemoWindow();
 

@@ -50,6 +50,8 @@ namespace HSIM
 			cout << "Error! File type can be either .OFF or .OBJ only." << endl;
 			return;
 		}
+
+		scaleMesh(V, F, 2.0);
 	}
 
 	/**

@@ -3545,7 +3545,6 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		}
 	}
 
-
 	EigVectsSIM.conservativeResize(Eigen::NoChange, numEigs);
 	EigValsSIM.conservativeResize(numEigs);
 
@@ -3614,6 +3613,7 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 	default:
 		break;
 	}
+
 	setInitialSystem(sampSize.rows());
 	constructSampleHierarchy(sampSize);
 	constructBasis(basisSupport);
@@ -3637,8 +3637,9 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 	t1 = chrono::high_resolution_clock::now();	
 
 	computeEigenGPU(Sred[nLevel - 1], Mred[nLevel - 1], EigVectsHbar, EigValsHbar);
-	EigVectsHbar.conservativeResize(Eigen::NoChange_t::NoChange, numEigs);
-	EigValsHbar.conservativeResize(numEigs);
+	//EigVectsHbar.topLeftCorner(EigVectsHbar.rows(), numEigs) = EigVectsHbar.block(0, 1, EigVectsHbar, numEigs);
+	//EigVectsHbar.conservativeResize(Eigen::NoChange_t::NoChange, numEigs);	
+	//EigValsHbar.conservativeResize(numEigs);
 	std::cout << "Level " << nLevel - 1 << std::endl;
 	std::cout << EigValsHbar.transpose() << std::endl;
 
@@ -3654,15 +3655,22 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 	Eigen::VectorXd Alpha;
 	int status;
 
+	int orthoType = 1;			// 0: Gram-Schmidt | 1: eigenproblem
+	int solverCase = 0;			// 0: Ours-like | 1: based on original paper, not working
+
 	for (int i = nLevel - 2; i >= 0; --i) {
 		std::cout << "LEVEL: " << i << std::endl;
 		std::cout << "[5] SIM [a] Prolongation...";
 		t1 = chrono::high_resolution_clock::now();
 		t01 = t1;
 
+		EigVectsHbar.topLeftCorner(EigVectsHbar.rows(), numEigs) = EigVectsHbar.block(0, 1, EigVectsHbar.rows(), numEigs);
+		EigVectsHbar.conservativeResize(Eigen::NoChange_t::NoChange, numEigs);
+		EigValsHbar.conservativeResize(numEigs);
+
 		// XH is equal to EigVectsHbar
 		EigVectsHbar = U[i] * EigVectsHbar;
-		EigVectsHtilde.resize(EigVectsHbar.rows(), EigVectsHbar.cols());
+		EigVectsHtilde.resize(EigVectsHbar.rows(), EigVectsHbar.cols());		
 
 		/* factorization */
 		std::cout << "Factorization\n";
@@ -3727,97 +3735,107 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 			}
 		}
 
-		/* Orthogonalization via reduced eigenproblem */
-		std::cout << "Orthonormalization via eigensolve (for enrichment) \n";
-		std::cout << "__[1] projection.\n";
-		Sproj = EigVectsHtilde.transpose()*Sred[i] * EigVectsHtilde;
-		Mproj = EigVectsHtilde.transpose()*Mred[i] * EigVectsHtilde;
-		
-		std::cout << "__[2] Solving reduced eigenproblem: ";
-		status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
-		std::cout << status << std::endl;
-		
-		std::cout << "__[3] Prolongation \n";
-		EigVectsHtilde = EigVectsHtilde*Q;
-		EigValsHtilde = Alpha;
-		std::cout << "EigVals:\n" << Alpha.transpose() << std::endl;
+		printf("Size HbarTile: %dx%d\n", EigVectsHtilde.rows(), EigVectsHtilde.cols());
 
-		/* Orthogonalizeation via Gram-Schmidt*/
-		//std::cout << "Gram-Schmidt orthogonalization \n";
-		//double eNorm = EigVectsHtilde.col(0).transpose()*Mred[i] * EigVectsHtilde.col(0);
-		//EigVectsHtilde.col(0) /= sqrt(eNorm);
-		//for (int j = 1; j < EigVectsHtilde.cols(); ++j) {
-		//	//std::cout << "col:" << j << "|" ;
-		//	EigVectsHtilde.col(j) -= EigVectsHtilde.leftCols(j) * (EigVectsHtilde.leftCols(j).transpose()*Mred[i]*EigVectsHtilde.col(j));
-		//	
-		//	eNorm = EigVectsHtilde.col(j).transpose()*Mred[i] * EigVectsHtilde.col(j);
-		//	EigVectsHtilde.col(j) /= sqrt(eNorm);
-		//}
-		// Xh is equal to EigVectsHtilde at this stage
+		if (orthoType == 1) {
+			/* Orthogonalization via reduced eigenproblem */
+			std::cout << "Orthonormalization via eigensolve (for enrichment) \n";
+			std::cout << "__[1] projection.\n";
+			Sproj = EigVectsHtilde.transpose() * Sred[i] * EigVectsHtilde;
+			Mproj = EigVectsHtilde.transpose() * Mred[i] * EigVectsHtilde;
+			printf("Sproj: %dx%d | numEigs: %d \n", Sproj.rows(), Sproj.cols(), numEigs);
 
-		// [4] Algorithm 2 step 3: coarse grid eigensolve in the enriched space
-		///std::cout << "Combining the reduced and enrichment \n";		
-		///XHh.resize(EigVectsHtilde.rows(), EigVectsHbar.cols() + EigVectsHtilde.cols());
-		///XHh.leftCols(EigVectsHbar.cols()) =  EigVectsHbar;
-		///XHh.rightCols(EigVectsHtilde.cols()) = EigVectsHtilde;
-		///std::cout << "left:" << EigVectsHbar.col(1).transpose()*Mred[i] * EigVectsHbar.col(1) << std::endl;
-		///std::cout << "right:" << EigVectsHtilde.col(1).transpose()*Mred[i] * EigVectsHtilde.col(1) << std::endl;
-		///printf("Red: %dx%d | enrichment: %dx%d | combine: %dx%d \n", EigVectsHbar.rows(), EigVectsHbar.cols(), EigVectsHtilde.rows(), EigVectsHtilde.cols(), XHh.rows(), XHh.cols() );
-		///
-		///std::cout << "Solving eigen problem in enriched space \n";
-		///std::cout << "__[1] projection.\n";
-		///Sproj = XHh.transpose()*Sred[i] * XHh;
-		///Mproj = XHh.transpose()*Mred[i] * XHh;
-		///
-		///std::cout << "__[2] Solving reduced eigenproblem: ";
-		///status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
-		///std::cout << status << std::endl;
-		///std::cout << "EigVals:\n" << Alpha.transpose() << std::endl;
-		///
-		///std::cout << "__[3] Prolongation \n";
-		///EigVectsHbar = XHh * Q.topLeftCorner(Q.rows(), numEigs);
+			std::cout << "__[2] Solving reduced eigenproblem: ";
+			status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+			std::cout << status << std::endl;
 
-		/* Step 4: COARSE LEVEL WITH ENRICHED SPACE */
-		Eigen::SparseMatrix<double> M00;
-		Eigen::MatrixXd M01, M10, M11;
-		Eigen::SparseMatrix<double> S00;
-		Eigen::MatrixXd S01, S10, S11;
+			std::cout << "__[3] Prolongation \n";
+			EigVectsHtilde = EigVectsHtilde * Q;
+			EigValsHtilde = Alpha;
+			std::cout << "EigVals:\n" << Alpha.transpose() << std::endl;
+		}
+		else {
+			/* Orthogonalizeation via Gram-Schmidt*/
+			std::cout << "Gram-Schmidt orthogonalization \n";
+			double eNorm = EigVectsHtilde.col(0).transpose()*Mred[i] * EigVectsHtilde.col(0);
+			EigVectsHtilde.col(0) /= sqrt(eNorm);
+			for (int j = 1; j < EigVectsHtilde.cols(); ++j) {
+				//std::cout << "col:" << j << "|" ;
+				EigVectsHtilde.col(j) -= EigVectsHtilde.leftCols(j) * (EigVectsHtilde.leftCols(j).transpose()*Mred[i]*EigVectsHtilde.col(j));
+				
+				eNorm = EigVectsHtilde.col(j).transpose()*Mred[i] * EigVectsHtilde.col(j);
+				EigVectsHtilde.col(j) /= sqrt(eNorm);
+			}
+			// Xh is equal to EigVectsHtilde at this stage
+		}
 
-		M00 = Mred[i+1];
-		M01 = U[i].transpose()*Mred[i]*EigVectsHtilde;
-		M10 = EigVectsHtilde.transpose()*Mred[i]*U[i];
-		M11 = EigVectsHtilde.transpose()*Mred[i]*EigVectsHtilde;
-		printf("MH: %dx%d | Uh: %dx%d | Ph:%dx%d \n", Mred[i+1].rows(), Mred[i+1].cols(), EigVectsHtilde.rows(), EigVectsHtilde.cols(), U[i].rows(), U[i].cols());
+		if (solverCase == 0) {
+			//[4] Algorithm 2 step 3: coarse grid eigensolve in the enriched space
+			std::cout << "Combining the reduced and enrichment \n";
+			XHh.resize(EigVectsHtilde.rows(), EigVectsHbar.cols() + EigVectsHtilde.cols());
+			XHh.leftCols(EigVectsHbar.cols()) = EigVectsHbar;
+			XHh.rightCols(EigVectsHtilde.cols()) = EigVectsHtilde;
+			std::cout << "left:" << EigVectsHbar.col(1).transpose() * Mred[i] * EigVectsHbar.col(1) << std::endl;
+			std::cout << "right:" << EigVectsHtilde.col(1).transpose() * Mred[i] * EigVectsHtilde.col(1) << std::endl;
+			printf("Red: %dx%d | enrichment: %dx%d | combine: %dx%d \n", EigVectsHbar.rows(), EigVectsHbar.cols(), EigVectsHtilde.rows(), EigVectsHtilde.cols(), XHh.rows(), XHh.cols());
 
-		S00 = Sred[i+1];
-		S01 = U[i].transpose()*Sred[i] * EigVectsHtilde;
-		S10 = EigVectsHtilde.transpose()*Sred[i] * U[i];
-		S11 = EigVectsHtilde.transpose()*Sred[i] * EigVectsHtilde;
+			std::cout << "Solving eigen problem in enriched space \n";
+			std::cout << "__[1] projection.\n";
+			Sproj = XHh.transpose() * Sred[i] * XHh;
+			Mproj = XHh.transpose() * Mred[i] * XHh;
 
-		Eigen::MatrixXd SHh(S00.rows()+S10.rows(), S00.cols()+S01.cols()), 
-						MHh(M00.rows()+M10.rows(), M00.cols()+M01.cols());
-		MHh.topLeftCorner(M00.rows(), M00.cols())		= M00.toDense();
-		MHh.bottomLeftCorner(M10.rows(), M10.cols())	= M10;
-		MHh.topRightCorner(M01.rows(), M01.cols())		= M01;
-		MHh.bottomRightCorner(M11.rows(), M11.cols())	= M11;
-		SHh.topLeftCorner(S00.rows(), S00.cols())		= S00.toDense();
-		SHh.bottomLeftCorner(S10.rows(), S10.cols())	= S10;
-		SHh.topRightCorner(S01.rows(), S01.cols())		= S01;
-		SHh.bottomRightCorner(S11.rows(), S11.cols())	= S11;
+			std::cout << "__[2] Solving reduced eigenproblem: ";
+			status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+			std::cout << status << std::endl;
+			std::cout << "EigVals:\n" << Alpha.transpose() << std::endl;
 
-		printf("SHh:%dx%d (S00:%dx%d | S01:%dx%d | S11:%dx%d) \n", SHh.rows(), SHh.cols(), S00.rows(), S00.cols(), S01.rows(), S01.cols(), S11.rows(), S11.cols());
-		std::cout << SHh.topLeftCorner(10, 10) << std::endl;
-		std::cout << S00.topLeftCorner(10, 10) << std::endl;
-		Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(SHh);
-		int rank = lu_decomp.rank();
-		printf("Matrix rank: %d | size: %dx%d \n", rank, SHh.rows(), SHh.cols());			
+			std::cout << "__[3] Prolongation \n";
+			EigVectsHbar = XHh * Q.topLeftCorner(Q.rows(), numEigs+1);
+			EigValsHbar.conservativeResize(numEigs);
+		}
+		else {
+			/* Step 4: COARSE LEVEL WITH ENRICHED SPACE */
+			Eigen::SparseMatrix<double> M00;
+			Eigen::MatrixXd M01, M10, M11;
+			Eigen::SparseMatrix<double> S00;
+			Eigen::MatrixXd S01, S10, S11;
+			
+			M00 = Mred[i+1];
+			M01 = U[i].transpose()*Mred[i]*EigVectsHtilde;
+			M10 = EigVectsHtilde.transpose()*Mred[i]*U[i];
+			M11 = EigVectsHtilde.transpose()*Mred[i]*EigVectsHtilde;
+			printf("MH: %dx%d | Uh: %dx%d | Ph:%dx%d \n", Mred[i+1].rows(), Mred[i+1].cols(), EigVectsHtilde.rows(), EigVectsHtilde.cols(), U[i].rows(), U[i].cols());
+			
+			S00 = Sred[i+1];
+			S01 = U[i].transpose()*Sred[i] * EigVectsHtilde;
+			S10 = EigVectsHtilde.transpose()*Sred[i] * U[i];
+			S11 = EigVectsHtilde.transpose()*Sred[i] * EigVectsHtilde;
+			
+			Eigen::MatrixXd SHh(S00.rows()+S10.rows(), S00.cols()+S01.cols()), 
+							MHh(M00.rows()+M10.rows(), M00.cols()+M01.cols());
+			MHh.topLeftCorner(M00.rows(), M00.cols())		= M00.toDense();
+			MHh.bottomLeftCorner(M10.rows(), M10.cols())	= M10;
+			MHh.topRightCorner(M01.rows(), M01.cols())		= M01;
+			MHh.bottomRightCorner(M11.rows(), M11.cols())	= M11;
+			SHh.topLeftCorner(S00.rows(), S00.cols())		= S00.toDense();
+			SHh.bottomLeftCorner(S10.rows(), S10.cols())	= S10;
+			SHh.topRightCorner(S01.rows(), S01.cols())		= S01;
+			SHh.bottomRightCorner(S11.rows(), S11.cols())	= S11;
+			
+			printf("SHh:%dx%d (S00:%dx%d | S01:%dx%d | S11:%dx%d) \n", SHh.rows(), SHh.cols(), S00.rows(), S00.cols(), S01.rows(), S01.cols(), S11.rows(), S11.cols());
+			std::cout << SHh.topLeftCorner(10, 10) << std::endl;
+			std::cout << S00.topLeftCorner(10, 10) << std::endl;
+			Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(SHh);
+			int rank = lu_decomp.rank();
+			printf("Matrix rank: %d | size: %dx%d \n", rank, SHh.rows(), SHh.cols());			
 
-		//computeEigenGPUDense(SHh, MHh, EigVectsHbar, EigValsHbar);
-		computeEigenMatlabDense(SHh, MHh, numEigs, EigVectsHbar, EigValsHbar, "");
-		std::cout  << "Matlab solver \n" << EigValsHbar.transpose() << std::endl;
-		EigVectsHbar.conservativeResize(Eigen::NoChange, numEigs);
-		EigVectsHbar = EigVectsHtilde * EigVectsHbar;
-		EigValsHbar.conservativeResize(numEigs);
+			computeEigenGPUDense(SHh, MHh, EigVectsHbar, EigValsHbar);
+			//computeEigenMatlabDense(SHh, MHh, numEigs, EigVectsHbar, EigValsHbar, "");
+			std::cout << "Dense solver \n" << EigValsHbar.transpose() << std::endl;
+			EigVectsHbar.conservativeResize(Eigen::NoChange, numEigs);
+			EigVectsHbar = EigVectsHtilde * EigVectsHbar;
+			EigValsHbar.conservativeResize(numEigs);
+		}
 
 
 		t2 = chrono::high_resolution_clock::now();

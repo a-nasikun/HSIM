@@ -30,7 +30,7 @@ static int			eigToCompute    = 500;
 bool				boolShowSamples = false;
 bool				useNonSmoothBasis = false; 
 //static int			numOfSample		= 250;
-static int			sampleType		= HSIM::Sample_Farthest_Point; 
+//static int			sampleType		= HSIM::Sample_Farthest_Point; 
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
@@ -51,7 +51,7 @@ static int			numLevels		= 3;
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
 
-void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
+void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
 {
 	// Variables For Viewer visualization
 	float	menuWindowLeft		= 0.f,
@@ -65,7 +65,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
 	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
-	ImGui::Begin("Reduced Space", nullptr, ImGuiWindowFlags_NoSavedSettings);
+	ImGui::Begin("HSIM Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
 
 	float w = ImGui::GetContentRegionAvailWidth();
 	float p = ImGui::GetStyle().FramePadding.x;
@@ -74,92 +74,93 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 	static int sample1 = 0, sample2 = 0;
 
-	if (ImGui::Button("Test GEMM", ImVec2((w - p) / 2.f, 0))) {
-		eigenSolver->cublasGEMMtest();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Test SpMM", ImVec2((w - p) / 2.f, 0))) {
-		chrono::high_resolution_clock::time_point	t1, t2;
-		chrono::duration<double>					duration;
+	///if (ImGui::Button("Test GEMM", ImVec2((w - p) / 2.f, 0))) {
+	///	eigenSolver->cublasGEMMtest();
+	///}
+	///ImGui::SameLine();
+	///if (ImGui::Button("Test SpMM", ImVec2((w - p) / 2.f, 0))) {
+	///	chrono::high_resolution_clock::time_point	t1, t2;
+	///	chrono::duration<double>					duration;
+	///
+	///	//eigenSolver->cusparseCSRMMtest();
+	///	eigenSolver->cusparseSpMMtest();
+	///	//eigenSolver->cuSolverCholTest(eigenSolver->getStiffnessMatrix(), eigenSolver->getEigenVectorsRef(), VColor);
+	///
+	///	//Eigen::MatrixXd RHS(eigenSolver->getStiffnessMatrix().rows(), 1), X;
+	///	//RHS.setOnes();
+	///	//RHS = eigenSolver->getMassMatrix() * RHS;
+	///	//eigenSolver->cusparseLinearSolverLLTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
+	///	//std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
+	///	//std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
+	///	//
+	///	//t2 = chrono::high_resolution_clock::now();
+	///	//duration = t2 - t1;
+	///	//std::cout << "in " << duration.count() << " seconds" << endl;
+	///	
+	///}
+	///
+	///if (ImGui::Button("Projection\n", ImVec2(w, 0))) {
+	///	Eigen::SparseMatrix<double> MU;
+	///	printf("Basis:%dx%d (%d nnz) \n", eigenSolver->getBasisMatrix().rows(), eigenSolver->getBasisMatrix().cols(), eigenSolver->getBasisMatrix().nonZeros());
+	///	eigenSolver->cuSparseProjection(eigenSolver->getBasisMatrix(), eigenSolver->getMassMatrix(), MU);
+	///}
+	///
+	///if (ImGui::Button("Compare solvers\n", ImVec2(w, 0))) {
+	///	chrono::high_resolution_clock::time_point	t1, t2;
+	///	chrono::duration<double>					duration;
+	///
+	///	Eigen::MatrixXd RHS(eigenSolver->getStiffnessMatrix().rows(), 1), X;
+	///	RHS.setOnes();
+	///	RHS = eigenSolver->getMassMatrix() * RHS;
+	///
+	///	// GPU
+	///	std::cout << "GPU Impleentation" << std::endl;
+	///	t1 = chrono::high_resolution_clock::now();
+	///
+	///	//eigenSolver->cuLinearSolverTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
+	///	eigenSolver->cusparseLinearSolverLLTest(eigenSolver->getStiffnessMatrix() - ((1e-10) * (eigenSolver->getMassMatrix())), RHS, X);
+	///	std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
+	///	if(X.col(0).rows()>0) std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
+	///
+	///	t2 = chrono::high_resolution_clock::now();
+	///	duration = t2 - t1;
+	///	std::cout << "in " << duration.count() << " seconds" << endl;
+	///
+	///	// CPU
+	///	std::cout << "CPU Impleentation" << std::endl;
+	///	t1 = chrono::high_resolution_clock::now();
+	///
+	///	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> linSolver;
+	///	X.resize(RHS.rows(), RHS.cols());
+	///	linSolver.compute(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())));
+	///	X.col(0)=linSolver.solve(RHS.col(0));
+	///	
+	///	std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
+	///	std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
+	///
+	///	t2 = chrono::high_resolution_clock::now();
+	///	duration = t2 - t1;
+	///	std::cout << "in " << duration.count() << " seconds" << endl;
+	///}
 
-		//eigenSolver->cusparseCSRMMtest();
-		eigenSolver->cusparseSpMMtest();
-		//eigenSolver->cuSolverCholTest(eigenSolver->getStiffnessMatrix(), eigenSolver->getEigenVectorsRef(), VColor);
-	
-		//Eigen::MatrixXd RHS(eigenSolver->getStiffnessMatrix().rows(), 1), X;
-		//RHS.setOnes();
-		//RHS = eigenSolver->getMassMatrix() * RHS;
-		//eigenSolver->cusparseLinearSolverLLTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
-		//std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
-		//std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
-		//
-		//t2 = chrono::high_resolution_clock::now();
-		//duration = t2 - t1;
-		//std::cout << "in " << duration.count() << " seconds" << endl;
-		
-	}
 
-	if (ImGui::Button("Projection\n", ImVec2(w, 0))) {
-		Eigen::SparseMatrix<double> MU;
-		printf("Basis:%dx%d (%d nnz) \n", eigenSolver->getBasisMatrix().rows(), eigenSolver->getBasisMatrix().cols(), eigenSolver->getBasisMatrix().nonZeros());
-		eigenSolver->cuSparseProjection(eigenSolver->getBasisMatrix(), eigenSolver->getMassMatrix(), MU);
-	}
-
-	if (ImGui::Button("Compare solvers\n", ImVec2(w, 0))) {
-		chrono::high_resolution_clock::time_point	t1, t2;
-		chrono::duration<double>					duration;
-
-		Eigen::MatrixXd RHS(eigenSolver->getStiffnessMatrix().rows(), 1), X;
-		RHS.setOnes();
-		RHS = eigenSolver->getMassMatrix() * RHS;
-
-		// GPU
-		std::cout << "GPU Impleentation" << std::endl;
-		t1 = chrono::high_resolution_clock::now();
-
-		//eigenSolver->cuLinearSolverTest(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())), RHS, X);
-		eigenSolver->cusparseLinearSolverLLTest(eigenSolver->getStiffnessMatrix() - ((1e-10) * (eigenSolver->getMassMatrix())), RHS, X);
-		std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
-		if(X.col(0).rows()>0) std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
-
-		t2 = chrono::high_resolution_clock::now();
-		duration = t2 - t1;
-		std::cout << "in " << duration.count() << " seconds" << endl;
-
-		// CPU
-		std::cout << "CPU Impleentation" << std::endl;
-		t1 = chrono::high_resolution_clock::now();
-
-		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> linSolver;
-		X.resize(RHS.rows(), RHS.cols());
-		linSolver.compute(eigenSolver->getStiffnessMatrix()-((1e-10)*(eigenSolver->getMassMatrix())));
-		X.col(0)=linSolver.solve(RHS.col(0));
-		
-		std::cout << "RHS \n\t" << RHS.col(0).head(10).transpose() << std::endl;
-		std::cout << "X \n\t" << X.col(0).head(10).transpose() << std::endl;
-
-		t2 = chrono::high_resolution_clock::now();
-		duration = t2 - t1;
-		std::cout << "in " << duration.count() << " seconds" << endl;
-	}
 	// Main Algorithm
-	if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
-		if (ImGui::Button("Load##Mesh1", ImVec2((w) / 2.f, 0))) {
+	///if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
+		if (ImGui::Button("Load##Mesh1", ImVec2(w, 0))) {
 			// Load mesh + display the correct mesh
-			Eigen::MatrixXd tempV;// = viewer.data_list[0].V;
-			Eigen::MatrixXi tempF;// = viewer.data_list[0].F;
+			Eigen::MatrixXd tempV;
+			Eigen::MatrixXi tempF;
 
-								  // Load mesh + display the correct mesh
+			// Load mesh + display the correct mesh
 			int numOfModel = viewer.data_list.size();
-			printf("mesh that we have  now: %d (%d vertices) \n", viewer.data_list.size(),viewer.data().V.rows());
+			//printf("mesh that we have now: %d (%d vertices) \n", viewer.data_list.size(),viewer.data().V.rows());
 
 			if (numOfModel > 0) {
 				if (viewer.data_list[0].V.rows() > 1){					
 					tempV = viewer.data_list[0].V;
 					tempF = viewer.data_list[0].F;
 					viewer.data_list.clear();
-				}		
-				
+				}				
 			} 
 
 			viewer.open_dialog_load_mesh();
@@ -178,29 +179,29 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 
 			if (viewer.data().V.rows() > 0) {
-				//eigenSolver.setV(viewer.data().V);
-				//eigenSolver.setF(viewer.data().F);
-
-				scaleMesh(viewer.data().V, viewer.data().F, 2.0);
+				//scaleMesh(viewer.data().V, viewer.data().F, 2.0);
 				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
 
 				viewer.data().show_lines = false;
-				printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());
-				//viewer.data().set_mesh(V, F);
+				//printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());				
 				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 
 				boolShowSamples = false;
-				printf("mesh that we have  now: %d \n", viewer.data_list.size());
+				//printf("mesh that we have  now: %d \n", viewer.data_list.size());
 
 				eigenSolver->setV(viewer.data().V);
 				eigenSolver->setF(viewer.data().F);
 			}
 		}
-		ImGui::SameLine(0, p);
-		if (ImGui::Button("Save##Mesh1", ImVec2((w - p) / 2.f, 0))) {
-			viewer.open_dialog_save_mesh();
-		}
-			
+		static int axis = 0;
+
+		
+
+
+		///ImGui::SameLine(0, p);
+		///if (ImGui::Button("Save##Mesh1", ImVec2((w - p) / 2.f, 0))) {
+		///	viewer.open_dialog_save_mesh();
+		///}			
 
 		//ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
 		//
@@ -216,8 +217,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		//	printf("Mesh in eigensolver object: %dx%d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols());
 		//}
 
-		static int axis = 0;		
-	}
+				
+	///}
+
+
 
 		/* STEP BY STEP CONSTRUCTION */
 		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -926,6 +929,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		static double qParam;
 		static char qParamTxt[10] = "1.5"; ImGui::InputText("q Param", qParamTxt, 10);
 		qParam = atof(qParamTxt);
+		static bool isPrintEigVals = true;
+		ImGui::Checkbox("Print eigenvalue", &isPrintEigVals);
 
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
 			std::cout << "Hierarchy " << hierarchyMode << std::endl;
@@ -949,6 +954,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			else 
 				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
 				//eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
+
+			if (isPrintEigVals) {
+				std::cout << "Eigevalues=== \n";
+				printVector(eigenSolver->getEigenValuesSIM(), false, 16);
+				std::cout << std::endl;
+			}
 		}
 
 		if (ImGui::Button("BMG Solver", ImVec2(w, 0))) {
@@ -959,6 +970,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::cout << "is iterating over converged ? " << isNotIterateOverConverged << std::endl;
 			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
 			eigenSolver->isMultipleSolve = isMultipleSolve;
+			eigenSolver->setLevel(numLevels - 1);
 			eigenSolver->hierarchyMode = hierarchyMode;
 			std::cout << "Hierarchy mode: " << eigenSolver->hierarchyMode << std::endl;
 			std::cout << "Level ratio: " << levelRatio << std::endl;
@@ -1516,14 +1528,14 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>		 levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
 			std::vector<double>		levelSupport{ 7 };
 			//std::vector<double>	levelZhaoParam{ 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
-			std::vector<double>		levelZhaoParam{ 0.1 };			
-			//std::vector<double>		levelZhaoParam{ 1.0/3.0 };
-			vector<int>				wantedModes{25, 100, 200, 300, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000};
+			//std::vector<double>		levelZhaoParam{ 0.1 };			
+			std::vector<double>		levelZhaoParam{ 1.0/3.0 };
+			//vector<int>				wantedModes{25, 100, 200, 300, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
-			//vector<int>				wantedModes{ 50, 250, 1000 };
-			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
+			vector<int>				wantedModes{ 100 };
+			vector<double>			wantedTols{ 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
-			vector<double>			wantedTols{1e-2 };
+			//vector<double>			wantedTols{1e-2 };
 			int						maxIters = 20;
 			std::vector<double>		qParam{ 1.5 };
 			//vector<int>				HSIMlevels = { 2,3,4,5};
@@ -1589,7 +1601,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		ImGui::RadioButton("CUDA", &solverType, 2);
 
 		static double tol;
-		static char toleTxt[15] = "0.0001"; ImGui::InputText("Tolerance##2", toleTxt, 15);
+		static char toleTxt[25] = "0.0001"; ImGui::InputText("Tolerance##2", toleTxt, 25);
 		static int maxIter;
 		static char maxItersTxt[15] = "500"; ImGui::InputText("Max Iters##1", maxItersTxt, 15);
 		tol = stof(toleTxt);
@@ -1633,25 +1645,27 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::cout << "Num of modes: " << eigenSolver->getEigenValuesRef().rows() << std::endl;
 			//cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef().transpose() << endl;
 			eigenSolver->checkConvergenceCat2(eigenSolver->getEigenVectorsRef(), eigenSolver->getEigenValuesRef(), eigToCompute, eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), convRate);
-			std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
+			//std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
+			//std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size())).transpose() << std::endl;
+			std::cout << "ConvRate: \n" << convRate << std::endl;
 
 
-			Eigen::MatrixXd NormEigVectRef(eigenSolver->getEigenVectorsRef().rows(), eigenSolver->getEigenVectorsRef().cols());
-			Eigen::VectorXd EVect;
-			for (int i = 0; i < eigenSolver->getEigenValuesRef().rows(); ++i)
-			{
-				EVect = eigenSolver->getEigenVectorsRef().col(i);
-				double norm1 = EVect.transpose() * eigenSolver->getMassMatrix() * EVect;
-				EVect = EVect / sqrt(norm1);
-				NormEigVectRef.col(i) = EVect;
-				double norm2 = NormEigVectRef.col(i).transpose() * eigenSolver->getMassMatrix() * NormEigVectRef.col(i);
-				//cout << " " << norm2;
-			}
-			//std::cout << std::endl;
-
-			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef().transpose() << endl;
-			eigenSolver->checkConvergenceCat2(NormEigVectRef, eigenSolver->getEigenValuesRef(), eigToCompute, eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), convRate);
-			std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
+			///Eigen::MatrixXd NormEigVectRef(eigenSolver->getEigenVectorsRef().rows(), eigenSolver->getEigenVectorsRef().cols());
+			///Eigen::VectorXd EVect;
+			///for (int i = 0; i < eigenSolver->getEigenValuesRef().rows(); ++i)
+			///{
+			///	EVect = eigenSolver->getEigenVectorsRef().col(i);
+			///	double norm1 = EVect.transpose() * eigenSolver->getMassMatrix() * EVect;
+			///	EVect = EVect / sqrt(norm1);
+			///	NormEigVectRef.col(i) = EVect;
+			///	double norm2 = NormEigVectRef.col(i).transpose() * eigenSolver->getMassMatrix() * NormEigVectRef.col(i);
+			///	//cout << " " << norm2;
+			///}
+			/////std::cout << std::endl;
+			///
+			///cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
+			///eigenSolver->checkConvergenceCat2(NormEigVectRef, eigenSolver->getEigenValuesRef(), eigToCompute, eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), convRate);
+			///std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
 
 			
 		}
@@ -1681,8 +1695,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>		tolVect{ 5e-2, 1e-2, 1e-3, 1e-4, 1e-5 };
 			//std::vector<double>		tolVect{1e-3, 5.0e-2, 1e-1 };
 			std::vector<double>		tolVect{1e-2 };
-			vector<int>				wantedModes{50, 250, 1000};
-			//vector<int>				wantedModes{ 50 };
+			//vector<int>				wantedModes{50, 250, 1000};
+			vector<int>				wantedModes{ 250 };
 			//vector<int>				wantedModes{ 100, 150, 250 };
 			//eigToCompute = atoi(numEig);
 			Eigen::MatrixXd EigVects;

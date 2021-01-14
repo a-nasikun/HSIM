@@ -258,6 +258,11 @@ namespace HSIM
 		LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V, m, lda, Eigen::OuterStride<>(m));
 		LDEigVal = Eigen::Map<Eigen::VectorXd>(W, m);
 
+
+
+		printf("cuSolverStatus: %d | inf_gpu: %d | cudaStat1: %d | cudaStat1: %d | cudaStat1: %d | cudaStat1: %d \n", (int)cusolver_status, info_gpu, cudaStat1, cudaStat2, cudaStat3, cudaStat4);
+
+
 		// free resources 
 		if (d_A) cudaFree(d_A);
 		if (d_B) cudaFree(d_B);
