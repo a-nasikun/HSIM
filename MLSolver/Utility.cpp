@@ -202,6 +202,13 @@ namespace HSIM
 		//cout << "____after scaling: " << maxVal << endl;
 	}
 
+	void projectToSphere(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double radius)
+	{
+		for (int i = 0; i < V.rows(); ++i) {
+			double norm = sqrt(V(i, 0) * V(i, 0) + V(i, 1) * V(i, 1) + V(i, 2) * V(i, 2));
+			V.row(i) = V.row(i) / norm;
+		}
+	}
 	void printVector(const Eigen::VectorXd& V, bool isTranspose, int numDigit)
 	{
 		std::string text = "%." + to_string(numDigit) + "lg";

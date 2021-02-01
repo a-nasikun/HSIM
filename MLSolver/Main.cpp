@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_5k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/pulley_40k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere40k.off";
-	//meshFile = "D:/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_43243.obj";
+	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_43243.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Gargoyle_85K/654_gargoyle_raph_85k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/TurboSquid_Sphere_HighGenus/TurboSquid_Sphere_highgenus.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Chinese_dragon_quad_PGP_small_wavelength/894_dragon_tris.obj";
@@ -34,7 +34,12 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_120k_irreg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_150k_irreg.obj";
-	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_270k_irreg.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_270k_irreg.obj";
+	/// Mesh for regular mesh on sphere
+	///meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere-reg-10k.off";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_100k_reg.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_1.1m_irreg.obj";
+	///meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere-reg-6m.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Dragon/dragon.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/blade_smooth/blade_smooth.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Dinosaur/dinosaur.obj";

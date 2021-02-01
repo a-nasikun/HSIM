@@ -52,6 +52,7 @@ namespace HSIM
 		}
 
 		scaleMesh(V, F, 2.0);
+		projectToSphere(V, F, 1.0);
 	}
 
 	/**
@@ -765,7 +766,53 @@ namespace HSIM
 	void MLEigenSolver::solveBMG(int numEigs, double tol, int maxIter, double levelRatio, double basisSupport, bool isWithShift) {}
 
 	void MLEigenSolver::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
+	
+	void MLEigenSolver::solveInversePowerMethod(double tol, int maxIter, bool isWithShift)
+	{
+		/* [1] Set up the System matrices */
+		constructMassMatrix();
+		initiateAdM();
+		constructStiffnessMatrix();
+
+		Eigen::SparseMatrix<double> Sh = MhNeg * S * MhNeg;
+		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SpSolver;
+		SpSolver.compute(Sh);
+		Eigen::MatrixXd V;
+		Eigen::VectorXd v;
+		Eigen::VectorXd eigVal(1);
+		Eigen::VectorXd convRate(1);
+		Eigen::SparseMatrix<double> Id(Sh.rows(), Sh.rows()); Id.setIdentity();
+
+		generateRandomMatrix(Sh.rows(), 1, V);
+		v = V.col(0);
+		v.normalize();
 		
+
+		bool isConverged = false;
+		unsigned int iterCount = 0;
+		do {
+			v.normalize();
+			v = SpSolver.solve(v);
+			double a = max(v.maxCoeff(), abs(v.minCoeff()));
+
+			eigVal(0) = 1.0/a;
+			v = v / a;
+			
+			checkConvergenceCat2(v, eigVal, 1, Id, Id, Sh, convRate);
+			printf("--Iter %d | convergence check: %.5f | is converged? %s \n", iterCount, convRate(0), isConverged ? "true" : "false");
+
+
+			iterCount++;
+			if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
+
+			
+		} while (!isConverged);
+
+		EigValsSIM = eigVal;
+		EigVectsSIM = MhNeg * v;
+
+		std::cout << "M-norm: " << EigVectsSIM.transpose() * M * EigVectsSIM << std::endl;
+	}
 	/**
 	*  @brief
 	*   Compute a comparison of eigenvalues and eigenvectors using other methods (Matlab, Spectra, etc.)
@@ -832,6 +879,8 @@ namespace HSIM
 			break;
 		}
 	}
+
+
 
 	/**
 	*  @brief	Compute a comparison of eigenvalues and eigenvectors with some clampling (e.g. some areas are excluded from computation)

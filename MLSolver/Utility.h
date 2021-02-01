@@ -25,6 +25,7 @@ namespace HSIM
 	void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat);
 	void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> S, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat);
 	void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio = 1.0);
+	void projectToSphere(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double radius = 1.0);
 	void printVector(const Eigen::VectorXd& V, bool isTranspose = false, int numDigit = 16);
 
 	void checkOrthonormality(const Eigen::MatrixXd& EigVect, const Eigen::SparseMatrix<double>& M, Eigen::MatrixXd &OrthMat);

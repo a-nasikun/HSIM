@@ -57,6 +57,27 @@ namespace HSIM
 		//igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
 		igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_VORONOI, M);
 		igl::invert_diag(M, Minv);
+		
+		/*Transformation matrix*/
+		MhNeg.resize(M.rows(), M.rows());
+		MhPos.resize(M.rows(), M.rows());
+		std::vector<Eigen::Triplet<double>> MhNegTriplet, MhPosTriplet;
+		MhNegTriplet.reserve(M.nonZeros());
+		MhPosTriplet.reserve(M.nonZeros());
+		for (int k = 0; k < M.outerSize(); ++k) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(M, k); it; ++it) {
+				MhNegTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), 1.0 / sqrt(it.value())));
+				MhPosTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), sqrt(it.value())));
+			}
+		}
+		MhNeg.setFromTriplets(MhNegTriplet.begin(), MhNegTriplet.end());
+		MhPos.setFromTriplets(MhPosTriplet.begin(), MhPosTriplet.end());
+
+		printf("Check MhNeg: \n");
+		Eigen::SparseMatrix<double> M2 = MhNeg * M * MhNeg;
+		Eigen::VectorXd diagVec = M2.diagonal();
+		std::cout << diagVec.head(min(100, (int) diagVec.rows())).transpose() << std::endl;
+
 
 		Eigen::VectorXd dblArea;
 		igl::doublearea(V, F, dblArea);

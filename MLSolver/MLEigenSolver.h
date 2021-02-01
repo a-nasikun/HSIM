@@ -71,6 +71,7 @@ namespace HSIM
 		int sturmCheck(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::VectorXd& eigvals);
 
 		void virtual solveBMG(int numEigs, double tol = 1e-4, int maxIter = 50, double levelRatio = 10.0, double basisSupport = 7.5, bool isWithShift = true);
+		void virtual solveInversePowerMethod(double tol = 1e-4, int maxIter = 50, bool isWithShift = true);
 		void virtual BMGiter(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol = 1e-4, int maxIter = 20, int k = 0);
 
 		/* Computing the reference eigenproblem */
@@ -144,7 +145,7 @@ namespace HSIM
 		Eigen::SparseMatrix<double>			S;							//!< Stiffness matrix
 		Eigen::SparseMatrix<double>			M;							//!< Mass matrix
 		Eigen::SparseMatrix<double>			Minv;						//!< Inverse  of the mass matrix
-		Eigen::SparseMatrix<double>			MhNeg;						//!< 'Square root' of the mass matrix (M^0.5)
+		Eigen::SparseMatrix<double>			MhNeg, MhPos;						//!< 'Square root' of the mass matrix (M^0.5)
 		Eigen::SparseMatrix<double>			G;							//!< Gradient matrix (Each 3 rows corresponds to the x-y-z components of 1 vertex)
 
 		/* Utility matrices, vectors, and scalar */

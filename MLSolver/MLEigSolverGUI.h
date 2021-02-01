@@ -699,7 +699,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			ImGui::Text("SIM Eigs.");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##SIMEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -714,7 +714,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			ImGui::SameLine(0, p);
 
 			if (ImGui::Button("+ 1##SIMEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1|| eigenSolver->getEigenValuesSIM().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -726,7 +726,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("SIM##EigVec1", ImVec2((w-85.0-3* p) / 3.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1  || eigenSolver->getEigenValuesSIM().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -981,6 +981,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//	eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, numOfSupport);
 			//else
 				eigenSolver->solveBMG(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
+		}
+
+		if (ImGui::Button("Inverse Power Method", ImVec2(w, 0))) {
+			eigenSolver->solveInversePowerMethod(tol, maxIter, false);
+			std::cout << "__Eigval: " << eigenSolver->getEigenValuesSIM() << std::endl;
+			std::cout << "__Vect: " << eigenSolver->getEigenVectorsSIM().col(0).head(20).transpose() << std::endl;
 		}
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
