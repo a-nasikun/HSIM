@@ -767,7 +767,7 @@ namespace HSIM
 
 	void MLEigenSolver::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
 	
-	void MLEigenSolver::solveInversePowerMethod(double tol, int maxIter, bool isWithShift)
+	void MLEigenSolver::solveInversePowerMethod(unsigned int numEigs, double tol, int maxIter, bool isWithShift)
 	{
 		/* [1] Set up the System matrices */
 		constructMassMatrix();
@@ -783,33 +783,65 @@ namespace HSIM
 		Eigen::VectorXd convRate(1);
 		Eigen::SparseMatrix<double> Id(Sh.rows(), Sh.rows()); Id.setIdentity();
 
-		generateRandomMatrix(Sh.rows(), 1, V);
-		v = V.col(0);
+		EigVectsSIM.resize(Sh.rows(), numEigs);
+		EigValsSIM.resize(numEigs);
+		v.resize(Sh.rows());
+		v.setConstant(1.0);
 		v.normalize();
-		
+		EigVectsSIM.col(0) = v;			
 
-		bool isConverged = false;
-		unsigned int iterCount = 0;
-		do {
+		Eigen::MatrixXd XTS;
+		Eigen::MatrixXd XTSX;
+		Eigen::VectorXd vproj, q;
+		Eigen::LDLT<Eigen::MatrixXd> DnSolver;
+		for (int iEig = 1; iEig < numEigs; ++iEig) {
+			SpSolver.compute(Sh - EigValsSIM(iEig - 1) * Id);
+			// orthogonal Constraints
+			XTS = EigVectsSIM.leftCols(iEig).transpose();
+			XTSX = XTS * EigVectsSIM.leftCols(iEig);
+			std::cout << "Gram Mat: \n" << XTSX << std::endl;
+
+			DnSolver.compute(XTSX);
+
+			// Random matrix
+			generateRandomMatrix(Sh.rows(), 1, V);
+			v = V.col(0);
 			v.normalize();
-			v = SpSolver.solve(v);
-			double a = max(v.maxCoeff(), abs(v.minCoeff()));
 
-			eigVal(0) = 1.0/a;
-			v = v / a;
+
+			unsigned int iterCount = 0;
+			bool isConverged = false;
+
+			do {
+				v.normalize();
+				v = SpSolver.solve(v);
+				double a = max(v.maxCoeff(), abs(v.minCoeff()));
+
+				eigVal(0) = 1.0 / a;
+				v = v/(a-EigValsSIM(iEig-1));
+
+				vproj = XTS * v;
+				q = DnSolver.solve(vproj);
+				std::cout << "Dense solution: " << q.transpose() << std::endl;
+				v = v - EigVectsSIM.leftCols(iEig) * q;
+				Eigen::VectorXd eVectTemp = MhNeg * v;
+				checkConvergenceCat2(eVectTemp, eigVal, 1, M, Id, S, convRate);
+				printf("EigVal %d | []Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
+				checkConvergenceCat2(v, eigVal, 1, Id, Id, Sh, convRate);
+				printf("EigVal %d | --Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
+
+
+				iterCount++;
+				if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
+
+
+			} while (!isConverged);
 			
-			checkConvergenceCat2(v, eigVal, 1, Id, Id, Sh, convRate);
-			printf("--Iter %d | convergence check: %.5f | is converged? %s \n", iterCount, convRate(0), isConverged ? "true" : "false");
+			EigValsSIM(iEig) = eigVal(0);
+			EigVectsSIM.col(iEig) = MhNeg * v;
+		}
 
-
-			iterCount++;
-			if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
-
-			
-		} while (!isConverged);
-
-		EigValsSIM = eigVal;
-		EigVectsSIM = MhNeg * v;
+		
 
 		std::cout << "M-norm: " << EigVectsSIM.transpose() * M * EigVectsSIM << std::endl;
 	}

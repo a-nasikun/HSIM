@@ -889,8 +889,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(3, MLEigenSolver::ShiftType::SHIFT_ZHAO));
 
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_DefaultOpen)) {
-			static char numModesTxt[10] = "50"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
-			static char maxIterTxt[10] = "20"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
+			static char numModesTxt[10] = "6"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
+			static char maxIterTxt[10] = "5"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
 			static char tolTxt[15] = "0.01"; ImGui::InputText("Tolerance##1", tolTxt, 15);
 			numOfModes	= atoi(numModesTxt);
 			maxIter		= atoi(maxIterTxt);
@@ -984,7 +984,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		}
 
 		if (ImGui::Button("Inverse Power Method", ImVec2(w, 0))) {
-			eigenSolver->solveInversePowerMethod(tol, maxIter, false);
+			eigenSolver->solveInversePowerMethod(numOfModes, tol, maxIter, false);
 			std::cout << "__Eigval: " << eigenSolver->getEigenValuesSIM() << std::endl;
 			std::cout << "__Vect: " << eigenSolver->getEigenVectorsSIM().col(0).head(20).transpose() << std::endl;
 		}

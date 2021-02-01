@@ -71,7 +71,7 @@ namespace HSIM
 		int sturmCheck(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::VectorXd& eigvals);
 
 		void virtual solveBMG(int numEigs, double tol = 1e-4, int maxIter = 50, double levelRatio = 10.0, double basisSupport = 7.5, bool isWithShift = true);
-		void virtual solveInversePowerMethod(double tol = 1e-4, int maxIter = 50, bool isWithShift = true);
+		void virtual solveInversePowerMethod(unsigned int numEigs=50, double tol = 1e-4, int maxIter = 50, bool isWithShift = true);
 		void virtual BMGiter(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol = 1e-4, int maxIter = 20, int k = 0);
 
 		/* Computing the reference eigenproblem */
