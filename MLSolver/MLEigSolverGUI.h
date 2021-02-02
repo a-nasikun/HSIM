@@ -985,8 +985,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		if (ImGui::Button("Inverse Power Method", ImVec2(w, 0))) {
 			eigenSolver->solveInversePowerMethod(numOfModes, tol, maxIter, false);
-			std::cout << "__Eigval: " << eigenSolver->getEigenValuesSIM() << std::endl;
-			std::cout << "__Vect: " << eigenSolver->getEigenVectorsSIM().col(0).head(20).transpose() << std::endl;
+			std::cout << "__Eigval: " << std::endl;
+			printVector(eigenSolver->getEigenValuesSIM());
+			//std::cout << "__Vect: " << eigenSolver->getEigenVectorsSIM().col(0).head(20).transpose() << std::endl;
+			
+
 		}
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
