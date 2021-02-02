@@ -773,78 +773,182 @@ namespace HSIM
 		constructMassMatrix();
 		initiateAdM();
 		constructStiffnessMatrix();
-
-		Eigen::SparseMatrix<double> Sh = MhNeg * S * MhNeg;
+		
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SpSolver;
-		SpSolver.compute(Sh);
+		SpSolver.compute(S);
+		Eigen::LDLT<Eigen::MatrixXd> DnSolver;
 		Eigen::MatrixXd V;
-		Eigen::VectorXd v;
+		Eigen::VectorXd v, vTemp, vConst;
 		Eigen::VectorXd eigVal(1);
 		Eigen::VectorXd convRate(1);
-		Eigen::SparseMatrix<double> Id(Sh.rows(), Sh.rows()); Id.setIdentity();
+		Eigen::SparseMatrix<double> Id(S.rows(), S.rows()); Id.setIdentity();
 
-		EigVectsSIM.resize(Sh.rows(), numEigs);
+		EigVectsSIM.resize(S.rows(), numEigs);
 		EigValsSIM.resize(numEigs);
-		v.resize(Sh.rows());
+		v.resize(S.rows());
 		v.setConstant(1.0);
-		v.normalize();
-		EigVectsSIM.col(0) = v;			
+		double norm_ = v.transpose() * M * v;
+		v = v/sqrt(norm_);
+		EigVectsSIM.col(0) = v;
+		EigValsSIM(0) = 0;
 
-		Eigen::MatrixXd XTS;
-		Eigen::MatrixXd XTSX;
+		Eigen::MatrixXd X;
 		Eigen::VectorXd vproj, q;
-		Eigen::LDLT<Eigen::MatrixXd> DnSolver;
 		for (int iEig = 1; iEig < numEigs; ++iEig) {
-			SpSolver.compute(Sh - EigValsSIM(iEig - 1) * Id);
-			// orthogonal Constraints
-			XTS = EigVectsSIM.leftCols(iEig).transpose();
-			XTSX = XTS * EigVectsSIM.leftCols(iEig);
-			std::cout << "Gram Mat: \n" << XTSX << std::endl;
-
-			DnSolver.compute(XTSX);
-
-			// Random matrix
-			generateRandomMatrix(Sh.rows(), 1, V);
+			printf("Eig %d => construct constraints | ", iEig);
+			generateRandomMatrix(S.rows(), 1, V);
 			v = V.col(0);
-			v.normalize();
+			norm_ = v.transpose() * M * v;
+			v = v / sqrt(norm_);
 
+			X = EigVectsSIM.leftCols(iEig);
+			Eigen::MatrixXd A = X.transpose() * M;
+			printf(" of size:%dx%d \n", A.rows(), A.cols());
+			Eigen::SparseMatrix<double> K(S.rows() + A.rows(), S.rows() + A.rows());
+			std::vector<Eigen::Triplet<double>> KTriplet;
+			KTriplet.reserve(S.nonZeros() + 2 * A.nonZeros());
+
+			//std::cout << "Prepare LHS \n";
+			for (int k = 0; k < M.outerSize(); ++k) {
+				for (Eigen::SparseMatrix<double>::InnerIterator it(M, k); it; ++it) {
+					KTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+				}
+			}
+
+			for (int kRow = 0; kRow < A.rows(); ++kRow) {
+				for (int kCol = 0; kCol < A.cols(); ++kCol) {
+					KTriplet.push_back(Eigen::Triplet<double>(M.rows() + kRow, kCol, A(kRow, kCol)));
+					KTriplet.push_back(Eigen::Triplet<double>(kCol, M.rows() + kRow, A(kRow, kCol)));
+				}
+			}			
+			K.setFromTriplets(KTriplet.begin(), KTriplet.end());
+			KTriplet.clear(); KTriplet.shrink_to_fit();
+
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolverK;
+			spSolverK.compute(K);
+
+			Eigen::VectorXd x(S.rows()); x.setConstant(0.05);
+			Eigen::VectorXd g = x;
+			Eigen::VectorXd h = A * x;
+			Eigen::VectorXd b(g.rows() + h.rows());
+			b << g, h;
+			Eigen::VectorXd sol;
 
 			unsigned int iterCount = 0;
 			bool isConverged = false;
 
-			do {
-				v.normalize();
-				v = SpSolver.solve(v);
-				double a = max(v.maxCoeff(), abs(v.minCoeff()));
+			do {				
+				vTemp = M * v;
+				v = SpSolver.solve(vTemp);
 
-				eigVal(0) = 1.0 / a;
-				v = v/(a-EigValsSIM(iEig-1));
+				b.head(g.rows()) = S * (x - v);
+				sol = spSolverK.solve(b);
 
-				vproj = XTS * v;
-				q = DnSolver.solve(vproj);
-				std::cout << "Dense solution: " << q.transpose() << std::endl;
-				v = v - EigVectsSIM.leftCols(iEig) * q;
-				Eigen::VectorXd eVectTemp = MhNeg * v;
+				q = -1.0 * sol.head(g.rows()) + x;
+				v = q;
+
+				//double a = max(v.maxCoeff(), abs(v.minCoeff()));				
+				//v = v / a;
+				//eigVal(0) = v.transpose() * v;
+				norm_ = v.transpose() * M * v;
+				v = v / sqrt(norm_);
+
+				Eigen::VectorXd eVectTemp =  v;
+				eigVal(0) = eVectTemp.transpose() * S * eVectTemp;
+
 				checkConvergenceCat2(eVectTemp, eigVal, 1, M, Id, S, convRate);
 				printf("EigVal %d | []Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
-				checkConvergenceCat2(v, eigVal, 1, Id, Id, Sh, convRate);
-				printf("EigVal %d | --Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
+				//checkConvergenceCat2(v, eigVal, 1, Id, Id, Sh, convRate);
+				//printf("EigVal %d | --Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
 
 
 				iterCount++;
 				if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
-
-
 			} while (!isConverged);
-			
+
 			EigValsSIM(iEig) = eigVal(0);
 			EigVectsSIM.col(iEig) = MhNeg * v;
 		}
 
-		
-
 		std::cout << "M-norm: " << EigVectsSIM.transpose() * M * EigVectsSIM << std::endl;
 	}
+
+	//void MLEigenSolver::solveInversePowerMethod(unsigned int numEigs, double tol, int maxIter, bool isWithShift)
+	//{
+	//	/* [1] Set up the System matrices */
+	//	constructMassMatrix();
+	//	initiateAdM();
+	//	constructStiffnessMatrix();
+	//
+	//	Eigen::SparseMatrix<double> Sh = MhNeg * S * MhNeg;
+	//	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SpSolver;
+	//	SpSolver.compute(Sh);
+	//	Eigen::MatrixXd V;
+	//	Eigen::VectorXd v;
+	//	Eigen::VectorXd eigVal(1);
+	//	Eigen::VectorXd convRate(1);
+	//	Eigen::SparseMatrix<double> Id(Sh.rows(), Sh.rows()); Id.setIdentity();
+	//
+	//	EigVectsSIM.resize(Sh.rows(), numEigs);
+	//	EigValsSIM.resize(numEigs);
+	//	v.resize(Sh.rows());
+	//	v.setConstant(1.0);
+	//	v.normalize();
+	//	EigVectsSIM.col(0) = v;			
+	//
+	//	Eigen::MatrixXd XTS;
+	//	Eigen::MatrixXd XTSX;
+	//	Eigen::VectorXd vproj, q;
+	//	Eigen::LDLT<Eigen::MatrixXd> DnSolver;
+	//	for (int iEig = 1; iEig < numEigs; ++iEig) {
+	//		SpSolver.compute(Sh - EigValsSIM(iEig - 1) * Id);
+	//		// orthogonal Constraints
+	//		XTS = EigVectsSIM.leftCols(iEig).transpose();
+	//		XTSX = XTS * EigVectsSIM.leftCols(iEig);
+	//		std::cout << "Gram Mat: \n" << XTSX << std::endl;
+	//
+	//		DnSolver.compute(XTSX);
+	//
+	//		// Random matrix
+	//		generateRandomMatrix(Sh.rows(), 1, V);
+	//		v = V.col(0);
+	//		v.normalize();
+	//
+	//
+	//		unsigned int iterCount = 0;
+	//		bool isConverged = false;
+	//
+	//		do {
+	//			v.normalize();
+	//			v = SpSolver.solve(v);
+	//			double a = max(v.maxCoeff(), abs(v.minCoeff()));
+	//
+	//			eigVal(0) = 1.0 / a;
+	//			v = v/(a-EigValsSIM(iEig-1));
+	//
+	//			vproj = XTS * v;
+	//			q = DnSolver.solve(vproj);
+	//			std::cout << "Dense solution: " << q.transpose() << std::endl;
+	//			v = v - EigVectsSIM.leftCols(iEig) * q;
+	//			Eigen::VectorXd eVectTemp = MhNeg * v;
+	//			checkConvergenceCat2(eVectTemp, eigVal, 1, M, Id, S, convRate);
+	//			printf("EigVal %d | []Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
+	//			checkConvergenceCat2(v, eigVal, 1, Id, Id, Sh, convRate);
+	//			printf("EigVal %d | --Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
+	//
+	//
+	//			iterCount++;
+	//			if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
+	//
+	//
+	//		} while (!isConverged);
+	//		
+	//		EigValsSIM(iEig) = eigVal(0);
+	//		EigVectsSIM.col(iEig) = MhNeg * v;
+	//	}		
+	//
+	//	std::cout << "M-norm: " << EigVectsSIM.transpose() * M * EigVectsSIM << std::endl;
+	//}
 	/**
 	*  @brief
 	*   Compute a comparison of eigenvalues and eigenvectors using other methods (Matlab, Spectra, etc.)
