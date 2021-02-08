@@ -983,14 +983,54 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				eigenSolver->solveBMG(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
 		}
 
-		if (ImGui::Button("Inverse Power Method", ImVec2(w, 0))) {
+		if (ImGui::Button("IPM (Single)", ImVec2(w, 0))) {
 			eigenSolver->solveInversePowerMethod(numOfModes, tol, maxIter, false);
 			std::cout << "__Eigval: " << std::endl;
 			printVector(eigenSolver->getEigenValuesSIM());
 			//std::cout << "__Vect: " << eigenSolver->getEigenVectorsSIM().col(0).head(20).transpose() << std::endl;
-			
 
+			string modelName = "Sphere_" + to_string(eigenSolver->getV().rows());
+			string filename = "../../Data/eigvals-analysis/" + modelName + "_EigVals_IPM_" + to_string(numOfModes) + "_" + to_string(tol) + ".txt";
+			writeDenseMatrixToFile(eigenSolver->getEigenValuesSIM(), filename);
 		}
+
+		if (ImGui::Button("IPM (inverse)", ImVec2(w, 0))) {
+			eigenSolver->solveInversePowerMethod(numOfModes, tol, maxIter, false);
+			std::cout << "__Eigval: " << std::endl;
+			printVector(eigenSolver->getEigenValuesSIM());
+			//std::cout << "__Vect: " << eigenSolver->getEigenVectorsSIM().col(0).head(20).transpose() << std::endl;
+
+			string modelName = "Sphere_" + to_string(eigenSolver->getV().rows());
+			string filename = "../../Data/eigvals-analysis/" + modelName + "_EigVals_IPM_" + to_string(numOfModes) + "_" + to_string(tol) + ".txt";
+			writeDenseMatrixToFile(eigenSolver->getEigenValuesSIM(), filename);
+
+			chrono::high_resolution_clock::time_point	t0, t1;
+			chrono::duration<double>					duration;
+
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+			eigenSolver->isMultipleSolve = isMultipleSolve;
+			eigenSolver->hierarchyMode = hierarchyMode;
+			
+			vector<int>				wantedModes{ 50, 100 };
+			vector<double>			wantedTols{ 1e-1, 1e-2, 1e-4, 1e-6 };
+			int						maxIters = 100;
+
+			for (int j = 0; j < wantedModes.size(); ++j) {
+				for (int k = 0; k < wantedTols.size(); ++k) {
+					eigenSolver->solveInversePowerMethod(wantedModes[j], wantedTols[k], maxIters, false);
+					std::cout << "__Eigval: " << std::endl;
+					printVector(eigenSolver->getEigenValuesSIM());
+
+					string modelName = "Sphere_" + to_string(eigenSolver->getV().rows());
+					string filename = "../../Data/eigvals-analysis/" + modelName + "_EigVals_IPM_" + to_string(wantedModes[j]) + "_" + to_string(wantedTols[k]) + ".txt";
+					writeDenseMatrixToFile(eigenSolver->getEigenValuesSIM(), filename);
+				}
+
+			}
+		}
+		
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
@@ -1395,7 +1435,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			}
 		}
 
-		if (ImGui::Button("Scripted (6) Auto Levels", ImVec2(w, 0))) {
+		if (ImGui::Button("Scripted (6) EigVals-Analysis", ImVec2(w, 0))) {
 			
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
@@ -1414,7 +1454,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
 			//std::vector<double>		levelZhaoParam{ 0.25 };			
 			std::vector<double>		levelZhaoParam{ 0.25 };			
-			vector<int>				wantedModes{50, 100, 250, 1000, 2500};
+			vector<int>				wantedModes{50, 100};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 25, 50, 100, 200, 300, 500, 750, 1000 };
 			//vector<int>				wantedModes{ 50 };
@@ -1422,7 +1462,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//vector<double>			wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5};
 			//vector<double>			wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-9, 1e-10 };
-			vector<double>			wantedTols{ 1e-3 };
+			vector<double>			wantedTols{ 1e-1, 1e-2, 1e-4, 1e-6 };
 			int						maxIters = 50;
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
@@ -1494,24 +1534,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 								// ML-without shift
 								//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
 
-								// ML-with shift 0.25
-								//eigenSolver->zhaoShiftParam = 0.25;
-								//std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
+								// ML-with shift
 								eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
 
-								// ML-with shift 0.35
-								//eigenSolver->zhaoShiftParam = 0.35;
-								//std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
-								//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-																
-								//SGP
-								//eigenSolver->performSubspaceIterationMethod(typeMap[1], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
-
-								//SGP with shift
-								//eigenSolver->performSubspaceIterationMethod(typeMap[1], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-								
-								// Random
-								//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[3], defAxis, clampRegion);
+								string modelName = "Sphere_" + to_string(eigenSolver->getV().rows());
+								string filename = "../../Data/eigvals-analysis/" + modelName + "_EigVals_HSIM_" + to_string(wantedModes[j]) + "_" + to_string(wantedTols[k]) + ".txt";
+								writeDenseMatrixToFile(eigenSolver->getEigenValuesSIM(), filename);
 								}
 						}
 					}
@@ -1657,26 +1685,6 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
 			//std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size())).transpose() << std::endl;
 			std::cout << "ConvRate: \n" << convRate << std::endl;
-
-
-			///Eigen::MatrixXd NormEigVectRef(eigenSolver->getEigenVectorsRef().rows(), eigenSolver->getEigenVectorsRef().cols());
-			///Eigen::VectorXd EVect;
-			///for (int i = 0; i < eigenSolver->getEigenValuesRef().rows(); ++i)
-			///{
-			///	EVect = eigenSolver->getEigenVectorsRef().col(i);
-			///	double norm1 = EVect.transpose() * eigenSolver->getMassMatrix() * EVect;
-			///	EVect = EVect / sqrt(norm1);
-			///	NormEigVectRef.col(i) = EVect;
-			///	double norm2 = NormEigVectRef.col(i).transpose() * eigenSolver->getMassMatrix() * NormEigVectRef.col(i);
-			///	//cout << " " << norm2;
-			///}
-			/////std::cout << std::endl;
-			///
-			///cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
-			///eigenSolver->checkConvergenceCat2(NormEigVectRef, eigenSolver->getEigenValuesRef(), eigToCompute, eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), convRate);
-			///std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
-
-			
 		}
 		
 		Eigen::MatrixXd OrthMat;
