@@ -27,6 +27,8 @@ namespace HSIM
 	class MLSolverFunctions : public MLEigenSolver
 	{
 	public:
+		void virtual doEdgeFlip(unsigned int n) override;
+
 		void computeArea();
 		void virtual constructMassMatrix() override;
 		void virtual constructStiffnessMatrix() override;

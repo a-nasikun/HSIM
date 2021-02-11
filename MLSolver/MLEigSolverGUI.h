@@ -163,7 +163,15 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				}				
 			} 
 
-			viewer.open_dialog_load_mesh();
+			//viewer.open_dialog_load_mesh();
+			std::string fname = igl::file_dialog_open();
+			if (fname.length() == 0)	return;
+			viewer.load_mesh_from_file(fname.c_str());
+
+			/* Load openmesh */
+			OpenMesh::IO::read_mesh(eigenSolver->openMesh, fname);
+
+
 			numOfModel = viewer.data_list.size();
 			printf("mesh that we have  now: %d (%d vertices) \n", viewer.data_list.size(), viewer.data().V.rows());
 
@@ -195,6 +203,14 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 		static int axis = 0;
 
+		static int numFlip = 1;
+		static char numFlipTxt[10] = "10";
+		ImGui::InputText("Num of flips", numFlipTxt, 10);
+		if (ImGui::Button("Edge flip", ImVec2(w, 0))) {
+			numFlip = atoi(numFlipTxt);
+			eigenSolver->doEdgeFlip(numFlip);
+			viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
+		}
 		
 
 
@@ -994,16 +1010,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			writeDenseMatrixToFile(eigenSolver->getEigenValuesSIM(), filename);
 		}
 
-		if (ImGui::Button("IPM (inverse)", ImVec2(w, 0))) {
-			eigenSolver->solveInversePowerMethod(numOfModes, tol, maxIter, false);
-			std::cout << "__Eigval: " << std::endl;
-			printVector(eigenSolver->getEigenValuesSIM());
-			//std::cout << "__Vect: " << eigenSolver->getEigenVectorsSIM().col(0).head(20).transpose() << std::endl;
-
-			string modelName = "Sphere_" + to_string(eigenSolver->getV().rows());
-			string filename = "../../Data/eigvals-analysis/" + modelName + "_EigVals_IPM_" + to_string(numOfModes) + "_" + to_string(tol) + ".txt";
-			writeDenseMatrixToFile(eigenSolver->getEigenValuesSIM(), filename);
-
+		if (ImGui::Button("IPM (multi)", ImVec2(w, 0))) {			
 			chrono::high_resolution_clock::time_point	t0, t1;
 			chrono::duration<double>					duration;
 
@@ -1013,12 +1020,13 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->isMultipleSolve = isMultipleSolve;
 			eigenSolver->hierarchyMode = hierarchyMode;
 			
-			vector<int>				wantedModes{ 50, 100 };
+			vector<int>				wantedModes{ 100 };
 			vector<double>			wantedTols{ 1e-1, 1e-2, 1e-4, 1e-6 };
 			int						maxIters = 100;
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				for (int k = 0; k < wantedTols.size(); ++k) {
+					printf("Compute %d modes of model with %d vertices (%.8f tol)\n", wantedModes[j], eigenSolver->getV().rows(), wantedTols[k]);
 					eigenSolver->solveInversePowerMethod(wantedModes[j], wantedTols[k], maxIters, false);
 					std::cout << "__Eigval: " << std::endl;
 					printVector(eigenSolver->getEigenValuesSIM());

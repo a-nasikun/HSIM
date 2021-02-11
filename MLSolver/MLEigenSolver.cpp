@@ -18,6 +18,7 @@
 #include "cusolverSp_LOWLEVEL_PREVIEW.h"
 namespace HSIM
 {
+	void MLEigenSolver::doEdgeFlip(unsigned int n){ }
 	
 	/**
 	*  @brief		Read a (triangle) mesh specified by the input file. 

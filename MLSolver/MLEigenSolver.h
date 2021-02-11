@@ -8,8 +8,16 @@
 #include "Visualization.h"
 
 #include <igl/opengl/glfw/Viewer.h>
+
+/* Temporary OpenMesh functionality */
+#include<OpenMesh/Core/IO/MeshIO.hh>
+#include<OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
+
 namespace HSIM
 {
+
+	typedef OpenMesh::TriMesh_ArrayKernelT<>  MyMesh;
+
 	/**
 	*  @brief The base class for our multilevel eigenproblem. 
 	*  @details
@@ -26,10 +34,14 @@ namespace HSIM
 	class MLEigenSolver
 	{
 	public:
+		MyMesh openMesh;
+	public:
 		enum class EigenVectorType { EIGEN_REFERENCE, EIGEN_REDUCED, EIGEN_SIM };
 		enum class SIMType { SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
 		enum class EigenSolverType { EIG_SOLVER_MATLAB, EIG_SOLVER_CUDA, EIG_SOLVER_SPECTRA };
 		enum class ShiftType { SHIFT_BATHE, SHIFT_ITOH_WILSON, SHIFT_GONG, SHIFT_ZHAO };
+
+		void virtual doEdgeFlip(unsigned int n);
 
 		void readMesh(const string &meshFile);
 		void setInitialSystem(int n);

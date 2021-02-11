@@ -19,6 +19,66 @@
 
 namespace HSIM
 {
+	void MLSolverFunctions::doEdgeFlip(unsigned int n) 
+	{
+		/* Data structure for Priority Queue */
+		struct EdgeHandlePair {
+			MyMesh::EdgeHandle	eh;
+			//unsigned int		vId;
+			double				length;
+			bool				operator> (const EdgeHandlePair& ref) const { return length > ref.length; }
+			bool				operator< (const EdgeHandlePair& ref) const { return length < ref.length; }
+		};
+
+		priority_queue<EdgeHandlePair, std::vector<EdgeHandlePair>, std::greater<EdgeHandlePair>> EdgeQueue;
+
+		for (MyMesh::EdgeIter e_it = openMesh.edges_begin(); e_it != openMesh.edges_end(); ++e_it)
+		{
+			double length = openMesh.calc_edge_length(e_it);
+			EdgeHandlePair ehp{ e_it, length };
+			EdgeQueue.push(ehp);
+			//if (e_it->idx() % 5 == 0) {
+			//	if(!openMesh.is_boundary(*e_it)) openMesh.flip(*e_it);
+			//}		
+		}
+
+		int eflip_counter = 0;
+		bool isStop = false;
+		do {
+			EdgeHandlePair ehp = EdgeQueue.top();
+			EdgeQueue.pop();
+			if (!openMesh.is_boundary(ehp.eh)) {
+				openMesh.flip(ehp.eh);
+				eflip_counter++;
+				double length = openMesh.calc_edge_length(ehp.eh);
+				ehp = EdgeHandlePair{ ehp.eh, length };
+			}		
+			if (eflip_counter >= n || EdgeQueue.empty()) isStop = true;
+		} while (!isStop);
+		
+		int f_iter = 0;
+		for (MyMesh::FaceIter f_it = openMesh.faces_begin(); f_it != openMesh.faces_end(); ++f_it) {
+			int v_iter = 0;
+			//std::cout << "Ref: " << F.row(f_iter) << std::endl;
+			for (MyMesh::FaceVertexIter fv_it = openMesh.fv_iter(*f_it); fv_it.is_valid(); ++fv_it) {
+				F(f_iter, v_iter) =  fv_it->idx();
+				//std::cout << fv_it->idx() << "|";
+				v_iter++;
+			}			
+			//std::cout << std::endl;
+			f_iter++;
+		}
+
+		
+
+		//for (MyMesh::VertexIter v_it = openMesh.vertices_begin(); v_it != openMesh.vertices_end(); ++v_it) {
+		//	if (v_it->idx() > 20) continue;
+		//
+		//	std::cout << "The vertex " << v_it->idx() << " has " << openMesh.valence(*v_it) << std::endl;
+		//	std::cout << "__ with points of " << openMesh.point(*v_it) << std::endl;
+		//}
+	}
+
 	/**
 	*  @brief	Compuete the area of each triangle constituting the triangle mesh represantion.
 	*/
