@@ -846,6 +846,9 @@ namespace HSIM
 			norm_ = v.transpose() * M * v;
 			v = v / sqrt(norm_);
 
+			// special case for 1m triangles
+			std::vector<double> tol_list{ 1e-1, 1e-2, 1e-4, 1e-6 };
+
 			do {				
 				///printf("__produced smooth vectors \n");
 				vTemp = M * v;
@@ -873,12 +876,51 @@ namespace HSIM
 
 
 				iterCount++;
-				if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
+				///if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
+
+
+				if (convRate(0) < tol_list[3]) {
+					EigValsSIM(iEig) = eigVal(0);
+					EigVectsSIM.col(iEig) = v;
+					string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[3]) + ".txt";
+					writeDenseMatrixToFile(EigValsSIM, filename, true);
+					filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[3]) + ".txt";
+					writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+				} else if (convRate(0) < tol_list[2]) {
+					EigValsSIM(iEig) = eigVal(0);
+					EigVectsSIM.col(iEig) = v;
+					string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[2]) + ".txt";
+					writeDenseMatrixToFile(EigValsSIM, filename, true);
+					filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[2]) + ".txt";
+					writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+				} else if (convRate(0) < tol_list[1]) {
+					EigValsSIM(iEig) = eigVal(0);
+					EigVectsSIM.col(iEig) = v;
+					string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[1]) + ".txt";
+					writeDenseMatrixToFile(EigValsSIM, filename, true);
+					filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[1]) + ".txt";
+					writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+				} else if (convRate(0) < tol_list[0]) {
+					EigValsSIM(iEig) = eigVal(0);
+					EigVectsSIM.col(iEig) = v;
+					string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[0]) + ".txt";
+					writeDenseMatrixToFile(EigValsSIM, filename, true);
+					filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[0]) + ".txt";
+					writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+				}
+
+				//if (iterCount > maxIter) isConverged = true;
+				if (convRate(0) < tol_list[3] || iterCount > maxIter) isConverged = true;
 				printf("EigVal %d || %.8f | []Iter %d | convergence check: %.10f | is converged? %s \n", iEig, eigVal(0), iterCount, convRate(0), isConverged ? "true" : "false");
 			} while (!isConverged);
 
 			EigValsSIM(iEig) = eigVal(0);
 			EigVectsSIM.col(iEig) = v;
+
+			///string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol) + ".txt";
+			///writeDenseMatrixToFile(EigValsSIM, filename, true);
+			///filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol) + ".txt";
+			///writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
 		}
 	}
 

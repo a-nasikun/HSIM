@@ -210,6 +210,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			numFlip = atoi(numFlipTxt);
 			eigenSolver->doEdgeFlip(numFlip);
 			viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
+			viewer.data().compute_normals();
 		}
 		
 

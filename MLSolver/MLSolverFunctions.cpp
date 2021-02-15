@@ -17,25 +17,87 @@
 #include <cusolverDn.h>
 
 
+
+
 namespace HSIM
 {
+	std::tuple<double, double>
+	MLSolverFunctions::computeEdgeMinAngle(MyMesh::EdgeHandle& eh) {
+		std::vector<double> angleList(6);
+
+		MyMesh::HalfedgeHandle heh0 = openMesh.halfedge_handle(eh, 0);
+		MyMesh::HalfedgeHandle heh1 = openMesh.opposite_halfedge_handle(heh0);
+		
+		// Compute the angle of three vertices in half edge 1
+		MyMesh::Point p0 = openMesh.point(openMesh.from_vertex_handle(heh0));
+		MyMesh::Point p1 = openMesh.point(openMesh.to_vertex_handle(heh0));
+		MyMesh::Point p2 = openMesh.point(openMesh.to_vertex_handle(openMesh.next_halfedge_handle(heh0)));
+		
+		MyMesh::Point v0 = (p2-p0).normalize();
+		MyMesh::Point v1 = (p1-p0).normalize();
+		double angle = acos(dot(v0, v1));
+		angleList[0] = angle;
+		v0 = (p0 - p1).normalize();
+		v1 = (p2 - p1).normalize();
+		angle = acos(dot(v0, v1));
+		angleList[1] = angle;
+		v0 = (p1 - p2).normalize();
+		v1 = (p0 - p2).normalize();
+		angle = acos(dot(v0, v1));
+		angleList[2] = angle;
+		
+		// Compute the angle of three vertices in half edge 2
+		p0 = openMesh.point(openMesh.from_vertex_handle(heh1));
+		p1 = openMesh.point(openMesh.to_vertex_handle(heh1));
+		p2 = openMesh.point(openMesh.to_vertex_handle(openMesh.next_halfedge_handle(heh1)));
+		v0 = (p2 - p0).normalize();
+		v1 = (p1 - p0).normalize();
+		angle = acos(dot(v0, v1));
+		angleList[3] = angle;
+		v0 = (p0 - p1).normalize();
+		v1 = (p2 - p1).normalize();
+		angle = acos(dot(v0, v1));
+		angleList[4] = angle;
+		v0 = (p1 - p2).normalize();
+		v1 = (p0 - p2).normalize();
+		angle = acos(dot(v0, v1));
+		angleList[5] = angle;
+		
+		double maxAdjAngle = max(angleList[0]+angleList[4], angleList[1]+angleList[3]);
+
+		//std::cout << "Angle (not sorted) \n";
+		//Eigen::VectorXd vv1(6); 
+		//vv1 << angleList[0], angleList[1], angleList[2], angleList[3], angleList[4], angleList[5];
+		//printVector(vv1, true);
+		std::sort(angleList.begin(), angleList.end());
+		//std::cout << "Angle (sorted)\n";
+		//Eigen::VectorXd vv2(6);
+		//vv2 << angleList[0], angleList[1], angleList[2], angleList[3], angleList[4], angleList[5];
+		//printVector(vv2, true);
+				
+		return std::make_tuple(angleList[0], maxAdjAngle);
+	}
+
 	void MLSolverFunctions::doEdgeFlip(unsigned int n) 
 	{
 		/* Data structure for Priority Queue */
 		struct EdgeHandlePair {
 			MyMesh::EdgeHandle	eh;
 			//unsigned int		vId;
-			double				length;
-			bool				operator> (const EdgeHandlePair& ref) const { return length > ref.length; }
-			bool				operator< (const EdgeHandlePair& ref) const { return length < ref.length; }
+			double				angle;
+			bool				operator> (const EdgeHandlePair& ref) const { return angle > ref.angle; }
+			bool				operator< (const EdgeHandlePair& ref) const { return angle < ref.angle; }
 		};
 
 		priority_queue<EdgeHandlePair, std::vector<EdgeHandlePair>, std::greater<EdgeHandlePair>> EdgeQueue;
 
 		for (MyMesh::EdgeIter e_it = openMesh.edges_begin(); e_it != openMesh.edges_end(); ++e_it)
 		{
-			double length = openMesh.calc_edge_length(e_it);
-			EdgeHandlePair ehp{ e_it, length };
+			double angle;
+			double maxAdjAngle;
+			std::tie(angle, maxAdjAngle) = computeEdgeMinAngle(MyMesh::EdgeHandle(e_it));
+			//double angle = computeEdgeMinAngle(&e_it);
+			EdgeHandlePair ehp{ e_it, angle };
 			EdgeQueue.push(ehp);
 			//if (e_it->idx() % 5 == 0) {
 			//	if(!openMesh.is_boundary(*e_it)) openMesh.flip(*e_it);
@@ -48,13 +110,29 @@ namespace HSIM
 			EdgeHandlePair ehp = EdgeQueue.top();
 			EdgeQueue.pop();
 			if (!openMesh.is_boundary(ehp.eh)) {
-				openMesh.flip(ehp.eh);
-				eflip_counter++;
-				double length = openMesh.calc_edge_length(ehp.eh);
-				ehp = EdgeHandlePair{ ehp.eh, length };
+				double angle_pre;
+				double maxAdjAngle;
+				std::tie(angle_pre, maxAdjAngle) = computeEdgeMinAngle(ehp.eh);
+				if (maxAdjAngle < M_PI) {
+					openMesh.flip(ehp.eh);
+					double angle_post;
+					double maxAngle2;
+					std::tie(angle_post, maxAngle2) = computeEdgeMinAngle(ehp.eh);
+					//printf("id %d from %.4f to %.4f \n", ehp.eh.idx(), angle_pre, angle_post);
+					if (angle_post <= angle_pre) {
+						openMesh.flip(ehp.eh);
+					}
+					else {
+						//printf("Edge %d is flipped \n", ehp.eh.idx());
+						ehp = EdgeHandlePair{ ehp.eh, angle_post };
+						eflip_counter++;
+						EdgeQueue.push(ehp);
+					}
+				}
 			}		
 			if (eflip_counter >= n || EdgeQueue.empty()) isStop = true;
 		} while (!isStop);
+		printf("%d of edges are flipeed \n", eflip_counter);
 		
 		int f_iter = 0;
 		for (MyMesh::FaceIter f_it = openMesh.faces_begin(); f_it != openMesh.faces_end(); ++f_it) {
@@ -78,6 +156,66 @@ namespace HSIM
 		//	std::cout << "__ with points of " << openMesh.point(*v_it) << std::endl;
 		//}
 	}
+
+	//void MLSolverFunctions::doEdgeFlip(unsigned int n)
+	//{
+	//	/* Data structure for Priority Queue */
+	//	struct EdgeHandlePair {
+	//		MyMesh::EdgeHandle	eh;
+	//		//unsigned int		vId;
+	//		double				length;
+	//		bool				operator> (const EdgeHandlePair& ref) const { return length > ref.length; }
+	//		bool				operator< (const EdgeHandlePair& ref) const { return length < ref.length; }
+	//	};
+	//
+	//	priority_queue<EdgeHandlePair, std::vector<EdgeHandlePair>, std::greater<EdgeHandlePair>> EdgeQueue;
+	//
+	//	for (MyMesh::EdgeIter e_it = openMesh.edges_begin(); e_it != openMesh.edges_end(); ++e_it)
+	//	{
+	//		double length = openMesh.calc_edge_length(e_it);
+	//		EdgeHandlePair ehp{ e_it, length };
+	//		EdgeQueue.push(ehp);
+	//		//if (e_it->idx() % 5 == 0) {
+	//		//	if(!openMesh.is_boundary(*e_it)) openMesh.flip(*e_it);
+	//		//}		
+	//	}
+	//
+	//	int eflip_counter = 0;
+	//	bool isStop = false;
+	//	do {
+	//		EdgeHandlePair ehp = EdgeQueue.top();
+	//		EdgeQueue.pop();
+	//		if (!openMesh.is_boundary(ehp.eh)) {
+	//			openMesh.flip(ehp.eh);
+	//			eflip_counter++;
+	//			double length = openMesh.calc_edge_length(ehp.eh);
+	//			ehp = EdgeHandlePair{ ehp.eh, length };
+	//		}
+	//		if (eflip_counter >= n || EdgeQueue.empty()) isStop = true;
+	//	} while (!isStop);
+	//
+	//	int f_iter = 0;
+	//	for (MyMesh::FaceIter f_it = openMesh.faces_begin(); f_it != openMesh.faces_end(); ++f_it) {
+	//		int v_iter = 0;
+	//		//std::cout << "Ref: " << F.row(f_iter) << std::endl;
+	//		for (MyMesh::FaceVertexIter fv_it = openMesh.fv_iter(*f_it); fv_it.is_valid(); ++fv_it) {
+	//			F(f_iter, v_iter) = fv_it->idx();
+	//			//std::cout << fv_it->idx() << "|";
+	//			v_iter++;
+	//		}
+	//		//std::cout << std::endl;
+	//		f_iter++;
+	//	}
+	//
+	//
+	//
+	//	//for (MyMesh::VertexIter v_it = openMesh.vertices_begin(); v_it != openMesh.vertices_end(); ++v_it) {
+	//	//	if (v_it->idx() > 20) continue;
+	//	//
+	//	//	std::cout << "The vertex " << v_it->idx() << " has " << openMesh.valence(*v_it) << std::endl;
+	//	//	std::cout << "__ with points of " << openMesh.point(*v_it) << std::endl;
+	//	//}
+	//}
 
 	/**
 	*  @brief	Compuete the area of each triangle constituting the triangle mesh represantion.

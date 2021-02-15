@@ -55,7 +55,7 @@ namespace HSIM
 
 			for (int i = 0; i < M.rows(); i++) {
 				for (int j = 0; j < M.cols(); j++) {
-					myfile << M(i, j) << "\t";
+					myfile << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << M(i, j) << "\t";
 				}
 				myfile << "\n";
 			}
