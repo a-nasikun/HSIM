@@ -541,6 +541,24 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
 		/* VISUALIZATION WINDOW */
+		static ImVec4 modelColor = ImColor(0.933333 * 255, 0.933333 * 255, 0.933333 * 255.0, 200);
+		static Eigen::RowVector3d modelColorEig;
+		static bool alpha_preview = true;
+		static bool alpha_half_preview = false;
+		static bool options_menu = true;
+		static bool hdr = false;
+		//ImGui::Checkbox("With Alpha Preview", &alpha_preview);
+		//ImGui::Checkbox("With Half Alpha Preview", &alpha_half_preview);
+		//ImGui::Checkbox("With Options Menu", &options_menu); ImGui::SameLine(); ShowHelpMarker("Right-click on the individual color widget to show options.");
+		//ImGui::Checkbox("With HDR", &hdr); ImGui::SameLine(); ShowHelpMarker("Currently all this does is to lift the 0..1 limits on dragging widgets.");
+		int misc_flags = (hdr ? ImGuiColorEditFlags_HDR : 0) | (alpha_half_preview ? ImGuiColorEditFlags_AlphaPreviewHalf : (alpha_preview ? ImGuiColorEditFlags_AlphaPreview : 0)) | (options_menu ? 0 : ImGuiColorEditFlags_NoOptions);
+		
+		ImGui::ColorEdit4("ModelColor##2f", (float*)&modelColor, ImGuiColorEditFlags_Float | misc_flags);
+		modelColorEig << modelColor.x, modelColor.y, modelColor.z; 
+		viewer.data().set_colors(modelColorEig);
+
+
+
 		if (ImGui::CollapsingHeader("Visualization##MLEigSolver1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			/* For Sampling */
 			// 0.005 for sphere
