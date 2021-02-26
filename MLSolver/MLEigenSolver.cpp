@@ -53,7 +53,7 @@ namespace HSIM
 		}
 
 		scaleMesh(V, F, 2.0);
-		projectToSphere(V, F, 1.0);
+		//projectToSphere(V, F, 1.0);
 	}
 
 	/**

@@ -13,6 +13,8 @@
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/isolines.h>
+#include <igl/file_dialog_save.h>
+#include <igl/edges.h>
 
 #include <Eigen/PardisoSupport>
 
@@ -146,7 +148,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 	// Main Algorithm
 	///if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
-		if (ImGui::Button("Load##Mesh1", ImVec2(w, 0))) {
+		if (ImGui::Button("Load##Mesh1", ImVec2(w/2-p, 0))) {
 			// Load mesh + display the correct mesh
 			Eigen::MatrixXd tempV;
 			Eigen::MatrixXi tempF;
@@ -196,11 +198,23 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 				boolShowSamples = false;
 				//printf("mesh that we have  now: %d \n", viewer.data_list.size());
-
 				eigenSolver->setV(viewer.data().V);
 				eigenSolver->setF(viewer.data().F);
+
+				Eigen::MatrixXi E;
+				igl::edges(viewer.data().F, E);
+
+				int genus = 1 - (viewer.data().V.rows() - E.rows() + viewer.data().F.rows()) / 2;
+				std::cout << "Genus of model is : " << genus << std::endl;
+				
 			}
 		}
+		ImGui::SameLine();
+		if (ImGui::Button("Save##Mesh1", ImVec2(w/2.0-p, 0))) {
+			string filename = igl::file_dialog_save();
+			viewer.save_mesh_to_file(filename);
+		}
+
 		static int axis = 0;
 
 		static int numFlip = 1;
@@ -814,13 +828,21 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 
 		ImGui::Separator(); 
+		static char nFiltersTxt[5] = "10";						ImGui::InputText("Num. filters", nFiltersTxt, 10);
+		static unsigned int nFilter;
+		if (ImGui::Button("Projection", ImVec2(w, 0))) {
+			std::cout << "Shape projection! \n";
+			nFilter = atoi(nFiltersTxt);
+			if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+				solver->constructProjection(viewer, nFilter);
+			}
+		}
 
 		/* Diffusion distance */
 		static std::vector<Eigen::VectorXd> diffTensor1;
 		static std::vector<Eigen::VectorXd> diffTensor2;
 		static Eigen::VectorXd diffVector(eigenSolver->getV().rows());
 		static int sourceID = 0;
-
 		if (ImGui::CollapsingHeader("Diffusion Distance##1", ImGuiTreeNodeFlags_CollapsingHeader))
 		{			
 			static char weighttxt[32] = "0.5";						ImGui::InputText("Weight", weighttxt, 32);
@@ -976,6 +998,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				std::cout << "Eigevalues=== \n";
 				printVector(eigenSolver->getEigenValuesSIM(), false, 16);
 				std::cout << std::endl;
+
+				string modelName = "ramses_edge_" + to_string(eigenSolver->getV().rows());
+				string filename = "../../Data/eigvect-analysis/" + modelName + "_EigVect_HSIM_" + to_string(numOfModes) + "_" + to_string(tol) + ".txt";
+				writeDenseMatrixToFile(eigenSolver->getEigenVectorsSIM(), filename);
+				filename = "../../Data/eigvals-analysis/" + modelName + "_EigVal_HSIM_" + to_string(numOfModes) + "_" + to_string(tol) + ".txt";
+				writeDenseMatrixToFile(eigenSolver->getEigenValuesSIM(), filename);
 			}
 		}
 

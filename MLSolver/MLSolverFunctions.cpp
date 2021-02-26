@@ -3726,7 +3726,8 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		EigVectsSIM = U[i] * EigVectsSIM;
 		int shiftId = std::floor(zhaoShiftParam * numEigs);
 		double mu;
-		mu = EigValsSIM(shiftId);
+		if (isWithShift) 	mu = EigValsSIM(shiftId);
+		else				mu = 0.0;
 		printf("Shift param: %.2f | shift ID: %d | mu:", zhaoShiftParam, shiftId);
 		//std::cout << "mu:" << mu << std::cout;
 		std::cout << mu << std::endl;
@@ -3773,7 +3774,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	HSIMtime(1) = duration.count() - HSIMtime(0);
 
 	// Sturm's check
-	sturmCheck(S, M, EigValsSIM);
+	//sturmCheck(S, M, EigValsSIM);
 
 	/* Write the convergence information to an external file. */
 	std::cout << "Write the log to files." << std::endl;
@@ -4104,6 +4105,28 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 			}
 			DiffusionTensor[i] = diff;
 		}
+	}
+
+	void MLSolverFunctions::constructProjection(igl::opengl::glfw::Viewer& viewer, int n_filter)
+	{
+		if (EigVectsSIM.cols() < 1) { std::cout << "Error! Please compute the eigenvecto first \n"; return; }
+		if (n_filter > EigVectsSIM.cols()) n_filter = EigVectsSIM.cols();
+
+		std::cout << "Compute the filters \n";
+		Eigen::MatrixXd Vout(V.rows(), V.cols());
+		Vout.setZero();
+		Eigen::MatrixXd VTM = V.transpose() * M * EigVectsSIM.leftCols(n_filter);
+		std::cout << "VTM: \n" << VTM.block(0, 0, 3, 10) << std::endl;
+		std::cout << "Calculate new vertices \n";
+		for (int i = 0; i < V.cols(); ++i) {
+			for (int j = 0; j < n_filter; ++j) {
+				Vout.col(i) += VTM(i, j) * EigVectsSIM.col(j);
+			}
+		}
+
+		std::cout << "Visualize vertices. \n";
+		viewer.data().set_vertices(Vout);
+		viewer.data().compute_normals();
 	}
 	
 	/* [VISUALIZATION TOOLS] */

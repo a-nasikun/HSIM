@@ -59,6 +59,7 @@ namespace HSIM
 
 		/* Applications */
 		void constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor);
+		void constructProjection(igl::opengl::glfw::Viewer& viewer, int n_filter);
 
 		/* Visualization Tools*/
 		void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k = 0, double scale = 1.0) const override;
