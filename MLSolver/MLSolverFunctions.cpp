@@ -157,6 +157,26 @@ namespace HSIM
 		//}
 	}
 
+	void MLSolverFunctions::checkBoundary()
+	{		
+		boundaryVertexCheck.resize(V.rows());
+		for (MyMesh::VertexIter vit = openMesh.vertices_begin(); vit != openMesh.vertices_end(); ++vit) {
+			if (openMesh.is_boundary(vit)) {
+				hasBoundary = true;
+				boundaryVertexCheck[vit->idx()] = true;
+			}
+		}
+
+		if (hasBoundary) {
+			std::cout << "This model has boundary! \nBoundary vertices: ";
+			for (int i = 0; i < V.rows(); ++i) {
+				if (boundaryVertexCheck[i])
+					std::cout << i << ", ";
+			}
+			std::cout << "\n ";
+		}
+	}
+
 	//void MLSolverFunctions::doEdgeFlip(unsigned int n)
 	//{
 	//	/* Data structure for Priority Queue */

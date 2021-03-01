@@ -200,6 +200,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				//printf("mesh that we have  now: %d \n", viewer.data_list.size());
 				eigenSolver->setV(viewer.data().V);
 				eigenSolver->setF(viewer.data().F);
+				eigenSolver->checkBoundary();
 
 				Eigen::MatrixXi E;
 				igl::edges(viewer.data().F, E);

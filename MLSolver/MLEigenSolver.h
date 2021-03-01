@@ -42,6 +42,8 @@ namespace HSIM
 		enum class ShiftType { SHIFT_BATHE, SHIFT_ITOH_WILSON, SHIFT_GONG, SHIFT_ZHAO };
 
 		void virtual doEdgeFlip(unsigned int n);
+		void virtual checkBoundary();
+
 
 		void readMesh(const string &meshFile);
 		void setInitialSystem(int n);
@@ -171,6 +173,8 @@ namespace HSIM
 		/* Subspace and spectral-related matrices, vectors, and variables */
 		Eigen::SparseMatrix<double>			Basis;						//!< Basis matrix (U[0]*U[1]*... *U[k])
 		bool								isClampedBasis;				//!< Toogle/Flag if the basis is a clamped version
+		bool								hasBoundary;				//!< Toogle/Flag if the mesh has a boundary
+		std::vector<bool>					boundaryVertexCheck;		//!< Check whether a vertex is in a boundary/not
 		Eigen::MatrixXd						EigVectsRef;				//!< Reference eigenvectors (from either Matlab, SpectrA, or Manifold Harmonics in Graphite)
 		Eigen::MatrixXd						EigVectsReduced;			//!< Approximated eigenvectors (lifted to reference space)
 		Eigen::MatrixXd						EigVectsReducedNonLifted;	//!< approximated eigenvectors in the subspace(not Lifted)

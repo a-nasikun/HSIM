@@ -28,6 +28,7 @@ namespace HSIM
 	{
 	public:
 		void virtual doEdgeFlip(unsigned int n) override;
+		void virtual checkBoundary() override;
 		std::tuple<double, double> computeEdgeMinAngle(MyMesh::EdgeHandle& eh);
 
 		void computeArea();

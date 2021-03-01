@@ -19,6 +19,8 @@
 namespace HSIM
 {
 	void MLEigenSolver::doEdgeFlip(unsigned int n){ }
+
+	void MLEigenSolver::checkBoundary() {}
 	
 	/**
 	*  @brief		Read a (triangle) mesh specified by the input file. 
@@ -54,6 +56,8 @@ namespace HSIM
 
 		scaleMesh(V, F, 2.0);
 		projectToSphere(V, F, 1.0);
+
+		checkBoundary();
 	}
 
 	/**
