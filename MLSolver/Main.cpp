@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 	ImGui::StyleColorsDark();							// Set style
 
 	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
-	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_5k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/pulley_40k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere40k.off";
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Keenan_Nevertiti/Nefertiti_500k_quadrics_normal.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Keenan_Nevertiti/Nefertiti_500k_edgeLength_withFlip.obj";
 	/// Mesh for regular mesh on sphere
-	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_10k_reg.obj";
+	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_10k_reg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_116k_reg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_1m_reg.obj";	
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere_1.1m_irreg.obj";
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Keenan_Nevertiti/Nefertiti.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Neptune_clean__watertight_4M triangles/803_neptune_4Mtriangles_manifold.off";
 		
-	eigenSolver->readMesh(meshFile);	
+	eigenSolver->readMesh(meshFile);		
 	//scaleMesh(eigenSolver->getV(), eigenSolver->getF(), 1.0);
 
 	Eigen::MatrixXi EE;

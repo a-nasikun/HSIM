@@ -555,7 +555,9 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		
 		ImGui::ColorEdit4("ModelColor##2f", (float*)&modelColor, ImGuiColorEditFlags_Float | misc_flags);
 		modelColorEig << modelColor.x, modelColor.y, modelColor.z; 
-		viewer.data().set_colors(modelColorEig);
+		if (ImGui::Button("Change model color##1", ImVec2((w), 0))) {
+			viewer.data().set_colors(modelColorEig);
+		}
 
 
 
@@ -860,21 +862,25 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		static std::vector<Eigen::VectorXd> diffTensor1;
 		static std::vector<Eigen::VectorXd> diffTensor2;
 		static Eigen::VectorXd diffVector(eigenSolver->getV().rows());
-		static int sourceID = 0;
+		static int sourceID = 0, targetID=1;
 		if (ImGui::CollapsingHeader("Diffusion Distance##1", ImGuiTreeNodeFlags_CollapsingHeader))
 		{			
 			static char weighttxt[32] = "0.5";						ImGui::InputText("Weight", weighttxt, 32);
+			static char numModesTxt[32] = "50";						ImGui::InputText("Num. Modes", numModesTxt, 32);
+			static int numModesForDiffTensor;
 			if (ImGui::Button("Create Diffusion Tensor", ImVec2(w, 0))) {			
 
 				if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
 					double weight = atof(weighttxt);
+					numModesForDiffTensor = atoi(numModesTxt);
 					//solver->constructDiffusionTensor(min(numOfModes, 50), 1.0, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor1);
-					solver->constructDiffusionTensor(min(numOfModes, 50), weight, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor2);					
-					std::cout << "Diffusion tensor successfully created \n";
+					solver->constructDiffusionTensor(min(numOfModes, numModesForDiffTensor), weight, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor2);					
+					std::cout << "Diffusion tensor successfully created with " << min(numOfModes, numModesForDiffTensor) << " number of modes.\n";
 				}
 			}
 
-			static char sourceIDtxt[32] = "0";						ImGui::InputText("0", sourceIDtxt, 32);
+			static char sourceIDtxt[32] = "0";						ImGui::InputText("Source", sourceIDtxt, 32);
+			static char targetIDtxt[32] = "1";						ImGui::InputText("Target", targetIDtxt, 32);
 			Eigen::MatrixXd VCol;
 			if (ImGui::Button("Compute Diffusion Distance", ImVec2(w, 0))) {
 				
@@ -889,10 +895,21 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 					diffVector(i) = diff.norm();
 				}
 
+				// Test for circle
+				targetID = atoi(targetIDtxt);				
+				double refDist = acos(viewer.data().V.row(sourceID).dot(viewer.data().V.row(targetID)));
+				printf("Ref dist: %.16f \n", refDist);
+				printf("Diffusion distance: %.16f \n", diffVector(targetID));
+				printf("Relative error: %.6f \n", abs(refDist-diffVector(targetID))/refDist);
 				
-				igl::jet(diffVector, true, VCol);
+				igl::jet(diffVector, false, VCol);
+				printf("Max Dist: %.16f \n", diffVector.maxCoeff());
 				viewer.data().set_colors(VCol);
+				viewer.data().points.resize(0, 6);
+				
 				viewer.data().add_points(eigenSolver->getV().row(sourceID), Eigen::RowVector3d(0.7, 0.1, 0.1));
+				viewer.data().add_points(eigenSolver->getV().row(targetID), Eigen::RowVector3d(0.1, 0.1, 0.1));
+				viewer.data().point_size = 20.0;
 			}
 
 			if (ImGui::Button("Show Isolines", ImVec2(w, 0))) {
