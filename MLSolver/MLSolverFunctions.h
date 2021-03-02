@@ -41,6 +41,7 @@ namespace HSIM
 		void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support) override;
 		void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet) override;
 		void virtual constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis = 0, double offset = 0.0) override;
+		
 
 		/* Subspace Iteration methods */
 		void performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter = 10, double tol = 1e-4, bool isWithShift = false, const ShiftType& shiftType = ShiftType::SHIFT_BATHE, int axis = 0, double offset = 0.0) override;

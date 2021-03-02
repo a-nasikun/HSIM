@@ -169,11 +169,11 @@ namespace HSIM
 
 		if (hasBoundary) {
 			std::cout << "This model has boundary! \nBoundary vertices: ";
-			for (int i = 0; i < V.rows(); ++i) {
-				if (boundaryVertexCheck[i])
-					std::cout << i << ", ";
-			}
-			std::cout << "\n ";
+			//for (int i = 0; i < V.rows(); ++i) {
+			//	if (boundaryVertexCheck[i])
+			//		std::cout << i << ", ";
+			//}
+			//std::cout << "\n ";
 		}
 	}
 
@@ -403,13 +403,14 @@ namespace HSIM
 	*/
 	void MLSolverFunctions::constructBasis(double support, int axis, double offset)
 	{
-		std::cout << "____Constructing multi-level basis \n";
+		std::cout << "____Constructing multi-level basis (possibly with boundary) \n";
 		for (int i = 0; i < level; i++) {
 			maxNeighDist[i] = sqrt((surfaceArea*support) / (M_PI*SubspaceSize[i]));
 			//printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
 		}
 
 		for (int i = 0; i < level; i++) {
+			if(isClampedBasis)	printf("Basis level %d is clamped\n", i);
 			constructRadialBasisFunctions(i, axis, isClampedBasis, offset, support);
 			//printf("basis level %d: done \n", i);
 		}
@@ -805,6 +806,7 @@ namespace HSIM
 				double aVal = D(i);
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(i, axis) < xBound) continue;
+					if (hasBoundary && boundaryVertexCheck[i]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
@@ -820,6 +822,7 @@ namespace HSIM
 				double aVal = D(Sample(i));
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
+					if (hasBoundary && boundaryVertexCheck[Sample(i)]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
@@ -908,6 +911,25 @@ namespace HSIM
 			constructSelectorMatrixFullSize(SelM, axis, offset);
 			MSel = SelM.transpose()*M*SelM;
 			SSel = SelM.transpose()*S*SelM;
+		}
+		else if (hasBoundary) {
+			Eigen::SparseMatrix<double> SelM;
+			SelM.resize(M.rows(), M.cols());
+			vector<Eigen::Triplet<double>> STriplet;
+			STriplet.reserve(M.nonZeros());
+
+			int iCounter = 0;
+			for (int i = 0; i < V.rows(); i++) {
+				if (!boundaryVertexCheck[i]) {
+					STriplet.push_back(Eigen::Triplet<double>(i, i, 1.0));
+				}
+			}
+
+			SelM.setFromTriplets(STriplet.begin(), STriplet.end());
+			printf("__Dim of this selector matrix: %dx%d \n", SelM.rows(), SelM.cols());
+
+			MSel = SelM.transpose() * M * SelM;
+			SSel = SelM.transpose() * S * SelM;
 		}
 		else {
 			MSel = M;
@@ -3701,7 +3723,42 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	t1 = chrono::high_resolution_clock::now();
 	const int nLevel = sampSize.rows() + 1;
 	vector<Eigen::SparseMatrix<double>>	Mred(nLevel), Sred(nLevel);			// MInvRed(nLevel);
-	Sred[0] = S; Mred[0] = M;												// MInvRed[0] = Minv;
+
+	Eigen::SparseMatrix<double> MSel, SSel;
+	if (isClampedBasis) {
+		printf("Problem with clamped basis \n");
+		Eigen::SparseMatrix<double> SelM;
+		constructSelectorMatrixFullSize(SelM, 0, 0.05);
+		MSel = SelM.transpose() * M * SelM;
+		SSel = SelM.transpose() * S * SelM;
+	}
+	else if (hasBoundary) {
+		printf("Problem with boundary condition \n");
+		Eigen::SparseMatrix<double> SelM;
+		SelM.resize(M.rows(), M.cols());
+		vector<Eigen::Triplet<double>> STriplet;
+		STriplet.reserve(M.nonZeros());
+
+		int iCounter = 0;
+		for (int i = 0; i < V.rows(); i++) {
+			if (!boundaryVertexCheck[i]) {
+				STriplet.push_back(Eigen::Triplet<double>(i, i, 1.0));
+			}
+		}
+
+		SelM.setFromTriplets(STriplet.begin(), STriplet.end());
+		printf("__Dim of this selector matrix: %dx%d \n", SelM.rows(), SelM.cols());
+
+		MSel = SelM.transpose() * M * SelM;
+		SSel = SelM.transpose() * S * SelM;
+	}
+	else {
+		printf("Regular (no boundary, no clamped basis) \n");
+		MSel = M;
+		SSel = S;
+	}
+
+	Sred[0] = SSel; Mred[0] = MSel;												// MInvRed[0] = Minv;
 	for (unsigned int i = 1; i < nLevel; ++i) {
 		Sred[i] = U[i-1].transpose() * Sred[i-1] * U[i-1];
 		Mred[i] = U[i-1].transpose() * Mred[i-1] * U[i-1];
@@ -4161,7 +4218,11 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 	{
 		Eigen::MatrixXd VColor;
 		Eigen::VectorXd funcCols;
+
+		printf("Visualize basis no %d \n", id);
 		if (k < 0 || k >= level) return;
+
+
 		
 		if(k==0) funcCols = Basis.col(id);
 		else if (k < level) {

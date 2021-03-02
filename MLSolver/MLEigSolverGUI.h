@@ -49,6 +49,7 @@ static int			hierarchyMode	= 3;						// 0: fixed num level, 1: auto (the more co
 static double		sphereScaleRatio= 0.05;
 static int			numLevels		= 3;
 //static bool			isSampleBounded = true;
+static bool			isClampedBasis = false;
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
@@ -200,13 +201,32 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				//printf("mesh that we have  now: %d \n", viewer.data_list.size());
 				eigenSolver->setV(viewer.data().V);
 				eigenSolver->setF(viewer.data().F);
-				eigenSolver->checkBoundary();
 
-				Eigen::MatrixXi E;
-				igl::edges(viewer.data().F, E);
+				// Boundary-related functionality
+				eigenSolver->checkBoundary();				
+				viewer.data().points.resize(0, 6);
+				int numBoundaryVertices = 0;
+				for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
+					if (eigenSolver->boundaryVertexCheck[i])
+						numBoundaryVertices++;
+				}
+				std::cout << "Number of boundary vertices: " << numBoundaryVertices << std::endl;
+				//viewer.data().points.resize(numBoundaryVertices,6);
 
-				int genus = 1 - (viewer.data().V.rows() - E.rows() + viewer.data().F.rows()) / 2;
-				std::cout << "Genus of model is : " << genus << std::endl;
+				//for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
+				//	if (eigenSolver->boundaryVertexCheck[i]) {
+				//		//viewer.data().add_points(viewer.data().V.row(i), Eigen::RowVector3d(0.9, 0.2, 0.2));
+				//		viewer.data().set_points(viewer.data().V.row(i), Eigen::RowVector3d(0.9, 0.2, 0.2));
+				//	}
+				//}
+
+				if (viewer.data().V.rows() < 60000) {
+					Eigen::MatrixXi E;
+					igl::edges(viewer.data().F, E);
+
+					int genus = 1 - (viewer.data().V.rows() - E.rows() + viewer.data().F.rows()) / 2;
+					std::cout << "Genus of model is : " << genus << std::endl;
+				}
 				
 			}
 		}
@@ -258,8 +278,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			
 			static	Eigen::VectorXd colorVect;
-			static bool	isClampedBasis = false;
-			
+						
 
 			/* Setup stiffness Matrix */
 			if (ImGui::Button("[1] Construct Stiffness Matrix##1", ImVec2(w, 0))) {
@@ -621,7 +640,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 					viewer.data().points.resize(0, 6);
 				}
 
-				eigenSolver->visualizeBasis(viewer, basisToShow, eigScale);
+				eigenSolver->visualizeBasis(viewer, basisToShow, 0, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", basisToShow);
@@ -641,7 +660,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 					viewer.data().points.resize(0, 6);
 				}
 
-				eigenSolver->visualizeBasis(viewer, basisToShow, eigScale);
+				eigenSolver->visualizeBasis(viewer, basisToShow,0, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Rand1", ImVec2((w - 85.0f - 5.0*p) * 2 / 4.f, 0))) {
@@ -658,7 +677,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 					viewer.data().points.resize(0, 6);
 				}
 
-				eigenSolver->visualizeBasis(viewer, basisToShow, eigScale);
+				eigenSolver->visualizeBasis(viewer, basisToShow,0, eigScale);
 			}
 			/* For Approx. Eigenvectors */
 			ImGui::Text("Reduced");
@@ -1022,6 +1041,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->setLevel(numLevels-1);
 			std::cout << "Num levels: " << eigenSolver->getLevel() << std::endl;
 			std::cout << "Multiple solve: " << eigenSolver->isMultipleSolve << std::endl;
+			eigenSolver->setClampBasis(isClampedBasis);
 
 			if(eigenSolver->isSIMinGPU)
 				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
