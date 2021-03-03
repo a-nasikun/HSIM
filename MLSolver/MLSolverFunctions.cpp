@@ -4238,13 +4238,14 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 		Eigen::MatrixXd VColor;
 		Eigen::VectorXd funcCols;
 
-		printf("Visualize basis no %d \n", id);
+		printf("Visualize basis no %d on level %d \n", id, k);
 		if (k < 0 || k >= level) return;
 
 
 		
-		if(k==0) funcCols = Basis.col(id);
-		else if (k < level) {
+		//if(k==0) funcCols = Basis.col(id);
+		//else 
+		if (k < level) {
 			Eigen::SparseMatrix<double> Id(S.rows(), S.cols());
 			Id.setIdentity();
 			Eigen::SparseMatrix<double> TempBasis = Id;

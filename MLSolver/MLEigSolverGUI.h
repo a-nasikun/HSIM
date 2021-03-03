@@ -421,11 +421,11 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				if (i<(eigenSolver->getLevel()-1)) ImGui::SameLine(0, p);
 			}
 			
-			static int levelViz = 0;
 			static char Sample1Txt[10] = "0"; ImGui::InputText("Sample ID 1", Sample1Txt, 10);
 			sample1 = atoi(Sample1Txt);
 			static char Sample2Txt[10] = "0"; ImGui::InputText("Sample ID 2", Sample2Txt, 10);
 			sample2 = atoi(Sample2Txt);
+			static int levelViz = 0;
 			ImGui::RadioButton("1", &levelViz, 0); ImGui::SameLine();
 			ImGui::RadioButton("2", &levelViz, 1); 
 
@@ -625,6 +625,16 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			}
 
 			
+			static int levelViz = 0;
+			ImGui::Text("Show sample dist");
+			for (int i = 0; i < numLevels-1; ++i)
+			{
+				string disp = to_string(i)+"##BasisLevel";
+				char const* ca = disp.c_str();
+				ImGui::RadioButton(ca, &levelViz, i);
+				if (i != numLevels - 2) ImGui::SameLine(0, p);
+			}
+
 			ImGui::Text("Show Basis ");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("-1##Basis1", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
@@ -640,11 +650,14 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 					viewer.data().points.resize(0, 6);
 				}
 
-				eigenSolver->visualizeBasis(viewer, basisToShow, 0, eigScale);
+				eigenSolver->visualizeBasis(viewer, basisToShow, levelViz, eigScale);
+
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", basisToShow);
 			ImGui::SameLine(0, p);
+						
+
 
 			if (ImGui::Button("+ 1##Basis1", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1) {
@@ -660,7 +673,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 					viewer.data().points.resize(0, 6);
 				}
 
-				eigenSolver->visualizeBasis(viewer, basisToShow,0, eigScale);
+				eigenSolver->visualizeBasis(viewer, basisToShow, levelViz, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Rand1", ImVec2((w - 85.0f - 5.0*p) * 2 / 4.f, 0))) {
@@ -677,7 +690,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 					viewer.data().points.resize(0, 6);
 				}
 
-				eigenSolver->visualizeBasis(viewer, basisToShow,0, eigScale);
+				eigenSolver->visualizeBasis(viewer, basisToShow, levelViz, eigScale);
 			}
 			/* For Approx. Eigenvectors */
 			ImGui::Text("Reduced");
