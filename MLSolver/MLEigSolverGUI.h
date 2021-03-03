@@ -204,13 +204,13 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 				// Boundary-related functionality
 				eigenSolver->checkBoundary();				
-				viewer.data().points.resize(0, 6);
-				int numBoundaryVertices = 0;
-				for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
-					if (eigenSolver->boundaryVertexCheck[i])
-						numBoundaryVertices++;
-				}
-				std::cout << "Number of boundary vertices: " << numBoundaryVertices << std::endl;
+				//viewer.data().points.resize(0, 6);
+				//int numBoundaryVertices = 0;
+				//for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
+				//	if (eigenSolver->boundaryVertexCheck[i])
+				//		numBoundaryVertices++;
+				//}
+				//std::cout << "Number of boundary vertices: " << numBoundaryVertices << std::endl;
 				//viewer.data().points.resize(numBoundaryVertices,6);
 
 				//for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
@@ -1026,6 +1026,17 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		static bool isPrintEigVals = true;
 		ImGui::Checkbox("Print eigenvalue", &isPrintEigVals);
 
+		static int boundaryType = 1;
+		if (eigenSolver->getBoundaryType() != MLEigenSolver::BoundaryCondition::BOUNDARY_NONE) {
+			ImGui::RadioButton("Dirichlet", &boundaryType, 1); ImGui::SameLine();
+			ImGui::RadioButton("Neumann", &boundaryType, 2);
+
+			if (ImGui::Button("Set Boundary Cond.", ImVec2(w, 0))) {
+				if (boundaryType == 1) eigenSolver->setBoundaryType(HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_DIRICHLET);
+				else if (boundaryType == 2) eigenSolver->setBoundaryType(HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_NEUMANN);
+			}
+		}
+
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
 			std::cout << "Hierarchy " << hierarchyMode << std::endl;
 			std::cout << "Solve in GPU? " << eigenSolver->isSIMinGPU << std::endl;
@@ -1043,12 +1054,17 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::cout << "Multiple solve: " << eigenSolver->isMultipleSolve << std::endl;
 			eigenSolver->setClampBasis(isClampedBasis);
 
+			if (eigenSolver->getBoundaryType() != MLEigenSolver::BoundaryCondition::BOUNDARY_NONE) {
+				if (boundaryType == 1) eigenSolver->setBoundaryType(HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_DIRICHLET);
+				else if (boundaryType == 2) eigenSolver->setBoundaryType(HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_NEUMANN);
+			}
+
 			if(eigenSolver->isSIMinGPU)
 				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
 				//eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, numOfSupport);
 			else 
 				eigenSolver->solve(numOfModes, tol, maxIter, levelRatio, numOfSupport, isShiftedSIM);
-				//eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, 7.5);
+				//eigenSolver->solve(numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion, levelRatio, numOfSupport);
 
 			if (isPrintEigVals) {
 				std::cout << "Eigevalues=== \n";

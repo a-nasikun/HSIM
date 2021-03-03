@@ -40,6 +40,7 @@ namespace HSIM
 		enum class SIMType { SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
 		enum class EigenSolverType { EIG_SOLVER_MATLAB, EIG_SOLVER_CUDA, EIG_SOLVER_SPECTRA };
 		enum class ShiftType { SHIFT_BATHE, SHIFT_ITOH_WILSON, SHIFT_GONG, SHIFT_ZHAO };
+		enum class BoundaryCondition {BOUNDARY_NONE, BOUNDARY_DIRICHLET, BOUNDARY_NEUMANN};
 
 		void virtual doEdgeFlip(unsigned int n);
 		void virtual checkBoundary();
@@ -124,6 +125,8 @@ namespace HSIM
 		bool getNotIterateOverConvergedFlag() const;
 		void setParallelSolverFlag(bool flag=true);
 		bool getParallelSolverFlag() const;
+		const BoundaryCondition getBoundaryType() const;
+		void setBoundaryType(const BoundaryCondition& boundary);
 
 
 		const Eigen::MatrixXd& getEigenVectorsRef() const;
@@ -214,6 +217,7 @@ namespace HSIM
 		int hierarchyMode = 2;				// 0: constant (i.e. 10), 1: auto (the more complicated one), 2: same ratio (1 adjusted to be like 0); 3:fixed levels
 		int convergedCriteria = 2;			// 2: more expensive: relative L-2 norm of residual && 3: cheaper a^2/qTq
 		bool isSampleBounded = true;
+		BoundaryCondition boundaryType = BoundaryCondition::BOUNDARY_NONE;
 	};
 }
 

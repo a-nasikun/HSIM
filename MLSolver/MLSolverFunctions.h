@@ -65,14 +65,11 @@ namespace HSIM
 
 		/* Visualization Tools*/
 		void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k = 0, double scale = 1.0) const override;
-		void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale = 1.0) const override;
-
-		
+		void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale = 1.0) const override;		
 
 	private:
 		double			avgEdgeLength;						//!< Average edge length (from the mesh)
 		double			surfaceArea;						//!< Total surface area (from the mesh)
-
 
 		void subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK,  Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int solverStatus, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed = true, int lastConvergedId=0) override;
 		int SIMiterationInCPU(const Eigen::MatrixXd& XbarK, const Eigen::SparseMatrix<double>& SK, const Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int& GPUeigsolverStatus);

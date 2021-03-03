@@ -65,7 +65,8 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Keenan_Nevertiti/Nefertiti.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Neptune_clean__watertight_4M triangles/803_neptune_4Mtriangles_manifold.off";
 		
-	eigenSolver->readMesh(meshFile);		
+	eigenSolver->readMesh(meshFile);	
+	eigenSolver->checkBoundary();
 	//scaleMesh(eigenSolver->getV(), eigenSolver->getF(), 1.0);
 
 	Eigen::MatrixXi EE;

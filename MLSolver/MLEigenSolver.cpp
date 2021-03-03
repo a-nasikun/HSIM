@@ -774,6 +774,163 @@ namespace HSIM
 
 	void MLEigenSolver::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k) {}
 	
+	///void MLEigenSolver::solveInversePowerMethod(unsigned int numEigs, double tol, int maxIter, bool isWithShift)
+	///{
+	///	/* [1] Set up the System matrices */
+	///	constructMassMatrix();
+	///	initiateAdM();
+	///	constructStiffnessMatrix();
+	///
+	///	std::cout << "Soving using inverse power method, one by one \n ";
+	///	std::cout << "--can be SUPER SLOW! \n";
+	///	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SpSolver;
+	///	SpSolver.compute(S);
+	///	Eigen::LDLT<Eigen::MatrixXd> DnSolver;
+	///	Eigen::MatrixXd V;
+	///	Eigen::VectorXd v, vTemp, vConst;
+	///	Eigen::VectorXd eigVal(1);
+	///	Eigen::VectorXd convRate(1);
+	///
+	///	EigVectsSIM.resize(S.rows(), numEigs);
+	///	EigValsSIM.resize(numEigs);
+	///	v.resize(S.rows());
+	///	v.setConstant(1.0);
+	///	double norm_ = v.transpose() * M * v;
+	///	v = v / sqrt(norm_);
+	///	EigVectsSIM.col(0) = v;
+	///	EigValsSIM(0) = 0;
+	///	//std::cout << "Eigval 0: " << EigValsSIM(0) << std::endl;
+	///	//std::cout << "Eigvectors " << EigVectsSIM.col(0).head(10).transpose() << std::endl;
+	///
+	///	Eigen::MatrixXd X;
+	///	Eigen::VectorXd vproj, q;
+	///	for (int iEig = 1; iEig < numEigs; ++iEig) {
+	///		printf("Solving eigenproblem # %d \n", iEig);
+	///		///printf("Eig %d => construct constraints | ", iEig);
+	///		X = EigVectsSIM.leftCols(iEig);
+	///		Eigen::MatrixXd A = X.transpose() * M;
+	///		///printf(" of size:%dx%d \n", A.rows(), A.cols());
+	///		Eigen::SparseMatrix<double> K(S.rows() + A.rows(), S.rows() + A.rows());
+	///		std::vector<Eigen::Triplet<double>> KTriplet;
+	///		KTriplet.reserve(S.nonZeros() + 2 * A.nonZeros());
+	///		///std::cout << "Const (1):\n" << A.bottomRows(iEig).leftCols(10) << std::endl;
+	///
+	///		//std::cout << "Prepare LHS \n";
+	///		for (int k = 0; k < M.outerSize(); ++k) {
+	///			for (Eigen::SparseMatrix<double>::InnerIterator it(M, k); it; ++it) {
+	///				KTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+	///			}
+	///		}
+	///
+	///		for (int kRow = 0; kRow < A.rows(); ++kRow) {
+	///			for (int kCol = 0; kCol < A.cols(); ++kCol) {
+	///				KTriplet.push_back(Eigen::Triplet<double>(M.rows() + kRow, kCol, A(kRow, kCol)));
+	///				KTriplet.push_back(Eigen::Triplet<double>(kCol, M.rows() + kRow, A(kRow, kCol)));
+	///			}
+	///		}
+	///		K.setFromTriplets(KTriplet.begin(), KTriplet.end());
+	///		KTriplet.clear(); KTriplet.shrink_to_fit();
+	///		///std::cout << "Const (2):\n" << A.bottomRows(iEig).leftCols(10) << std::endl;
+	///
+	///		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolverK;
+	///		spSolverK.compute(K);
+	///
+	///		Eigen::VectorXd x(S.rows()); x.setConstant(0.05);
+	///		Eigen::VectorXd g = x;
+	///		Eigen::VectorXd h = A * x;
+	///		Eigen::VectorXd b(g.rows() + h.rows());
+	///		b << g, h;
+	///		Eigen::VectorXd sol;
+	///
+	///		unsigned int iterCount = 0;
+	///		bool isConverged = false;
+	///
+	///		generateRandomMatrix(S.rows(), 1, V);
+	///		v = V.col(0);
+	///		norm_ = v.transpose() * M * v;
+	///		v = v / sqrt(norm_);
+	///
+	///		// special case for 1m triangles
+	///		std::vector<double> tol_list{ 1e-1, 1e-2, 1e-4, 1e-6 };
+	///
+	///		do {
+	///			///printf("__produced smooth vectors \n");
+	///			vTemp = M * v;
+	///			v = SpSolver.solve(vTemp);
+	///
+	///			///printf("__project to constraints vectors \n");
+	///			b.head(g.rows()) = M * (x - v);
+	///			sol = spSolverK.solve(b);
+	///
+	///			q = -1.0 * sol.head(g.rows()) + x;
+	///			v = q;
+	///
+	///			//double a = max(v.maxCoeff(), abs(v.minCoeff()));				
+	///			//v = v / a;
+	///			//eigVal(0) = v.transpose() * v;
+	///			norm_ = v.transpose() * M * v;
+	///			v = v / sqrt(norm_);
+	///
+	///			Eigen::VectorXd eVectTemp = v;
+	///			eigVal(0) = eVectTemp.transpose() * S * eVectTemp;
+	///
+	///			checkConvergenceCat2(eVectTemp, eigVal, 1, M, Minv, S, convRate);
+	///			//checkConvergenceCat2(v, eigVal, 1, Id, Id, Sh, convRate);
+	///			//printf("EigVal %d | --Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
+	///
+	///
+	///			iterCount++;
+	///			///if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
+	///
+	///
+	///			if (convRate(0) < tol_list[3]) {
+	///				EigValsSIM(iEig) = eigVal(0);
+	///				EigVectsSIM.col(iEig) = v;
+	///				string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[3]) + ".txt";
+	///				writeDenseMatrixToFile(EigValsSIM, filename, true);
+	///				filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[3]) + ".txt";
+	///				writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+	///			}
+	///			else if (convRate(0) < tol_list[2]) {
+	///				EigValsSIM(iEig) = eigVal(0);
+	///				EigVectsSIM.col(iEig) = v;
+	///				string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[2]) + ".txt";
+	///				writeDenseMatrixToFile(EigValsSIM, filename, true);
+	///				filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[2]) + ".txt";
+	///				writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+	///			}
+	///			else if (convRate(0) < tol_list[1]) {
+	///				EigValsSIM(iEig) = eigVal(0);
+	///				EigVectsSIM.col(iEig) = v;
+	///				string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[1]) + ".txt";
+	///				writeDenseMatrixToFile(EigValsSIM, filename, true);
+	///				filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[1]) + ".txt";
+	///				writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+	///			}
+	///			else if (convRate(0) < tol_list[0]) {
+	///				EigValsSIM(iEig) = eigVal(0);
+	///				EigVectsSIM.col(iEig) = v;
+	///				string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[0]) + ".txt";
+	///				writeDenseMatrixToFile(EigValsSIM, filename, true);
+	///				filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[0]) + ".txt";
+	///				writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+	///			}
+	///
+	///			//if (iterCount > maxIter) isConverged = true;
+	///			if (convRate(0) < tol_list[3] || iterCount > maxIter) isConverged = true;
+	///			printf("EigVal %d || %.8f | []Iter %d | convergence check: %.10f | is converged? %s \n", iEig, eigVal(0), iterCount, convRate(0), isConverged ? "true" : "false");
+	///		} while (!isConverged);
+	///
+	///		EigValsSIM(iEig) = eigVal(0);
+	///		EigVectsSIM.col(iEig) = v;
+	///
+	///		///string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol) + ".txt";
+	///		///writeDenseMatrixToFile(EigValsSIM, filename, true);
+	///		///filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol) + ".txt";
+	///		///writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+	///	}
+	///}
+
 	void MLEigenSolver::solveInversePowerMethod(unsigned int numEigs, double tol, int maxIter, bool isWithShift)
 	{		
 		/* [1] Set up the System matrices */
@@ -783,19 +940,44 @@ namespace HSIM
 		
 		std::cout << "Soving using inverse power method, one by one \n ";
 		std::cout << "--can be SUPER SLOW! \n";
+
+		Eigen::SparseMatrix<double> S1, M1;
+		Eigen::SparseMatrix<double> SelMat;
+
+		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+			printf("This mesh has boundary, and will be treated accordingly \n");
+			std::vector<Eigen::Triplet<double>> SelTriplet;
+			SelTriplet.reserve(V.rows());
+			unsigned int iCounter = 0;
+			for (unsigned int i = 0; i < V.rows(); ++i) {
+				if (!boundaryVertexCheck[i]) {
+					SelTriplet.push_back(Eigen::Triplet<double>(i, iCounter, 1.0));
+					iCounter++;
+				}
+			}
+			SelMat.resize(V.rows(), iCounter);
+			SelMat.setFromTriplets(SelTriplet.begin(), SelTriplet.end());
+			M1 = SelMat.transpose() * M * SelMat;
+			S1 = SelMat.transpose() * S * SelMat;
+		}
+		else {
+			M1 = M;
+			S1 = S;
+		}
+
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SpSolver;
-		SpSolver.compute(S);
+		SpSolver.compute(S1);
 		Eigen::LDLT<Eigen::MatrixXd> DnSolver;
 		Eigen::MatrixXd V;
 		Eigen::VectorXd v, vTemp, vConst;
 		Eigen::VectorXd eigVal(1);
 		Eigen::VectorXd convRate(1);
 
-		EigVectsSIM.resize(S.rows(), numEigs);
+		EigVectsSIM.resize(S1.rows(), numEigs);
 		EigValsSIM.resize(numEigs);
-		v.resize(S.rows());
+		v.resize(S1.rows());
 		v.setConstant(1.0);
-		double norm_ = v.transpose() * M * v;
+		double norm_ = v.transpose() * M1 * v;
 		v = v/sqrt(norm_);
 		EigVectsSIM.col(0) = v;
 		EigValsSIM(0) = 0;
@@ -808,24 +990,24 @@ namespace HSIM
 			printf("Solving eigenproblem # %d \n", iEig);
 			///printf("Eig %d => construct constraints | ", iEig);
 			X = EigVectsSIM.leftCols(iEig);
-			Eigen::MatrixXd A = X.transpose() * M;
+			Eigen::MatrixXd A = X.transpose() * M1;
 			///printf(" of size:%dx%d \n", A.rows(), A.cols());
-			Eigen::SparseMatrix<double> K(S.rows() + A.rows(), S.rows() + A.rows());
+			Eigen::SparseMatrix<double> K(S1.rows() + A.rows(), S1.rows() + A.rows());
 			std::vector<Eigen::Triplet<double>> KTriplet;
-			KTriplet.reserve(S.nonZeros() + 2 * A.nonZeros());
+			KTriplet.reserve(S1.nonZeros() + 2 * A.nonZeros());
 			///std::cout << "Const (1):\n" << A.bottomRows(iEig).leftCols(10) << std::endl;
 
 			//std::cout << "Prepare LHS \n";
-			for (int k = 0; k < M.outerSize(); ++k) {
-				for (Eigen::SparseMatrix<double>::InnerIterator it(M, k); it; ++it) {
+			for (int k = 0; k < M1.outerSize(); ++k) {
+				for (Eigen::SparseMatrix<double>::InnerIterator it(M1, k); it; ++it) {
 					KTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
 				}
 			}
 
 			for (int kRow = 0; kRow < A.rows(); ++kRow) {
 				for (int kCol = 0; kCol < A.cols(); ++kCol) {
-					KTriplet.push_back(Eigen::Triplet<double>(M.rows() + kRow, kCol, A(kRow, kCol)));
-					KTriplet.push_back(Eigen::Triplet<double>(kCol, M.rows() + kRow, A(kRow, kCol)));
+					KTriplet.push_back(Eigen::Triplet<double>(M1.rows() + kRow, kCol, A(kRow, kCol)));
+					KTriplet.push_back(Eigen::Triplet<double>(kCol, M1.rows() + kRow, A(kRow, kCol)));
 				}
 			}			
 			K.setFromTriplets(KTriplet.begin(), KTriplet.end());
@@ -835,7 +1017,7 @@ namespace HSIM
 			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> spSolverK;
 			spSolverK.compute(K);
 
-			Eigen::VectorXd x(S.rows()); x.setConstant(0.05);
+			Eigen::VectorXd x(S1.rows()); x.setConstant(0.05);
 			Eigen::VectorXd g = x;
 			Eigen::VectorXd h = A * x;
 			Eigen::VectorXd b(g.rows() + h.rows());
@@ -845,21 +1027,21 @@ namespace HSIM
 			unsigned int iterCount = 0;
 			bool isConverged = false;
 
-			generateRandomMatrix(S.rows(), 1, V);
+			generateRandomMatrix(S1.rows(), 1, V);
 			v = V.col(0);
-			norm_ = v.transpose() * M * v;
+			norm_ = v.transpose() * M1 * v;
 			v = v / sqrt(norm_);
 
 			// special case for 1m triangles
-			std::vector<double> tol_list{ 1e-1, 1e-2, 1e-4, 1e-6 };
+			//std::vector<double> tol_list{ 1e-1, 1e-2, 1e-4, 1e-6 };
 
 			do {				
 				///printf("__produced smooth vectors \n");
-				vTemp = M * v;
+				vTemp = M1 * v;
 				v = SpSolver.solve(vTemp);
 
 				///printf("__project to constraints vectors \n");
-				b.head(g.rows()) = M * (x - v);
+				b.head(g.rows()) = M1 * (x - v);
 				sol = spSolverK.solve(b);
 
 				q = -1.0 * sol.head(g.rows()) + x;
@@ -868,53 +1050,53 @@ namespace HSIM
 				//double a = max(v.maxCoeff(), abs(v.minCoeff()));				
 				//v = v / a;
 				//eigVal(0) = v.transpose() * v;
-				norm_ = v.transpose() * M * v;
+				norm_ = v.transpose() * M1 * v;
 				v = v / sqrt(norm_);
 
 				Eigen::VectorXd eVectTemp =  v;
-				eigVal(0) = eVectTemp.transpose() * S * eVectTemp;
+				eigVal(0) = eVectTemp.transpose() * S1 * eVectTemp;
 
-				checkConvergenceCat2(eVectTemp, eigVal, 1, M, Minv, S, convRate);
+				checkConvergenceCat2(eVectTemp, eigVal, 1, M1, M1, S, convRate);
 				//checkConvergenceCat2(v, eigVal, 1, Id, Id, Sh, convRate);
 				//printf("EigVal %d | --Iter %d | convergence check: %.5f | is converged? %s \n", iEig, iterCount, convRate(0), isConverged ? "true" : "false");
 
 
 				iterCount++;
-				///if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
+				if (convRate(0) < tol || iterCount > maxIter) isConverged = true;
 
 
-				if (convRate(0) < tol_list[3]) {
-					EigValsSIM(iEig) = eigVal(0);
-					EigVectsSIM.col(iEig) = v;
-					string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[3]) + ".txt";
-					writeDenseMatrixToFile(EigValsSIM, filename, true);
-					filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[3]) + ".txt";
-					writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
-				} else if (convRate(0) < tol_list[2]) {
-					EigValsSIM(iEig) = eigVal(0);
-					EigVectsSIM.col(iEig) = v;
-					string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[2]) + ".txt";
-					writeDenseMatrixToFile(EigValsSIM, filename, true);
-					filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[2]) + ".txt";
-					writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
-				} else if (convRate(0) < tol_list[1]) {
-					EigValsSIM(iEig) = eigVal(0);
-					EigVectsSIM.col(iEig) = v;
-					string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[1]) + ".txt";
-					writeDenseMatrixToFile(EigValsSIM, filename, true);
-					filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[1]) + ".txt";
-					writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
-				} else if (convRate(0) < tol_list[0]) {
-					EigValsSIM(iEig) = eigVal(0);
-					EigVectsSIM.col(iEig) = v;
-					string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[0]) + ".txt";
-					writeDenseMatrixToFile(EigValsSIM, filename, true);
-					filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[0]) + ".txt";
-					writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
-				}
+				//if (convRate(0) < tol_list[3]) {
+				//	EigValsSIM(iEig) = eigVal(0);
+				//	EigVectsSIM.col(iEig) = v;
+				//	string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[3]) + ".txt";
+				//	//writeDenseMatrixToFile(EigValsSIM, filename, true);
+				//	filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[3]) + ".txt";
+				//	//writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+				//} else if (convRate(0) < tol_list[2]) {
+				//	EigValsSIM(iEig) = eigVal(0);
+				//	EigVectsSIM.col(iEig) = v;
+				//	string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[2]) + ".txt";
+				//	//writeDenseMatrixToFile(EigValsSIM, filename, true);
+				//	filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[2]) + ".txt";
+				//	//writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+				//} else if (convRate(0) < tol_list[1]) {
+				//	EigValsSIM(iEig) = eigVal(0);
+				//	EigVectsSIM.col(iEig) = v;
+				//	string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[1]) + ".txt";
+				//	//writeDenseMatrixToFile(EigValsSIM, filename, true);
+				//	filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[1]) + ".txt";
+				//	//writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+				//} else if (convRate(0) < tol_list[0]) {
+				//	EigValsSIM(iEig) = eigVal(0);
+				//	EigVectsSIM.col(iEig) = v;
+				//	string filename = "../../Data/eigvals-analysis/sphere_EigVals_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[0]) + ".txt";
+				//	//writeDenseMatrixToFile(EigValsSIM, filename, true);
+				//	filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol_list[0]) + ".txt";
+				//	//writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+				//}
 
 				//if (iterCount > maxIter) isConverged = true;
-				if (convRate(0) < tol_list[3] || iterCount > maxIter) isConverged = true;
+				//if (convRate(0) < tol_list[3] || iterCount > maxIter) isConverged = true;
 				printf("EigVal %d || %.8f | []Iter %d | convergence check: %.10f | is converged? %s \n", iEig, eigVal(0), iterCount, convRate(0), isConverged ? "true" : "false");
 			} while (!isConverged);
 
@@ -925,6 +1107,10 @@ namespace HSIM
 			///writeDenseMatrixToFile(EigValsSIM, filename, true);
 			///filename = "../../Data/eigvals-analysis/sphere_EigVects_IPM_" + to_string(V.rows()) + "_" + to_string(numEigs) + "_" + to_string(tol) + ".txt";
 			///writeDenseMatrixToFile(Eigen::MatrixXd(EigVectsSIM.leftCols(iEig)), filename, true);
+		}
+		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+			printf("Multiply with selectro for to map to orignal mesh \n");
+			EigVectsSIM = SelMat * EigVectsSIM;
 		}
 	}
 
@@ -1436,7 +1622,8 @@ namespace HSIM
 	bool MLEigenSolver::getNotIterateOverConvergedFlag() const { return isConvergedVectsNotUsed; };
 	void MLEigenSolver::setParallelSolverFlag(bool flag) { isParallelSolverEnabled=flag; }
 	bool MLEigenSolver::getParallelSolverFlag() const { return isParallelSolverEnabled; }
-
+	const MLEigenSolver::BoundaryCondition MLEigenSolver::getBoundaryType() const { return this->boundaryType; }
+	void MLEigenSolver::setBoundaryType(const BoundaryCondition& boundary) {  this->boundaryType = boundary;  }
 
 	/* [Getters of the eigen-values + vectors] */
 	/**  @brief	Obtain the entire eigenvectors (obtained from reference solver). */

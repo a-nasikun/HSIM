@@ -160,20 +160,23 @@ namespace HSIM
 	void MLSolverFunctions::checkBoundary()
 	{		
 		boundaryVertexCheck.resize(V.rows());
+		std::memset(&boundaryVertexCheck[0], false, boundaryVertexCheck.size() * sizeof(boundaryVertexCheck[0]));
+		hasBoundary = false;
+		unsigned int numBoundaryVertices = 0;
 		for (MyMesh::VertexIter vit = openMesh.vertices_begin(); vit != openMesh.vertices_end(); ++vit) {
 			if (openMesh.is_boundary(vit)) {
 				hasBoundary = true;
 				boundaryVertexCheck[vit->idx()] = true;
+				numBoundaryVertices++;
 			}
 		}
 
 		if (hasBoundary) {
-			std::cout << "This model has boundary! \nBoundary vertices: ";
-			//for (int i = 0; i < V.rows(); ++i) {
-			//	if (boundaryVertexCheck[i])
-			//		std::cout << i << ", ";
-			//}
-			//std::cout << "\n ";
+			std::cout << "This model has boundary! \n____with " << numBoundaryVertices << " boundary vertices: ";
+			boundaryType = BoundaryCondition::BOUNDARY_NEUMANN;
+		}
+		else {
+			boundaryType = BoundaryCondition::BOUNDARY_NONE;
 		}
 	}
 
@@ -806,7 +809,7 @@ namespace HSIM
 				double aVal = D(i);
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(i, axis) < xBound) continue;
-					if (hasBoundary && boundaryVertexCheck[i]) continue;
+					if (hasBoundary &&  boundaryVertexCheck[i]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
@@ -912,7 +915,7 @@ namespace HSIM
 			MSel = SelM.transpose()*M*SelM;
 			SSel = SelM.transpose()*S*SelM;
 		}
-		else if (hasBoundary) {
+		else if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
 			Eigen::SparseMatrix<double> SelM;
 			SelM.resize(M.rows(), M.cols());
 			vector<Eigen::Triplet<double>> STriplet;
@@ -964,6 +967,7 @@ namespace HSIM
 				performSIMwithShift_Draft(type, SSel, MSel, numEigs, maxIter, tol, isWithShift, shiftType);
 			}
 			else {
+				performSIMwithWarmStart(type, SSel, MSel, numEigs, maxIter, tol, isWithShift);
 				performSIMwithWarmStart(type, SSel, MSel, numEigs, maxIter, tol, isWithShift);
 			}
 		}
@@ -2825,6 +2829,10 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	Id.resize(SL.rows(), SL.cols());
 	Id.setIdentity();
 
+	printf("Checking the rank of approx. modes (%dx%d) \n", EigVects.rows(), EigVects.cols());
+	Eigen::FullPivLU<Eigen::MatrixXd> LU_E(EigVects);
+	std::cout << "____" << LU_E.rank() << std::endl;
+
 	Eigen::MatrixXd XbarK(EigVects.rows(), q); XbarK.setZero();
 	Eigen::MatrixXd Mproj, Sproj;
 	Eigen::MatrixXd Q;
@@ -2846,7 +2854,7 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			else if (factCounter==0 && zhaoShiftParam <= 10*std::numeric_limits<double>::epsilon()) {
 				std::cout << "No shift! \n";
 				factorization.compute(SL + eps*Id);
-				std::cout << "__[1] case 3: Factorization " << factCounter << " with shift of " << eps; // << std::endl;
+				std::cout << "__[1] case 2: Factorization " << factCounter << " with shift of " << eps; // << std::endl;
 			}
 			else {
 				eps *= 10;
@@ -2856,16 +2864,10 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			}
 			factCounter++;
 			t2 = chrono::high_resolution_clock::now();
-
-			
-
 			duration = t2 - t1;
 			std::cout << " in " << duration.count() << " seconds." << std::endl;
-		}
-
-		
+		}		
 		std::cout << "Iteration: " << iterCount + 1 << std::endl;
-
 		
 		std::cout << "__[2] Solving each RHS ";
 		t1 = chrono::high_resolution_clock::now();
@@ -2935,6 +2937,13 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			}
 		}
 
+		printf("Checking the rank of solution of linear system (%dx%d) \n", XbarK.rows(), XbarK.cols());
+		Eigen::FullPivLU<Eigen::MatrixXd> LU_X(XbarK);
+		std::cout << "____" << LU_X.rank() << std::endl;
+		if (LU_X.rank() < 1) {
+			std::cout << "XbarK \n" << XbarK.topRows(min(20, (int) XbarK.rows())) << std::endl;
+		}
+
 		//std::cout << "[CPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
 
 		t2 = chrono::high_resolution_clock::now();
@@ -2951,6 +2960,10 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		printf("Checking the rank of reduced matrix (%dx%d) \n", Sproj.rows(), Sproj.cols());
+		Eigen::FullPivLU<Eigen::MatrixXd> LU_S(Sproj);
+		std::cout << "____" << LU_S.rank() << std::endl;
 
 		t1 = chrono::high_resolution_clock::now();
 		printf("__[4] Solve reduced eigenvalue problem. ");
@@ -3724,6 +3737,9 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	const int nLevel = sampSize.rows() + 1;
 	vector<Eigen::SparseMatrix<double>>	Mred(nLevel), Sred(nLevel);			// MInvRed(nLevel);
 
+	if (hasBoundary)
+		std::cout << "Boundary type: " << (int) boundaryType << std::endl;
+
 	Eigen::SparseMatrix<double> MSel, SSel;
 	if (isClampedBasis) {
 		printf("Problem with clamped basis \n");
@@ -3732,7 +3748,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		MSel = SelM.transpose() * M * SelM;
 		SSel = SelM.transpose() * S * SelM;
 	}
-	else if (hasBoundary) {
+	else if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
 		printf("Problem with boundary condition \n");
 		Eigen::SparseMatrix<double> SelM;
 		SelM.resize(M.rows(), M.cols());
@@ -3748,9 +3764,12 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 
 		SelM.setFromTriplets(STriplet.begin(), STriplet.end());
 		printf("__Dim of this selector matrix: %dx%d \n", SelM.rows(), SelM.cols());
+		STriplet.clear(); STriplet.shrink_to_fit();
 
-		MSel = SelM.transpose() * M * SelM;
-		SSel = SelM.transpose() * S * SelM;
+		//MSel = SelM.transpose() * M * SelM;
+		//SSel = SelM.transpose() * S * SelM;
+		MSel = M;
+		SSel = S;
 	}
 	else {
 		printf("Regular (no boundary, no clamped basis) \n");
