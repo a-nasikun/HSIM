@@ -1,6 +1,8 @@
 #ifndef FAST_SPECTRUM_GUI
 #define FAST_SPECTRUM_GUI
 
+#include <queue>
+
 #include <imgui/imgui.h>
 #include <imgui/imgui.cpp>
 #include <imgui/imgui_demo.cpp>
@@ -248,6 +250,80 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			viewer.data().compute_normals();
 		}
 		
+		static int initPoint = 0;
+		static int targetPoint = 10;
+		static char initPointTxt[10] = "0";
+		static char targetPointTxt[10] = "10";
+		ImGui::InputText("Init vertex", initPointTxt, 10);
+		ImGui::InputText("Target vertex", targetPointTxt, 10);
+		initPoint = atoi(initPointTxt);
+		targetPoint = atoi(targetPointTxt);
+		if (ImGui::Button("Test STVD", ImVec2(w, 0))) {
+			printf("Init point %d \n", initPoint);
+			std::vector<EdgeMetric> metric;
+			metric.reserve(eigenSolver->openMesh.n_edges());
+			for (MyMesh::EdgeIter e_it = eigenSolver->openMesh.edges_begin(); e_it != eigenSolver->openMesh.edges_end(); ++e_it)
+			{
+				EdgeMetric em = EdgeMetric{ 0, Vec2d{1.0, 1.0} };
+				metric.push_back(em);
+			}
+
+			STVD stvd(eigenSolver->openMesh, metric);
+			std::vector<double> dist = stvd.run(10, initPoint);
+
+			Eigen::VectorXd stvdDist = Eigen::Map<Eigen::VectorXd>(dist.data(),  dist.size());
+			Eigen::MatrixXd VCol;
+			igl::jet(stvdDist, true, VCol);
+			viewer.data().set_colors(VCol);
+			printf("STVD from %d to %d is %.10f \n", initPoint, targetPoint, stvdDist(targetPoint));
+		}
+
+		if (ImGui::Button("Test Dijkstra", ImVec2(w, 0))) {
+			std::priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
+			Eigen::VectorXd D(eigenSolver->getV().rows());
+			D.setConstant(std::numeric_limits<double>::infinity());
+			
+			int elCounter = 1;
+
+			// Computing distance for initial sample points S
+			D(initPoint) = 0.0f;
+			VertexPair vp{ initPoint,D(initPoint) };
+			DistPQueue.push(vp);
+
+			double distFromCenter = numeric_limits<double>::infinity();
+
+			// For other vertices in mesh
+			do {
+				if (DistPQueue.size() == 0) break;
+				VertexPair vp1 = DistPQueue.top();
+				distFromCenter = vp1.distance;
+				DistPQueue.pop();
+
+				// Updating the distance for neighbors of vertex of lowest distance in priority queue
+				auto const& elem = eigenSolver->AdM[vp1.vId];
+				for (auto it = elem.begin(); it != elem.end(); ++it) {
+					/* Regular dijkstra */
+					double dist;
+					dist = (eigenSolver->getV().row(*it) - eigenSolver->getV().row(vp1.vId)).norm();
+					double tempDist = vp1.distance + dist;
+
+					/* Correct distance using Euclidean Distance */
+					//double tempDist = (V.row(s1) - V.row(*it)).norm();
+
+					/* updating the distance */
+					if (tempDist < D(*it)) {
+						D(*it) = tempDist;
+						VertexPair vp2{ *it,tempDist };
+						DistPQueue.push(vp2);
+					}
+				}
+			} while (!DistPQueue.empty());
+			
+			Eigen::MatrixXd VCol;
+			igl::jet(D, true, VCol);
+			viewer.data().set_colors(VCol);
+			printf("Dijkstra from %d to %d is %.10f \n", initPoint, targetPoint, D(targetPoint));
+		}
 
 
 		///ImGui::SameLine(0, p);

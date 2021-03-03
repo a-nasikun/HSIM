@@ -6,6 +6,7 @@
 #include "Sampling.h"
 #include "EigenSolver.h"
 #include "Visualization.h"
+#include "stvd.h"
 
 #include <igl/opengl/glfw/Viewer.h>
 
@@ -153,7 +154,7 @@ namespace HSIM
 		void cuSparseProjection(Eigen::SparseMatrix<double>& Basis, Eigen::SparseMatrix<double>& Mat, Eigen::SparseMatrix<double>& MatRed);
 
 
-	protected:
+	public:
 		/* Mesh-related variables */
 		Eigen::MatrixXd						V;							//!< Coordinates of each vertex
 		Eigen::MatrixXi						F;							//!< Vertices ID of each face (triangle);
