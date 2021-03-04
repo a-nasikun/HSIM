@@ -407,6 +407,9 @@ namespace HSIM
 	*/
 	void MLSolverFunctions::constructBasis(double support, int axis, double offset)
 	{
+		if (distForBasis == DistanceType::DIST_DIJKSTRA) std::cout << "Using regular Dijkstra \n";
+		else if (distForBasis == DistanceType::DIST_STVD) std::cout << "Using regular STVD \n";
+
 		std::cout << "____Constructing multi-level basis (possibly with boundary) \n";
 		for (int i = 0; i < level; i++) {
 			maxNeighDist[i] = sqrt((surfaceArea*support) / (M_PI*SubspaceSize[i]));
@@ -2908,9 +2911,9 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	Id.resize(SL.rows(), SL.cols());
 	Id.setIdentity();
 
-	printf("Checking the rank of approx. modes (%dx%d) \n", EigVects.rows(), EigVects.cols());
-	Eigen::FullPivLU<Eigen::MatrixXd> LU_E(EigVects);
-	std::cout << "____" << LU_E.rank() << std::endl;
+	///printf("Checking the rank of approx. modes (%dx%d) \n", EigVects.rows(), EigVects.cols());
+	///Eigen::FullPivLU<Eigen::MatrixXd> LU_E(EigVects);
+	///std::cout << "____" << LU_E.rank() << std::endl;
 
 	Eigen::MatrixXd XbarK(EigVects.rows(), q); XbarK.setZero();
 	Eigen::MatrixXd Mproj, Sproj;
@@ -3016,12 +3019,12 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			}
 		}
 
-		printf("Checking the rank of solution of linear system (%dx%d) \n", XbarK.rows(), XbarK.cols());
-		Eigen::FullPivLU<Eigen::MatrixXd> LU_X(XbarK);
-		std::cout << "____" << LU_X.rank() << std::endl;
-		if (LU_X.rank() < 1) {
-			std::cout << "XbarK \n" << XbarK.topRows(min(20, (int) XbarK.rows())) << std::endl;
-		}
+		///printf("Checking the rank of solution of linear system (%dx%d) \n", XbarK.rows(), XbarK.cols());
+		///Eigen::FullPivLU<Eigen::MatrixXd> LU_X(XbarK);
+		///std::cout << "____" << LU_X.rank() << std::endl;
+		///if (LU_X.rank() < 1) {
+		///	std::cout << "XbarK \n" << XbarK.topRows(min(20, (int) XbarK.rows())) << std::endl;
+		///}
 
 		//std::cout << "[CPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
 
@@ -3040,9 +3043,9 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 		duration = t2 - t1;
 		std::cout << "...in " << duration.count() << " seconds." << std::endl;
 
-		printf("Checking the rank of reduced matrix (%dx%d) \n", Sproj.rows(), Sproj.cols());
-		Eigen::FullPivLU<Eigen::MatrixXd> LU_S(Sproj);
-		std::cout << "____" << LU_S.rank() << std::endl;
+		///printf("Checking the rank of reduced matrix (%dx%d) \n", Sproj.rows(), Sproj.cols());
+		///Eigen::FullPivLU<Eigen::MatrixXd> LU_S(Sproj);
+		///std::cout << "____" << LU_S.rank() << std::endl;
 
 		t1 = chrono::high_resolution_clock::now();
 		printf("__[4] Solve reduced eigenvalue problem. ");
@@ -3883,7 +3886,42 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	HSIMtime(0) = duration.count();
 
 	int		q = qParam * numEigs;
-	computeEigenGPU(Sred[nLevel-1], Mred[nLevel - 1], EigVectsSIM, EigValsSIM);
+
+	Eigen::SparseMatrix<double> LocSec;
+	if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+		std::cout << "Map to non-rank-deficit matrix \n";
+		//Construct selector matrix
+		std::vector<Eigen::Triplet<double>> SelTrip;
+		SelTrip.reserve(Sred[nLevel - 1].rows());		
+		unsigned int iCounter = 0;
+		Eigen::VectorXd rowSum(Sred[nLevel - 1].rows());
+		rowSum.setZero();
+		for (int i= 0; i < Mred[nLevel-1].cols(); ++i) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(Mred[nLevel-1], i); it; ++it) {
+				rowSum(it.row()) += it.value();
+			}
+		}
+
+		for (int i = 0; i < rowSum.rows(); ++i) {
+			if (rowSum(i) > 10 * std::numeric_limits<double>::epsilon()) {
+				SelTrip.push_back(Eigen::Triplet<double>(i, iCounter++, 1.0));				
+			}
+		}
+		LocSec.resize(Sred[nLevel - 1].rows(), iCounter);
+		LocSec.setFromTriplets(SelTrip.begin(), SelTrip.end());
+		SelTrip.clear(); SelTrip.shrink_to_fit();
+
+		//Reduce the system matrix
+		Eigen::SparseMatrix<double> Sbar = LocSec.transpose()*Sred[nLevel-1]*LocSec;
+		Eigen::SparseMatrix<double> Mbar = LocSec.transpose()*Mred[nLevel-1]*LocSec;
+
+		//Lift-up the eigenvectors
+		computeEigenGPU(Sbar, Mbar, EigVectsSIM, EigValsSIM);
+		EigVectsSIM = LocSec * EigValsSIM;
+	}
+	else {
+		computeEigenGPU(Sred[nLevel - 1], Mred[nLevel - 1], EigVectsSIM, EigValsSIM);
+	}
 	EigVectsSIM.conservativeResize(Eigen::NoChange_t::NoChange, q);
 	EigValsSIM.conservativeResize(q);	
 
@@ -3898,7 +3936,33 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		t1 = chrono::high_resolution_clock::now();		
 		t01 = t1;
 
+		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+			std::cout << "Map to non-rank-deficit matrix \n";
+			//Construct selector matrix
+			std::vector<Eigen::Triplet<double>> SelTrip;
+			SelTrip.reserve(Sred[i].rows());
+			unsigned int iCounter = 0;
+			Eigen::VectorXd rowSum(Sred[i].rows());
+			rowSum.setZero();
+			for (int k = 0; k < Mred[i].cols(); ++k) {
+				for (Eigen::SparseMatrix<double>::InnerIterator it(Mred[i], k); it; ++it) {
+					rowSum(it.row()) += it.value();
+				}
+			}
+
+			for (int k = 0; k < rowSum.rows(); ++k) {
+				if (rowSum(k) > 10 * std::numeric_limits<double>::epsilon()) {
+					SelTrip.push_back(Eigen::Triplet<double>(k, iCounter++, 1.0));
+				}
+			}
+			LocSec.resize(Sred[i].rows(), iCounter);
+			LocSec.setFromTriplets(SelTrip.begin(), SelTrip.end());
+			SelTrip.clear(); SelTrip.shrink_to_fit();			
+		}
+		else {
+		}
 		EigVectsSIM = U[i] * EigVectsSIM;
+
 		int shiftId = std::floor(zhaoShiftParam * numEigs);
 		double mu;
 		if (isWithShift) 	mu = EigValsSIM(shiftId);
@@ -3924,10 +3988,23 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		
 		//if (numEigs >= 750) zhaoShiftParam = 0.25;
 
-		if (isSIMinGPU) {
-			SIMinGPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
-		}else {
-			SIMinCPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+			Eigen::MatrixXd EVec = LocSec.transpose() * EigVectsSIM;
+			if (isSIMinGPU) {
+				SIMinGPU(LocSec.transpose()*Sred[i]*LocSec, LocSec.transpose()* Mred[i]*LocSec, LocSec.transpose()*Mred[i]*LocSec, EVec, EigValsSIM, numEigs, mu, tol, maxIter, i);
+			}
+			else {
+				SIMinCPU(LocSec.transpose()*Sred[i], LocSec.transpose()*Mred[i]*LocSec, LocSec.transpose()*Mred[i]*LocSec, EVec, EigValsSIM, numEigs, mu, tol, maxIter, i);
+			}
+			EigVectsSIM = LocSec * EVec;
+		}
+		else {
+			if (isSIMinGPU) {
+				SIMinGPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+			}
+			else {
+				SIMinCPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+			}
 		}
 
 		t2 = chrono::high_resolution_clock::now();
@@ -4221,8 +4298,8 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 			std::cout << SHh.topLeftCorner(10, 10) << std::endl;
 			std::cout << S00.topLeftCorner(10, 10) << std::endl;
 			Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(SHh);
-			int rank = lu_decomp.rank();
-			printf("Matrix rank: %d | size: %dx%d \n", rank, SHh.rows(), SHh.cols());			
+			///int rank = lu_decomp.rank();
+			///printf("Matrix rank: %d | size: %dx%d \n", rank, SHh.rows(), SHh.cols());			
 
 			computeEigenGPUDense(SHh, MHh, EigVectsHbar, EigValsHbar);
 			//computeEigenMatlabDense(SHh, MHh, numEigs, EigVectsHbar, EigValsHbar, "");

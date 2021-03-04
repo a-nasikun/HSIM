@@ -431,12 +431,17 @@ namespace HSIM
 
 			/* Get the diagonal matrix, reciprocal of the total sum per row */
 			for (int k = 0; k < rowSum.size(); k++) {
-				// if the sum of the row is very small, then do not do anything on this row
+				// if the sum of the row is very small, then do not do anything on this row		
+				if (i == 0 && boundaryVertexCheck[k]) {
+					printf("Boundary %d with total sum of %.12f \n", k, rowSum(k));
+				}
 				if (abs(rowSum(k)) < (10.0*std::numeric_limits<double>::epsilon())) {
 					diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
 					//cout << "Row: " << k << ", value:" << rowSum(k) << endl;
 				}
-				diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+				else {
+					diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+				}
 			}
 			DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
 
