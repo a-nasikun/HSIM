@@ -16,8 +16,9 @@
 #include <cusparse_v2.h>
 #include <cusolverDn.h>
 
-
-
+#include <OpenMesh/Core/IO/MeshIO.hh>
+#include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
+#include <OpenMesh/Core/Geometry/VectorT.hh>
 
 namespace HSIM
 {
@@ -682,6 +683,16 @@ namespace HSIM
 		elementCounter.resize(NUM_OF_THREADS);
 		int totalElementInsertions = 0;
 
+		/* Setting metric for STVD */
+		std::cout << "Setup metric for STVD \n";
+		std::vector<EdgeMetric> metric;
+		metric.reserve(openMesh.n_edges());
+		for (MyMesh::EdgeIter e_it = openMesh.edges_begin(); e_it != openMesh.edges_end(); ++e_it){
+			EdgeMetric em = EdgeMetric{ 0, Vec2d{1.0, 1.0} };
+			metric.push_back(em);
+		}
+		
+
 		/* Manually break the chunck for parallelization */
 #pragma omp parallel private(tid,ntids,ipts,istart,i)
 		{
@@ -695,7 +706,8 @@ namespace HSIM
 
 			// Instantiate D once, used for all Dijkstra
 			Eigen::VectorXd				D(V.rows());
-			D.setConstant(numeric_limits<double>::infinity());
+			D.setConstant(numeric_limits<double>::infinity());			
+			STVD stvd(openMesh, metric);
 
 			if (k == 0)
 				UTriplet[tid].reserve(2 * round((double)ipts / (double)SubspaceSize[0]) * support * V.rows());
@@ -706,7 +718,10 @@ namespace HSIM
 				if (i >= SubspaceSize[k]) break;
 				/* Dijkstra basis function */
 				//ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0, isClamped, axis, offset, UTriplet[tid], elementCounter[tid]);
-				constructDijkstraDisk(Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
+				if(distForBasis==DistanceType::DIST_DIJKSTRA)
+					constructDijkstraDisk(Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
+				else if (distForBasis == DistanceType::DIST_STVD)
+					constructSTVDDisk(stvd, Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
 			}
 		} /* End of OpenMP parallelization */
 
@@ -740,6 +755,70 @@ namespace HSIM
 		duration = t2 - t1;
 		cout << "in " << duration.count() << " seconds, ";
 		printf("(%dx%d), with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
+	}
+
+	struct EdgeMetric
+	{
+		double angle;
+		Vec2d weight;
+
+		friend std::istream& operator>>(std::istream& is, EdgeMetric& em)
+		{
+			is >> em.angle
+				>> em.weight[0]
+				>> em.weight[1];
+			return is;
+		}
+	};
+
+	void MLSolverFunctions::constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet)
+	{
+		std::vector<double> dist = stvd.run(10, s1, maxDist);
+		D = Eigen::Map<Eigen::VectorXd>(dist.data(), dist.size());
+		//printf("ID=%d | dist:%d | D:%d \n", s1, dist.size(), D.rows());
+
+		/* Setting the bound */
+		double xBound;
+		if (isClampedBasis) {
+			double xMin = V.col(axis).minCoeff();
+			double xMax = V.col(axis).maxCoeff();
+			xBound = xMin + offset * (xMax - xMin);		// within this bound, the elements will be discarded
+		}
+
+		if (k == 0) {
+			for (int i = 0; i < V.rows(); ++i) {
+				double aVal = D(i);
+				if (aVal <= maxDist) {
+					if (isClampedBasis && V(i, axis) < xBound) continue;
+					if (hasBoundary && boundaryVertexCheck[i]) continue;
+
+					/* Polynomial mapping (3rd Order) */
+					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
+
+					/* Linear */
+					double val = (maxDist - aVal) / maxDist;
+					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+				}
+			}
+		}
+		else {
+			for (int i = 0; i < SubspaceSize[k - 1]; ++i) {
+				double aVal = D(Sample(i));
+				if (aVal <= maxDist) {
+					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
+					if (hasBoundary && boundaryVertexCheck[Sample(i)]) continue;
+
+					/* Polynomial mapping (3rd Order) */
+					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+
+					/* Linear */
+					double val = (maxDist - aVal) / maxDist;
+					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+				}
+			}
+		}
+		D.setConstant(numeric_limits<double>::infinity());
+		dist.clear(); dist.shrink_to_fit();
 	}
 
 	/**

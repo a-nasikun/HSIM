@@ -63,7 +63,7 @@ public:
         prepare();
     }
 
-    const std::vector<double> &run(int k, int source)
+    const std::vector<double> &run(int k, int source, double maxDist)
     {
         e.resize(k);
         angles.resize(k);
@@ -77,8 +77,12 @@ public:
         dist[source] = 0.0;
         q.insert(std::make_pair(dist[source], source));
 
-        while(!q.empty()) {
+        double distFromCenter = std::numeric_limits<double>::infinity();
+        bool isStopIter = false;
+
+        while(!isStopIter) {
             int v = q.begin()->second;
+            distFromCenter = q.begin()->first;
             q.erase(q.begin());
             is_final[v] = true;
 
@@ -96,6 +100,8 @@ public:
                     q.insert(std::make_pair(dist[w], w));
                 }
             }
+            if (q.empty() || distFromCenter >= maxDist) 
+                isStopIter = true;
         }
         return dist;
     }

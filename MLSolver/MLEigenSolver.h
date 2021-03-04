@@ -42,6 +42,7 @@ namespace HSIM
 		enum class EigenSolverType { EIG_SOLVER_MATLAB, EIG_SOLVER_CUDA, EIG_SOLVER_SPECTRA };
 		enum class ShiftType { SHIFT_BATHE, SHIFT_ITOH_WILSON, SHIFT_GONG, SHIFT_ZHAO };
 		enum class BoundaryCondition {BOUNDARY_NONE, BOUNDARY_DIRICHLET, BOUNDARY_NEUMANN};
+		enum class DistanceType {DIST_DIJKSTRA, DIST_STVD};
 
 		void virtual doEdgeFlip(unsigned int n);
 		void virtual checkBoundary();
@@ -65,6 +66,7 @@ namespace HSIM
 		void virtual constructBasisNonSmooth(double support, int axis = 0, double offset = 0.0);
 		void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support);
 		void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet);
+		void virtual constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet);
 		void formPartitionOfUnityMultiLevel();
 		void formPartitionOfUnity();
 		void solveRestrictedProblem();
@@ -173,6 +175,7 @@ namespace HSIM
 		int									sampleSize;					//!< Total sample size (i.e. right after the finest level sample, level 1)
 		std::vector<set<int>>				AdM;						//!< Adjacency matrix (vertex to neighboring vertices)
 		std::vector<double>					maxNeighDist;				//!< Geodesic distance for sampling (to control the sparsity), for each level
+		DistanceType						distForBasis = DistanceType::DIST_DIJKSTRA;
 
 		/* Subspace and spectral-related matrices, vectors, and variables */
 		Eigen::SparseMatrix<double>			Basis;						//!< Basis matrix (U[0]*U[1]*... *U[k])

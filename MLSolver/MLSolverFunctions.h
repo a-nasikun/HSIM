@@ -40,6 +40,7 @@ namespace HSIM
 		void virtual constructBasisNonSmooth(double support, int axis = 0, double offset = 0.0) override;
 		void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support) override;
 		void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet) override;
+		void virtual constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet) override;
 		void virtual constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis = 0, double offset = 0.0) override;
 		
 

@@ -269,7 +269,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			}
 
 			STVD stvd(eigenSolver->openMesh, metric);
-			std::vector<double> dist = stvd.run(10, initPoint);
+			std::vector<double> dist = stvd.run(10, initPoint, 5000.0);
 
 			Eigen::VectorXd stvdDist = Eigen::Map<Eigen::VectorXd>(dist.data(),  dist.size());
 			Eigen::MatrixXd VCol;
@@ -461,6 +461,12 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			if (ImGui::Button("Set support##1", ImVec2(w, 0))) {
 				numOfSupport = atof(numSupTxt);
 			}
+
+			static int distanceType = 0;
+			ImGui::RadioButton("Dijkstra", &distanceType, 0); ImGui::SameLine();
+			ImGui::RadioButton("STVD", &distanceType, 1);
+			eigenSolver->distForBasis = (HSIM::MLEigenSolver::DistanceType) distanceType;
+
 
 			if (ImGui::Button("[3] Construct Basis##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) {
