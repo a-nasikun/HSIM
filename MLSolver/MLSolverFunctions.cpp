@@ -793,7 +793,7 @@ namespace HSIM
 				double aVal = D(i);
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(i, axis) < xBound) continue;
-					if (hasBoundary && boundaryVertexCheck[i]) continue;
+					if (hasBoundary && boundaryType==BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[i]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
@@ -809,7 +809,7 @@ namespace HSIM
 				double aVal = D(Sample(i));
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
-					if (hasBoundary && boundaryVertexCheck[Sample(i)]) continue;
+					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(i)]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
@@ -891,7 +891,7 @@ namespace HSIM
 				double aVal = D(i);
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(i, axis) < xBound) continue;
-					if (hasBoundary &&  boundaryVertexCheck[i]) continue;
+					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET &&  boundaryVertexCheck[i]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
@@ -907,7 +907,7 @@ namespace HSIM
 				double aVal = D(Sample(i));
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
-					if (hasBoundary && boundaryVertexCheck[Sample(i)]) continue;
+					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(i)]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
@@ -3848,10 +3848,10 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		printf("__Dim of this selector matrix: %dx%d \n", SelM.rows(), SelM.cols());
 		STriplet.clear(); STriplet.shrink_to_fit();
 
-		//MSel = SelM.transpose() * M * SelM;
-		//SSel = SelM.transpose() * S * SelM;
-		MSel = M;
-		SSel = S;
+		MSel = SelM.transpose() * M * SelM;
+		SSel = SelM.transpose() * S * SelM;
+		//MSel = M;
+		//SSel = S;
 	}
 	else {
 		printf("Regular (no boundary, no clamped basis) \n");
@@ -3865,7 +3865,6 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		Mred[i] = U[i-1].transpose() * Mred[i-1] * U[i-1];
 		//MInvRed[i] = U[i - 1].transpose() * MInvRed[i - 1] * U[i - 1];
 	}
-
 
 	/* Set-up matrices for logging purposes */
 	EigValsSIMStack.resize(numEigs, maxIter);
@@ -3888,38 +3887,39 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 	int		q = qParam * numEigs;
 
 	Eigen::SparseMatrix<double> LocSec;
-	if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
-		std::cout << "Map to non-rank-deficit matrix \n";
-		//Construct selector matrix
-		std::vector<Eigen::Triplet<double>> SelTrip;
-		SelTrip.reserve(Sred[nLevel - 1].rows());		
-		unsigned int iCounter = 0;
-		Eigen::VectorXd rowSum(Sred[nLevel - 1].rows());
-		rowSum.setZero();
-		for (int i= 0; i < Mred[nLevel-1].cols(); ++i) {
-			for (Eigen::SparseMatrix<double>::InnerIterator it(Mred[nLevel-1], i); it; ++it) {
-				rowSum(it.row()) += it.value();
-			}
-		}
-
-		for (int i = 0; i < rowSum.rows(); ++i) {
-			if (rowSum(i) > 10 * std::numeric_limits<double>::epsilon()) {
-				SelTrip.push_back(Eigen::Triplet<double>(i, iCounter++, 1.0));				
-			}
-		}
-		LocSec.resize(Sred[nLevel - 1].rows(), iCounter);
-		LocSec.setFromTriplets(SelTrip.begin(), SelTrip.end());
-		SelTrip.clear(); SelTrip.shrink_to_fit();
-
-		//Reduce the system matrix
-		Eigen::SparseMatrix<double> Sbar = LocSec.transpose()*Sred[nLevel-1]*LocSec;
-		Eigen::SparseMatrix<double> Mbar = LocSec.transpose()*Mred[nLevel-1]*LocSec;
-
-		//Lift-up the eigenvectors
-		computeEigenGPU(Sbar, Mbar, EigVectsSIM, EigValsSIM);
-		EigVectsSIM = LocSec * EigValsSIM;
-	}
-	else {
+	///if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+	///	std::cout << "Map to non-rank-deficit matrix \n";
+	///	//Construct selector matrix
+	///	std::vector<Eigen::Triplet<double>> SelTrip;
+	///	SelTrip.reserve(Sred[nLevel - 1].rows());		
+	///	unsigned int iCounter = 0;
+	///	Eigen::VectorXd rowSum(Sred[nLevel - 1].rows());
+	///	rowSum.setZero();
+	///	for (int i= 0; i < Mred[nLevel-1].cols(); ++i) {
+	///		for (Eigen::SparseMatrix<double>::InnerIterator it(Mred[nLevel-1], i); it; ++it) {
+	///			rowSum(it.row()) += it.value();
+	///		}
+	///	}
+	///
+	///	for (int i = 0; i < rowSum.rows(); ++i) {
+	///		if (rowSum(i) > 10 * std::numeric_limits<double>::epsilon()) {
+	///			SelTrip.push_back(Eigen::Triplet<double>(i, iCounter++, 1.0));				
+	///		}
+	///	}
+	///	LocSec.resize(Sred[nLevel - 1].rows(), iCounter);
+	///	LocSec.setFromTriplets(SelTrip.begin(), SelTrip.end());
+	///	SelTrip.clear(); SelTrip.shrink_to_fit();
+	///
+	///	//Reduce the system matrix
+	///	Eigen::SparseMatrix<double> Sbar = LocSec.transpose()*Sred[nLevel-1]*LocSec;
+	///	Eigen::SparseMatrix<double> Mbar = LocSec.transpose()*Mred[nLevel-1]*LocSec;
+	///
+	///	//Lift-up the eigenvectors
+	///	computeEigenGPU(Sbar, Mbar, EigVectsSIM, EigValsSIM);
+	///	EigVectsSIM = LocSec * EigValsSIM;
+	///}
+	///else 
+	{
 		computeEigenGPU(Sred[nLevel - 1], Mred[nLevel - 1], EigVectsSIM, EigValsSIM);
 	}
 	EigVectsSIM.conservativeResize(Eigen::NoChange_t::NoChange, q);
@@ -3936,31 +3936,32 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		t1 = chrono::high_resolution_clock::now();		
 		t01 = t1;
 
-		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
-			std::cout << "Map to non-rank-deficit matrix \n";
-			//Construct selector matrix
-			std::vector<Eigen::Triplet<double>> SelTrip;
-			SelTrip.reserve(Sred[i].rows());
-			unsigned int iCounter = 0;
-			Eigen::VectorXd rowSum(Sred[i].rows());
-			rowSum.setZero();
-			for (int k = 0; k < Mred[i].cols(); ++k) {
-				for (Eigen::SparseMatrix<double>::InnerIterator it(Mred[i], k); it; ++it) {
-					rowSum(it.row()) += it.value();
-				}
-			}
-
-			for (int k = 0; k < rowSum.rows(); ++k) {
-				if (rowSum(k) > 10 * std::numeric_limits<double>::epsilon()) {
-					SelTrip.push_back(Eigen::Triplet<double>(k, iCounter++, 1.0));
-				}
-			}
-			LocSec.resize(Sred[i].rows(), iCounter);
-			LocSec.setFromTriplets(SelTrip.begin(), SelTrip.end());
-			SelTrip.clear(); SelTrip.shrink_to_fit();			
-		}
-		else {
-		}
+		///if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+		///	std::cout << "Map to non-rank-deficit matrix \n";
+		///	//Construct selector matrix
+		///	std::vector<Eigen::Triplet<double>> SelTrip;
+		///	SelTrip.reserve(Sred[i].rows());
+		///	unsigned int iCounter = 0;
+		///	Eigen::VectorXd rowSum(Sred[i].rows());
+		///	rowSum.setZero();
+		///	for (int k = 0; k < Mred[i].cols(); ++k) {
+		///		for (Eigen::SparseMatrix<double>::InnerIterator it(Mred[i], k); it; ++it) {
+		///			rowSum(it.row()) += it.value();
+		///		}
+		///	}
+		///
+		///	for (int k = 0; k < rowSum.rows(); ++k) {
+		///		if (rowSum(k) > 10 * std::numeric_limits<double>::epsilon()) {
+		///			SelTrip.push_back(Eigen::Triplet<double>(k, iCounter++, 1.0));
+		///		}
+		///	}
+		///	LocSec.resize(Sred[i].rows(), iCounter);
+		///	LocSec.setFromTriplets(SelTrip.begin(), SelTrip.end());
+		///	SelTrip.clear(); SelTrip.shrink_to_fit();			
+		///}
+		///else {
+		///
+		///}
 		EigVectsSIM = U[i] * EigVectsSIM;
 
 		int shiftId = std::floor(zhaoShiftParam * numEigs);
@@ -3988,17 +3989,18 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		
 		//if (numEigs >= 750) zhaoShiftParam = 0.25;
 
-		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
-			Eigen::MatrixXd EVec = LocSec.transpose() * EigVectsSIM;
-			if (isSIMinGPU) {
-				SIMinGPU(LocSec.transpose()*Sred[i]*LocSec, LocSec.transpose()* Mred[i]*LocSec, LocSec.transpose()*Mred[i]*LocSec, EVec, EigValsSIM, numEigs, mu, tol, maxIter, i);
-			}
-			else {
-				SIMinCPU(LocSec.transpose()*Sred[i], LocSec.transpose()*Mred[i]*LocSec, LocSec.transpose()*Mred[i]*LocSec, EVec, EigValsSIM, numEigs, mu, tol, maxIter, i);
-			}
-			EigVectsSIM = LocSec * EVec;
-		}
-		else {
+		///if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+		///	Eigen::MatrixXd EVec = LocSec.transpose() * EigVectsSIM;
+		///	if (isSIMinGPU) {
+		///		SIMinGPU(LocSec.transpose()*Sred[i]*LocSec, LocSec.transpose()* Mred[i]*LocSec, LocSec.transpose()*Mred[i]*LocSec, EVec, EigValsSIM, numEigs, mu, tol, maxIter, i);
+		///	}
+		///	else {
+		///		SIMinCPU(LocSec.transpose()*Sred[i], LocSec.transpose()*Mred[i]*LocSec, LocSec.transpose()*Mred[i]*LocSec, EVec, EigValsSIM, numEigs, mu, tol, maxIter, i);
+		///	}
+		///	EigVectsSIM = LocSec * EVec;
+		///}
+		///else 
+		{
 			if (isSIMinGPU) {
 				SIMinGPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
 			}
