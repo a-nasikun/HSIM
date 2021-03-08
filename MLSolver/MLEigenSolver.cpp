@@ -402,7 +402,7 @@ namespace HSIM
 	void MLEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet) {}
 	void MLEigenSolver::constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet) {}
 
-	void MLEigenSolver::computeDistanceFromBoundary(const std::vector<int> sources, Eigen::VectorXd& D) {}
+	void MLEigenSolver::computeDistanceFromBoundary(Eigen::VectorXd& D) {}
 	void MLEigenSolver::mapDistanceToFunctionOnBoundary(const Eigen::VectorXd& D) {}
 
 	/**
@@ -418,42 +418,98 @@ namespace HSIM
 		Eigen::SparseMatrix<double>			DiagNormMatrix;
 		Eigen::VectorXd						rowSum;
 
-		for (int i = 0; i < level; i++)
-		{
-			rowSum.resize(U[i].rows());
-			rowSum.setZero();
-			DiagNormMatrix.resize(U[i].rows(), U[i].rows());
-			diagTrip.reserve(U[i].nonZeros());
+		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+			for (int i = 0; i < level; i++)
+			{
+				rowSum.resize(U[i].rows());
+				rowSum.setZero();
+				DiagNormMatrix.resize(U[i].rows(), U[i].rows());
+				diagTrip.reserve(U[i].nonZeros());
 
-			/* Getting the sum of every non-zero elements in a row */
-			for (int k = 0; k < U[i].outerSize(); ++k) {
-				for (Eigen::SparseMatrix<double>::InnerIterator it(U[i], k); it; ++it) {
-					rowSum(it.row()) += it.value();
+				/* Getting the sum of every non-zero elements in a row */
+				for (int k = 0; k < U[i].outerSize(); ++k) {
+					for (Eigen::SparseMatrix<double>::InnerIterator it(U[i], k); it; ++it) {
+						rowSum(it.row()) += it.value();
+					}
 				}
+
+				/* Get the diagonal matrix, reciprocal of the total sum per row */
+				for (int k = 0; k < rowSum.size(); k++) {
+					if (i == 0) {
+						if (funcBoundary[0](k) <= maxNeighDist[0] / 2.0) {
+
+						}
+						else {
+							diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0/rowSum(k)));
+						}
+					}
+
+					if (abs(rowSum(k)) < (10000.0 * std::numeric_limits<double>::epsilon())) {
+						diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
+						//cout << "Row: " << k << ", value:" << rowSum(k) << endl;
+					}
+					else 
+					{
+						double scaleCoef;
+						if (i == 0) {
+							scaleCoef = funcBoundary[0](k);
+						}
+						else {
+							scaleCoef = funcBoundary[i](k);
+						}
+
+						diagTrip.push_back(Eigen::Triplet<double>(k, k, scaleCoef / rowSum(k)));
+					}
+				}
+				DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
+
+				/* Form partition of unity */
+				U[i] = DiagNormMatrix * U[i];
+
+				diagTrip.clear();
+				diagTrip.shrink_to_fit();
 			}
-
-			/* Get the diagonal matrix, reciprocal of the total sum per row */
-			for (int k = 0; k < rowSum.size(); k++) {
-				// if the sum of the row is very small, then do not do anything on this row		
-				if (i == 0 && boundaryVertexCheck[k]) {
-					printf("Boundary %d with total sum of %.12f \n", k, rowSum(k));
-				}
-				if (abs(rowSum(k)) < (10.0*std::numeric_limits<double>::epsilon())) {
-					diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
-					//cout << "Row: " << k << ", value:" << rowSum(k) << endl;
-				}
-				else {
-					diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
-				}
-			}
-			DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
-
-			/* Form partition of unity */
-			U[i] = DiagNormMatrix * U[i];
-
-			diagTrip.clear();
-			diagTrip.shrink_to_fit();
 		}
+		else {
+			for (int i = 0; i < level; i++)
+			{
+				rowSum.resize(U[i].rows());
+				rowSum.setZero();
+				DiagNormMatrix.resize(U[i].rows(), U[i].rows());
+				diagTrip.reserve(U[i].nonZeros());
+
+				/* Getting the sum of every non-zero elements in a row */
+				for (int k = 0; k < U[i].outerSize(); ++k) {
+					for (Eigen::SparseMatrix<double>::InnerIterator it(U[i], k); it; ++it) {
+						rowSum(it.row()) += it.value();
+					}
+				}
+
+				/* Get the diagonal matrix, reciprocal of the total sum per row */
+				for (int k = 0; k < rowSum.size(); k++) {
+					// if the sum of the row is very small, then do not do anything on this row		
+					//if (i == 0 && boundaryVertexCheck[k]) {
+					//	printf("Boundary %d with total sum of %.12f \n", k, rowSum(k));
+					//}
+					if (abs(rowSum(k)) < (10.0 * std::numeric_limits<double>::epsilon())) {
+						diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
+						//cout << "Row: " << k << ", value:" << rowSum(k) << endl;
+					}
+					else {
+						diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+					}
+				}
+				DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
+
+				/* Form partition of unity */
+				U[i] = DiagNormMatrix * U[i];
+
+				diagTrip.clear();
+				diagTrip.shrink_to_fit();
+			}
+		}
+
+		
 	}
 
 	/**

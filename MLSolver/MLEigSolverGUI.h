@@ -257,15 +257,15 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			if (ImGui::Button("Dist to boundary", ImVec2(w, 0))) {
 				// Get sources
 				std::vector<int> boundaryVertices;
-				boundaryVertices.reserve(eigenSolver->getV().rows() / 20.0);
-				for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
-					if (eigenSolver->boundaryVertexCheck[i]) {
-						boundaryVertices.push_back(i);
-					}
-				}
+				//boundaryVertices.reserve(eigenSolver->getV().rows() / 20.0);
+				//for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
+				//	if (eigenSolver->boundaryVertexCheck[i]) {
+				//		boundaryVertices.push_back(i);
+				//	}
+				//}
 
 				// Compute distance
-				eigenSolver->computeDistanceFromBoundary(boundaryVertices, DistToBound);
+				eigenSolver->computeDistanceFromBoundary(DistToBound);
 
 				// Plot distance
 				Eigen::MatrixXd VCol;

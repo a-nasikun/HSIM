@@ -417,6 +417,16 @@ namespace HSIM
 			//printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
 		}
 
+		// Setup data for basis with Dirichlet boundary
+		Eigen::VectorXd distFromBoundary;
+		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+			printf("Treat the boundary condition \n");
+			printf("--[1] compute distance from boundary \n");
+			computeDistanceFromBoundary(distFromBoundary);
+			printf("--[2] map to function \n");
+			mapDistanceToFunctionOnBoundary(distFromBoundary);
+		}
+
 		for (int i = 0; i < level; i++) {
 			if(isClampedBasis)	printf("Basis level %d is clamped\n", i);
 			constructRadialBasisFunctions(i, axis, isClampedBasis, offset, support);
@@ -430,7 +440,7 @@ namespace HSIM
 		for (int i = 0; i < level; i++)
 			Basis = Basis * U[i];
 
-		printf("____> Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
+		printf("____> Basis sparsity:  %.4f/row and %.4f/column (%d/%d) \n", (double)Basis.nonZeros()/(double)Basis.rows(), (double)Basis.nonZeros()/(double)Basis.cols(), Basis.nonZeros(), Basis.rows());
 	}
 
 	/**
@@ -825,17 +835,21 @@ namespace HSIM
 		dist.clear(); dist.shrink_to_fit();
 	}
 
-	void MLSolverFunctions::computeDistanceFromBoundary(const std::vector<int> sources, Eigen::VectorXd& D) 
+	void MLSolverFunctions::computeDistanceFromBoundary(Eigen::VectorXd& D) 
 	{
 		priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
 		D.resize(V.rows());
 		D.setConstant(std::numeric_limits<double>::infinity());
-		
-		for (int s : sources) {
-			D(s) = 0.0;
-			VertexPair vp{ s, D(s) };
-			DistPQueue.push(vp);
+
+		for (MyMesh::VertexIter vit = openMesh.vertices_begin(); vit != openMesh.vertices_end(); ++vit) {
+			if (openMesh.is_boundary(vit)) {
+				D(vit->idx()) = 0.0;
+				VertexPair vp{ vit->idx(), D(vit->idx()) };
+				DistPQueue.push(vp);
+			}
 		}
+		
+		printf("Inserted %d points on boundary\n", DistPQueue.size());
 		double distFromCenter = numeric_limits<double>::infinity();
 
 		// For other vertices in mesh
@@ -861,8 +875,14 @@ namespace HSIM
 					D(*it) = tempDist;
 					VertexPair vp2{ *it,tempDist };
 					DistPQueue.push(vp2);
+					
+					if (DistPQueue.size() % 100 == 0) {
+					//printf("Size of the queue: %d \n", DistPQueue.size());
+			}
 				}
 			}
+
+			
 		} while (!DistPQueue.empty());
 
 	}
@@ -872,7 +892,7 @@ namespace HSIM
 
 		// Construct the mapping on every level
 		for (int k = 0; k < level; ++k) {
-			double cutOff = maxNeighDist[k];
+			double cutOff = maxNeighDist[k]/2.0;
 
 			const double a_ =   6.0 / pow(cutOff,5);
 			const double b_ = -15.0 / pow(cutOff,4);
@@ -965,39 +985,79 @@ namespace HSIM
 			}
 		} while (distFromCenter <= maxDist);
 
-		if (k == 0) {
-			for (int i = 0; i < V.rows(); ++i) {
-				double aVal = D(i);
-				if (aVal <= maxDist) {
-					if (isClampedBasis && V(i, axis) < xBound) continue;
-					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET &&  boundaryVertexCheck[i]) continue;
+		// It it has boundary (and dirichlet)
+		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET)
+		{
+			if (k == 0) {
+				for (int i = 0; i < V.rows(); ++i) {
+					double aVal = D(i);
+					if (aVal <= maxDist) {
+						if (isClampedBasis && V(i, axis) < xBound) continue;
+						//if (boundaryVertexCheck[i]) continue;
 
-					/* Polynomial mapping (3rd Order) */
-					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
+						/* Polynomial mapping (3rd Order) */
+						//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
 
-					/* Linear */
-					double val = (maxDist-aVal) / maxDist;
-					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+						/* Linear */
+						double val = funcBoundary[0](i)*(maxDist - aVal) / maxDist;
+						UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+					}
+				}
+			}
+			else {
+				for (int i = 0; i < SubspaceSize[k - 1]; ++i) {
+					double aVal = D(Sample(i));
+					if (aVal <= maxDist) {
+						if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
+						//if (boundaryVertexCheck[Sample(i)]) continue;
+
+						/* Polynomial mapping (3rd Order) */
+						//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+
+						/* Linear */
+						double val = funcBoundary[k](i) * (maxDist - aVal) / maxDist;
+						UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+					}
 				}
 			}
 		}
-		else {
-			for (int i = 0; i < SubspaceSize[k - 1]; ++i) {
-				double aVal = D(Sample(i));
-				if (aVal <= maxDist) {
-					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
-					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(i)]) continue;
+		// If it does not have boundary
+		else 
+		{
+			if (k == 0) {
+				for (int i = 0; i < V.rows(); ++i) {
+					double aVal = D(i);
+					if (aVal <= maxDist) {
+						if (isClampedBasis && V(i, axis) < xBound) continue;
 
-					/* Polynomial mapping (3rd Order) */
-					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
-					
-					/* Linear */
-					double val = (maxDist - aVal) / maxDist;
-					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+						/* Polynomial mapping (3rd Order) */
+						//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
 
+						/* Linear */
+						double val = (maxDist - aVal) / maxDist;
+						UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+					}
+				}
+			}
+			else {
+				for (int i = 0; i < SubspaceSize[k - 1]; ++i) {
+					double aVal = D(Sample(i));
+					if (aVal <= maxDist) {
+						if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
+
+						/* Polynomial mapping (3rd Order) */
+						//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+
+						/* Linear */
+						double val = (maxDist - aVal) / maxDist;
+						UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+
+					}
 				}
 			}
 		}
+
+		
 		D.setConstant(numeric_limits<double>::infinity());
 	}
 

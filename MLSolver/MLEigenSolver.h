@@ -67,7 +67,7 @@ namespace HSIM
 		void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support);
 		void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet);
 		void virtual constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet);
-		void virtual computeDistanceFromBoundary(const std::vector<int> sources, Eigen::VectorXd& D);
+		void virtual computeDistanceFromBoundary(Eigen::VectorXd& D);
 		void virtual mapDistanceToFunctionOnBoundary(const Eigen::VectorXd& D);
 		void formPartitionOfUnityMultiLevel();
 		void formPartitionOfUnity();
