@@ -160,6 +160,7 @@ namespace HSIM
 
 	void MLSolverFunctions::checkBoundary()
 	{		
+		boundaryVertexCheck.resize(0);
 		boundaryVertexCheck.resize(V.rows());
 		std::memset(&boundaryVertexCheck[0], false, boundaryVertexCheck.size() * sizeof(boundaryVertexCheck[0]));
 		hasBoundary = false;
@@ -824,6 +825,84 @@ namespace HSIM
 		dist.clear(); dist.shrink_to_fit();
 	}
 
+	void MLSolverFunctions::computeDistanceFromBoundary(const std::vector<int> sources, Eigen::VectorXd& D) 
+	{
+		priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
+		D.resize(V.rows());
+		D.setConstant(std::numeric_limits<double>::infinity());
+		
+		for (int s : sources) {
+			D(s) = 0.0;
+			VertexPair vp{ s, D(s) };
+			DistPQueue.push(vp);
+		}
+		double distFromCenter = numeric_limits<double>::infinity();
+
+		// For other vertices in mesh
+		do {
+			if (DistPQueue.size() == 0) break;
+			VertexPair vp1 = DistPQueue.top();
+			distFromCenter = vp1.distance;
+			DistPQueue.pop();
+
+			// Updating the distance for neighbors of vertex of lowest distance in priority queue
+			auto const& elem = AdM[vp1.vId];
+			for (auto it = elem.begin(); it != elem.end(); ++it) {
+				/* Regular dijkstra */
+				double dist;
+				dist = (V.row(*it) - V.row(vp1.vId)).norm();
+				double tempDist = vp1.distance + dist;
+
+				/* Correct distance using Euclidean Distance */
+				//double tempDist = (V.row(s1) - V.row(*it)).norm();
+
+				/* updating the distance */
+				if (tempDist < D(*it)) {
+					D(*it) = tempDist;
+					VertexPair vp2{ *it,tempDist };
+					DistPQueue.push(vp2);
+				}
+			}
+		} while (!DistPQueue.empty());
+
+	}
+	void MLSolverFunctions::mapDistanceToFunctionOnBoundary(const Eigen::VectorXd& D) 
+	{
+		funcBoundary.resize(level);
+
+		// Construct the mapping on every level
+		for (int k = 0; k < level; ++k) {
+			double cutOff = maxNeighDist[k];
+
+			const double a_ =   6.0 / pow(cutOff,5);
+			const double b_ = -15.0 / pow(cutOff,4);
+			const double c_ =  10.0 / pow(cutOff,3);
+
+			if (k == 0) {
+				funcBoundary[0].resize(V.rows());
+				for (int i = 0; i < V.rows(); ++i) {
+					if (D(i) > cutOff) {
+						funcBoundary[0](i) = 1.0;
+					}
+					else if (D(i) <= cutOff && D(i) >= 0) {
+						funcBoundary[0](i) = a_*pow(D(i),5) + b_*pow(D(i),4) + c_*pow(D(i),3) ;
+					}
+				}
+			}
+			else {
+				funcBoundary[k].resize(SubspaceSize[k]);
+				for (int i = 0; i < SubspaceSize[k]; ++i) {
+					if (D(Sample(i)) > cutOff) {
+						funcBoundary[k](i) = 1.0;
+					}
+					else if (D(Sample(i)) <= cutOff && D(Sample(i)) >= 0) {
+						funcBoundary[k](i) = a_ * pow(D(Sample(i)), 5) + b_ * pow(D(Sample(i)), 4) + c_ * pow(D(Sample(i)), 3);
+					}
+				}
+			}
+
+		}
+	}
 	/**
 	*  @brief
 	*   Construct a growing radial geodesic disk for every sample vertex on each level.

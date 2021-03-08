@@ -67,6 +67,8 @@ namespace HSIM
 		void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support);
 		void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet);
 		void virtual constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet);
+		void virtual computeDistanceFromBoundary(const std::vector<int> sources, Eigen::VectorXd& D);
+		void virtual mapDistanceToFunctionOnBoundary(const Eigen::VectorXd& D);
 		void formPartitionOfUnityMultiLevel();
 		void formPartitionOfUnity();
 		void solveRestrictedProblem();
@@ -155,7 +157,6 @@ namespace HSIM
 		void cusparseLinearSolverLLTest(Eigen::SparseMatrix<double> SM, Eigen::MatrixXd& B, Eigen::MatrixXd& X);
 		void cuSparseProjection(Eigen::SparseMatrix<double>& Basis, Eigen::SparseMatrix<double>& Mat, Eigen::SparseMatrix<double>& MatRed);
 
-
 	public:
 		/* Mesh-related variables */
 		Eigen::MatrixXd						V;							//!< Coordinates of each vertex
@@ -181,8 +182,9 @@ namespace HSIM
 		Eigen::SparseMatrix<double>			Basis;						//!< Basis matrix (U[0]*U[1]*... *U[k])
 		bool								isClampedBasis;				//!< Toogle/Flag if the basis is a clamped version
 		bool								hasBoundary;				//!< Toogle/Flag if the mesh has a boundary
-	public: std::vector<bool>				boundaryVertexCheck;		//!< Check whether a vertex is in a boundary/not
-	protected: 
+	//public: 
+		std::vector<bool>				boundaryVertexCheck;		//!< Check whether a vertex is in a boundary/not
+	//protected: 
 		Eigen::MatrixXd						EigVectsRef;				//!< Reference eigenvectors (from either Matlab, SpectrA, or Manifold Harmonics in Graphite)
 		Eigen::MatrixXd						EigVectsReduced;			//!< Approximated eigenvectors (lifted to reference space)
 		Eigen::MatrixXd						EigVectsReducedNonLifted;	//!< approximated eigenvectors in the subspace(not Lifted)
@@ -206,6 +208,7 @@ namespace HSIM
 		std::vector<Eigen::VectorXd>				geoDist;			//!< resulting geodesic distance on each level, stored at the last index on each level
 		std::vector<Eigen::VectorXi>				clusters;			//!< the index of sample point [level k] closest to a certain vertex/sample [level k-1]
 		Eigen::VectorXi								sampleLevel;		//!< to indicate if a vertex is picked as a sample; if yes, at which highest level k
+		std::vector<Eigen::VectorXd>				funcBoundary;		//!< A polynomial function to indicate values w.r.t. boundaries (close to boundary get small values)
 
 		/* CLASS/OBJECT FLAG */
 		bool isConvergedVectsNotUsed = true;
