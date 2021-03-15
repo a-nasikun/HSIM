@@ -399,6 +399,48 @@ namespace HSIM
 	}
 
 	/**
+	*  @brief	 Construct the number of samples in every level via farthest point sampling.
+	*  @details
+	*   Starting from the coarsest level, it computes the the first set of sampled DoFs (i.e. vertices).
+	*   Then for every level, it adds more samples according the
+	*  @see HSIM::constructFarthestPointSample() \n HSIM::MLEigenSolver::setSamplingLevels()
+	*  @param	samples	A constact vector stating the number of samples on every level of the hierarchy.
+	*/
+	void MLSolverFunctions::constructSampleHierarchy(double support, const Eigen::VectorXi& samples)
+	{
+		for (int i = 0; i < samples.size(); ++i) {
+			SubspaceSize[i] = samples(i);
+		}
+		sampleSize = SubspaceSize[0];
+
+		std::cout << "____Constructing multi-level basis (possibly with boundary) \n";
+		for (int i = 0; i < level; i++) {
+			maxNeighDist[i] = sqrt((surfaceArea * support) / (M_PI * SubspaceSize[i]));
+			//printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
+		}
+
+		SampleMap.resize(V.rows());
+		HSIM::constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
+		sampleLevel.resize(V.rows());
+
+		SampleMap.setConstant(-1);
+		sampleLevel.setConstant(-1);
+
+		// for level n-1
+		for (int i = 0; i < SubspaceSize[level - 1]; ++i) {
+			sampleLevel(Sample(i)) = level - 1;
+			SampleMap(Sample(i)) = i;
+		}
+
+		for (int i = level - 1; i > 0; --i) {
+			for (int j = SubspaceSize[i]; j < SubspaceSize[i - 1]; ++j) {
+				sampleLevel(Sample(j)) = i - 1;
+				SampleMap(Sample(j)) = j;
+			}
+		}
+	}
+
+	/**
 	*  @brief	Construct a multilevel basis for every level on each of the hierarchy.
 	*  @details
 	*   The basis is constructed using (1) farthest point sampling, followed by (2) region growing strategy.
@@ -410,13 +452,7 @@ namespace HSIM
 	{
 		if (distForBasis == DistanceType::DIST_DIJKSTRA) std::cout << "Using regular Dijkstra \n";
 		else if (distForBasis == DistanceType::DIST_STVD) std::cout << "Using regular STVD \n";
-
-		std::cout << "____Constructing multi-level basis (possibly with boundary) \n";
-		for (int i = 0; i < level; i++) {
-			maxNeighDist[i] = sqrt((surfaceArea*support) / (M_PI*SubspaceSize[i]));
-			//printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
-		}
-
+		
 		// Setup data for basis with Dirichlet boundary
 		Eigen::VectorXd distFromBoundary;
 		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
@@ -892,7 +928,7 @@ namespace HSIM
 
 		// Construct the mapping on every level
 		for (int k = 0; k < level; ++k) {
-			double cutOff = maxNeighDist[k]/2.0;
+			double cutOff = maxNeighDist[k];
 
 			const double a_ =   6.0 / pow(cutOff,5);
 			const double b_ = -15.0 / pow(cutOff,4);
@@ -3888,7 +3924,7 @@ void MLSolverFunctions::solve(int numEigs, int maxIter, double tol, bool isWithS
 		}
 		//setSamplingLevelsAuto(sampSize, numEigs, levelRatio);
 		setInitialSystem(sampSize.rows());
-		constructSampleHierarchy(sampSize);
+		constructSampleHierarchy(basisSupport, sampSize);
 		constructBasis(basisSupport);
 
 		t1 = chrono::high_resolution_clock::now();
@@ -3945,7 +3981,7 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		break;
 	}
 	setInitialSystem(sampSize.rows());
-	constructSampleHierarchy(sampSize);
+	constructSampleHierarchy(basisSupport, sampSize);
 	constructBasis(basisSupport);
 
 	t2 = chrono::high_resolution_clock::now();
@@ -4228,7 +4264,7 @@ void MLSolverFunctions::solveBMG(int numEigs, double tol, int maxIter, double le
 	}
 
 	setInitialSystem(sampSize.rows());
-	constructSampleHierarchy(sampSize);
+	constructSampleHierarchy(basisSupport, sampSize);
 	constructBasis(basisSupport);
 
 	t2 = chrono::high_resolution_clock::now();

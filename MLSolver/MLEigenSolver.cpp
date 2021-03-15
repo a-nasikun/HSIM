@@ -316,33 +316,7 @@ namespace HSIM
 	*  @see HSIM::constructFarthestPointSample() \n HSIM::MLEigenSolver::setSamplingLevels() 
 	*  @param	samples	A constact vector stating the number of samples on every level of the hierarchy.
 	*/
-	void MLEigenSolver::constructSampleHierarchy(const Eigen::VectorXi& samples)
-	{
-		for (int i = 0; i < samples.size(); ++i) {
-			SubspaceSize[i] = samples(i);
-		}
-		sampleSize = SubspaceSize[0];
-
-		SampleMap.resize(V.rows());
-		HSIM::constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
-		sampleLevel.resize(V.rows());
-
-		SampleMap.setConstant(-1);
-		sampleLevel.setConstant(-1);
-
-		// for level n-1
-		for (int i = 0; i < SubspaceSize[level - 1]; ++i) {
-			sampleLevel(Sample(i)) = level - 1;
-			SampleMap(Sample(i)) = i;
-		}
-
-		for (int i = level - 1; i > 0; --i) {
-			for (int j = SubspaceSize[i]; j < SubspaceSize[i - 1]; ++j) {
-				sampleLevel(Sample(j)) = i - 1;
-				SampleMap(Sample(j)) = j;
-			}
-		}
-	}
+	void MLEigenSolver::constructSampleHierarchy(double support, const Eigen::VectorXi& samples) {}
 
 	/**
 	*  @brief	Construct a multilevel basis for every level on each of the hierarchy. 
@@ -437,7 +411,7 @@ namespace HSIM
 				for (int k = 0; k < rowSum.size(); k++) {
 					if (i == 0) {
 						if (funcBoundary[0](k) <= maxNeighDist[0] / 2.0) {
-
+							diagTrip.push_back(Eigen::Triplet<double>(k, k, funcBoundary[0](k) / rowSum(k)));
 						}
 						else {
 							diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0/rowSum(k)));

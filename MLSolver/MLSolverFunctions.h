@@ -35,6 +35,7 @@ namespace HSIM
 		void virtual constructMassMatrix() override;
 		void virtual constructStiffnessMatrix() override;
 
+		void virtual constructSampleHierarchy(double support, const Eigen::VectorXi& samples) override;
 		void virtual constructBasis(double support, int axis = 0, double offset = 0.0) override;
 		void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0) override;
 		void virtual constructBasisNonSmooth(double support, int axis = 0, double offset = 0.0) override;

@@ -269,7 +269,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 				// Plot distance
 				Eigen::MatrixXd VCol;
-				igl::jet(DistToBound, true, VCol);
+				igl::jet(DistToBound, false, VCol);
 				viewer.data().set_colors(VCol);
 			}
 
@@ -277,8 +277,9 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				if (eigenSolver->maxNeighDist.size() < 1) printf("Error! Please construct the basis first! \n");
 
 				eigenSolver->mapDistanceToFunctionOnBoundary(DistToBound);
+				//std::cout << "polynomial: \n" << eigenSolver->funcBoundary[0].transpose() << std::endl;
 				Eigen::MatrixXd VCol;
-				igl::jet(eigenSolver->funcBoundary[0], true, VCol);
+				igl::jet(eigenSolver->funcBoundary[0], false, VCol);
 				viewer.data().set_colors(VCol);
 			}
 		}
@@ -423,6 +424,10 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			ImGui::SameLine();
 			ImGui::Checkbox("Bounded?", &(eigenSolver->isSampleBounded));
 
+			static char numSupTxt[15] = "7.0"; ImGui::InputText("Num of Supports", numSupTxt, 6);
+			if (ImGui::Button("Set support##1", ImVec2(w, 0))) {
+				numOfSupport = atof(numSupTxt);
+			}
 
 			if (ImGui::Button("[2] Construct Hierarchy##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
@@ -460,7 +465,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				}
 				
 				eigenSolver->setInitialSystem(sampSize.rows());
-				eigenSolver->constructSampleHierarchy(sampSize);
+				eigenSolver->constructSampleHierarchy(numOfSupport, sampSize);
 				numLevels = sampSize.size();
 
 				t1 = chrono::high_resolution_clock::now();
@@ -491,10 +496,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				clampRegion = atof(clampRegionTxt);
 			}
 			
-			static char numSupTxt[15] = "7.0"; ImGui::InputText("Num of Supports", numSupTxt, 6);
-			if (ImGui::Button("Set support##1", ImVec2(w, 0))) {
-				numOfSupport = atof(numSupTxt);
-			}
+			
 
 			static int distanceType = 0;
 			ImGui::RadioButton("Dijkstra", &distanceType, 0); ImGui::SameLine();
@@ -576,7 +578,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				Eigen::VectorXi			sampSize;
 				sampSize.resize(1);
 				sampSize(0) = 2 * numOfModes;
-				eigenSolver->constructSampleHierarchy(sampSize);
+				eigenSolver->constructSampleHierarchy(numOfSupport, sampSize);
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
@@ -1385,7 +1387,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						break;
 					}
 					eigenSolver->setInitialSystem(sampSize.rows());
-					eigenSolver->constructSampleHierarchy(sampSize);
+					eigenSolver->constructSampleHierarchy(levelSupport[0], sampSize);
 					t1 = chrono::high_resolution_clock::now();
 					duration = t1 - t0;
 					cout << "in " << duration.count() << " seconds." << endl;
@@ -1481,7 +1483,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				Eigen::VectorXi			sampSize;
 				sampSize.resize(1);
 				sampSize(0) = 2 * wantedModes[j];
-				eigenSolver->constructSampleHierarchy(sampSize);
+				eigenSolver->constructSampleHierarchy(levelSupport[0], sampSize);
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
@@ -1647,7 +1649,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						}
 						//setSamplingLevels(eigenSolver, levelRatio[i], wantedModes[j], sampSize);
 						eigenSolver->setInitialSystem(sampSize.rows());
-						eigenSolver->constructSampleHierarchy(sampSize);
+						eigenSolver->constructSampleHierarchy(levelSupport[l], sampSize);
 						
 
 						// Constructing basis...
@@ -1733,7 +1735,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 						break;
 					}
 					eigenSolver->setInitialSystem(sampSize.rows());
-					eigenSolver->constructSampleHierarchy(sampSize);
+					eigenSolver->constructSampleHierarchy(levelSupport[0], sampSize);
 					t1 = chrono::high_resolution_clock::now();
 					duration = t1 - t0;
 					cout << "in " << duration.count() << " seconds." << endl;

@@ -60,7 +60,7 @@ namespace HSIM
 		void setSamplingLevelsSameRate(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0, bool isFixedLowBound = true);
 		void setSamplingLevelFixedNum(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0, bool isFixedLowBound = true);
 		void setSamplingLevelFixedLevels(Eigen::VectorXi& sampSize, int numEigen = 50, int numLevels = 3, bool isFixedLowBound = true);
-		void constructSampleHierarchy(const Eigen::VectorXi& samples);	// Constructing multi-level samples
+		void virtual constructSampleHierarchy(double support, const Eigen::VectorXi& samples);	// Constructing multi-level samples
 		void virtual constructBasis(double support, int axis = 0, double offset = 0.0);											// Constructing multi-level basis
 		void virtual constructBasisCoarseOnly(double support, int axis = 0, double offset = 0.0);
 		void virtual constructBasisNonSmooth(double support, int axis = 0, double offset = 0.0);
