@@ -4,6 +4,7 @@
 #include <igl/doublearea.h>
 #include <igl/invert_diag.h>
 #include <igl/avg_edge_length.h>
+#include <igl/grad.h>
 #include <igl/edges.h>
 
 #include <Eigen/PardisoSupport>
@@ -267,6 +268,22 @@ namespace HSIM
 		constructDiagonalMassMatrix();
 		//constructConsistentMassMatrix();
 
+		std::cout << "Construct face-based mass  matrix \n";
+		MF.resize(3 * F.rows(), 3 * F.rows());
+		vector<Eigen::Triplet<double>> MTriplet;
+		MTriplet.reserve(3 * F.rows());
+		Eigen::VectorXd dArea;
+		igl::doublearea(V, F, dArea);
+
+		for (int i = 0; i < F.rows(); ++i) {
+			for (int j = 0; j < 3; ++j) {
+				MTriplet.push_back(Eigen::Triplet<double>(3 * i + j, 3 * i + j, dArea(i) / 2.0));
+			}
+		}
+		MF.setFromTriplets(MTriplet.begin(), MTriplet.end());
+		std::cout << "Total area: " << MF.diagonal().sum() << std::endl;
+		std::cout << "Total area: " << M.diagonal().sum() << std::endl;
+
 		std::string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/Object" + to_string(V.rows()) +"_Mass.mat";
 		//WriteSparseMatrixToMatlab(M, filename);
 		
@@ -395,6 +412,37 @@ namespace HSIM
 		std::cout << "____> Creating stiffness matrix (Cotangent Laplacian). \n";
 		igl::cotmatrix(V, F, S);
 		S = -S;
+
+		std::cout << "____> Creating Gradient matrix. \n";
+		std::cout << "Setup gradient matrix \n";
+		Eigen::SparseMatrix<double> Grad;
+		igl::grad(V, F, Grad);
+
+		std::cout << "Re-arrange gradient \n";
+		// Re-Arrange Gradient
+		vector<Eigen::Triplet<double>> GTriplet;
+		GTriplet.reserve(Grad.nonZeros());
+		int nRows = F.rows(), nCols = Grad.cols();
+
+		std::cout << "New grad form old one \n";
+		/* Getting the sum of every non-zero elements in a row */
+		for (int k = 0; k < Grad.outerSize(); ++k) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(Grad, k); it; ++it) {
+				if (it.row() < nRows) {					// values for x-coordinates
+					GTriplet.push_back(Eigen::Triplet<double>(3 * it.row(), it.col(), it.value()));
+				}
+				else if (it.row() < 2 * nRows) {		// values for y-coordinates
+					GTriplet.push_back(Eigen::Triplet<double>(3 * (it.row() - nRows) + 1, it.col(), it.value()));
+				}
+				else {									// values for z-coordinates
+					GTriplet.push_back(Eigen::Triplet<double>(3 * (it.row() - 2 * nRows) + 2, it.col(), it.value()));
+				}
+			}
+		}
+		G.resize(3 * nRows, nCols);
+		G.setFromTriplets(GTriplet.begin(), GTriplet.end());
+		//GTriplet.clear();
+		//GTriplet.shrink_to_fit();
 	}
 
 	/**
@@ -409,6 +457,7 @@ namespace HSIM
 	{
 		if (distForBasis == DistanceType::DIST_DIJKSTRA) std::cout << "Using regular Dijkstra \n";
 		else if (distForBasis == DistanceType::DIST_STVD) std::cout << "Using regular STVD \n";
+		else if (distForBasis == DistanceType::DIST_HEAT) std::cout << "Using Heat method\n";
 
 		std::cout << "____Constructing multi-level basis (possibly with boundary) \n";
 		for (int i = 0; i < level; i++) {
@@ -686,8 +735,10 @@ namespace HSIM
 		elementCounter.resize(NUM_OF_THREADS);
 		int totalElementInsertions = 0;
 
+		
+		double tau=0;
 		/* Setting metric for STVD */
-		std::vector<EdgeMetric> metric;
+		std::vector<EdgeMetric> metric;		
 		if (distForBasis == DistanceType::DIST_STVD) {
 			std::cout << "Setup metric for STVD \n";
 			metric.reserve(openMesh.n_edges());
@@ -696,10 +747,15 @@ namespace HSIM
 				metric.push_back(em);
 			}
 		}
+		else if (distForBasis == DistanceType::DIST_HEAT) {
+			std::cout << "Computing the parameter for heat\n";
+			tau = igl::avg_edge_length(V, F);
+			tau = tau * tau;
+		}
 		
 
 		/* Manually break the chunck for parallelization */
-#pragma omp parallel private(tid,ntids,ipts,istart,i)
+#pragma omp parallel private(tid,ntids,ipts,istart,i, tau)
 		{
 			iproc = omp_get_num_procs();
 			tid = omp_get_thread_num();
@@ -719,6 +775,14 @@ namespace HSIM
 			else
 				UTriplet[tid].reserve(2 * round((double)ipts / (double)SubspaceSize[0]) * support * SubspaceSize[k - 1]);
 
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+			if (distForBasis == DistanceType::DIST_HEAT) {
+				std::cout << "Factorizing the system matrix [" << tid << "]  ";
+				factorization1.compute(M + tau * S);
+				factorization2.compute(S);
+				std::cout << "-done\n";
+			}
+
 			for (i = istart; i < (istart + ipts); i++) {
 				if (i >= SubspaceSize[k]) break;
 				/* Dijkstra basis function */
@@ -727,6 +791,9 @@ namespace HSIM
 					constructDijkstraDisk(Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
 				else if (distForBasis == DistanceType::DIST_STVD)
 					constructSTVDDisk(stvd, Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
+				else if (distForBasis == DistanceType::DIST_HEAT)
+					//constructHeatDisk(const int s1, Eigen::VectorXd & D, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization1, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> & UTriplet) override;
+					constructHeatDisk(Sample(i), D, factorization1, factorization2, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
 			}
 		} /* End of OpenMP parallelization */
 
@@ -826,6 +893,88 @@ namespace HSIM
 		dist.clear(); dist.shrink_to_fit();
 	}
 
+	void MLSolverFunctions::constructHeatDisk(const int s1, Eigen::VectorXd& D, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2,  const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet)
+	{
+		printf("-Heat on %d \n", s1);
+		// [1] Setup the input heat source + solver
+		printf("---computing the heat diffusion[%d] \n", s1);
+		Eigen::VectorXd input(V.rows()), diff;
+		input.setZero();
+		input(s1) = 1.0;
+		Eigen::VectorXd rhs = M * input;
+		
+		diff = factorization1.solve(rhs);
+		
+		// [2] Computing the gradient of diffusion + normalizing
+		printf("---computing the gradient [%d] \n", s1);
+		Eigen::VectorXd grad = G * diff;
+		Eigen::Vector3d localGrad;
+		
+		for (int i = 0; i < F.rows(); i++)
+		{
+			localGrad = grad.block(3 * i, 0, 3, 1);
+			localGrad.normalize();
+			grad.block(3 * i, 0, 3, 1) = -1.0 * localGrad;
+		}
+		
+		// [Obtaining heat distance]
+		printf("---computing the distance [%d] \n", s1);
+		rhs = G.transpose() * MF * grad;
+		D = factorization2.solve(rhs);
+		double minVal = D.minCoeff();
+		Eigen::VectorXd minValVec(D.rows());
+		minValVec.setConstant(minVal);
+		D = D - minValVec;
+		printf("Dist: %d to 0 = %.3f\n", s1, D(s1));
+
+		GeodesicFromHeat(V, F, S, M, s1, D);
+		printf("Dist: %d to 0 = %.3f\n", s1, D(s1));
+
+		/* Setting the bound */
+		double xBound;
+		if (isClampedBasis) {
+			double xMin = V.col(axis).minCoeff();
+			double xMax = V.col(axis).maxCoeff();
+			xBound = xMin + offset * (xMax - xMin);		// within this bound, the elements will be discarded
+		}
+
+		printf("Dist: <%.2f | %.2f> || maxDist: %.2f \n", D.maxCoeff(), D.minCoeff(), maxDist);
+
+		if (k == 0) {
+			for (int i = 0; i < V.rows(); ++i) {
+				double aVal = D(i);
+				if (aVal <= maxDist) {
+					if (isClampedBasis && V(i, axis) < xBound) continue;
+					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[i]) continue;
+
+					/* Polynomial mapping (3rd Order) */
+					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
+
+					/* Linear */
+					double val = (maxDist - aVal) / maxDist;
+					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+				}
+			}
+		}
+		else {
+			for (int i = 0; i < SubspaceSize[k - 1]; ++i) {
+				double aVal = D(Sample(i));
+				if (aVal <= maxDist) {
+					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
+					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(i)]) continue;
+
+					/* Polynomial mapping (3rd Order) */
+					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+
+					/* Linear */
+					double val = (maxDist - aVal) / maxDist;
+					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
+				}
+			}
+		}
+		D.setConstant(numeric_limits<double>::infinity());
+
+	}
 	/**
 	*  @brief
 	*   Construct a growing radial geodesic disk for every sample vertex on each level.

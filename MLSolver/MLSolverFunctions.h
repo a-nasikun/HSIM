@@ -41,6 +41,7 @@ namespace HSIM
 		void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support) override;
 		void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet) override;
 		void virtual constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet) override;
+		void virtual constructHeatDisk(const int s1, Eigen::VectorXd& D, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet) override;
 		void virtual constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis = 0, double offset = 0.0) override;
 		
 
@@ -69,8 +70,9 @@ namespace HSIM
 		void virtual visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale = 1.0) const override;		
 
 	private:
-		double			avgEdgeLength;						//!< Average edge length (from the mesh)
-		double			surfaceArea;						//!< Total surface area (from the mesh)
+		double							avgEdgeLength;				//!< Average edge length (from the mesh)
+		double							surfaceArea;				//!< Total surface area (from the mesh)
+		Eigen::SparseMatrix<double>		MF;							//!< Area-based per-face mass matrixk
 
 		void subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK,  Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int solverStatus, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed = true, int lastConvergedId=0) override;
 		int SIMiterationInCPU(const Eigen::MatrixXd& XbarK, const Eigen::SparseMatrix<double>& SK, const Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int& GPUeigsolverStatus);

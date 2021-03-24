@@ -9,6 +9,7 @@
 #include "stvd.h"
 
 #include <igl/opengl/glfw/Viewer.h>
+#include <Eigen/PardisoSupport>
 
 /* Temporary OpenMesh functionality */
 #include<OpenMesh/Core/IO/MeshIO.hh>
@@ -42,7 +43,7 @@ namespace HSIM
 		enum class EigenSolverType { EIG_SOLVER_MATLAB, EIG_SOLVER_CUDA, EIG_SOLVER_SPECTRA };
 		enum class ShiftType { SHIFT_BATHE, SHIFT_ITOH_WILSON, SHIFT_GONG, SHIFT_ZHAO };
 		enum class BoundaryCondition {BOUNDARY_NONE, BOUNDARY_DIRICHLET, BOUNDARY_NEUMANN};
-		enum class DistanceType {DIST_DIJKSTRA, DIST_STVD};
+		enum class DistanceType {DIST_DIJKSTRA, DIST_STVD, DIST_HEAT};
 
 		void virtual doEdgeFlip(unsigned int n);
 		void virtual checkBoundary();
@@ -67,6 +68,7 @@ namespace HSIM
 		void virtual constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support);
 		void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet);
 		void virtual constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet);
+		void virtual constructHeatDisk(const int s1, Eigen::VectorXd& D, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet);
 		void formPartitionOfUnityMultiLevel();
 		void formPartitionOfUnity();
 		void solveRestrictedProblem();

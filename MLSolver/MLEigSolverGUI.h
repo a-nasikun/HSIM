@@ -278,6 +278,15 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			printf("STVD from %d to %d is %.10f \n", initPoint, targetPoint, stvdDist(targetPoint));
 		}
 
+		if (ImGui::Button("Test Heat", ImVec2(w, 0))) {
+			Eigen::VectorXd heatDist;
+			GeodesicFromHeat(eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), initPoint, heatDist);
+			Eigen::MatrixXd VCol;
+			igl::jet(heatDist, true, VCol);
+			viewer.data().set_colors(VCol);
+			printf("Heat distance from %d to %d is %.10f \n", initPoint, targetPoint, heatDist(targetPoint));
+		}
+
 		if (ImGui::Button("Test Dijkstra", ImVec2(w, 0))) {
 			std::priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
 			Eigen::VectorXd D(eigenSolver->getV().rows());
@@ -465,6 +474,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			static int distanceType = 0;
 			ImGui::RadioButton("Dijkstra", &distanceType, 0); ImGui::SameLine();
 			ImGui::RadioButton("STVD", &distanceType, 1);
+			ImGui::RadioButton("Heat", &distanceType, 2);
 			eigenSolver->distForBasis = (HSIM::MLEigenSolver::DistanceType) distanceType;
 
 
