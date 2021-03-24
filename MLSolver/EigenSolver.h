@@ -2,6 +2,7 @@
 #define EIGEN_SOLVER_H
 
 #include <Eigen/Eigen>
+#include <Eigen/PardisoSupport>
 
 using namespace std;
 
@@ -31,6 +32,7 @@ namespace HSIM
 	void GaussSeidel1IterMatrixForm(const Eigen::SparseLU<Eigen::SparseMatrix<double>>& factor, const Eigen::SparseMatrix<double>& U, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x);
 
 	void GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::SparseMatrix<double>&S, const Eigen::SparseMatrix<double>&M, int sourceID, Eigen::VectorXd& dist);
+	void GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const Eigen::SparseMatrix<double>& M, const Eigen::SparseMatrix<double>& G, const Eigen::SparseMatrix<double>& GTMf, int sourceID, Eigen::VectorXd& dist);
 }
 
 #endif // !EIGEN_SOLVER_H

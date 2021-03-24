@@ -1200,7 +1200,7 @@ namespace HSIM
 
 	void GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::SparseMatrix<double>&S, const Eigen::SparseMatrix<double>&M, int sourceID, Eigen::VectorXd& dist)
 	{
-		std::cout << "setup heat equation \n";
+		//std::cout << "setup heat equation \n";
 		/* Heat Equation */
 		double tau = igl::avg_edge_length(V, F);
 		tau = tau*tau;
@@ -1210,22 +1210,22 @@ namespace HSIM
 		Eigen::SparseMatrix<double> LHS = M + tau*S;
 		Eigen::VectorXd rhs = M*input; 
 
-		std::cout << "solve heat equation \n";
+		//std::cout << "solve heat equation \n";
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>  linSolver;
 		linSolver.compute(LHS);
 		diff = linSolver.solve(rhs);
 
-		std::cout << "Setup gradient matrix \n";
+		//std::cout << "Setup gradient matrix \n";
 		Eigen::SparseMatrix<double> Grad;
 		igl::grad(V, F, Grad);		
 
-		std::cout << "Re-arrange gradient \n";
+		//std::cout << "Re-arrange gradient \n";
 		// Re-Arrange Gradient
 		vector<Eigen::Triplet<double>> GTriplet;
 		GTriplet.reserve(Grad.nonZeros());
 		int nRows = F.rows(), nCols = Grad.cols();
 
-		std::cout << "New grad form old one \n";
+		//std::cout << "New grad form old one \n";
 		/* Getting the sum of every non-zero elements in a row */
 		for (int k = 0; k < Grad.outerSize(); ++k) {
 			for (Eigen::SparseMatrix<double>::InnerIterator it(Grad, k); it; ++it) {
@@ -1244,11 +1244,11 @@ namespace HSIM
 		Grad.resize(3 * nRows, nCols);
 		Grad.setFromTriplets(GTriplet.begin(), GTriplet.end());
 
-		std::cout << "Obtaining gradient \n";
+		//std::cout << "Obtaining gradient \n";
 		Eigen::VectorXd grad = Grad*diff;
 		Eigen::Vector3d localGrad;
 
-		std::cout << "Normalizing gradients \n";
+		//std::cout << "Normalizing gradients \n";
 		for (int i = 0; i < F.rows(); i++)
 		{
 			localGrad = grad.block(3 * i, 0, 3, 1);
@@ -1256,7 +1256,7 @@ namespace HSIM
 			grad.block(3 * i, 0, 3, 1) = -1.0*localGrad;
 		}
 
-		std::cout << "Creating face-based mass matrix \n";
+		//std::cout << "Creating face-based mass matrix \n";
 		/* Face mass matrix*/
 		Eigen::SparseMatrix<double> MF(3*F.rows(), 3*F.rows());
 		vector<Eigen::Triplet<double>> MTriplet;
@@ -1271,11 +1271,11 @@ namespace HSIM
 		}
 		MF.setFromTriplets(MTriplet.begin(), MTriplet.end());
 
-		std::cout << "Obtaining distance \n";
-		printf("Grad: %dx%d | MF:%dx%d | grad: %d \n", Grad.rows(), Grad.cols(), MF.rows(), MF.cols(), grad.rows());
+		//std::cout << "Obtaining distance \n";
+		//printf("Grad: %dx%d | MF:%dx%d | grad: %d \n", Grad.rows(), Grad.cols(), MF.rows(), MF.cols(), grad.rows());
 		rhs = Grad.transpose()*MF*grad;
 
-		printf("LHS:%dx%d | rhs: %d \n", S.rows(), S.cols(), rhs.rows());
+		//printf("LHS:%dx%d | rhs: %d \n", S.rows(), S.cols(), rhs.rows());
 
 		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> SparseSolver;
 		SparseSolver.compute(S);
@@ -1287,5 +1287,39 @@ namespace HSIM
 		std::cout << dist.head(10).transpose() << std::endl;
 
 		//dist = diff;
+	}
+
+	void GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const Eigen::SparseMatrix<double>& M, const Eigen::SparseMatrix<double>& G, const Eigen::SparseMatrix<double>& GTMf, int sourceID, Eigen::VectorXd& dist)
+	{
+		// Solve heat diffusion
+		printf("Solve heat diffusion \n");
+		Eigen::VectorXd input(V.rows()), diff;
+		input.setZero();
+		input(sourceID) = 1.0;
+		Eigen::VectorXd rhs = M * input;
+		diff = factorization1.solve(rhs);
+
+		// compute gradient + normalize
+		printf("compute gradient + normalize \n");
+		Eigen::VectorXd grad = G * diff;
+		Eigen::Vector3d localGrad;
+
+		for (int i = 0; i < F.rows(); i++)
+		{
+			localGrad = grad.block(3 * i, 0, 3, 1);
+			localGrad.normalize();
+			grad.block(3 * i, 0, 3, 1) = -1.0 * localGrad;
+		}
+
+		// compute distance
+		printf("Compute distance \n");
+		rhs = GTMf * grad;
+		printf("rhs: %d | GTMf: %dx%d | grad: %d \n", rhs.rows(), GTMf.rows(), GTMf.cols(), grad.rows());
+		dist = factorization2.solve(rhs);
+		printf("dist: %d \n", dist.rows());
+		double minVal = dist.minCoeff();
+		Eigen::VectorXd minValVec(dist.rows());
+		minValVec.setConstant(minVal);
+		dist = dist - minValVec;
 	}
 }

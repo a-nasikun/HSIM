@@ -166,6 +166,7 @@ namespace HSIM
 		/* System matrices */
 		Eigen::SparseMatrix<double>			S;							//!< Stiffness matrix
 		Eigen::SparseMatrix<double>			M;							//!< Mass matrix
+		Eigen::SparseMatrix<double>			MF;							//!< Mass matrix (face-based)
 		Eigen::SparseMatrix<double>			Minv;						//!< Inverse  of the mass matrix
 		Eigen::SparseMatrix<double>			MhNeg, MhPos;						//!< 'Square root' of the mass matrix (M^0.5)
 		Eigen::SparseMatrix<double>			G;							//!< Gradient matrix (Each 3 rows corresponds to the x-y-z components of 1 vertex)

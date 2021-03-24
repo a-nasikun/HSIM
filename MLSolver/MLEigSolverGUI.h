@@ -17,6 +17,7 @@
 #include <igl/isolines.h>
 #include <igl/file_dialog_save.h>
 #include <igl/edges.h>
+#include <igl/avg_edge_length.h>
 
 #include <Eigen/PardisoSupport>
 
@@ -281,6 +282,31 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		if (ImGui::Button("Test Heat", ImVec2(w, 0))) {
 			Eigen::VectorXd heatDist;
 			GeodesicFromHeat(eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), initPoint, heatDist);
+			Eigen::MatrixXd VCol;
+			igl::jet(heatDist, true, VCol);
+			viewer.data().set_colors(VCol);
+			printf("Heat distance from %d to %d is %.10f \n", initPoint, targetPoint, heatDist(targetPoint));
+		}
+
+		if (ImGui::Button("Test Heat-2", ImVec2(w, 0))) {
+			// obtain + compute required items
+			printf("Set up matrices \n");
+			// [1] M + tau*S
+			double tau = igl::avg_edge_length(eigenSolver->getV(), eigenSolver->getF());
+			tau = tau * tau;
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+			factorization1.compute(eigenSolver->getMassMatrix() + tau* eigenSolver->getStiffnessMatrix());
+			// [2] S
+			factorization2.compute(eigenSolver->getStiffnessMatrix());
+			// [3] Grad
+			Eigen::SparseMatrix<double> Grad = eigenSolver->G;
+			// [4] GT * Mf
+			Eigen::SparseMatrix<double> GTMf = Grad.transpose() * eigenSolver->MF;
+
+			printf("Call function \n");
+			Eigen::VectorXd heatDist;
+			//GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const Eigen::SparseMatrix<double>& M, const Eigen::SparseMatrix<double>& G, const Eigen::SparseMatrix<double>& GTMf, int sourceID, Eigen::VectorXd& dist)
+			GeodesicFromHeat(eigenSolver->getV(), eigenSolver->getF(), factorization1, factorization2, eigenSolver->getMassMatrix(), Grad, GTMf, initPoint, heatDist);
 			Eigen::MatrixXd VCol;
 			igl::jet(heatDist, true, VCol);
 			viewer.data().set_colors(VCol);

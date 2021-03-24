@@ -725,7 +725,8 @@ namespace HSIM
 		double			bCoef = -3.0 / (pow(maxNeighDist[k], 2));
 		int				i = 0;
 
-		const int		NUM_OF_THREADS = omp_get_num_procs();
+		//const int		NUM_OF_THREADS = omp_get_num_procs();
+		const int		NUM_OF_THREADS = 1;
 		omp_set_num_threads(NUM_OF_THREADS);
 		UTriplet.resize(NUM_OF_THREADS);
 
@@ -734,7 +735,6 @@ namespace HSIM
 		vector<int> elementCounter;
 		elementCounter.resize(NUM_OF_THREADS);
 		int totalElementInsertions = 0;
-
 		
 		double tau=0;
 		/* Setting metric for STVD */
@@ -755,7 +755,7 @@ namespace HSIM
 		
 
 		/* Manually break the chunck for parallelization */
-#pragma omp parallel private(tid,ntids,ipts,istart,i, tau)
+#pragma omp parallel private(tid,ntids,ipts,istart,i,tau)
 		{
 			iproc = omp_get_num_procs();
 			tid = omp_get_thread_num();
@@ -775,13 +775,13 @@ namespace HSIM
 			else
 				UTriplet[tid].reserve(2 * round((double)ipts / (double)SubspaceSize[0]) * support * SubspaceSize[k - 1]);
 
-			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
-			if (distForBasis == DistanceType::DIST_HEAT) {
-				std::cout << "Factorizing the system matrix [" << tid << "]  ";
-				factorization1.compute(M + tau * S);
-				factorization2.compute(S);
-				std::cout << "-done\n";
-			}
+			
+			//if (distForBasis == DistanceType::DIST_HEAT) {
+			//	std::cout << "Factorizing the system matrix [" << tid << "]  ";
+			//	factorization1.compute(M + tau * S);
+			//	factorization2.compute(S);
+			//	std::cout << "-done\n";
+			//}
 
 			for (i = istart; i < (istart + ipts); i++) {
 				if (i >= SubspaceSize[k]) break;
@@ -791,9 +791,13 @@ namespace HSIM
 					constructDijkstraDisk(Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
 				else if (distForBasis == DistanceType::DIST_STVD)
 					constructSTVDDisk(stvd, Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
-				else if (distForBasis == DistanceType::DIST_HEAT)
+				else if (distForBasis == DistanceType::DIST_HEAT) {
 					//constructHeatDisk(const int s1, Eigen::VectorXd & D, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization1, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> & UTriplet) override;
+					Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+					factorization1.compute(M + tau * S);
+					factorization2.compute(S);
 					constructHeatDisk(Sample(i), D, factorization1, factorization2, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
+				}
 			}
 		} /* End of OpenMP parallelization */
 
@@ -895,40 +899,41 @@ namespace HSIM
 
 	void MLSolverFunctions::constructHeatDisk(const int s1, Eigen::VectorXd& D, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2,  const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet)
 	{
-		printf("-Heat on %d \n", s1);
-		// [1] Setup the input heat source + solver
-		printf("---computing the heat diffusion[%d] \n", s1);
-		Eigen::VectorXd input(V.rows()), diff;
-		input.setZero();
-		input(s1) = 1.0;
-		Eigen::VectorXd rhs = M * input;
-		
-		diff = factorization1.solve(rhs);
-		
-		// [2] Computing the gradient of diffusion + normalizing
-		printf("---computing the gradient [%d] \n", s1);
-		Eigen::VectorXd grad = G * diff;
-		Eigen::Vector3d localGrad;
-		
-		for (int i = 0; i < F.rows(); i++)
-		{
-			localGrad = grad.block(3 * i, 0, 3, 1);
-			localGrad.normalize();
-			grad.block(3 * i, 0, 3, 1) = -1.0 * localGrad;
-		}
-		
-		// [Obtaining heat distance]
-		printf("---computing the distance [%d] \n", s1);
-		rhs = G.transpose() * MF * grad;
-		D = factorization2.solve(rhs);
-		double minVal = D.minCoeff();
-		Eigen::VectorXd minValVec(D.rows());
-		minValVec.setConstant(minVal);
-		D = D - minValVec;
-		printf("Dist: %d to 0 = %.3f\n", s1, D(s1));
+		///printf("-Heat on %d \n", s1);
+		///// [1] Setup the input heat source + solver
+		///printf("---computing the heat diffusion[%d] \n", s1);
+		///Eigen::VectorXd input(V.rows()), diff;
+		///input.setZero();
+		///input(s1) = 1.0;
+		///Eigen::VectorXd rhs = M * input;
+		///
+		///diff = factorization1.solve(rhs);
+		///
+		///// [2] Computing the gradient of diffusion + normalizing
+		///printf("---computing the gradient [%d] \n", s1);
+		///Eigen::VectorXd grad = G * diff;
+		///Eigen::Vector3d localGrad;
+		///
+		///for (int i = 0; i < F.rows(); i++)
+		///{
+		///	localGrad = grad.block(3 * i, 0, 3, 1);
+		///	localGrad.normalize();
+		///	grad.block(3 * i, 0, 3, 1) = -1.0 * localGrad;
+		///}
+		///
+		///// [Obtaining heat distance]
+		///printf("---computing the distance [%d] \n", s1);
+		///rhs = G.transpose() * MF * grad;
+		///D = factorization2.solve(rhs);
+		///double minVal = D.minCoeff();
+		///Eigen::VectorXd minValVec(D.rows());
+		///minValVec.setConstant(minVal);
+		///D = D - minValVec;
+		///printf("Dist: %d to 0 = %.3f\n", s1, D(0));
 
 		GeodesicFromHeat(V, F, S, M, s1, D);
-		printf("Dist: %d to 0 = %.3f\n", s1, D(s1));
+		//GeodesicFromHeat(V, F, factorization1, factorization2, M, G, G.transpose()*MF, s1, D);
+		//printf("Dist: %d to 0 = %.3f\n", s1, D(0));
 
 		/* Setting the bound */
 		double xBound;
