@@ -433,7 +433,7 @@ namespace HSIM
 			for (int k = 0; k < rowSum.size(); k++) {
 				// if the sum of the row is very small, then do not do anything on this row		
 				if (i == 0 && boundaryVertexCheck[k]) {
-					printf("Boundary %d with total sum of %.12f \n", k, rowSum(k));
+					//printf("Boundary %d with total sum of %.12f \n", k, rowSum(k));
 				}
 				if (abs(rowSum(k)) < (10.0*std::numeric_limits<double>::epsilon())) {
 					diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
@@ -503,6 +503,10 @@ namespace HSIM
 
 
 		cout << "> Creating the reduced system matrices.\n";
+		chrono::high_resolution_clock::time_point	t0, t1;
+		chrono::duration<double>					duration;
+		t0 = chrono::high_resolution_clock::now();
+
 		Eigen::SparseMatrix<double> S_, M_;			//reduced stiffness and mass matrix
 		S_ = Basis.transpose()*S*Basis;
 		M_ = Basis.transpose()*M*Basis;
@@ -527,6 +531,12 @@ namespace HSIM
 			}
 			iter++;
 		} while (status != 0 && iter < 10);
+
+		t1 = chrono::high_resolution_clock::now();
+		duration = t1 - t0;
+		cout << "in " << duration.count() << " seconds." << endl;
+
+		std::cout << "Eigenvalues: " << EigValsReduced.head(min(50, (int)EigValsReduced.rows())).transpose() << std::endl;
 
 		std::cout << "Succesful and lifted to fine resolution \n";
 		EigVectsReduced = Basis * EigVectsReducedNonLifted;

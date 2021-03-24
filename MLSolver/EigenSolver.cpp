@@ -246,6 +246,8 @@ namespace HSIM
 		if (cudaStat1 != 0 || cudaStat2 != 0 || cudaStat3 != 0) {
 			cout << "Error! Cannot copy data from GPU to CPU." << endl;
 		}
+		printf("Copy eigvals: %d | eigvect: %d | copy status: %d (status=%d) \n", cudaStat1, cudaStat2, cudaStat3, info_gpu);
+
 		assert(cudaSuccess == cudaStat1);
 		assert(cudaSuccess == cudaStat2);
 		assert(cudaSuccess == cudaStat3);

@@ -1885,6 +1885,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 			std::cout << "Num of modes: " << eigenSolver->getEigenValuesRef().rows() << std::endl;
 			//cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef().transpose() << endl;
+			printVector(eigenSolver->getEigenValuesRef());
 			eigenSolver->checkConvergenceCat2(eigenSolver->getEigenVectorsRef(), eigenSolver->getEigenValuesRef(), eigToCompute, eigenSolver->getMassMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), convRate);
 			//std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size() / 2)).transpose() << "........" << convRate.tail(min(10, (int)convRate.size() / 2)).transpose() << std::endl;
 			//std::cout << "ConvRate: \n" << convRate.head(min(10, (int)convRate.size())).transpose() << std::endl;
@@ -1966,7 +1967,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					//cout << "Ref eigenvalues: \n";
 					//std::cout << EigVals(0) << std::endl;
 					//printVector(EigVals.tail(wantedModes[j]));
-					///printVector(EigVals.head(wantedModes[j]), true);
+					printVector(EigVals.head(wantedModes[j]), true);
 				}
 			}
 		}
