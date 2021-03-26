@@ -318,50 +318,87 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			chrono::duration<double>					duration;
 			// obtain + compute required items
 			printf("Set up matrices \n");
-			// [1] M + tau*S
-			double tau = igl::avg_edge_length(eigenSolver->getV(), eigenSolver->getF());
-			tau = tau * tau;
-			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
-			t0 = chrono::high_resolution_clock::now();
-			factorization1.compute(eigenSolver->getMassMatrix() + tau * eigenSolver->getStiffnessMatrix());
-			t1 = chrono::high_resolution_clock::now();
-			duration = t1 - t0;
-			cout << "Prefactor 1 in " << duration.count() << " seconds." << endl;
-			// [2] S
-			t0 = chrono::high_resolution_clock::now();
-			factorization2.compute(eigenSolver->getStiffnessMatrix());
-			t1 = chrono::high_resolution_clock::now();
-			duration = t1 - t0;
-			cout << "Prefactor 2 in " << duration.count() << " seconds." << endl;
+			//// [1] M + tau*S
+			//double tau = igl::avg_edge_length(eigenSolver->getV(), eigenSolver->getF());
+			//tau = tau * tau;
+			//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+			//t0 = chrono::high_resolution_clock::now();
+			//factorization1.compute(eigenSolver->getMassMatrix() + tau * eigenSolver->getStiffnessMatrix());
+			//t1 = chrono::high_resolution_clock::now();
+			//duration = t1 - t0;
+			//cout << "Prefactor 1 in " << duration.count() << " seconds." << endl;
+			//// [2] S
+			//t0 = chrono::high_resolution_clock::now();
+			//factorization2.compute(eigenSolver->getStiffnessMatrix());
+			//t1 = chrono::high_resolution_clock::now();
+			//duration = t1 - t0;
+			//cout << "Prefactor 2 in " << duration.count() << " seconds." << endl;
 			// [3] Grad
 			Eigen::SparseMatrix<double> Grad = eigenSolver->G;
 			// [4] GT * Mf
 			Eigen::SparseMatrix<double> GTMf = Grad.transpose() * eigenSolver->MF;
 
 			printf("Call function \n");
-			Eigen::VectorXd heatDist;
+			
 			//GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const Eigen::SparseMatrix<double>& M, const Eigen::SparseMatrix<double>& G, const Eigen::SparseMatrix<double>& GTMf, int sourceID, Eigen::VectorXd& dist)
 
 			//std::vector<int> indices{ 1,4,5,12,75, 100, 124, 321, 561, 674, 788, 900, 1001, 1231, 1314, 1523,1743,1891, 1914, 2011 };
 
 			cout << "> Creating samples... " << endl;
 			
-			t0 = chrono::high_resolution_clock::now();
-			for (int i = 0; i < eigenSolver->Sample.rows(); ++i) {
-				t1 = chrono::high_resolution_clock::now();
-				GeodesicFromHeat(eigenSolver->getV(), eigenSolver->getF(), factorization1, factorization2, eigenSolver->getMassMatrix(), Grad, GTMf, eigenSolver->Sample(i), heatDist);
-				t2 = chrono::high_resolution_clock::now();
-				duration = t2 - t1;
-				//cout << "in " << duration.count() << " seconds." << endl;
+			int				i = 0;
+			const int		NUM_OF_THREADS = omp_get_num_procs();
+			omp_set_num_threads(NUM_OF_THREADS);
 
-				if(i%10==0)
-					printf("[%d] Heat distance from %d to %d is %.10f \n", i,  eigenSolver->Sample(i), targetPoint, heatDist(targetPoint));
+			int tid, ntids, ipts, istart, iproc;
+			t0 = chrono::high_resolution_clock::now();
+
+			Eigen::VectorXd heatDistGlob;
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
+			{
+				iproc = omp_get_num_procs();
+				tid = omp_get_thread_num();
+				ntids = omp_get_num_threads();
+				ipts = (int)ceil(1.00 * (double)eigenSolver->Sample.rows() / (double)ntids);
+				istart = tid * ipts;
+				if (tid == ntids - 1) ipts = eigenSolver->Sample.rows() - istart;
+				if (ipts <= 0) ipts = 0;
+
+				Eigen::VectorXd heatDist;
+				// [1] M + tau*S
+				double tau = igl::avg_edge_length(eigenSolver->getV(), eigenSolver->getF());
+				tau = tau * tau;
+				Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+				t0 = chrono::high_resolution_clock::now();
+				factorization1.compute(eigenSolver->getMassMatrix() + tau * eigenSolver->getStiffnessMatrix());
+				t1 = chrono::high_resolution_clock::now();
+				duration = t1 - t0;
+				cout << "Prefactor 1 in " << duration.count() << " seconds." << endl;
+				// [2] S
+				t0 = chrono::high_resolution_clock::now();
+				factorization2.compute(eigenSolver->getStiffnessMatrix());
+				t1 = chrono::high_resolution_clock::now();
+				duration = t1 - t0;
+				cout << "Prefactor 2 in " << duration.count() << " seconds." << endl;
+				
+				for (i = istart; i < (istart+ipts); ++i) {
+					t1 = chrono::high_resolution_clock::now();
+					GeodesicFromHeat(eigenSolver->getV(), eigenSolver->getF(), factorization1, factorization2, eigenSolver->getMassMatrix(), Grad, GTMf, eigenSolver->Sample(i), heatDist);
+					t2 = chrono::high_resolution_clock::now();
+					duration = t2 - t1;
+					//cout << "in " << duration.count() << " seconds." << endl;
+
+					if (i % 10 == 0)
+						printf("[%d] Heat distance from %d to %d is %.10f \n", i, eigenSolver->Sample(i), targetPoint, heatDist(targetPoint));
+
+					if (i == 0) heatDistGlob = heatDist;
+				}
 			}
 			duration = t2 - t0;
 			cout << "Total solve in " << duration.count() << " seconds." << endl;
 			
 			Eigen::MatrixXd VCol;
-			igl::jet(heatDist, true, VCol);
+			igl::jet(heatDistGlob, true, VCol);
 			viewer.data().set_colors(VCol);
 		}
 
