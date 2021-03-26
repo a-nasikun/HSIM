@@ -1292,7 +1292,7 @@ namespace HSIM
 	void GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const Eigen::SparseMatrix<double>& M, const Eigen::SparseMatrix<double>& G, const Eigen::SparseMatrix<double>& GTMf, int sourceID, Eigen::VectorXd& dist)
 	{
 		// Solve heat diffusion
-		printf("Solve heat diffusion \n");
+		//printf("Solve heat diffusion \n");
 		Eigen::VectorXd input(V.rows()), diff;
 		input.setZero();
 		input(sourceID) = 1.0;
@@ -1300,7 +1300,7 @@ namespace HSIM
 		diff = factorization1.solve(rhs);
 
 		// compute gradient + normalize
-		printf("compute gradient + normalize \n");
+		//printf("compute gradient + normalize \n");
 		Eigen::VectorXd grad = G * diff;
 		Eigen::Vector3d localGrad;
 
@@ -1312,11 +1312,11 @@ namespace HSIM
 		}
 
 		// compute distance
-		printf("Compute distance \n");
+		//printf("Compute distance \n");
 		rhs = GTMf * grad;
-		printf("rhs: %d | GTMf: %dx%d | grad: %d \n", rhs.rows(), GTMf.rows(), GTMf.cols(), grad.rows());
+		///printf("rhs: %d | GTMf: %dx%d | grad: %d \n", rhs.rows(), GTMf.rows(), GTMf.cols(), grad.rows());
 		dist = factorization2.solve(rhs);
-		printf("dist: %d \n", dist.rows());
+		//printf("dist: %d \n", dist.rows());
 		double minVal = dist.minCoeff();
 		Eigen::VectorXd minValVec(dist.rows());
 		minValVec.setConstant(minVal);

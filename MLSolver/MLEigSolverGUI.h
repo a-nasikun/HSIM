@@ -314,15 +314,25 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 
 		if (ImGui::Button("Test Heat-3", ImVec2(w, 0))) {
+			chrono::high_resolution_clock::time_point	t0, t1, t2;
+			chrono::duration<double>					duration;
 			// obtain + compute required items
 			printf("Set up matrices \n");
 			// [1] M + tau*S
 			double tau = igl::avg_edge_length(eigenSolver->getV(), eigenSolver->getF());
 			tau = tau * tau;
 			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+			t0 = chrono::high_resolution_clock::now();
 			factorization1.compute(eigenSolver->getMassMatrix() + tau * eigenSolver->getStiffnessMatrix());
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "Prefactor 1 in " << duration.count() << " seconds." << endl;
 			// [2] S
+			t0 = chrono::high_resolution_clock::now();
 			factorization2.compute(eigenSolver->getStiffnessMatrix());
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "Prefactor 2 in " << duration.count() << " seconds." << endl;
 			// [3] Grad
 			Eigen::SparseMatrix<double> Grad = eigenSolver->G;
 			// [4] GT * Mf
@@ -332,11 +342,23 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			Eigen::VectorXd heatDist;
 			//GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const Eigen::SparseMatrix<double>& M, const Eigen::SparseMatrix<double>& G, const Eigen::SparseMatrix<double>& GTMf, int sourceID, Eigen::VectorXd& dist)
 
-			std::vector<int> indices{ 1,4,5,12,75, 100, 124, 321, 561, 674, 788, 900, 1001, 1231, 1314, 1523,1743,1891, 1914, 2011 };
-			for (int i = 0; i < indices.size(); ++i) {
-				GeodesicFromHeat(eigenSolver->getV(), eigenSolver->getF(), factorization1, factorization2, eigenSolver->getMassMatrix(), Grad, GTMf, indices[i], heatDist);
-				printf("[%d] Heat distance from %d to %d is %.10f \n", i,  initPoint, targetPoint, heatDist(targetPoint));
+			//std::vector<int> indices{ 1,4,5,12,75, 100, 124, 321, 561, 674, 788, 900, 1001, 1231, 1314, 1523,1743,1891, 1914, 2011 };
+
+			cout << "> Creating samples... " << endl;
+			
+			t0 = chrono::high_resolution_clock::now();
+			for (int i = 0; i < eigenSolver->Sample.rows(); ++i) {
+				t1 = chrono::high_resolution_clock::now();
+				GeodesicFromHeat(eigenSolver->getV(), eigenSolver->getF(), factorization1, factorization2, eigenSolver->getMassMatrix(), Grad, GTMf, eigenSolver->Sample(i), heatDist);
+				t2 = chrono::high_resolution_clock::now();
+				duration = t2 - t1;
+				//cout << "in " << duration.count() << " seconds." << endl;
+
+				if(i%10==0)
+					printf("[%d] Heat distance from %d to %d is %.10f \n", i,  eigenSolver->Sample(i), targetPoint, heatDist(targetPoint));
 			}
+			duration = t2 - t0;
+			cout << "Total solve in " << duration.count() << " seconds." << endl;
 			
 			Eigen::MatrixXd VCol;
 			igl::jet(heatDist, true, VCol);
