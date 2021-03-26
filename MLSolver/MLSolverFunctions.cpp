@@ -753,6 +753,11 @@ namespace HSIM
 			//tau = tau * tau;
 		}
 		
+		// [3] Grad
+		Eigen::SparseMatrix<double> Grad = G;
+		// [4] GT * Mf
+		Eigen::SparseMatrix<double> GTMf = Grad.transpose() * MF;
+
 
 		/* Manually break the chunck for parallelization */
 #pragma omp parallel private(tid,ntids,ipts,istart,i)
@@ -776,27 +781,14 @@ namespace HSIM
 				UTriplet[tid].reserve(2 * round((double)ipts / (double)SubspaceSize[0]) * support * SubspaceSize[k - 1]);
 
 			
-			//if (distForBasis == DistanceType::DIST_HEAT) {
-			//	std::cout << "Factorizing the system matrix [" << tid << "]  ";
-			//	factorization1.compute(M + tau * S);
-			//	factorization2.compute(S);
-			//	std::cout << "-done\n";
-			//}
-
-			//double tau = 0;
-			//if (distForBasis == DistanceType::DIST_HEAT) {
-			//	//printf("Set up matrices \n");
-			//	// [1] M + tau*S
-			//	tau = igl::avg_edge_length(V, F);
-			//	tau = tau * tau;
-			//	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
-			//	factorization1.compute(M + tau * S);
-			//	// [2] S
-			//	factorization2.compute(S);
-			//	// [3] Grad				
-			//	// [4] GT * Mf
-			//	//Eigen::SparseMatrix<double> GTMf = G.transpose() * MF;
-			//}
+			Eigen::VectorXd heatDist;
+			// [1] M + tau*S
+			double tau = igl::avg_edge_length(V, F);
+			tau = tau * tau;
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+			factorization1.compute(M + tau * S);
+			// [2] S
+			factorization2.compute(S);
 
 
 			for (i = istart; i < (istart + ipts); i++) {
@@ -808,11 +800,51 @@ namespace HSIM
 				else if (distForBasis == DistanceType::DIST_STVD)
 					constructSTVDDisk(stvd, Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
 				else if (distForBasis == DistanceType::DIST_HEAT) {
-					//constructHeatDisk(const int s1, Eigen::VectorXd & D, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization1, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> & UTriplet) override;
-					Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
-					//factorization1.compute(M + tau * S);
-					//factorization2.compute(S);
-					constructHeatDisk(Sample(i), D, factorization1, factorization2, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
+					GeodesicFromHeat(V, F, factorization1, factorization2, M, Grad, GTMf, Sample(i), heatDist);
+
+					if (i % 100 == 0) printf("[%d][%d] Heat distance from %d to %d is %.10f \n", k, i, Sample(i), 0, heatDist(0));
+
+					/* Setting the bound */
+					double xBound;
+					if (isClampedBasis) {
+						double xMin = V.col(axis).minCoeff();
+						double xMax = V.col(axis).maxCoeff();
+						xBound = xMin + offset * (xMax - xMin);		// within this bound, the elements will be discarded
+					}
+
+					if (k == 0) {
+						for (int j = 0; j < V.rows(); ++j) {
+							double aVal = heatDist(j);
+							if (aVal <= maxNeighDist[k]) {
+								if (isClampedBasis && V(j, axis) < xBound) continue;
+								if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[j]) continue;
+
+								/* Polynomial mapping (3rd Order) */
+								//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
+
+								/* Linear */
+								double val = (maxNeighDist[k] - aVal) / maxNeighDist[k];
+								UTriplet[tid].push_back(Eigen::Triplet<double>(j, i, val));
+							}
+						}
+					}
+					else {
+						for (int j = 0; j < SubspaceSize[k - 1]; ++j) {
+							double aVal = heatDist(Sample(j));
+							if (aVal <= maxNeighDist[k]) {
+								if (isClampedBasis && V(Sample(j), axis) < xBound) continue;
+								if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(j)]) continue;
+
+								/* Polynomial mapping (3rd Order) */
+								//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
+
+								/* Linear */
+								double val = (maxNeighDist[k] - aVal) / maxNeighDist[k];
+								UTriplet[tid].push_back(Eigen::Triplet<double>(j, i, val));
+							}
+						}
+					}
+
 				}
 			}
 		} /* End of OpenMP parallelization */
@@ -848,6 +880,154 @@ namespace HSIM
 		cout << "in " << duration.count() << " seconds, ";
 		printf("(%dx%d), with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
 	}
+
+	/**
+	*  @brief
+	*   Build a radial basis functions (i.e. geodesic disks) on every samples for every level on each of the hierarchy.
+	*  @param	k			The level that RBFs needs to be constructed.
+	*  @param	axis		When clamping of basis is used (by default not), it specifies which axis direction is used.
+	*  @param	isClamped	Tells whether clamping is used.
+	*  @param	offset		When clamping of basis is used (by default not), it determines the ratio w.r.t selected axis.
+	*  @param	support		The expected average overlaps of disks on every degree of freedom on each level.
+	*/
+//	void MLSolverFunctions::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
+//	{
+//		// For Timing
+//		chrono::high_resolution_clock::time_point	t1, t2;
+//		chrono::duration<double>					duration;
+//		cout << "____> Basis construction (level " << k << " )... ";
+//		t1 = chrono::high_resolution_clock::now();
+//
+//		vector<vector<Eigen::Triplet<double>>>	UTriplet;
+//		vector<Eigen::Triplet<double>>			AllTriplet;
+//		int				eCounter = 0;
+//		double			aCoef = 2.0 / (pow(maxNeighDist[k], 3));
+//		double			bCoef = -3.0 / (pow(maxNeighDist[k], 2));
+//		int				i = 0;
+//
+//		const int		NUM_OF_THREADS = omp_get_num_procs();
+//		//const int		NUM_OF_THREADS = 1;
+//		omp_set_num_threads(NUM_OF_THREADS);
+//		UTriplet.resize(NUM_OF_THREADS);
+//
+//		int tid, ntids, ipts, istart, iproc;
+//
+//		vector<int> elementCounter;
+//		elementCounter.resize(NUM_OF_THREADS);
+//		int totalElementInsertions = 0;
+//
+//
+//		/* Setting metric for STVD */
+//		std::vector<EdgeMetric> metric;
+//		if (distForBasis == DistanceType::DIST_STVD) {
+//			std::cout << "Setup metric for STVD \n";
+//			metric.reserve(openMesh.n_edges());
+//			for (MyMesh::EdgeIter e_it = openMesh.edges_begin(); e_it != openMesh.edges_end(); ++e_it) {
+//				EdgeMetric em = EdgeMetric{ 0, Vec2d{1.0, 1.0} };
+//				metric.push_back(em);
+//			}
+//		}
+//		else if (distForBasis == DistanceType::DIST_HEAT) {
+//			//std::cout << "Computing the parameter for heat\n";
+//			//tau = igl::avg_edge_length(V, F);
+//			//tau = tau * tau;
+//		}
+//
+//
+//		/* Manually break the chunck for parallelization */
+//#pragma omp parallel private(tid,ntids,ipts,istart,i)
+//		{
+//			iproc = omp_get_num_procs();
+//			tid = omp_get_thread_num();
+//			ntids = omp_get_num_threads();
+//			ipts = (int)ceil(1.00 * (double)SubspaceSize[k] / (double)ntids);
+//			istart = tid * ipts;
+//			if (tid == ntids - 1) ipts = SubspaceSize[k] - istart;
+//			if (ipts <= 0) ipts = 0;
+//
+//			// Instantiate D once, used for all Dijkstra
+//			Eigen::VectorXd				D(V.rows());
+//			D.setConstant(numeric_limits<double>::infinity());
+//			STVD stvd(openMesh, metric);
+//
+//			if (k == 0)
+//				UTriplet[tid].reserve(2 * round((double)ipts / (double)SubspaceSize[0]) * support * V.rows());
+//			else
+//				UTriplet[tid].reserve(2 * round((double)ipts / (double)SubspaceSize[0]) * support * SubspaceSize[k - 1]);
+//
+//
+//			//if (distForBasis == DistanceType::DIST_HEAT) {
+//			//	std::cout << "Factorizing the system matrix [" << tid << "]  ";
+//			//	factorization1.compute(M + tau * S);
+//			//	factorization2.compute(S);
+//			//	std::cout << "-done\n";
+//			//}
+//
+//			double tau = 0;
+//			if (distForBasis == DistanceType::DIST_HEAT) {
+//				//printf("Set up matrices \n");
+//				// [1] M + tau*S
+//				tau = igl::avg_edge_length(V, F);
+//				tau = tau * tau;
+//				Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+//				factorization1.compute(M + tau * S);
+//				// [2] S
+//				factorization2.compute(S);
+//				// [3] Grad				
+//				// [4] GT * Mf
+//				//Eigen::SparseMatrix<double> GTMf = G.transpose() * MF;
+//			}
+//
+//
+//			for (i = istart; i < (istart + ipts); i++) {
+//				if (i >= SubspaceSize[k]) break;
+//				/* Dijkstra basis function */
+//				//ComputeDijkstraCompact(V, Sample(i), AdM, D, aCoef, bCoef, maxNeighDist[0], i, SubspaceSize[0], 0, isClamped, axis, offset, UTriplet[tid], elementCounter[tid]);
+//				if (distForBasis == DistanceType::DIST_DIJKSTRA)
+//					constructDijkstraDisk(Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
+//				else if (distForBasis == DistanceType::DIST_STVD)
+//					constructSTVDDisk(stvd, Sample(i), D, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
+//				else if (distForBasis == DistanceType::DIST_HEAT) {
+//					//constructHeatDisk(const int s1, Eigen::VectorXd & D, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization1, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> & UTriplet) override;
+//					Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+//					//factorization1.compute(M + tau * S);
+//					//factorization2.compute(S);
+//					constructHeatDisk(Sample(i), D, factorization1, factorization2, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
+//				}
+//			}
+//		} /* End of OpenMP parallelization */
+//
+//		int totalElements = 0;
+//		for (int j = 0; j < NUM_OF_THREADS; j++) {
+//			totalElements += UTriplet[j].size();
+//			totalElementInsertions += elementCounter[j];
+//		}
+//
+//		/* Combining the Triplet */
+//		AllTriplet.resize(totalElements);
+//#pragma omp parallel for
+//		for (int j = 0; j < NUM_OF_THREADS; j++) {
+//			int tripSize = 0;
+//			for (int k = 0; k < j; k++) {
+//				tripSize += UTriplet[k].size();
+//			}
+//			std::copy(UTriplet[j].begin(), UTriplet[j].end(), AllTriplet.begin() + tripSize);
+//		}
+//		//Basis.setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+//
+//		if (k == 0)
+//			U[0].resize(V.rows(), SubspaceSize[k]);
+//		else
+//			U[k].resize(SubspaceSize[k - 1], SubspaceSize[k]);
+//
+//		U[k].setFromTriplets(AllTriplet.begin(), AllTriplet.end());
+//
+//		// timing
+//		t2 = chrono::high_resolution_clock::now();
+//		duration = t2 - t1;
+//		cout << "in " << duration.count() << " seconds, ";
+//		printf("(%dx%d), with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
+//	}
 
 	struct EdgeMetric
 	{
@@ -913,7 +1093,9 @@ namespace HSIM
 		dist.clear(); dist.shrink_to_fit();
 	}
 
-	void MLSolverFunctions::constructHeatDisk(const int s1, Eigen::VectorXd& D, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2,  const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet)
+	
+
+	void MLSolverFunctions::constructHeatDisk(const int s1, Eigen::VectorXd& D, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet)
 	{
 		///printf("-Heat on %d \n", s1);
 		///// [1] Setup the input heat source + solver
@@ -946,14 +1128,14 @@ namespace HSIM
 		///minValVec.setConstant(minVal);
 		///D = D - minValVec;
 		///printf("Dist: %d to 0 = %.3f\n", s1, D(0));
-
+	
 		//Eigen::SparseMatrix<double> GTMf = G.transpose() * MF;
 		Eigen::VectorXd DD;
-
+	
 		GeodesicFromHeat(V, F, S, M, s1, DD);
 		//GeodesicFromHeat(V, F, factorization1, factorization2, M, G, GTMf, s1, DD);
 		//printf("Dist: %d to 0 = %.3f\n", s1, D(0));
-
+	
 		/* Setting the bound */
 		double xBound;
 		if (isClampedBasis) {
@@ -961,19 +1143,19 @@ namespace HSIM
 			double xMax = V.col(axis).maxCoeff();
 			xBound = xMin + offset * (xMax - xMin);		// within this bound, the elements will be discarded
 		}
-
+	
 		///printf("Dist: <%.2f | %.2f> || maxDist: %.2f \n", DD.maxCoeff(), DD.minCoeff(), maxDist);
-
+	
 		if (k == 0) {
 			for (int i = 0; i < V.rows(); ++i) {
 				double aVal = DD(i);
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(i, axis) < xBound) continue;
 					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[i]) continue;
-
+	
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
-
+	
 					/* Linear */
 					double val = (maxDist - aVal) / maxDist;
 					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
@@ -986,10 +1168,10 @@ namespace HSIM
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
 					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(i)]) continue;
-
+	
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
-
+	
 					/* Linear */
 					double val = (maxDist - aVal) / maxDist;
 					UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
@@ -997,7 +1179,7 @@ namespace HSIM
 			}
 		}
 		DD.setConstant(numeric_limits<double>::infinity());
-
+	
 	}
 	/**
 	*  @brief
