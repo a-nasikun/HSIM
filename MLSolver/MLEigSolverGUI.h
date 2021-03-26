@@ -313,6 +313,36 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			printf("Heat distance from %d to %d is %.10f \n", initPoint, targetPoint, heatDist(targetPoint));
 		}
 
+		if (ImGui::Button("Test Heat-3", ImVec2(w, 0))) {
+			// obtain + compute required items
+			printf("Set up matrices \n");
+			// [1] M + tau*S
+			double tau = igl::avg_edge_length(eigenSolver->getV(), eigenSolver->getF());
+			tau = tau * tau;
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+			factorization1.compute(eigenSolver->getMassMatrix() + tau * eigenSolver->getStiffnessMatrix());
+			// [2] S
+			factorization2.compute(eigenSolver->getStiffnessMatrix());
+			// [3] Grad
+			Eigen::SparseMatrix<double> Grad = eigenSolver->G;
+			// [4] GT * Mf
+			Eigen::SparseMatrix<double> GTMf = Grad.transpose() * eigenSolver->MF;
+
+			printf("Call function \n");
+			Eigen::VectorXd heatDist;
+			//GeodesicFromHeat(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const Eigen::SparseMatrix<double>& M, const Eigen::SparseMatrix<double>& G, const Eigen::SparseMatrix<double>& GTMf, int sourceID, Eigen::VectorXd& dist)
+
+			std::vector<int> indices{ 1,4,5,12,75, 100, 124, 321, 561, 674, 788, 900, 1001, 1231, 1314, 1523,1743,1891, 1914, 2011 };
+			for (int i = 0; i < indices.size(); ++i) {
+				GeodesicFromHeat(eigenSolver->getV(), eigenSolver->getF(), factorization1, factorization2, eigenSolver->getMassMatrix(), Grad, GTMf, indices[i], heatDist);
+				printf("[%d] Heat distance from %d to %d is %.10f \n", i,  initPoint, targetPoint, heatDist(targetPoint));
+			}
+			
+			Eigen::MatrixXd VCol;
+			igl::jet(heatDist, true, VCol);
+			viewer.data().set_colors(VCol);
+		}
+
 		if (ImGui::Button("Test Dijkstra", ImVec2(w, 0))) {
 			std::priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
 			Eigen::VectorXd D(eigenSolver->getV().rows());

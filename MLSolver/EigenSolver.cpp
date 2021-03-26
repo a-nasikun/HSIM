@@ -1284,7 +1284,7 @@ namespace HSIM
 		Eigen::VectorXd minValVec(dist.rows());
 		minValVec.setConstant(minVal);
 		dist = dist - minValVec;
-		std::cout << dist.head(10).transpose() << std::endl;
+		///std::cout << dist.head(10).transpose() << std::endl;
 
 		//dist = diff;
 	}

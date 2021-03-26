@@ -725,8 +725,8 @@ namespace HSIM
 		double			bCoef = -3.0 / (pow(maxNeighDist[k], 2));
 		int				i = 0;
 
-		//const int		NUM_OF_THREADS = omp_get_num_procs();
-		const int		NUM_OF_THREADS = 1;
+		const int		NUM_OF_THREADS = omp_get_num_procs();
+		//const int		NUM_OF_THREADS = 1;
 		omp_set_num_threads(NUM_OF_THREADS);
 		UTriplet.resize(NUM_OF_THREADS);
 
@@ -736,7 +736,7 @@ namespace HSIM
 		elementCounter.resize(NUM_OF_THREADS);
 		int totalElementInsertions = 0;
 		
-		double tau=0;
+		
 		/* Setting metric for STVD */
 		std::vector<EdgeMetric> metric;		
 		if (distForBasis == DistanceType::DIST_STVD) {
@@ -748,14 +748,14 @@ namespace HSIM
 			}
 		}
 		else if (distForBasis == DistanceType::DIST_HEAT) {
-			std::cout << "Computing the parameter for heat\n";
-			tau = igl::avg_edge_length(V, F);
-			tau = tau * tau;
+			//std::cout << "Computing the parameter for heat\n";
+			//tau = igl::avg_edge_length(V, F);
+			//tau = tau * tau;
 		}
 		
 
 		/* Manually break the chunck for parallelization */
-#pragma omp parallel private(tid,ntids,ipts,istart,i,tau)
+#pragma omp parallel private(tid,ntids,ipts,istart,i)
 		{
 			iproc = omp_get_num_procs();
 			tid = omp_get_thread_num();
@@ -783,6 +783,22 @@ namespace HSIM
 			//	std::cout << "-done\n";
 			//}
 
+			//double tau = 0;
+			//if (distForBasis == DistanceType::DIST_HEAT) {
+			//	//printf("Set up matrices \n");
+			//	// [1] M + tau*S
+			//	tau = igl::avg_edge_length(V, F);
+			//	tau = tau * tau;
+			//	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
+			//	factorization1.compute(M + tau * S);
+			//	// [2] S
+			//	factorization2.compute(S);
+			//	// [3] Grad				
+			//	// [4] GT * Mf
+			//	//Eigen::SparseMatrix<double> GTMf = G.transpose() * MF;
+			//}
+
+
 			for (i = istart; i < (istart + ipts); i++) {
 				if (i >= SubspaceSize[k]) break;
 				/* Dijkstra basis function */
@@ -794,8 +810,8 @@ namespace HSIM
 				else if (distForBasis == DistanceType::DIST_HEAT) {
 					//constructHeatDisk(const int s1, Eigen::VectorXd & D, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization1, Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> & factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> & UTriplet) override;
 					Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
-					factorization1.compute(M + tau * S);
-					factorization2.compute(S);
+					//factorization1.compute(M + tau * S);
+					//factorization2.compute(S);
 					constructHeatDisk(Sample(i), D, factorization1, factorization2, aCoef, bCoef, maxNeighDist[k], i, k, axis, offset, UTriplet[tid]);
 				}
 			}
@@ -931,8 +947,11 @@ namespace HSIM
 		///D = D - minValVec;
 		///printf("Dist: %d to 0 = %.3f\n", s1, D(0));
 
-		GeodesicFromHeat(V, F, S, M, s1, D);
-		//GeodesicFromHeat(V, F, factorization1, factorization2, M, G, G.transpose()*MF, s1, D);
+		//Eigen::SparseMatrix<double> GTMf = G.transpose() * MF;
+		Eigen::VectorXd DD;
+
+		GeodesicFromHeat(V, F, S, M, s1, DD);
+		//GeodesicFromHeat(V, F, factorization1, factorization2, M, G, GTMf, s1, DD);
 		//printf("Dist: %d to 0 = %.3f\n", s1, D(0));
 
 		/* Setting the bound */
@@ -943,11 +962,11 @@ namespace HSIM
 			xBound = xMin + offset * (xMax - xMin);		// within this bound, the elements will be discarded
 		}
 
-		printf("Dist: <%.2f | %.2f> || maxDist: %.2f \n", D.maxCoeff(), D.minCoeff(), maxDist);
+		///printf("Dist: <%.2f | %.2f> || maxDist: %.2f \n", DD.maxCoeff(), DD.minCoeff(), maxDist);
 
 		if (k == 0) {
 			for (int i = 0; i < V.rows(); ++i) {
-				double aVal = D(i);
+				double aVal = DD(i);
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(i, axis) < xBound) continue;
 					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[i]) continue;
@@ -963,7 +982,7 @@ namespace HSIM
 		}
 		else {
 			for (int i = 0; i < SubspaceSize[k - 1]; ++i) {
-				double aVal = D(Sample(i));
+				double aVal = DD(Sample(i));
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
 					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(i)]) continue;
@@ -977,7 +996,7 @@ namespace HSIM
 				}
 			}
 		}
-		D.setConstant(numeric_limits<double>::infinity());
+		DD.setConstant(numeric_limits<double>::infinity());
 
 	}
 	/**
