@@ -1009,6 +1009,22 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			}
 		}
 
+		static double tParam = 0.01;
+		static int refPoint = 0;
+		static int nKernels = 10;
+		static char tParamTxt[10] = "0.01";						ImGui::InputText("param. t##1", tParamTxt, 10);
+		static char refPointTxt[10] = "0";						ImGui::InputText("Reference point##1", refPointTxt, 10);
+		static char nKernelsTxt[10] = "10";						ImGui::InputText("Num. kernels##1", nKernelsTxt, 10);
+		if (ImGui::Button("HKS-test", ImVec2(w, 0))) {
+			tParam = atof(tParamTxt);
+			refPoint = atoi(refPointTxt);
+			nKernels = atoi(nKernelsTxt);
+			std::cout << "HKS Test! \n";
+			if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+				solver->constructHKS(viewer, tParam, refPoint, nKernels);
+			}
+		}
+
 		/* Diffusion distance */
 		static std::vector<Eigen::VectorXd> diffTensor1;
 		static std::vector<Eigen::VectorXd> diffTensor2;

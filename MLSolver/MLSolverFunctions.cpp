@@ -4557,6 +4557,29 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 		viewer.data().set_vertices(Vout);
 		viewer.data().compute_normals();
 	}
+
+	void MLSolverFunctions::constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels)
+	{
+		Eigen::VectorXd hks(V.rows());
+		hks.setZero();
+
+		//for (int iy = 0; iy < V.rows(); ++iy) {
+		//	for (int ii = 0; ii < nKernels; ++ii) {
+		//		hks(iy) += exp(-EigValsSIM(ii) * t) * EigVectsSIM(iy, ref) * EigVectsSIM(iy, ii);
+		//	}
+		//}
+		for (int iy = 0; iy < V.rows(); ++iy) {
+			for (int ii = 0; ii < nKernels; ++ii) {
+				hks(iy) += exp(-EigValsSIM(ii) * t) * EigVectsSIM(iy, ii) * EigVectsSIM(iy, ii);
+			}
+		}
+
+		Eigen::MatrixXd VCol;
+		igl::jet(hks, true, VCol);
+		viewer.data().set_colors(VCol);
+		//viewer.data().points.resize(0, 6);
+		//viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
+	}
 	
 	/* [VISUALIZATION TOOLS] */
 	/**
