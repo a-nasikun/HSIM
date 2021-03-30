@@ -563,6 +563,12 @@ namespace HSIM
 
 		std::cout << "Succesful and lifted to fine resolution \n";
 		EigVectsReduced = Basis * EigVectsReducedNonLifted;
+
+		// Check the convergence if necessary
+		//Eigen::VectorXd conv4;
+		//printf("EVec: %dx%d || EVals: %d || M: %dx%d || S: %dx%d \n", EigVectsReduced.rows(), EigVectsReduced.cols(), EigValsReduced.rows(), M.rows(), M.cols(), S.rows(), S.cols());
+		//checkConvergenceCat2(EigVectsReduced, EigValsReduced, EigValsReduced.rows(), M, Minv, S, conv4);
+		//printVector(conv4);
 	}
 
 	/**
