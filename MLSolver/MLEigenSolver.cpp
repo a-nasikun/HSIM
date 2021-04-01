@@ -118,6 +118,8 @@ namespace HSIM
 	*/
 	void MLEigenSolver::constructStiffnessMatrix() {}
 
+	void MLEigenSolver::constructHamiltonianMatrix() {}
+
 	/**
 	*  @brief	Set-up level of the hierarchy description
 	*  @details

@@ -34,6 +34,7 @@ namespace HSIM
 		void computeArea();
 		void virtual constructMassMatrix() override;
 		void virtual constructStiffnessMatrix() override;
+		void virtual constructHamiltonianMatrix() override;
 
 		void virtual constructSampleHierarchy(double support, const Eigen::VectorXi& samples) override;
 		void virtual constructBasis(double support, int axis = 0, double offset = 0.0) override;

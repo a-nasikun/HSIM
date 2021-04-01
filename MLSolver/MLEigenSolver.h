@@ -53,6 +53,7 @@ namespace HSIM
 		void initiateAdM();
 		void virtual constructMassMatrix();
 		void virtual constructStiffnessMatrix();
+		void virtual constructHamiltonianMatrix();
 
 		/* Construction of the subspace and/or hierarchy */
 		void setSamplingLevelsConstantRate(Eigen::VectorXi& sampSize, int numEigen = 50, double levelRatio = 16.0);
@@ -215,6 +216,7 @@ namespace HSIM
 		bool isParallelSolverEnabled = true;
 		double zhaoShiftParam = 0.25;
 		double qParam = 1.5;
+		bool isHamiltonian = false;
 
 		void virtual subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int solverStatus, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed = true, int lastConvergedId = 0);
 	public:

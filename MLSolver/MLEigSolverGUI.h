@@ -392,12 +392,20 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 						
 
 			/* Setup stiffness Matrix */
+			//static bool isHamiltonian = false;
+			ImGui::Checkbox("Hamiltonian?", &eigenSolver->isHamiltonian);
 			if (ImGui::Button("[1] Construct Stiffness Matrix##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1) return;
 
 				eigenSolver->constructMassMatrix();
 				eigenSolver->initiateAdM();
 				eigenSolver->constructStiffnessMatrix();
+				//if (isHamiltonian) {
+				//	if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+				//		printf("Construct Hamiltonian matrix \n");
+				//		solver->constructHamiltonianMatrix();
+				//	}
+				//}
 			}
 
 

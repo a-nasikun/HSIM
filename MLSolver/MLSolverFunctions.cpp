@@ -5,6 +5,7 @@
 #include <igl/invert_diag.h>
 #include <igl/avg_edge_length.h>
 #include <igl/edges.h>
+#include <igl/per_vertex_normals.h>
 
 #include <Eigen/PardisoSupport>
 
@@ -396,6 +397,28 @@ namespace HSIM
 		std::cout << "____> Creating stiffness matrix (Cotangent Laplacian). \n";
 		igl::cotmatrix(V, F, S);
 		S = -S;
+
+		if (isHamiltonian)
+			constructHamiltonianMatrix();
+	}
+
+	void MLSolverFunctions::constructHamiltonianMatrix()
+	{
+		Eigen::MatrixXd NV;
+		igl::per_vertex_normals(V, F, NV);
+
+		std::vector<Eigen::Triplet<double>> STriplet;
+		STriplet.reserve(S.nonZeros());
+
+		for (int k = 0; k < S.outerSize(); ++k) {
+			Eigen::Vector3d n1 = NV.row(k).transpose();
+			for (Eigen::SparseMatrix<double>::InnerIterator it(S, k); it; ++it) {
+				Eigen::Vector3d n2 = NV.row(it.row()).transpose();
+				double a_ij = n1.dot(n2);
+				STriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), a_ij*it.value()));
+			}
+		}
+		S.setFromTriplets(STriplet.begin(), STriplet.end());
 	}
 
 	/**
@@ -734,14 +757,15 @@ namespace HSIM
 		int totalElementInsertions = 0;
 
 		/* Setting metric for STVD */
-		std::cout << "Setup metric for STVD \n";
 		std::vector<EdgeMetric> metric;
-		metric.reserve(openMesh.n_edges());
-		for (MyMesh::EdgeIter e_it = openMesh.edges_begin(); e_it != openMesh.edges_end(); ++e_it){
-			EdgeMetric em = EdgeMetric{ 0, Vec2d{1.0, 1.0} };
-			metric.push_back(em);
+		if (distForBasis == DistanceType::DIST_STVD) {
+			std::cout << "Setup metric for STVD \n";
+			metric.reserve(openMesh.n_edges());
+			for (MyMesh::EdgeIter e_it = openMesh.edges_begin(); e_it != openMesh.edges_end(); ++e_it) {
+				EdgeMetric em = EdgeMetric{ 0, Vec2d{1.0, 1.0} };
+				metric.push_back(em);
+			}
 		}
-		
 
 		/* Manually break the chunck for parallelization */
 #pragma omp parallel private(tid,ntids,ipts,istart,i)
@@ -756,7 +780,8 @@ namespace HSIM
 
 			// Instantiate D once, used for all Dijkstra
 			Eigen::VectorXd				D(V.rows());
-			D.setConstant(numeric_limits<double>::infinity());			
+			D.setConstant(numeric_limits<double>::infinity());	
+			//if (distForBasis == DistanceType::DIST_STVD)
 			STVD stvd(openMesh, metric);
 
 			if (k == 0)
