@@ -394,6 +394,10 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			/* Setup stiffness Matrix */
 			//static bool isHamiltonian = false;
 			ImGui::Checkbox("Hamiltonian?", &eigenSolver->isHamiltonian);
+			//static float hamFactor=0.0;
+			if (eigenSolver->isHamiltonian) {
+				ImGui::SliderFloat("slider float", &eigenSolver->hamFactor, 0.0f, 1.0f, "Factor = %.3f");
+			}
 			if (ImGui::Button("[1] Construct Stiffness Matrix##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1) return;
 

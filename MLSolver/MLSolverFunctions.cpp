@@ -409,6 +409,7 @@ namespace HSIM
 
 		std::vector<Eigen::Triplet<double>> STriplet;
 		STriplet.reserve(S.nonZeros());
+		Eigen::SparseMatrix<double> A;
 
 		for (int k = 0; k < S.outerSize(); ++k) {
 			Eigen::Vector3d n1 = NV.row(k).transpose();
@@ -418,7 +419,10 @@ namespace HSIM
 				STriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), a_ij*it.value()));
 			}
 		}
-		S.setFromTriplets(STriplet.begin(), STriplet.end());
+		A.resize(S.rows(), S.cols());
+		A.setFromTriplets(STriplet.begin(), STriplet.end());
+
+		S = hamFactor * A + (1.0 - hamFactor) * S;
 	}
 
 	/**
