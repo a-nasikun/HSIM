@@ -783,12 +783,16 @@ namespace HSIM
 			
 			Eigen::VectorXd heatDist;
 			// [1] M + tau*S
-			double tau = igl::avg_edge_length(V, F);
-			tau = tau * tau;
+			double tau;
 			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization1, factorization2;
-			factorization1.compute(M + tau * S);
-			// [2] S
-			factorization2.compute(S);
+
+			if (distForBasis == DistanceType::DIST_HEAT) {
+				tau = igl::avg_edge_length(V, F);
+				tau = tau * tau;
+				factorization1.compute(M + tau * S);
+				// [2] S
+				factorization2.compute(S);
+			}
 
 
 			for (i = istart; i < (istart + ipts); i++) {
