@@ -1274,6 +1274,28 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				igl::jet(elVal, true, elCol);
 				viewer.data().set_colors(elCol);
 			}
+
+			if (ImGui::Button("Compute Grad.##eigenfunction", ImVec2(w, 0))) {
+				elVal.setZero(eigenSolver->getF().rows());
+				if (eigenSolver->EigVectsSIM.rows() < 1) {
+					std::cout << "Compute the eigenfunction first! \n";
+					return;
+				}
+				Eigen::VectorXd grad = eigenSolver->G * eigenSolver->EigVectsSIM.col(eigToShow);
+				for (int i = 0; i < eigenSolver->getF().rows(); ++i) {
+					elVal(i) = grad.block(3 * i, 0, 3, 1).norm();
+					
+					//if (eigenSolver->boundaryFaceCheck[i])
+					//	std::cout << elVal(i) << "\n";
+				}
+				igl::jet(elVal, true, elCol);
+				viewer.data().set_colors(elCol);
+
+				printf("Max val: %.4f | min val: %.4f \n", elVal.maxCoeff(), elVal.minCoeff());
+			}
+
+			if (ImGui::Button("Viz Grad.##eigenfunction", ImVec2(w, 0))) {
+			}
 		}
 
 
