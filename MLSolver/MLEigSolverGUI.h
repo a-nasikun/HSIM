@@ -1250,12 +1250,32 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		if (eigenSolver->getBoundaryType() != MLEigenSolver::BoundaryCondition::BOUNDARY_NONE) {
 			ImGui::RadioButton("Dirichlet", &boundaryType, 1); ImGui::SameLine();
 			ImGui::RadioButton("Neumann", &boundaryType, 2);
+			Eigen::VectorXd elVal; 	//value for each element
+			Eigen::MatrixXd elCol;	//map the function value to a color value (RGB)
 
 			if (ImGui::Button("Set Boundary Cond.", ImVec2(w, 0))) {
 				if (boundaryType == 1) eigenSolver->setBoundaryType(HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_DIRICHLET);
 				else if (boundaryType == 2) eigenSolver->setBoundaryType(HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_NEUMANN);
 			}
+			if (ImGui::Button("Viz. vertices##boundary", ImVec2(w/2.0-p, 0))) {
+				elVal.setZero(eigenSolver->getV().rows());
+				for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
+					if (eigenSolver->boundaryVertexCheck[i]) elVal(i) = 1.0;
+				}
+				igl::jet(elVal, true, elCol);
+				viewer.data().set_colors(elCol);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Viz. Faces##boundary", ImVec2(w/2.0-p, 0))) {
+				elVal.setZero(eigenSolver->getF().rows());
+				for (int i = 0; i < eigenSolver->getF().rows(); ++i) {
+					if (eigenSolver->boundaryFaceCheck[i]) elVal(i) = 1.0;
+				}
+				igl::jet(elVal, true, elCol);
+				viewer.data().set_colors(elCol);
+			}
 		}
+
 
 		if (ImGui::Button("Solve Eigenproblem", ImVec2(w, 0))) {
 			std::cout << "Hierarchy " << hierarchyMode << std::endl;

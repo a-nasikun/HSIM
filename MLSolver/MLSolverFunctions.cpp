@@ -162,14 +162,27 @@ namespace HSIM
 	void MLSolverFunctions::checkBoundary()
 	{		
 		boundaryVertexCheck.resize(V.rows());
+		boundaryFaceCheck.resize(F.rows());
 		std::memset(&boundaryVertexCheck[0], false, boundaryVertexCheck.size() * sizeof(boundaryVertexCheck[0]));
+		std::memset(&boundaryFaceCheck[0], false, boundaryFaceCheck.size() * sizeof(boundaryFaceCheck[0]));
 		hasBoundary = false;
 		unsigned int numBoundaryVertices = 0;
+		// Checking the boundary vertices
 		for (MyMesh::VertexIter vit = openMesh.vertices_begin(); vit != openMesh.vertices_end(); ++vit) {
 			if (openMesh.is_boundary(vit)) {
 				hasBoundary = true;
 				boundaryVertexCheck[vit->idx()] = true;
 				numBoundaryVertices++;
+			}
+		}
+
+		// Checking the boundary faces
+		for (MyMesh::FaceIter fit = openMesh.faces_begin(); fit != openMesh.faces_end(); ++fit) {
+			for (MyMesh::FaceVertexIter fvit = openMesh.fv_iter(fit); fvit.is_valid(); ++fvit) {
+				if (boundaryVertexCheck[fvit->idx()]) {
+					boundaryFaceCheck[fit->idx()] = true;
+					continue;
+				}
 			}
 		}
 

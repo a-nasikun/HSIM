@@ -185,6 +185,7 @@ namespace HSIM
 		bool								isClampedBasis;				//!< Toogle/Flag if the basis is a clamped version
 		bool								hasBoundary;				//!< Toogle/Flag if the mesh has a boundary
 	public: std::vector<bool>				boundaryVertexCheck;		//!< Check whether a vertex is in a boundary/not
+		  std::vector<bool>					boundaryFaceCheck;			//!< Check whether a face is in a boundary/not
 	protected: 
 		Eigen::MatrixXd						EigVectsRef;				//!< Reference eigenvectors (from either Matlab, SpectrA, or Manifold Harmonics in Graphite)
 		Eigen::MatrixXd						EigVectsReduced;			//!< Approximated eigenvectors (lifted to reference space)
