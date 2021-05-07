@@ -1037,6 +1037,13 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			}
 		}
 
+		if (ImGui::Button("Read HKS file", ImVec2(w, 0))) {
+			string hksFile = "E:/Local Programming/Multi Grid Solver/Data/HKS_test.txt";
+			Eigen::MatrixXd M1;
+			loadDenseMatrixFromFile(hksFile, M1);
+			std::cout << "M1 file \n" << M1 << std::endl;
+		}
+
 		/* Diffusion distance */
 		static std::vector<Eigen::VectorXd> diffTensor1;
 		static std::vector<Eigen::VectorXd> diffTensor2;

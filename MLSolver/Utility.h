@@ -66,6 +66,67 @@ namespace HSIM
 		}
 		else cout << "Unable to open file";
 	}
+
+	template <typename DerivedM>
+	void loadDenseMatrixFromFile(const string &filename,  Eigen::PlainObjectBase<DerivedM>&M)
+	{
+		ifstream readFile;
+		readFile.open(filename);
+		std::cout << "Filename: " << filename << std::endl;
+		std:: string line; // , word;
+		std::vector<std::vector<double>> matrix;
+		matrix.reserve(10);
+		int iCounter = 0;
+		int colCounter = 0;
+
+		//if (readFile.is_open()) {
+		std::cout << "Trying to read the file \n";
+		while (!readFile.eof()) {
+			printf("Line number %d \n", iCounter + 1);
+			getline(readFile, line);
+			if (line.empty()) continue;
+			std::istringstream iss(line);
+
+			for (std::string word; iss >> word;) {
+				//while(std::getline(iss, word, ' '))
+				double vi = stod(word);
+				std::cout << vi << " \t";
+				if (iCounter == 0) {
+					std::vector<double> emptyVector;
+					matrix.push_back(emptyVector);
+					matrix[colCounter].reserve(10000);					
+				}
+				matrix[colCounter].push_back(vi);
+				colCounter++;
+			}
+			iCounter++;	
+			colCounter = 0;
+		}
+
+		std::cout << "Convert to matrix \n";
+		M.resize(iCounter, colCounter);
+		for (int i = 0; i < iCounter; ++i) {
+			for (int j = 0; j < colCounter; ++j) {
+				M(i, j) = matrix[j][i];
+			}
+		}
+
+		std::cout << "Clearning things out \n";
+		for (int i = 0; i < colCounter; ++i) {
+			matrix[i].clear();
+			matrix[i].shrink_to_fit();
+		}
+		matrix.clear();
+		matrix.shrink_to_fit();
+		readFile.close();
+
+		//v = Eigen::VectorXd(vect.data());
+		printf("Matrix has the size of (%dx%d) \n", M.rows(), M.cols());
+
+		//else {
+		//	printf("Cannot access the file! \n");
+		//}
+	}
 }
 
 #endif // !UTILITY_H
