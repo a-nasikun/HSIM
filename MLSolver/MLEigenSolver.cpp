@@ -55,7 +55,7 @@ namespace HSIM
 		}
 
 		scaleMesh(V, F, 2.0);
-		projectToSphere(V, F, 1.0);
+		//projectToSphere(V, F, 1.0);
 
 		checkBoundary();
 	}
@@ -1293,7 +1293,7 @@ namespace HSIM
 			std::cout << "Number of iterations: " << numIterUsed << std::endl;
 			break;
 		case EigenSolverType::EIG_SOLVER_CUDA:
-			if (M.rows() > 7500) {
+			if (M.rows() * V.rows() > 100000000) {
 				cout << "We think the problem is too big to be solved in GPU! \nConsider other solver for this problem.\n";
 				return;
 			}

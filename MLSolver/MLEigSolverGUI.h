@@ -38,7 +38,7 @@ bool				useNonSmoothBasis = false;
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
-string				model			= "Sphere40k";
+string				model			= "CDragon500";
 static int			SIMtype			= 2;
 static int			problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
 static int			matType			= 0;					// material type (for hessian/linear elasticity)
@@ -1027,7 +1027,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		static char tParamTxt[10] = "0.01";						ImGui::InputText("param. t##1", tParamTxt, 10);
 		static char refPointTxt[10] = "0";						ImGui::InputText("Reference point##1", refPointTxt, 10);
 		static char nKernelsTxt[10] = "10";						ImGui::InputText("Num. kernels##1", nKernelsTxt, 10);
-		if (ImGui::Button("HKS-test", ImVec2(w, 0))) {
+		if (ImGui::Button("HKS-test", ImVec2(w/2.0-p, 0))) {
 			tParam = atof(tParamTxt);
 			refPoint = atoi(refPointTxt);
 			nKernels = atoi(nKernelsTxt);
@@ -1036,6 +1036,29 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				solver->constructHKS(viewer, tParam, refPoint, nKernels);
 			}
 		}
+		ImGui::SameLine();
+		if (ImGui::Button("HKS points", ImVec2(w/2.0-p, 0))) {
+			// Toes : front -> back | right -> left | central -> outer
+			viewer.data().add_points(eigenSolver->getV().row(9680), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(9643), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(8854), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(2308), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(2016), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(2194), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(2368), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(2384), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			//viewer.data().add_points(eigenSolver->getV().row(8534), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			//viewer.data().add_points(eigenSolver->getV().row(9329), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			//viewer.data().add_points(eigenSolver->getV().row(8658), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			//viewer.data().add_points(eigenSolver->getV().row(8599), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			// ear : right -> left 
+			viewer.data().add_points(eigenSolver->getV().row(2783), Eigen::RowVector3d(0.0, 0.1, 1.0));
+			viewer.data().add_points(eigenSolver->getV().row(672), Eigen::RowVector3d(0.0, 0.1, 1.0));
+			// punuk
+			viewer.data().add_points(eigenSolver->getV().row(3222), Eigen::RowVector3d(0.1, 0.1, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(315), Eigen::RowVector3d(0.1, 0.1, 0.1));
+		}
+
 
 		if (ImGui::Button("Read HKS file", ImVec2(w, 0))) {
 			string hksFile = "E:/Local Programming/Multi Grid Solver/Data/HKS_test.txt";
