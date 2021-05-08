@@ -1244,6 +1244,19 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				writeDenseMatrixToFile(eigenSolver->getEigenValuesSIM(), filename);
 			}
 		}
+		
+		if (ImGui::Button("Save Eigs##HSIM", ImVec2(w/2-p, 0))) {
+			WriteVectorToFile(eigenSolver->getEigenValuesSIM(), "../../Data/" + model + "_EigVals_HSIM_" + to_string(eigenSolver->getEigenVectorsSIM().rows()) + ".txt");
+			writeDenseMatrixToFile(eigenSolver->getEigenVectorsSIM(), "../../Data/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getEigenVectorsSIM().rows()) + ".txt");
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Load Eigs##HSIM", ImVec2(w/2-p, 0))) {
+			loadDenseMatrixFromFile("../../Data/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getV().rows()) + ".txt", eigenSolver->EigVectsSIM);
+			ReadVectorFromFile("../../Data/" + model + "_EigVals_HSIM_" + to_string(eigenSolver->getV().rows()) + ".txt", eigenSolver->EigValsSIM);
+
+			std::cout << "eigvals \n" << eigenSolver->EigValsSIM << std::endl;
+			std::cout << "eigvects \n" << eigenSolver->EigVectsSIM.topRows(20) << std::endl;
+		}
 
 		if (ImGui::Button("BMG Solver", ImVec2(w, 0))) {
 			std::cout << "Solve in GPU? " << eigenSolver->isSIMinGPU << std::endl;
@@ -2118,18 +2131,22 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 					cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
 				}
-			}
-			
+			}			
 		}
 
 		if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {
-			// read from file 
+			loadDenseMatrixFromFile("../../Data/" + model + "_EigVects_Ref_" + to_string(eigenSolver->getV().rows()) + ".txt", eigenSolver->EigVectsRef);
+			ReadVectorFromFile("../../Data/" + model + "_EigVals_Ref_" + to_string(eigenSolver->getV().rows()) + ".txt", eigenSolver->EigValsRef);
+
+			std::cout << "eigvals \n" << eigenSolver->EigValsRef << std::endl;
+			std::cout << "eigvects \n" << eigenSolver->EigVectsRef.topRows(20) << std::endl;
 		}
-		if (ImGui::Button("Save EigVals#REF", ImVec2(w / 2, 0))) {
-			writeDenseMatrixToFile(eigenSolver->getEigenValuesRef(), "../../Data/" + model + "_EigVals_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
+
+		if (ImGui::Button("Save EigVals##REF", ImVec2(w / 2, 0))) {
+			WriteVectorToFile(eigenSolver->getEigenValuesRef(), "../../Data/" + model + "_EigVals_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
 		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("Save EigVect#REF", ImVec2(w / 2, 0))) {
+		if (ImGui::Button("Save EigVect##REF", ImVec2(w / 2, 0))) {
 			writeDenseMatrixToFile(eigenSolver->getEigenVectorsRef(), "../../Data/" + model + "_EigVects_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
 		}
 	}

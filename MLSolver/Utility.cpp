@@ -300,4 +300,53 @@ namespace HSIM
 		engEvalString(ep, saveFile.c_str());
 
 	}
+
+	void WriteVectorToFile(const Eigen::VectorXd& v, const string& filename)
+	{
+		ofstream writeFile;
+		writeFile.open(filename);
+
+		if (writeFile.is_open())
+		{
+			for (int i = 0; i < v.rows(); ++i) {
+				writeFile << to_string(v(i)) + "\n";
+			}
+			writeFile.close();
+			printf("Done writing vector %d rows\n", v.rows());
+		}
+		else {
+			printf("Cannot access the file! \n");
+		}
+	}
+
+	void ReadVectorFromFile(const string& filename, Eigen::VectorXd& v)
+	{
+		ifstream readFile;
+		readFile.open(filename);
+		std::cout << "Filename: " << filename << std::endl;
+		string line;
+		std::vector<double> vect;
+		vect.reserve(10000);
+		int iCounter = 0;
+
+		if (readFile.is_open()) {
+			while (getline(readFile, line)) {
+				double vi = stod(line);
+				vect.push_back(vi);
+				iCounter++;
+			}
+			readFile.close();
+
+			vect.shrink_to_fit();
+			v.resize(vect.size());
+			for (int i = 0; i < v.rows(); i++) {
+				v(i) = vect[i];
+			}
+			//v = Eigen::VectorXd(vect.data());
+			printf("Vector [%d] read: %d rows() \n", vect.size(), v.rows());
+		}
+		else {
+			printf("Cannot access the file! \n");
+		}
+	}
 }

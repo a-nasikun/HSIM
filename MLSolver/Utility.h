@@ -31,11 +31,11 @@ namespace HSIM
 	void checkOrthonormality(const Eigen::MatrixXd& EigVect, const Eigen::SparseMatrix<double>& M, Eigen::MatrixXd &OrthMat);
 	void WriteSparseMatrixToMatlab(const Eigen::SparseMatrix<double>& M, const string& filename);
 
-	template <typename DerivedM>
-	void writeDenseMatrixToFile(const Eigen::PlainObjectBase<DerivedM>& M, const string& filename, bool overwrite = false);
+	//template <typename DerivedM>
+	//void writeDenseMatrixToFile(const Eigen::PlainObjectBase<DerivedM>& M, const string& filename, bool overwrite = false);
 
 	template <typename DerivedM>
-	void writeDenseMatrixToFile(const Eigen::PlainObjectBase<DerivedM>& M, const string& filename, bool overwrite)
+	void writeDenseMatrixToFile(const Eigen::PlainObjectBase<DerivedM>& M, const string& filename, bool overwrite = true)
 	{
 		ofstream myfile;		
 		myfile.clear();
@@ -51,7 +51,7 @@ namespace HSIM
 		if (myfile.is_open()) {
 			//cout << "Writing Matrix file to text ";
 			//printf("of %dx%d size \n", M.rows(), M.cols());
-			myfile << "#Cols=" << M.cols() << "\n";
+			///myfile << "#Cols=" << M.cols() << "\n";
 
 			for (int i = 0; i < M.rows(); i++) {
 				for (int j = 0; j < M.cols(); j++) {
@@ -80,17 +80,18 @@ namespace HSIM
 		int colCounter = 0;
 
 		//if (readFile.is_open()) {
-		std::cout << "Trying to read the file \n";
+		//std::cout << "Trying to read the file \n";
 		while (!readFile.eof()) {
-			printf("Line number %d \n", iCounter + 1);
+			//printf("Line number %d \n", iCounter + 1);
 			getline(readFile, line);
 			if (line.empty()) continue;
 			std::istringstream iss(line);
+			colCounter = 0;
 
 			for (std::string word; iss >> word;) {
 				//while(std::getline(iss, word, ' '))
 				double vi = stod(word);
-				std::cout << vi << " \t";
+				//std::cout << vi << " \t";
 				if (iCounter == 0) {
 					std::vector<double> emptyVector;
 					matrix.push_back(emptyVector);
@@ -100,10 +101,9 @@ namespace HSIM
 				colCounter++;
 			}
 			iCounter++;	
-			colCounter = 0;
 		}
 
-		std::cout << "Convert to matrix \n";
+		//std::cout << "Convert to matrix \n";
 		M.resize(iCounter, colCounter);
 		for (int i = 0; i < iCounter; ++i) {
 			for (int j = 0; j < colCounter; ++j) {
@@ -111,7 +111,7 @@ namespace HSIM
 			}
 		}
 
-		std::cout << "Clearning things out \n";
+		//std::cout << "Clearning things out \n";
 		for (int i = 0; i < colCounter; ++i) {
 			matrix[i].clear();
 			matrix[i].shrink_to_fit();
@@ -121,12 +121,16 @@ namespace HSIM
 		readFile.close();
 
 		//v = Eigen::VectorXd(vect.data());
-		printf("Matrix has the size of (%dx%d) \n", M.rows(), M.cols());
+		//printf("Matrix has the size of (%dx%d) \n", M.rows(), M.cols());
 
 		//else {
 		//	printf("Cannot access the file! \n");
 		//}
 	}
+
+	void WriteVectorToFile(const Eigen::VectorXd& v, const string& filename);
+	void ReadVectorFromFile(const string& filename, Eigen::VectorXd& v);
+
 }
 
 #endif // !UTILITY_H
