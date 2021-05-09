@@ -38,7 +38,7 @@ bool				useNonSmoothBasis = false;
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
-string				model			= "CDragon500";
+string				model			= "Camel";
 static int			SIMtype			= 2;
 static int			problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
 static int			matType			= 0;					// material type (for hessian/linear elasticity)
@@ -1059,6 +1059,40 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			viewer.data().add_points(eigenSolver->getV().row(315), Eigen::RowVector3d(0.1, 0.1, 0.1));
 		}
 
+		if (ImGui::Button("Test HKS for all points", ImVec2(w, 0))) {
+			//loadDenseMatrixFromFile("../../Data/HKS/" + model + "/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getV().rows()) + "_300_" + ".txt", eigenSolver->EigVectsSIM);
+			//ReadVectorFromFile("../../Data/HKS/"+ model + "/" + model + "_EigVals_Ref_HSIM" + to_string(eigenSolver->getV().rows()) + "_300_" + ".txt", eigenSolver->EigValsSIM);
+			std::vector<int> HKSpoints = {9680, 9643, 8854, 2308, 2016, 2194, 2368, 2384, 2783, 672, 3222, 315};
+			std::vector<int> numEigs = { 10, 50, 100, 250 }; // , 500, 1000, 5000, 9770 };
+			const int numTime = 100;
+			std::cout << "Set timings, points, and number of eigenpairs \n";
+			std::vector<double> tHKS(numTime);
+			double tMax = 4.0 * log(10.0) / eigenSolver->EigValsSIM(1);
+			double tMin = 4.0 * log(10.0) / eigenSolver->EigValsSIM(299);
+			double ratio = pow(tMax/tMin, 1.0/ (numTime/2));
+			printf("Ratio = %.10f \n", ratio);
+			std::cout << "Tmax: " << tMax << std::endl;
+			std::cout << "Tmin: " << tMin << std::endl;
+
+			std::cout << "Set timings \n";
+			tHKS[0] = tMax;
+			for (int t = 1; t < numTime; ++t) {
+				tHKS[t] = tHKS[t-1]/ratio;				
+			}
+
+			for (int t = 0; t < numTime; ++t) {
+				printf("Time %d is %.6f \n", t, tHKS[t]);
+			}
+
+			for (int p : HKSpoints) {
+				// store per point
+				for (int iE = 0; iE < numEigs.size(); ++iE) {
+					for (int iT = 0; iT < numTime; ++iT) {
+						printf("Performing KHS for point %d for %d num of eigenvector on time %.8f \n", p, numEigs[iE], tHKS[iT]);
+					}
+				}
+			}
+		}
 
 		if (ImGui::Button("Read HKS file", ImVec2(w, 0))) {
 			string hksFile = "E:/Local Programming/Multi Grid Solver/Data/HKS_test.txt";
@@ -1269,13 +1303,13 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		}
 		
 		if (ImGui::Button("Save Eigs##HSIM", ImVec2(w/2-p, 0))) {
-			WriteVectorToFile(eigenSolver->getEigenValuesSIM(), "../../Data/" + model + "_EigVals_HSIM_" + to_string(eigenSolver->getEigenVectorsSIM().rows()) + ".txt");
-			writeDenseMatrixToFile(eigenSolver->getEigenVectorsSIM(), "../../Data/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getEigenVectorsSIM().rows()) + ".txt");
+			WriteVectorToFile(eigenSolver->getEigenValuesSIM(), "../../Data/HKS/" + model + "/" + model + "_EigVals_HSIM_" + to_string(eigenSolver->getEigenVectorsSIM().rows()) + "_" + to_string(eigenSolver->getEigenValuesSIM().rows()) + ".txt");
+			writeDenseMatrixToFile(eigenSolver->getEigenVectorsSIM(), "../../Data/HKS/" + model + "/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getEigenVectorsSIM().rows()) + "_" + to_string(eigenSolver->getEigenValuesSIM().rows()) + ".txt");
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Load Eigs##HSIM", ImVec2(w/2-p, 0))) {
-			loadDenseMatrixFromFile("../../Data/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getV().rows()) + ".txt", eigenSolver->EigVectsSIM);
-			ReadVectorFromFile("../../Data/" + model + "_EigVals_HSIM_" + to_string(eigenSolver->getV().rows()) + ".txt", eigenSolver->EigValsSIM);
+			loadDenseMatrixFromFile("../../Data/HKS/" + model + "/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getEigenValuesSIM().rows()) + ".txt", eigenSolver->EigVectsSIM);
+			ReadVectorFromFile("../../Data/HKS/" + model + "/" + model + "_EigVals_HSIM_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getEigenValuesSIM().rows()) + ".txt", eigenSolver->EigValsSIM);
 
 			std::cout << "eigvals \n" << eigenSolver->EigValsSIM << std::endl;
 			std::cout << "eigvects \n" << eigenSolver->EigVectsSIM.topRows(20) << std::endl;
