@@ -1060,10 +1060,16 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		}
 
 		if (ImGui::Button("Test HKS for all points", ImVec2(w, 0))) {
+			// computing the reference in GPU
+			if (eigenSolver->EigValsSIM.rows() < 1) {
+				eigenSolver->EigValsSIM = eigenSolver->EigValsRef;
+				eigenSolver->EigVectsSIM = eigenSolver->EigVectsRef;
+			}
+
 			//loadDenseMatrixFromFile("../../Data/HKS/" + model + "/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getV().rows()) + "_300_" + ".txt", eigenSolver->EigVectsSIM);
 			//ReadVectorFromFile("../../Data/HKS/"+ model + "/" + model + "_EigVals_Ref_HSIM" + to_string(eigenSolver->getV().rows()) + "_300_" + ".txt", eigenSolver->EigValsSIM);
 			std::vector<int> HKSpoints = {9680, 9643, 8854, 2308, 2016, 2194, 2368, 2384, 2783, 672, 3222, 315};
-			std::vector<int> numEigs = { 10, 50, 100, 250 }; // , 500, 1000, 5000, 9770 };
+			std::vector<int> numEigs = { 10, 50, 100, 250, 500, 1000, 5000, 9770 };
 			const int numTime = 100;
 			std::cout << "Set timings, points, and number of eigenpairs \n";
 			std::vector<double> tHKS(numTime);
@@ -1085,12 +1091,19 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			}
 
 			for (int p : HKSpoints) {
-				// store per point
+				// store per point as a matrix
+				string hksFile = "../../Data/HKS/" + model + "/" + model + "_HKS_" + to_string(p) + ".txt";
+				Eigen::MatrixXd HKSmatrix(tHKS.size(), numEigs.size());
 				for (int iE = 0; iE < numEigs.size(); ++iE) {
 					for (int iT = 0; iT < numTime; ++iT) {
 						printf("Performing KHS for point %d for %d num of eigenvector on time %.8f \n", p, numEigs[iE], tHKS[iT]);
+						if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+							HKSmatrix(iT, iE) = solver->constructHKS(viewer, tHKS[iT], p, numEigs[iE], false);
+						}
 					}
 				}
+				writeDenseMatrixToFile(HKSmatrix, hksFile, true);
+
 			}
 		}
 

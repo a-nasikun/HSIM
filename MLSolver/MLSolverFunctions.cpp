@@ -4611,7 +4611,7 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 	//	//viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
 	//}
 
-	void MLSolverFunctions::constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels)
+	double MLSolverFunctions::constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor)
 	{
 		// computing the reference in GPU
 		if (EigValsSIM.rows() < 1) {
@@ -4634,6 +4634,8 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 		viewer.data().set_colors(VCol);
 		//viewer.data().points.resize(0, 6);
 		//viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
+
+		return hks(ref);
 	}
 	
 	/* [VISUALIZATION TOOLS] */
