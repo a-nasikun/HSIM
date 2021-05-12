@@ -349,4 +349,30 @@ namespace HSIM
 			printf("Cannot access the file! \n");
 		}
 	}
+
+	void writeEigenDenseMatrixToBinary(Eigen::MatrixXd M, const std::string& filename)
+	{
+		//std::ofstream out(filename, std::ios::out | std::ios:: | std::ios::trunc);
+		std::ofstream out(filename, std::ios::out | std::ios::trunc);
+		int rows = M.rows(), cols = M.cols();
+		out.write((char*)(&rows), sizeof(int));
+		out.write((char*)(&cols), sizeof(int));
+		out.write((char*)M.data(), rows * cols * sizeof(double));
+		out.close();
+	}
+
+	void readEigenDenseMatrixFromBinary(const std::string& filename, Eigen::MatrixXd& M)
+	{
+		//std::ifstream in(filename, std::ios::in | std::ios::binary);
+		std::cout << "read file from " << filename << std::endl;
+		std::ifstream in(filename, std::ios::in);
+		int rows = 0, cols = 0;
+		in.read((char*)(&rows), sizeof(int));
+		in.read((char*)(&cols), sizeof(int));
+		M.resize(rows, cols);
+		in.read((char*)M.data(), rows * cols * sizeof(double));
+		in.close();
+		printf("M Dim=%dx%d \n", M.rows(), M.cols());
+		
+	}
 }

@@ -130,6 +130,8 @@ namespace HSIM
 
 	void WriteVectorToFile(const Eigen::VectorXd& v, const string& filename);
 	void ReadVectorFromFile(const string& filename, Eigen::VectorXd& v);
+	void writeEigenDenseMatrixToBinary(Eigen::MatrixXd M, const std::string& filename);
+	void readEigenDenseMatrixFromBinary(const std::string& filename, Eigen::MatrixXd& M);
 
 }
 
