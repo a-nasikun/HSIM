@@ -1743,7 +1743,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 			int maxIters = 50;
 			//vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> wantedModes{ 50, 100, 250 };
+			vector<int> wantedModes{ 50, 250, 1000 };
 			vector<double> wantedTols{ 1e-2, 1e-3, 1e-4, 1e-5 };
 			vector<double> shiftParams{0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45 };
 
@@ -1770,12 +1770,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
 			std::vector<double>		levelRatio{ 10 };
-			std::vector<double>		levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
-			//std::vector<double>	levelSupport{ 5.0 };
-			//std::vector<double>	levelZhaoParam{0.1,0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45};
-			std::vector<double>		levelZhaoParam{ 1.0/3.0};
-			vector<int>				wantedModes{ 50, 200 };
-			vector<double>			wantedTols{ 1e-4 };
+			//std::vector<double>		levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
+			std::vector<double>	levelSupport{ 7.0 };
+			std::vector<double>	levelZhaoParam{0.0, 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
+			//std::vector<double>		levelZhaoParam{ 1.0/3.0};
+			vector<int>				wantedModes{ 1000 };
+			vector<double>			wantedTols{ 1e-2, 1e-4 };
 			int						maxIters = 50;
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
@@ -1785,6 +1785,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
 					for (int l = 0; l < levelSupport.size(); ++l) {
 						std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;
+						int nLevel = 3;
 						//Sampling
 						switch (hierarchyMode)
 						{
@@ -1799,7 +1800,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 							eigenSolver->setSamplingLevelsSameRate(sampSize, wantedModes[j], levelRatio[i], eigenSolver->isSampleBounded);
 							break;
 						case 3:
-							eigenSolver->setSamplingLevelFixedLevels(sampSize, wantedModes[j], numLevels, eigenSolver->isSampleBounded);
+							if (wantedModes[j] < 70)
+								nLevel = 2;
+							eigenSolver->setSamplingLevelFixedLevels(sampSize, wantedModes[j], nLevel, eigenSolver->isSampleBounded);
 							break;
 						default:
 							break;
@@ -1816,12 +1819,12 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 						// Compute restricted problem
 						eigenSolver->solveRestrictedProblem();
+						for (int k = 0; k < wantedTols.size(); ++k) {
+							for (int m = 0; m < levelZhaoParam.size(); ++m) {
+								std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
+								eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
 
-						for (int m = 0; m < levelZhaoParam.size(); ++m) {
-							std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
-							eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
-							
-							for (int k = 0; k < wantedTols.size(); ++k) {
+
 								std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
 								// ML-with shift
 								eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
