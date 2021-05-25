@@ -69,6 +69,8 @@ namespace HSIM
 		void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet);
 		void virtual constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet);
 		void virtual constructHeatDisk(const int s1, Eigen::VectorXd& D, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet);
+		void virtual computeDistanceFromBoundary(const std::vector<int> sources, Eigen::VectorXd& D);
+		void virtual mapDistanceToFunctionOnBoundary(const Eigen::VectorXd& D);
 		void formPartitionOfUnityMultiLevel();
 		void formPartitionOfUnity();
 		void solveRestrictedProblem();
@@ -210,6 +212,8 @@ namespace HSIM
 		std::vector<Eigen::VectorXd>				geoDist;			//!< resulting geodesic distance on each level, stored at the last index on each level
 		std::vector<Eigen::VectorXi>				clusters;			//!< the index of sample point [level k] closest to a certain vertex/sample [level k-1]
 		Eigen::VectorXi								sampleLevel;		//!< to indicate if a vertex is picked as a sample; if yes, at which highest level k
+		std::vector<Eigen::VectorXd>				funcBoundary;		//!< A polynomial function to indicate values w.r.t. boundaries (close to boundary get small values)
+
 
 		/* CLASS/OBJECT FLAG */
 		bool isConvergedVectsNotUsed = true;

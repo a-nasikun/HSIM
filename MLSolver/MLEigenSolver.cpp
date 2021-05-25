@@ -402,6 +402,10 @@ namespace HSIM
 	void MLEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet) {}
 	void MLEigenSolver::constructSTVDDisk(STVD& stvd, const int s1, Eigen::VectorXd& D, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet) {}
 	void MLEigenSolver::constructHeatDisk(const int s1, Eigen::VectorXd& D, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization1, const Eigen::PardisoLDLT<Eigen::SparseMatrix<double>>& factorization2, const double a, const double b, double maxDist, const int col, int level, int axis, double offset, vector<Eigen::Triplet<double>>& UTriplet) {}
+
+	void MLEigenSolver::computeDistanceFromBoundary(const std::vector<int> sources, Eigen::VectorXd& D) {}
+	void MLEigenSolver::mapDistanceToFunctionOnBoundary(const Eigen::VectorXd& D) {}
+
 	/**
 	*  @brief	Perform partition of unity on every row of the basis matrix in every level.
 	*  @details

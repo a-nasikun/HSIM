@@ -250,7 +250,41 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
 			viewer.data().compute_normals();
 		}
-		
+
+		// Test distance to boundary
+		static Eigen::VectorXd DistToBound;
+		if (eigenSolver->boundaryType != HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_NONE) {
+
+			if (ImGui::Button("Dist to boundary", ImVec2(w, 0))) {
+				// Get sources
+				std::vector<int> boundaryVertices;
+				boundaryVertices.reserve(eigenSolver->getV().rows() / 20.0);
+				for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
+					if (eigenSolver->boundaryVertexCheck[i]) {
+						boundaryVertices.push_back(i);
+					}
+				}
+
+				// Compute distance
+				eigenSolver->computeDistanceFromBoundary(boundaryVertices, DistToBound);
+
+				// Plot distance
+				Eigen::MatrixXd VCol;
+				igl::jet(DistToBound, true, VCol);
+				viewer.data().set_colors(VCol);
+			}
+
+			if (ImGui::Button("Map to Func", ImVec2(w, 0))) {
+				if (eigenSolver->maxNeighDist.size() < 1) printf("Error! Please construct the basis first! \n");
+
+				eigenSolver->mapDistanceToFunctionOnBoundary(DistToBound);
+				Eigen::MatrixXd VCol;
+				igl::jet(eigenSolver->funcBoundary[0], true, VCol);
+				viewer.data().set_colors(VCol);
+			}
+		}
+
+		// Test on Distance		
 		static int initPoint = 0;
 		static int targetPoint = 10;
 		static char initPointTxt[10] = "0";
