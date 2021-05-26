@@ -869,7 +869,7 @@ namespace HSIM
 				double aVal = D(i);
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(i, axis) < xBound) continue;
-					if (hasBoundary && boundaryType==BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[i]) continue;
+					///if (hasBoundary && boundaryType==BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[i]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
@@ -885,7 +885,7 @@ namespace HSIM
 				double aVal = D(Sample(i));
 				if (aVal <= maxDist) {
 					if (isClampedBasis && V(Sample(i), axis) < xBound) continue;
-					if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(i)]) continue;
+					///if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET && boundaryVertexCheck[Sample(i)]) continue;
 
 					/* Polynomial mapping (3rd Order) */
 					//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
@@ -1064,7 +1064,9 @@ namespace HSIM
 						//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;					// face
 
 						/* Linear */
-						double val = funcBoundary[0](i)*(maxDist - aVal) / maxDist;
+						///double val = funcBoundary[0](i)*(maxDist - aVal) / maxDist;
+						double val =  (maxDist - aVal) / maxDist;
+						val = val * funcBoundary[0](i);
 						UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 					}
 				}
@@ -1080,7 +1082,9 @@ namespace HSIM
 						//double val = a*aVal*aVal*aVal + b*aVal*aVal + 1.0;
 
 						/* Linear */
-						double val = funcBoundary[k](i) * (maxDist - aVal) / maxDist;
+						///double val = funcBoundary[k](i) * (maxDist - aVal) / maxDist;
+						double val = (maxDist - aVal) / maxDist;
+						val = val * funcBoundary[k](i);
 						UTriplet.push_back(Eigen::Triplet<double>(i, col, val));
 					}
 				}
@@ -1217,12 +1221,13 @@ namespace HSIM
 			SelM.setFromTriplets(STriplet.begin(), STriplet.end());
 			printf("__Dim of this selector matrix: %dx%d \n", SelM.rows(), SelM.cols());
 
-			MSel = SelM.transpose() * M * SelM;
-			SSel = SelM.transpose() * S * SelM;
-		}
-		else {
+			//MSel = SelM.transpose() * M * SelM;
+			//SSel = SelM.transpose() * S * SelM;
 			MSel = M;
 			SSel = S;
+		}
+		else {
+			
 		}
 
 		//std::cout << "Lifting the eigenvectors... ";
@@ -4052,10 +4057,10 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		printf("__Dim of this selector matrix: %dx%d \n", SelM.rows(), SelM.cols());
 		STriplet.clear(); STriplet.shrink_to_fit();
 
-		MSel = SelM.transpose() * M * SelM;
-		SSel = SelM.transpose() * S * SelM;
-		//MSel = M;
-		//SSel = S;
+		///MSel = SelM.transpose() * M * SelM;
+		///SSel = SelM.transpose() * S * SelM;
+		MSel = M;
+		SSel = S;
 	}
 	else {
 		printf("Regular (no boundary, no clamped basis) \n");

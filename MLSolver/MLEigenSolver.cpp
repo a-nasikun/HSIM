@@ -395,6 +395,7 @@ namespace HSIM
 		Eigen::VectorXd						rowSum;
 
 		if (hasBoundary && boundaryType == BoundaryCondition::BOUNDARY_DIRICHLET) {
+			printf("Partition of Unity for Dirichlet Boundary condition \n");
 			for (int i = 0; i < level; i++)
 			{
 				rowSum.resize(U[i].rows());
@@ -409,34 +410,54 @@ namespace HSIM
 					}
 				}
 
-				/* Get the diagonal matrix, reciprocal of the total sum per row */
-				for (int k = 0; k < rowSum.size(); k++) {
-					if (i == 0) {
-						if (funcBoundary[0](k) <= maxNeighDist[0] / 2.0) {
-							diagTrip.push_back(Eigen::Triplet<double>(k, k, funcBoundary[0](k) / rowSum(k)));
+				if (i == 0) {
+					printf("Partition of Unity for Dirichlet Boundary condition level %d. \n", i);
+					for (int k = 0; k < rowSum.size(); k++) {
+						if (abs(rowSum(k)) < (10.0 * std::numeric_limits<double>::epsilon())) {
+							diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
+							cout << "Row: " << k << ", value:" << rowSum(k) << " | in boundary? " << boundaryVertexCheck[k] << endl;
 						}
 						else {
-							diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0/rowSum(k)));
+							if (funcBoundary[0](k) <= maxNeighDist[0] / 2.0) {
+								///diagTrip.push_back(Eigen::Triplet<double>(k, k, funcBoundary[0](k) / rowSum(k)));
+								///diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+								diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
+							}
+							else {
+								diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+							}
 						}
-					}
+					}					
+				}
 
-					if (abs(rowSum(k)) < (10000.0 * std::numeric_limits<double>::epsilon())) {
-						diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
-						//cout << "Row: " << k << ", value:" << rowSum(k) << endl;
-					}
-					else 
-					{
-						double scaleCoef;
-						if (i == 0) {
-							scaleCoef = funcBoundary[0](k);
+				else
+				{
+					printf("Partition of Unity for Dirichlet Boundary condition level %d. \n", i);
+					for (int k = 0; k < rowSum.size(); k++) {
+						if (abs(rowSum(k)) < (10.0 * std::numeric_limits<double>::epsilon())) {
+							diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
+							//cout << "Row: " << k << ", value:" << rowSum(k) << endl;
+							cout << "Row: " << k << " (real point=" << Sample(k) << "), value:" << rowSum(k) << " | in boundary? " << boundaryVertexCheck[Sample(k)]  << endl;
 						}
 						else {
-							scaleCoef = funcBoundary[i](k);
-						}
 
-						diagTrip.push_back(Eigen::Triplet<double>(k, k, scaleCoef / rowSum(k)));
+							double scaleCoef;
+							if (i == 0) {
+								scaleCoef = funcBoundary[0](k);
+							}
+							else {
+								scaleCoef = funcBoundary[i](k);
+							}
+							///diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+							///diagTrip.push_back(Eigen::Triplet<double>(k, k, scaleCoef / rowSum(k)));
+							diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
+						}
 					}
 				}
+
+
+				/* Get the diagonal matrix, reciprocal of the total sum per row */
+				
 				DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
 
 				/* Form partition of unity */
