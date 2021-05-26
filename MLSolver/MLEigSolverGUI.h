@@ -252,6 +252,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 		// Test distance to boundary
 		static Eigen::VectorXd DistToBound;
+		static Eigen::VectorXd DistFunc;
 		if (eigenSolver->boundaryType!=HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_NONE) {
 
 			if (ImGui::Button("Dist to boundary", ImVec2(w, 0))) {
@@ -269,7 +270,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 				// Plot distance
 				Eigen::MatrixXd VCol;
-				igl::jet(DistToBound, false, VCol);
+				igl::jet(DistToBound, true, VCol);
 				viewer.data().set_colors(VCol);
 			}
 
@@ -281,6 +282,45 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				Eigen::MatrixXd VCol;
 				igl::jet(eigenSolver->funcBoundary[0], false, VCol);
 				viewer.data().set_colors(VCol);
+			}
+
+			if (ImGui::Button("Map to Func-2", ImVec2(w, 0))) {
+				if (eigenSolver->maxNeighDist.size() < 1) printf("Error! Please construct the basis first! \n");
+
+				const double a_ =   6.0 / pow(eigenSolver->maxNeighDist[1], 5);
+				const double b_ = -15.0 / pow(eigenSolver->maxNeighDist[1], 4);
+				const double c_ =  10.0 / pow(eigenSolver->maxNeighDist[1], 3);
+
+				///eigenSolver->mapDistanceToFunctionOnBoundary(DistToBound);
+				DistFunc.resize(eigenSolver->V.rows());
+				for (int i = 0; i < eigenSolver->V.rows(); ++i) {
+					if (DistToBound(i) > eigenSolver->maxNeighDist[1]) {
+						DistFunc(i) = 1.0;
+					}
+					else if (DistToBound(i) <= eigenSolver->maxNeighDist[1] && DistToBound(i) >= 0) {
+						DistFunc(i) = a_ * pow(DistToBound(i), 5) + b_ * pow(DistToBound(i), 4) + c_ * pow(DistToBound(i), 3);
+					}
+				}
+
+				//std::cout << "polynomial: \n" << eigenSolver->funcBoundary[0].transpose() << std::endl;
+				Eigen::MatrixXd VCol;
+				///igl::jet(eigenSolver->U[0]*eigenSolver->funcBoundary[1], true, VCol);
+				igl::jet(DistFunc, true, VCol);
+				viewer.data().set_colors(VCol);
+			}
+
+			if (ImGui::Button("Map to Func-1-2-1", ImVec2(w, 0))) {
+				if (eigenSolver->maxNeighDist.size() < 1) printf("Error! Please construct the basis first! \n");
+
+				eigenSolver->mapDistanceToFunctionOnBoundary(DistToBound);
+				//std::cout << "polynomial: \n" << eigenSolver->funcBoundary[0].transpose() << std::endl;
+				Eigen::MatrixXd VCol;
+				igl::jet(eigenSolver->U[0] * (eigenSolver->U[0].transpose()* eigenSolver->funcBoundary[0]), false, VCol);
+				viewer.data().set_colors(VCol);
+			}
+
+			if (ImGui::Button("print func_boundary-2", ImVec2(w, 0))) {
+				std::cout << eigenSolver->funcBoundary[1] << std::endl;
 			}
 		}
 		
