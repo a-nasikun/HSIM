@@ -1221,10 +1221,10 @@ namespace HSIM
 			SelM.setFromTriplets(STriplet.begin(), STriplet.end());
 			printf("__Dim of this selector matrix: %dx%d \n", SelM.rows(), SelM.cols());
 
-			//MSel = SelM.transpose() * M * SelM;
-			//SSel = SelM.transpose() * S * SelM;
-			MSel = M;
-			SSel = S;
+			MSel = SelM.transpose() * M * SelM;
+			SSel = SelM.transpose() * S * SelM;
+			//MSel = M;
+			//SSel = S;
 		}
 		else {
 			
@@ -4057,10 +4057,10 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		printf("__Dim of this selector matrix: %dx%d \n", SelM.rows(), SelM.cols());
 		STriplet.clear(); STriplet.shrink_to_fit();
 
-		///MSel = SelM.transpose() * M * SelM;
-		///SSel = SelM.transpose() * S * SelM;
-		MSel = M;
-		SSel = S;
+		MSel = SelM.transpose() * M * SelM;
+		SSel = SelM.transpose() * S * SelM;
+		///MSel = M;
+		///SSel = S;
 	}
 	else {
 		printf("Regular (no boundary, no clamped basis) \n");
