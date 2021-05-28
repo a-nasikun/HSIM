@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_5k.obj";
-	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/pulley_40k.off";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/pulley_40k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere40k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_43243.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Gargoyle_85K/654_gargoyle_raph_85k.obj";
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Kitten-watertight/366_kitten_final.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_10k_irreg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Chinese dragon_watertight/CDragon_500.obj";
-	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Camel/17_camel.off";
+	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Camel/17_camel.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_100k_irreg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_1000k_irreg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Vase-lion/177_vase-lion.off";
@@ -91,6 +91,8 @@ int main(int argc, char *argv[])
 	};
 	/* END OF GUI FUNCTIONALITY */
 
+
+
 	/* User interaction via keyboard */
 	const auto &key_down = [&](igl::opengl::glfw::Viewer &viewer, unsigned char key, int mod)->bool
 	{
@@ -142,9 +144,28 @@ int main(int argc, char *argv[])
 		return true;
 	};
 
+	Eigen::MatrixXd VV = eigenSolver->V;
+	Eigen::MatrixXi FF = eigenSolver->F;
+	const auto& mouse_down = [&VV, &FF](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+	{
+		int fid;
+		Eigen::Vector3f bc;
+		// Cast a ray in the view direction starting from the mouse position
+		double x = viewer.current_mouse_x;		
+		double y = viewer.core.viewport(3) - viewer.current_mouse_y;
+		if (igl::unproject_onto_mesh(Eigen::Vector2f(x, y), viewer.core.view,
+			viewer.core.proj, viewer.core.viewport, VV, FF, fid, bc))
+		{			
+			printf("Face ID: %d with vertex id [%d, %d, %d] \n", fid, FF(fid, 0), FF(fid, 1), FF(fid, 2));
+			return true;
+		}
+		return false;
+	};
+
 	viewer.callback_init			= [&](igl::opengl::glfw::Viewer &viewer){return false;};
 	viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
 	viewer.callback_key_down		= key_down;
+	viewer.callback_mouse_down = mouse_down; 
 
 	//Eigen::Vector4f				bgCol(0.5f, 0.4f, 0.9f, 0.2f);
 	//Eigen::Vector4f				bgCol(0.95f, 0.95f, 0.95f, 1.0f);

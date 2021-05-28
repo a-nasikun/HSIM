@@ -1103,9 +1103,60 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
 				solver->constructHKS(viewer, tParam, refPoint, nKernels);
 			}
+		} 
+		ImGui::SameLine();
+		if (ImGui::Button("Test HKS for some points", ImVec2(w / 2 - p, 0))) {
+			// computing the reference in GPU
+			if (eigenSolver->EigValsSIM.rows() < 1) {
+				eigenSolver->EigValsSIM = eigenSolver->EigValsRef;
+				eigenSolver->EigVectsSIM = eigenSolver->EigVectsRef;
+			}
+
+			//loadDenseMatrixFromFile("../../Data/HKS/" + model + "/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getV().rows()) + "_300_" + ".txt", eigenSolver->EigVectsSIM);
+			//ReadVectorFromFile("../../Data/HKS/"+ model + "/" + model + "_EigVals_Ref_HSIM" + to_string(eigenSolver->getV().rows()) + "_300_" + ".txt", eigenSolver->EigValsSIM);
+			std::vector<int> HKSpoints = { 9680, 9643, 8854, 2308, 2016, 2194, 2368, 2384, 2783, 672, 3222, 315 };
+			std::vector<int> numEigs = { 10, 50, 100, 250, 500, 1000, 5000, 9770 };
+			const int numTime = 100;
+			std::cout << "Set timings, points, and number of eigenpairs \n";
+			std::vector<double> tHKS(numTime);
+			double tMax = 4.0 * log(10.0) / eigenSolver->EigValsSIM(1);
+			double tMin = 4.0 * log(10.0) / eigenSolver->EigValsSIM(299);
+			double ratio = pow(tMax / tMin, 1.0 / (numTime / 2));
+			printf("Ratio = %.10f \n", ratio);
+			std::cout << "Tmax: " << tMax << std::endl;
+			std::cout << "Tmin: " << tMin << std::endl;
+
+			std::cout << "Set timings \n";
+			tHKS[0] = tMax;
+			for (int t = 1; t < numTime; ++t) {
+				tHKS[t] = tHKS[t - 1] / ratio;
+			}
+
+			for (int t = 0; t < numTime; ++t) {
+				printf("Time %d is %.6f \n", t, tHKS[t]);
+			}
+
+			for (int p : HKSpoints) {
+				// store per point as a matrix
+				string hksFile = "../../Data/HKS/" + model + "/" + model + "_HKS_" + to_string(p) + ".txt";
+				Eigen::MatrixXd HKSmatrix(tHKS.size(), numEigs.size());
+				for (int iE = 0; iE < numEigs.size(); ++iE) {
+					for (int iT = 0; iT < numTime; ++iT) {
+						printf("Performing KHS for point %d for %d num of eigenvector on time %.8f \n", p, numEigs[iE], tHKS[iT]);
+						if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+							HKSmatrix(iT, iE) = solver->constructHKS(viewer, tHKS[iT], p, numEigs[iE], false);
+						}
+					}
+				}
+				writeDenseMatrixToFile(HKSmatrix, hksFile, true);
+
+			}
 		}
 
+		double hksPercent = 0.0;
+		static char nPercentageTxt[5] = "10";		
 		if (ImGui::Button("HKS-All", ImVec2(w / 2.0 - p, 0))) {
+			hksPercent = atof(nPercentageTxt);
 			tParam = atof(tParamTxt);
 			refPoint = atoi(refPointTxt);
 			nKernels = atoi(nKernelsTxt);
@@ -1130,83 +1181,15 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				std::cout << "The time parameter is " << tParam << std::endl;
 			}
 			if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
-				solver->constructHKSAll(viewer, tParam, refPoint, nKernels);
+				printf("Plus-Minus = %.2f percents \n", hksPercent);
+				solver->constructHKSAll(viewer, tParam, refPoint, nKernels, hksPercent);
 			}
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("HKS points", ImVec2(w/2.0-p, 0))) {
-			/* For Camel data */
-			///// Toes : front -> back | right -> left | central -> outer
-			///viewer.data().add_points(eigenSolver->getV().row(9680), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			///viewer.data().add_points(eigenSolver->getV().row(9643), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			///viewer.data().add_points(eigenSolver->getV().row(8854), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			///viewer.data().add_points(eigenSolver->getV().row(2308), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			///viewer.data().add_points(eigenSolver->getV().row(2016), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			///viewer.data().add_points(eigenSolver->getV().row(2194), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			///viewer.data().add_points(eigenSolver->getV().row(2368), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			///viewer.data().add_points(eigenSolver->getV().row(2384), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			///// ear : right -> left 
-			///viewer.data().add_points(eigenSolver->getV().row(2783), Eigen::RowVector3d(0.0, 0.1, 1.0));
-			///viewer.data().add_points(eigenSolver->getV().row(672), Eigen::RowVector3d(0.0, 0.1, 1.0));
-			///// punuk
-			///viewer.data().add_points(eigenSolver->getV().row(3222), Eigen::RowVector3d(0.1, 0.1, 0.1));
-			///viewer.data().add_points(eigenSolver->getV().row(315), Eigen::RowVector3d(0.1, 0.1, 0.1));
-
-			/* For Chinese Dragon data */
-			viewer.data().add_points(eigenSolver->getV().row(2302), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(30750), Eigen::RowVector3d(0.0, 1.0, 0.1));
-
-		}
+		ImGui::InputText("Percentage", nPercentageTxt, 10);
 
 
-		ImGui::SameLine();
-		if (ImGui::Button("Test HKS for some points", ImVec2(w/2-p, 0))) {
-			// computing the reference in GPU
-			if (eigenSolver->EigValsSIM.rows() < 1) {
-				eigenSolver->EigValsSIM = eigenSolver->EigValsRef;
-				eigenSolver->EigVectsSIM = eigenSolver->EigVectsRef;
-			}
-
-			//loadDenseMatrixFromFile("../../Data/HKS/" + model + "/" + model + "_EigVects_HSIM_" + to_string(eigenSolver->getV().rows()) + "_300_" + ".txt", eigenSolver->EigVectsSIM);
-			//ReadVectorFromFile("../../Data/HKS/"+ model + "/" + model + "_EigVals_Ref_HSIM" + to_string(eigenSolver->getV().rows()) + "_300_" + ".txt", eigenSolver->EigValsSIM);
-			std::vector<int> HKSpoints = {9680, 9643, 8854, 2308, 2016, 2194, 2368, 2384, 2783, 672, 3222, 315};
-			std::vector<int> numEigs = { 10, 50, 100, 250, 500, 1000, 5000, 9770 };
-			const int numTime = 100;
-			std::cout << "Set timings, points, and number of eigenpairs \n";
-			std::vector<double> tHKS(numTime);
-			double tMax = 4.0 * log(10.0) / eigenSolver->EigValsSIM(1);
-			double tMin = 4.0 * log(10.0) / eigenSolver->EigValsSIM(299);
-			double ratio = pow(tMax/tMin, 1.0/ (numTime/2));
-			printf("Ratio = %.10f \n", ratio);
-			std::cout << "Tmax: " << tMax << std::endl;
-			std::cout << "Tmin: " << tMin << std::endl;
-
-			std::cout << "Set timings \n";
-			tHKS[0] = tMax;
-			for (int t = 1; t < numTime; ++t) {
-				tHKS[t] = tHKS[t-1]/ratio;				
-			}
-
-			for (int t = 0; t < numTime; ++t) {
-				printf("Time %d is %.6f \n", t, tHKS[t]);
-			}
-
-			for (int p : HKSpoints) {
-				// store per point as a matrix
-				string hksFile = "../../Data/HKS/" + model + "/" + model + "_HKS_" + to_string(p) + ".txt";
-				Eigen::MatrixXd HKSmatrix(tHKS.size(), numEigs.size());
-				for (int iE = 0; iE < numEigs.size(); ++iE) {
-					for (int iT = 0; iT < numTime; ++iT) {
-						printf("Performing KHS for point %d for %d num of eigenvector on time %.8f \n", p, numEigs[iE], tHKS[iT]);
-						if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
-							HKSmatrix(iT, iE) = solver->constructHKS(viewer, tHKS[iT], p, numEigs[iE], false);
-						}
-					}
-				}
-				writeDenseMatrixToFile(HKSmatrix, hksFile, true);
-
-			}
-		}
+		
 
 		if (ImGui::Button("Read HKS file", ImVec2(w, 0))) {
 			string hksFile = "E:/Local Programming/Multi Grid Solver/Data/HKS_test.txt";

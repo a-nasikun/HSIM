@@ -4625,7 +4625,7 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 	}
 
 
-	double MLSolverFunctions::constructHKSAll(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor)
+	double MLSolverFunctions::constructHKSAll(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, double neigh, bool showColor)
 	{
 		Eigen::VectorXd hks(V.rows());
 		hks.setZero();
@@ -4637,27 +4637,28 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 		}
 
 		double range = hks.maxCoeff() - hks.minCoeff();
-		double cutoff = 0.05 * range;
+		double cutoff = neigh/100.0 * range;
 		double lBound = hks(ref) - cutoff;
 		double uBound = hks(ref) + cutoff;
 
 		Eigen::MatrixXd VCol(V.rows(),3);
 
-		printf("#kernels=%d | min val: %.10f | max: %.10f | lbound=%.10f | ubound=%.10f | cutoff=%.10f \n", nKernels, hks.minCoeff(), hks.maxCoeff(), lBound, uBound, cutoff);
+		printf("#kernels=%d | min val: %.10f | max: %.10f | refPoint: %d | cut-off: +- %.1f percent  \n", nKernels, hks.minCoeff(), hks.maxCoeff(), ref, neigh);
 #pragma omp parallel for
 		for (int i = 0; i < V.rows(); ++i) {
 			if (hks(i) > lBound && hks(i) < uBound) {
-				VCol.row(i) = Eigen::RowVector3d(1.0, 0.2, 0.2);
+				VCol.row(i) = Eigen::RowVector3d(255.0, 103.0, 0.0)/255.0;
 			}
 			else
 			{
-				VCol.row(i) = Eigen::RowVector3d(0.2, 1.0, 0.2);
+				VCol.row(i) = Eigen::RowVector3d(0.0, 168.0, 197.0)/255.0;
+								
 			}
 		}
 		
 		viewer.data().set_colors(VCol);
 		//viewer.data().points.resize(0, 6);
-		//viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
+		viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
 
 	}
 	//double MLSolverFunctions::constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor)
