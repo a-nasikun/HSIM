@@ -1104,30 +1104,63 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				solver->constructHKS(viewer, tParam, refPoint, nKernels);
 			}
 		}
+
+		if (ImGui::Button("HKS-All", ImVec2(w / 2.0 - p, 0))) {
+			tParam = atof(tParamTxt);
+			refPoint = atoi(refPointTxt);
+			nKernels = atoi(nKernelsTxt);
+			std::cout << "HKS Test! \n";
+			if (!manualTime) {
+				double t_min = 4 * log(10) / eigenSolver->getEigenValueSIM(299);
+				double t_max = 4 * log(10) / eigenSolver->getEigenValueSIM(1);
+				if (hksTimeType == 0) {
+					if (eigenSolver->getEigenValuesSIM().rows() >= 300) {
+						tParam = t_min;
+					}
+				}
+				else if (hksTimeType == 2) {
+					tParam = t_max;
+				}
+				else {
+					double range = t_max / t_min;
+					double steps = 99.0;
+					double ratio = pow(range, 1.0 / steps);
+					tParam = t_max / (pow(ratio, (1.0 - tParam) / 0.01));
+				}
+				std::cout << "The time parameter is " << tParam << std::endl;
+			}
+			if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+				solver->constructHKSAll(viewer, tParam, refPoint, nKernels);
+			}
+		}
 		ImGui::SameLine();
 		if (ImGui::Button("HKS points", ImVec2(w/2.0-p, 0))) {
-			// Toes : front -> back | right -> left | central -> outer
-			viewer.data().add_points(eigenSolver->getV().row(9680), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(9643), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(8854), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(2308), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(2016), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(2194), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(2368), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(2384), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			//viewer.data().add_points(eigenSolver->getV().row(8534), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			//viewer.data().add_points(eigenSolver->getV().row(9329), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			//viewer.data().add_points(eigenSolver->getV().row(8658), Eigen::RowVector3d(1.0, 0.0, 0.1));
-			//viewer.data().add_points(eigenSolver->getV().row(8599), Eigen::RowVector3d(1.0, 1.0, 0.1));
-			// ear : right -> left 
-			viewer.data().add_points(eigenSolver->getV().row(2783), Eigen::RowVector3d(0.0, 0.1, 1.0));
-			viewer.data().add_points(eigenSolver->getV().row(672), Eigen::RowVector3d(0.0, 0.1, 1.0));
-			// punuk
-			viewer.data().add_points(eigenSolver->getV().row(3222), Eigen::RowVector3d(0.1, 0.1, 0.1));
-			viewer.data().add_points(eigenSolver->getV().row(315), Eigen::RowVector3d(0.1, 0.1, 0.1));
+			/* For Camel data */
+			///// Toes : front -> back | right -> left | central -> outer
+			///viewer.data().add_points(eigenSolver->getV().row(9680), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			///viewer.data().add_points(eigenSolver->getV().row(9643), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			///viewer.data().add_points(eigenSolver->getV().row(8854), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			///viewer.data().add_points(eigenSolver->getV().row(2308), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			///viewer.data().add_points(eigenSolver->getV().row(2016), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			///viewer.data().add_points(eigenSolver->getV().row(2194), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			///viewer.data().add_points(eigenSolver->getV().row(2368), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			///viewer.data().add_points(eigenSolver->getV().row(2384), Eigen::RowVector3d(1.0, 1.0, 0.1));
+			///// ear : right -> left 
+			///viewer.data().add_points(eigenSolver->getV().row(2783), Eigen::RowVector3d(0.0, 0.1, 1.0));
+			///viewer.data().add_points(eigenSolver->getV().row(672), Eigen::RowVector3d(0.0, 0.1, 1.0));
+			///// punuk
+			///viewer.data().add_points(eigenSolver->getV().row(3222), Eigen::RowVector3d(0.1, 0.1, 0.1));
+			///viewer.data().add_points(eigenSolver->getV().row(315), Eigen::RowVector3d(0.1, 0.1, 0.1));
+
+			/* For Chinese Dragon data */
+			viewer.data().add_points(eigenSolver->getV().row(2302), Eigen::RowVector3d(1.0, 0.0, 0.1));
+			viewer.data().add_points(eigenSolver->getV().row(30750), Eigen::RowVector3d(0.0, 1.0, 0.1));
+
 		}
 
-		if (ImGui::Button("Test HKS for all points", ImVec2(w, 0))) {
+
+		ImGui::SameLine();
+		if (ImGui::Button("Test HKS for some points", ImVec2(w/2-p, 0))) {
 			// computing the reference in GPU
 			if (eigenSolver->EigValsSIM.rows() < 1) {
 				eigenSolver->EigValsSIM = eigenSolver->EigValsRef;

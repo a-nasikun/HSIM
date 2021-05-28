@@ -4624,6 +4624,42 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 		//viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
 	}
 
+
+	double MLSolverFunctions::constructHKSAll(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor)
+	{
+		Eigen::VectorXd hks(V.rows());
+		hks.setZero();
+
+		for (int iy = 0; iy < V.rows(); ++iy) {
+			for (int ii = 0; ii < nKernels; ++ii) {
+				hks(iy) += exp(-EigValsSIM(ii) * t) * EigVectsSIM(iy, ii) * EigVectsSIM(iy, ii);
+			}
+		}
+
+		double range = hks.maxCoeff() - hks.minCoeff();
+		double cutoff = 0.05 * range;
+		double lBound = hks(ref) - cutoff;
+		double uBound = hks(ref) + cutoff;
+
+		Eigen::MatrixXd VCol(V.rows(),3);
+
+		printf("#kernels=%d | min val: %.10f | max: %.10f | lbound=%.10f | ubound=%.10f | cutoff=%.10f \n", nKernels, hks.minCoeff(), hks.maxCoeff(), lBound, uBound, cutoff);
+#pragma omp parallel for
+		for (int i = 0; i < V.rows(); ++i) {
+			if (hks(i) > lBound && hks(i) < uBound) {
+				VCol.row(i) = Eigen::RowVector3d(1.0, 0.2, 0.2);
+			}
+			else
+			{
+				VCol.row(i) = Eigen::RowVector3d(0.2, 1.0, 0.2);
+			}
+		}
+		
+		viewer.data().set_colors(VCol);
+		//viewer.data().points.resize(0, 6);
+		//viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
+
+	}
 	//double MLSolverFunctions::constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor)
 	//{
 	//	// computing the reference in GPU
