@@ -454,7 +454,6 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 
 			/* For Hierarchy and Sampling */
-
 			ImGui::RadioButton("Fixed", &hierarchyMode, 0); ImGui::SameLine();
 			ImGui::RadioButton("Auto", &hierarchyMode, 1); 
 			ImGui::RadioButton("Same", &hierarchyMode, 2); ImGui::SameLine();
@@ -2023,21 +2022,22 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>	levelZhaoParam{ 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
 			//std::vector<double>		levelZhaoParam{ 0.1 };			
 			std::vector<double>		levelZhaoParam{ 1.0/3.0 };
+			std::vector<double>		levelZhaoParam2{ 1.0/3.0, 1.0/3.0, 1.0/3.0, 0.2, 0.1 };
 			//vector<int>				wantedModes{25, 100, 200, 300, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
-			vector<int>				wantedModes{ 100 };
-			vector<double>			wantedTols{ 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
+			vector<int>				wantedModes{ 50, 100, 250, 500, 1000 };
+			//vector<double>			wantedTols{ 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
-			//vector<double>			wantedTols{1e-2 };
+			vector<double>			wantedTols{1e-2 };
 			int						maxIters = 20;
 			std::vector<double>		qParam{ 1.5 };
 			//vector<int>				HSIMlevels = { 2,3,4,5};
-			vector<int>				HSIMlevels = {2 };
+			vector<int>				HSIMlevels = {2};
 			for (int j = 0; j < wantedModes.size(); ++j) {
 				std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
 				//if (wantedModes[j] >= 225) levelZhaoParam[0] = 0.25;
 				//if (wantedModes[j] >= 2000) levelZhaoParam[0] = 0.2;
-				if (wantedModes[j] >= 200) HSIMlevels[0] = 3;
+				if (wantedModes[j] >= 100) HSIMlevels[0] = 3;
 
 				for (int i = 0; i < levelRatio.size(); ++i) {
 					std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
@@ -2049,8 +2049,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 							eigenSolver->setQParam(qParam[n]);
 
 							for (int m = 0; m < levelZhaoParam.size(); ++m) {
-								eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
-								std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
+								// individual shift param
+								eigenSolver->setZhaoShiftParam(levelZhaoParam2[j]);
+								std::cout << ">>> SHIFTING on " << levelZhaoParam2[j] << " percentage." << std::endl;
+								///eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
+								///std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
 
 								std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
 								for (int k = 0; k < wantedTols.size(); ++k) {
@@ -2059,8 +2062,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 										//eigenSolver->convergedCriteria = 2;
 										//eigenSolver->isSIMinGPU = false;
 										eigenSolver->setLevel(HSIMlevels[o]-1);
-										eigenSolver->hierarchyMode = 3;
-										eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+										eigenSolver->hierarchyMode = 3;										
+										eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);										
 										//eigenSolver->convergedCriteria = 3;
 										//eigenSolver->isSIMinGPU = true;
 										//eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
@@ -2072,6 +2075,95 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 				}					// level ratio
 			}						// wanted modes
 			
+		}
+
+		if (ImGui::Button("Scripted (7) multi-files", ImVec2(w, 0))) {
+
+			chrono::high_resolution_clock::time_point	t0, t1;
+			chrono::duration<double>					duration;
+
+			eigenSolver->setNotIterateOverConvergedFlag(isNotIterateOverConverged);
+			eigenSolver->setParallelSolverFlag(isUsingParallelSolver);
+			eigenSolver->setQParam(qParam);
+			eigenSolver->isMultipleSolve = isMultipleSolve;
+			eigenSolver->hierarchyMode = hierarchyMode;
+
+			std::vector<string>		meshFileNames{
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Fertility/Fertility.obj",												// 240k
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Rocker-arm/38_rocker-arm_270k.off",									// 270k
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/444_Pulley_600000triangles_edited.off",					// 300k
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Bimba_1M faces_clean_watertight/bimba.obj",							// 500k 
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Ramesses_clean_watertight/814_Ramesses_1.5Mtriangles_clean.off",		// 750k
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Keenan_Nevertiti/Nefertiti.obj"											//1000k
+			};
+			Eigen::VectorXi			sampSize;
+			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
+			std::vector<double>		levelRatio{ 16.0 };
+			//std::vector<double>		levelRatio{ 4,8,16,24 };
+			//std::vector<double>		 levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
+			std::vector<double>		levelSupport{ 7 };
+			//std::vector<double>	levelZhaoParam{ 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
+			//std::vector<double>		levelZhaoParam{ 0.1 };			 
+			std::vector<double>		levelZhaoParam{ 1.0 / 3.0 };
+			std::vector<double>		levelZhaoParam2{ 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 0.2, 0.1 };
+			//vector<int>				wantedModes{25, 100, 200, 300, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000};
+			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
+			vector<int>				wantedModes{ 50, 100, 250, 500, 1000 };
+			//vector<double>			wantedTols{ 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
+			//vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
+			vector<double>			wantedTols{ 1e-2 };
+			int						maxIters = 20;
+			std::vector<double>		qParam{ 1.5 };
+			//vector<int>				HSIMlevels = { 2,3,4,5};
+			vector<int>				HSIMlevels = { 2 };
+			for (int fn = 0; fn < meshFileNames.size(); ++fn) {
+				std::cout << "Solving eigenproblem for " << meshFileNames[fn] << " object\n";
+				eigenSolver->readMesh(meshFileNames[fn]);
+				OpenMesh::IO::read_mesh(eigenSolver->openMesh, meshFileNames[fn]);
+				viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
+				for (int j = 0; j < wantedModes.size(); ++j) {
+					std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
+					//if (wantedModes[j] >= 225) levelZhaoParam[0] = 0.25;
+					//if (wantedModes[j] >= 2000) levelZhaoParam[0] = 0.2;
+					if (wantedModes[j] >= 100) HSIMlevels[0] = 3;
+
+					for (int i = 0; i < levelRatio.size(); ++i) {
+						std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
+
+						for (int l = 0; l < levelSupport.size(); ++l) {
+							std::cout << ">>> SUPPORT of " << levelSupport[l] << std::endl;
+
+							for (int n = 0; n < qParam.size(); ++n) {
+								eigenSolver->setQParam(qParam[n]);
+
+								for (int m = 0; m < levelZhaoParam.size(); ++m) {
+									// individual shift param
+									eigenSolver->setZhaoShiftParam(levelZhaoParam2[j]);
+									std::cout << ">>> SHIFTING on " << levelZhaoParam2[j] << " percentage." << std::endl;
+									///eigenSolver->setZhaoShiftParam(levelZhaoParam[m]);
+									///std::cout << ">>> SHIFTING on " << levelZhaoParam[m] << " percentage." << std::endl;
+
+									std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
+									for (int k = 0; k < wantedTols.size(); ++k) {
+										std::cout << ">>> TOLERANCE of " << wantedTols[k] << std::endl;
+										for (int o = 0; o < HSIMlevels.size(); ++o) {
+											//eigenSolver->convergedCriteria = 2;
+											//eigenSolver->isSIMinGPU = false;
+											eigenSolver->setLevel(HSIMlevels[o] - 1);
+											eigenSolver->hierarchyMode = 3;
+											eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+											//eigenSolver->convergedCriteria = 3;
+											//eigenSolver->isSIMinGPU = true;
+											//eigenSolver->solve(wantedModes[j], wantedTols[k], maxIters, levelRatio[i], levelSupport[l], true);
+										}// number of levels
+									}	// tolerance
+								}		// zhao's shift param
+							}			// qParam
+						}				// support radius
+					}					// level ratio
+				}						// wanted modes
+			}							// filenames
+
 		}
 	}
 
