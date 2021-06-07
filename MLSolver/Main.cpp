@@ -22,7 +22,8 @@ int main(int argc, char *argv[])
 
 	//meshFile = "../Models/AIM894_Chinese Dragon/894_Chinese Dragon.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Cube/Cube_sharp_50k_2.obj";
-	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_5k.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_5k.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_subdiv_160k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/pulley_40k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere40k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_43243.obj";		
@@ -31,13 +32,16 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_subdiv_100k-3_chest.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_subdiv_100k-4-limbs.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Gargoyle_85K/654_gargoyle_raph_85k.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Gargoyle_85K/654_gargoyle_subdiv_200k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/TurboSquid_Sphere_HighGenus/TurboSquid_Sphere_highgenus.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Chinese_dragon_quad_PGP_small_wavelength/894_dragon_tris.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
-	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Kitten-watertight/366_kitten_final.obj";
+	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Kitten-watertight/366_kitten_final.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_10k_irreg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Chinese dragon_watertight/CDragon_500.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Camel/17_camel.off";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Camel/Camel_subdiv_33k.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Camel/Camel_subdiv_160k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_100k_irreg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_1000k_irreg.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Vase-lion/177_vase-lion.off";
@@ -169,7 +173,7 @@ int main(int argc, char *argv[])
 	viewer.callback_init			= [&](igl::opengl::glfw::Viewer &viewer){return false;};
 	viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
 	viewer.callback_key_down		= key_down;
-	viewer.callback_mouse_down = mouse_down; 
+	//viewer.callback_mouse_down = mouse_down; 
 
 	//Eigen::Vector4f				bgCol(0.5f, 0.4f, 0.9f, 0.2f);
 	//Eigen::Vector4f				bgCol(0.95f, 0.95f, 0.95f, 1.0f);

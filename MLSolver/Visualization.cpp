@@ -45,8 +45,9 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 	//	/* Predefined color*/
 		MCol.resize(9, 3);
 		MCol.row(0)  = Eigen::RowVector3d(228.0,  26.0,  28.0) / 255.0;		
-	 	//MCol.row(1)  = Eigen::RowVector3d( 55.0, 126.0, 184.0) / 255.0;			 	
-		MCol.row(1)  = Eigen::RowVector3d( 55.0,  95.0, 184.0) / 255.0;
+	 	//MCol.row(1)  = Eigen::RowVector3d( 55.0, 126.0, 184.0) / 255.0;			// default 	
+		//MCol.row(1)  = Eigen::RowVector3d( 55.0,  95.0, 184.0) / 255.0;			// most parts on sampling
+		MCol.row(1)  = Eigen::RowVector3d(108.0, 212.0, 255.0) / 255.0;			// visualization of geodesic disk
 		MCol.row(2)  = Eigen::RowVector3d( 77.0, 175.0,  74.0) / 255.0;				
 	 	MCol.row(3)  = Eigen::RowVector3d(152.0,  78.0, 163.0) / 255.0;				
 	 	MCol.row(4)  = Eigen::RowVector3d(255.0, 127.0,   0.0) / 255.0;
@@ -99,6 +100,7 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 
 	Eigen::RowVector3d sphereCol2(29.0/255.0, 51.0/255.0, 84.0/255.0);
 	for (int k = (totLevel-1); k > 0; k--) {
+	///for (int k = (totLevel - 1); k > 1; k--) {
 		std::cout << "Level" << k << std::endl;		
 		for (int i = sampleSize[k]; i < sampleSize[k-1]; i++)
 		{

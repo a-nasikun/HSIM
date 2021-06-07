@@ -293,6 +293,7 @@ namespace HSIM
 		int numLevelDif = numLevels-1;
 
 		int lowBound;
+		//if (isFixedLowBound) { lowBound = min(20*numEigen, 1000); }
 		if (isFixedLowBound) { lowBound = 1000; }
 		else { lowBound = 2 * numEigen; }
 

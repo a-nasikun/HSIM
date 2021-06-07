@@ -2089,12 +2089,17 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->hierarchyMode = hierarchyMode;
 
 			std::vector<string>		meshFileNames{
-				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Fertility/Fertility.obj",												// 240k
-				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Rocker-arm/38_rocker-arm_270k.off",									// 270k
-				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/444_Pulley_600000triangles_edited.off",					// 300k
-				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Bimba_1M faces_clean_watertight/bimba.obj",							// 500k 
-				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Ramesses_clean_watertight/814_Ramesses_1.5Mtriangles_clean.off",		// 750k
-				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Keenan_Nevertiti/Nefertiti.obj"											//1000k
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Chinese_dragon_quad_PGP_small_wavelength/894_dragon_tris.obj",		//135k
+				//"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Fertility/Fertility.obj",											// 240k
+				//"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Rocker-arm/38_rocker-arm_270k.off",									// 270k
+				//"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/444_Pulley_600000triangles_edited.off",					// 300k
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM-Eros_full_resolution/428_Eros_800000triangles_edited.off",			// 400k
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Large_Ones/771_oil_pump_1Mfaces_holes_filled2.off",						// 500k
+				//"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Bimba_1M faces_clean_watertight/bimba.obj",							// 500k		
+				"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Large_Ones/m3_680k_vert.off"												// 680
+				//"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Ramesses_clean_watertight/814_Ramesses_1.5Mtriangles_clean.off",		// 750k
+				//"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Keenan_Nevertiti/Nefertiti.obj",											//1000k
+				//"D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Neptune_clean__watertight_4M triangles/803_neptune_4Mtriangles_manifold.off"	//2m
 			};
 			Eigen::VectorXi			sampSize;
 			//std::vector<double> levelRatio{4,5,7,8,10,15,20};
@@ -2103,12 +2108,14 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			//std::vector<double>		 levelSupport{ 2.5, 5.0, 7.0, 10.0, 15.0, 20.0 };
 			std::vector<double>		levelSupport{ 7 };
 			//std::vector<double>	levelZhaoParam{ 0.1, 0.2, 0.25, 1.0/3.0, 0.4, 0.5};
-			//std::vector<double>		levelZhaoParam{ 0.1 };			 
-			std::vector<double>		levelZhaoParam{ 1.0 / 3.0 };
-			std::vector<double>		levelZhaoParam2{ 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 0.2, 0.1 };
+			std::vector<double>		levelZhaoParam{ 0.1 };			 
+			//std::vector<double>		levelZhaoParam{ 1.0 / 3.0 };
+			//std::vector<double>		levelZhaoParam2{ 1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0, 0.2, 0.1 };
+			std::vector<double>		levelZhaoParam2{0.1 };
 			//vector<int>				wantedModes{25, 100, 200, 300, 500, 750, 1000, 1250, 1500, 2000, 2500, 3000};
 			//vector<int>				wantedModes{25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000 };
-			vector<int>				wantedModes{ 50, 100, 250, 500, 1000 };
+			//vector<int>				wantedModes{ 50, 100, 250, 500 };
+			vector<int>				wantedModes{ 1000 };
 			//vector<double>			wantedTols{ 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10 };
 			//vector<double>			wantedTols{ 1e-2, 1e-4, 1e-5, 1e-8};
 			vector<double>			wantedTols{ 1e-2 };
@@ -2125,7 +2132,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					std::cout << ">>> WANTED of MODES: " << wantedModes[j] << std::endl;
 					//if (wantedModes[j] >= 225) levelZhaoParam[0] = 0.25;
 					//if (wantedModes[j] >= 2000) levelZhaoParam[0] = 0.2;
-					if (wantedModes[j] >= 100) HSIMlevels[0] = 3;
+					if (wantedModes[j] >= 200)	HSIMlevels[0] = 3;
+					else						HSIMlevels[0] = 2;
 
 					for (int i = 0; i < levelRatio.size(); ++i) {
 						std::cout << ">>> LEVEL Ratio of " << levelRatio[i] << std::endl;
