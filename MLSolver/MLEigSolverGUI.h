@@ -19,6 +19,7 @@
 #include <igl/edges.h>
 
 #include <Eigen/PardisoSupport>
+#include <Eigen/IterativeLinearSolvers>
 
 #include "MLEigenSolver.h"
 #include "MLSolverFunctions.h"
@@ -400,6 +401,92 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			printf("Dijkstra from %d to %d is %.10f \n", initPoint, targetPoint, D(targetPoint));
 		}
 
+		if (ImGui::Button("Direct solver##of linear system", ImVec2(w/2.0-p, 0))) {
+			// PREPARING THE MATRIX
+
+			cout << "> Accessing matrix... " << endl;
+			cout << "........ reduced eigenvalue. ";
+			double mu = eigenSolver->getEigenValueReduced(16);
+			cout << "........ system matrices. ";
+			Eigen::SparseMatrix<double> A = eigenSolver->S - mu*eigenSolver->M;
+			printf(" of %dx%d \n", A.rows(), A.cols());
+			cout << "........ eigenvector. ";
+			Eigen::VectorXd b = eigenSolver->EigVectsReduced.col(1);
+			printf(" of %dx%d \n", b.rows(), b.cols());
+
+			
+			chrono::high_resolution_clock::time_point	t0, t1, t2;
+			chrono::duration<double>					duration;			
+
+			// SOLVING THE LINEAR SYSTEM
+			
+			//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> directSolver;
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> directSolver;
+			std::cout << "Factorizing system matrix ";
+			t0 = chrono::high_resolution_clock::now();
+			directSolver.compute(A);
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "in " << duration.count() << " seconds." << endl;
+
+
+			std::cout << "Solving the linear system ";
+			t1 = chrono::high_resolution_clock::now();
+			Eigen::VectorXd x = directSolver.solve(b);
+			t2 = chrono::high_resolution_clock::now();
+			duration = t2 - t1;
+			std::cout << "in " << duration.count() << " seconds." << endl;
+
+			// VISUALIZATION
+			Eigen::MatrixXd VCol;
+			igl::jet(x.real(), true, VCol);
+			viewer.data().set_colors(VCol);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("CG Solver##of linear system", ImVec2(w / 2.0 - p, 0))) {
+			// PREPARING THE MATRIX
+
+			cout << "> Accessing matrix... " << endl;
+			cout << "........ reduced eigenvalue. ";
+			double mu = eigenSolver->getEigenValueReduced(16);
+			cout << "........ system matrices. ";
+			Eigen::SparseMatrix<double> A = eigenSolver->S - mu * eigenSolver->M;
+			printf(" of %dx%d \n", A.rows(), A.cols());
+			cout << "........ eigenvector. ";
+			Eigen::VectorXd b = eigenSolver->EigVectsReduced.col(1);
+			printf(" of %dx%d \n", b.rows(), b.cols());
+
+
+			chrono::high_resolution_clock::time_point	t0, t1, t2;
+			chrono::duration<double>					duration;
+
+			// SOLVING THE LINEAR SYSTEM
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> directSolver;
+			Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower|Eigen::UpLoType::Upper, Eigen::IncompleteCholesky<double>> iterativeSolver;
+			std::cout << "Factorizing system matrix ";
+			t0 = chrono::high_resolution_clock::now();
+			iterativeSolver.compute(A);
+			t1 = chrono::high_resolution_clock::now();
+			duration = t1 - t0;
+			cout << "in " << duration.count() << " seconds." << endl;
+
+
+			std::cout << "Solving the linear system ";
+			t1 = chrono::high_resolution_clock::now();
+			iterativeSolver.setTolerance(1e-3);
+			//Eigen::VectorXd x = iterativeSolver.solve(b);
+			Eigen::VectorXd x = iterativeSolver.solveWithGuess(b, b);
+			t2 = chrono::high_resolution_clock::now();
+			duration = t2 - t1;
+			std::cout << "in " << duration.count() << " seconds." << endl;
+			std::cout << "....iters: " << iterativeSolver.iterations() << std::endl;
+			std::cout << "....error: " << iterativeSolver.error() << std::endl;
+
+			// VISUALIZATION
+			Eigen::MatrixXd VCol;
+			igl::jet(x.real(), true, VCol);
+			viewer.data().set_colors(VCol);
+		}
 
 		///ImGui::SameLine(0, p);
 		///if (ImGui::Button("Save##Mesh1", ImVec2((w - p) / 2.f, 0))) {
