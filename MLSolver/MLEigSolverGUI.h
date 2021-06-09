@@ -744,11 +744,39 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 		
 		ImGui::ColorEdit4("ModelColor##2f", (float*)&modelColor, ImGuiColorEditFlags_Float | misc_flags);
 		modelColorEig << modelColor.x, modelColor.y, modelColor.z; 
+
+		static int modelColorType = 0;
+
+		ImGui::RadioButton("green##ModelColor", &modelColorType, 0);			ImGui::SameLine();
+		ImGui::RadioButton("blue##ModelColor", &modelColorType, 1);			ImGui::SameLine();
+		ImGui::RadioButton("pink##ModelColor", &modelColorType, 2);			ImGui::SameLine();
+		ImGui::RadioButton("yellow##ModelColor", &modelColorType, 3);		ImGui::SameLine();
+		ImGui::RadioButton("other##ModelColor", &modelColorType, 4);
+
 		if (ImGui::Button("Change model color##1", ImVec2((w), 0))) {
-			viewer.data().set_colors(modelColorEig);
+			switch (modelColorType)
+			{
+			case 0:
+				viewer.data().set_colors(Eigen::RowVector3d(0.445, 0.917, 0.156));
+				break;
+			case 1:
+				viewer.data().set_colors(Eigen::RowVector3d(0.090, 0.530, 0.971));
+				break;
+			case 2:
+				viewer.data().set_colors(Eigen::RowVector3d(0.902, 0.367, 0.839));
+				break;
+			case 3:
+				viewer.data().set_colors(Eigen::RowVector3d(0.907, 0.819, 0.160));
+				break;
+			case 4:
+				viewer.data().set_colors(modelColorEig);
+				break;
+			default:
+				break;
+			}
 		}
 
-
+		
 
 		if (ImGui::CollapsingHeader("Visualization##MLEigSolver1", ImGuiTreeNodeFlags_DefaultOpen)) {
 			/* For Sampling */
