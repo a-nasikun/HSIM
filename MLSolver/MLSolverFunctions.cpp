@@ -3100,6 +3100,247 @@ int MLSolverFunctions::SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eig
 	return 0;
 }
 
+void MLSolverFunctions::SIMinCPUwPCG(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k)
+{
+	chrono::high_resolution_clock::time_point	t0, t1, t2;
+	chrono::duration<double>					duration;
+	t0 = chrono::high_resolution_clock::now();
+
+	/* [0] Setup required variable */
+	int		q = EigVals.rows();
+	int		iterCount = 0;
+	int		factCounter = 0;
+	int		status = 1;
+	int		lastConvergedId = 1;
+	bool	isConverged = false;
+	double  eps = 1e7 * std::numeric_limits<double>::epsilon();
+	bool	isMultipleSolveLevel = isMultipleSolve;
+
+	Eigen::SparseMatrix<double> Id;
+	Id.resize(SL.rows(), SL.cols());
+	Id.setIdentity();
+
+	///printf("Checking the rank of approx. modes (%dx%d) \n", EigVects.rows(), EigVects.cols());
+	///Eigen::FullPivLU<Eigen::MatrixXd> LU_E(EigVects);
+	///std::cout << "____" << LU_E.rank() << std::endl;
+
+	Eigen::MatrixXd XbarK(EigVects.rows(), q); XbarK.setZero();
+	Eigen::MatrixXd Mproj, Sproj;
+	Eigen::MatrixXd Q;
+	Eigen::VectorXd conv2(q);
+	Eigen::VectorXd Alpha;
+	conv2.setConstant(std::numeric_limits<double>::max());
+	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
+
+	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::UpLoType::Lower | Eigen::UpLoType::Upper, Eigen::IncompleteCholesky<double>> iterativeSolver;
+	std::cout << "Factorizing system matrix ";
+	t0 = chrono::high_resolution_clock::now();
+	iterativeSolver.compute(SL - mu*ML);
+	t1 = chrono::high_resolution_clock::now();
+	duration = t1 - t0;
+	cout << "in " << duration.count() << " seconds." << endl;
+
+
+	std::cout << "Solving the linear system ";
+	t1 = chrono::high_resolution_clock::now();
+	iterativeSolver.setTolerance(1e-8);
+	//Eigen::VectorXd x = iterativeSolver.solve(b);
+	//Eigen::VectorXd x = iterativeSolver.solveWithGuess(b, b);
+
+	do {
+		// [1] Factorization
+		if (status != 0)
+		{
+			t1 = chrono::high_resolution_clock::now();
+			/* Zhao's proposal on shifting*/
+			if (factCounter == 0 && mu > 10 * std::numeric_limits<double>::epsilon()) {
+				std::cout << "__[1] case 1: Factorization " << factCounter << " with shift of " << mu; // << std::endl;
+				iterativeSolver.compute(SL - mu * ML);
+			}
+			else if (factCounter == 0 && zhaoShiftParam <= 10 * std::numeric_limits<double>::epsilon()) {
+				std::cout << "No shift! \n";
+				iterativeSolver.compute(SL + eps * Id);
+				std::cout << "__[1] case 2: Factorization " << factCounter << " with shift of " << eps; // << std::endl;
+			}
+			else {
+				eps *= 10;
+				mu = eps;
+				iterativeSolver.compute(SL + mu * Id);
+				std::cout << "__[1] case 3: Factorization " << factCounter << " with shift of " << mu; // << std::endl;
+			}
+			factCounter++;
+			t2 = chrono::high_resolution_clock::now();
+			duration = t2 - t1;
+			std::cout << " in " << duration.count() << " seconds." << std::endl;
+		}
+		std::cout << "Iteration: " << iterCount + 1 << std::endl;
+
+		std::cout << "__[2] Solving each RHS ";
+		t1 = chrono::high_resolution_clock::now();
+		//std::cout << "MU: " << mu << std::endl;
+
+		//cusolverSP(SL - mu * ML, M * EigVects, XbarK);
+		//std::cout << "[GPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
+
+		//if (k == 0) {
+		//	Eigen::MatrixXd ME = ML * EigVects;
+		//	cuSolverCholTest(SL - mu * ML, ME, XbarK);
+		//}
+		/* Solve each RHS on CPU */
+		double tolCheck = tol;
+		tolCheck = std::min(1e-3, tol / 10.0);
+		/* Regular/Serial solve on CPU */
+		if (!isParallelSolverEnabled) {
+			int solveCounter = 0;
+			Eigen::VectorXd v;
+			for (int j = 0; j < q; ++j) {
+				if (isConvergedVectsNotUsed && (conv2(j) < tolCheck && j > 0)) continue;
+				v = ML * (EigVects.col(j));
+				XbarK.col(j) = iterativeSolver.solve(v);
+
+				if (isMultipleSolveLevel)
+				{
+					double n2 = XbarK.col(j).transpose() * ML * XbarK.col(j);
+					XbarK.col(j) = XbarK.col(j) / sqrt(n2);
+					v = ML * XbarK.col(j);
+					XbarK.col(j) = iterativeSolver.solve(v);
+				}
+				solveCounter++;
+			}
+		}
+		/* Parallel solve on CPU*/
+		else
+		{
+			const int		NUM_OF_THREADS = std::min(q, omp_get_num_procs());
+			omp_set_num_threads(NUM_OF_THREADS);
+			int tid, ntids, ipts, istart, iproc;
+			int iCol = 0;
+#pragma omp parallel private(tid,ntids,ipts,istart,iCol)
+			{
+				iproc = omp_get_num_procs();
+				tid = omp_get_thread_num();
+				ntids = omp_get_num_threads();
+				ipts = (q + ntids - 1) / ntids;
+				istart = tid * ipts;
+				if (tid == ntids - 1) ipts = q - istart;
+				if (ipts <= 0) ipts = 0;
+
+				Eigen::VectorXd v;
+
+				for (iCol = istart; iCol < (istart + ipts); ++iCol) {
+					if (iCol >= q) continue;
+					if (isConvergedVectsNotUsed && conv2(iCol) < tolCheck && iCol > 0) continue;
+					v = ML * (EigVects.col(iCol));
+					XbarK.col(iCol) = iterativeSolver.solve(v);
+
+					if (isMultipleSolveLevel) {
+						double n2 = XbarK.col(iCol).transpose() * ML * XbarK.col(iCol);
+						XbarK.col(iCol) = XbarK.col(iCol) / sqrt(n2);
+						v = ML * XbarK.col(iCol);
+						XbarK.col(iCol) = iterativeSolver.solve(v);
+					}
+				}
+			}
+		}
+				
+		//std::cout << "[CPU] XBarK \n" << XbarK.topLeftCorner(10, 10) << std::endl;
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		/* Projection of M and K*/
+		t1 = chrono::high_resolution_clock::now();
+		printf("__[3] Projection of matrix M and S. ");
+		Sproj = XbarK.transpose() * SL;		// two steps for faster result
+		Sproj = Sproj * XbarK;
+		Mproj = XbarK.transpose() * ML;
+		Mproj = Mproj * XbarK;
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		///printf("Checking the rank of reduced matrix (%dx%d) \n", Sproj.rows(), Sproj.cols());
+		///Eigen::FullPivLU<Eigen::MatrixXd> LU_S(Sproj);
+		///std::cout << "____" << LU_S.rank() << std::endl;
+
+		t1 = chrono::high_resolution_clock::now();
+		printf("__[4] Solve reduced eigenvalue problem. ");
+		status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		if (status != 0) {
+			cout << "___Error!! Computation of eigenvalues failed! \n";
+			continue;
+		}
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		t1 = chrono::high_resolution_clock::now();
+		printf("__[5] Prolongation.");
+		EigVects = XbarK * Q;
+		EigVals = Alpha;
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+
+		/* Convergence Check*/
+		t1 = chrono::high_resolution_clock::now();
+		printf("__[6] Convergence check.");
+		if (convergedCriteria == 3) {
+			checkConvergenceCat3(Q, EigVals, Mproj, numEigs, true, mu, conv2);
+			//cout << "Conv 3 \n" << conv2.head(numEigs).transpose() << endl;
+		}
+		else {
+			checkConvergenceCat2(EigVects, Alpha, numEigs, ML, MLinv, SL, conv2);
+			//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+		}
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		std::cout << "...in " << duration.count() << " seconds." << std::endl;
+		printf("mu is %.16f \n", mu);
+
+		//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+		std::cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
+		//std::cout <<"Eigenvalues"<< Alpha.head(numEigs).transpose() << std::endl;
+
+		if (k == 0) {
+			EigValsSIMStack.col(iterCount) = EigVals.head(numEigs);
+			convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
+		}
+
+		iterCount++;
+		//if(numEigs>=750)
+		//	if (iterCount >= 2) 
+		//		isMultipleSolveLevel = false;
+
+		/* Ignore the first iteration */
+		if (iterCount >= maxIter || (conv2(numEigs - 1) < tol)) {
+			isConverged = true;
+		}
+
+		/* Check convergence */
+		for (int i = lastConvergedId; i < numEigs; ++i) {
+			if (conv2(i) < tol) {
+				lastConvergedId = i;
+			}
+			else break;
+		}
+
+		if ((iterCount < maxIter) && (lastConvergedId < (numEigs - 1)))
+			isConverged = false;
+		std::cout << "_____ [" << iterCount << "] Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId);
+		std::cout << " (next=" << conv2(lastConvergedId + 1) << ")" << std::endl;
+
+		itersPerLevel(k) = iterCount;
+
+	} while (!isConverged);
+
+	if (k == 0) {
+		EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
+		convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
+	}
+}
+
 void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Eigen::SparseMatrix<double>& ML, const Eigen::SparseMatrix<double>& MLinv, Eigen::MatrixXd& EigVects, Eigen::VectorXd& EigVals, int numEigs, double mu, double tol, int maxIter, int k)
 {
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
@@ -4211,7 +4452,9 @@ void MLSolverFunctions::solve(int numEigs, double tol, int maxIter, double level
 		///else 
 		{
 			if (isSIMinGPU) {
-				SIMinGPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+				std::cout << "Solve the Linear system using PCG \n";
+				///SIMinGPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
+				SIMinCPUwPCG(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);
 			}
 			else {
 				SIMinCPU(Sred[i], Mred[i], Mred[i], EigVectsSIM, EigValsSIM, numEigs, mu, tol, maxIter, i);

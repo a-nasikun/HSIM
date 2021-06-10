@@ -1487,6 +1487,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::cout << "Num levels: " << eigenSolver->getLevel() << std::endl;
 			std::cout << "Multiple solve: " << eigenSolver->isMultipleSolve << std::endl;
 			eigenSolver->setClampBasis(isClampedBasis);
+			
 
 			if (eigenSolver->getBoundaryType() != MLEigenSolver::BoundaryCondition::BOUNDARY_NONE) {
 				if (boundaryType == 1) eigenSolver->setBoundaryType(HSIM::MLEigenSolver::BoundaryCondition::BOUNDARY_DIRICHLET);
