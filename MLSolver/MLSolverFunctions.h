@@ -71,7 +71,22 @@ namespace HSIM
 		double constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor=true);
 		double constructHKSAll(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, double neigh=5.0, bool showColor = true);
 
+		// Multigrid solvers
+		void multiGridVCycleGS(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k, bool isDebug = true);
+		void multiGridVCycleCG(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b,
+			Eigen::VectorXd& x, int k, bool isDebug = true);
+		void multiGridCascading(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k);
 
+		/* Helper Functions */
+		void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::SparseMatrix<double>& M, Eigen::VectorXd& rhs,
+			Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol, bool isDebug = true);
+		void GaussSeidelSparseSolverMatrixForm(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0,
+			Eigen::VectorXd& x, int maxIter, double tol);
+		void GaussSeidel1Iter(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0,
+			Eigen::VectorXd& x);
+		void GaussSeidel1IterMatrixForm(const Eigen::SparseLU<Eigen::SparseMatrix<double>>& factor,
+			const Eigen::SparseMatrix<double>& U, Eigen::VectorXd& rhs, Eigen::VectorXd& x0,
+			Eigen::VectorXd& x);
 
 		/* Visualization Tools*/
 		void virtual visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k = 0, double scale = 1.0) const override;

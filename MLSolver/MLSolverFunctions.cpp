@@ -4904,6 +4904,442 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 		viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
 
 	}
+
+	void MLSolverFunctions::multiGridVCycleGS(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b,
+		Eigen::VectorXd& x, int k, bool isDebug) {
+
+		/* 0: Some variables required */
+		int iterPre, iterPost;
+		double tolPre, tolInner, tolOuter;
+		if (k == 0) {
+			iterPre = 5;
+			iterPost = 200;
+			tolPre = 1e-5, tolInner = 1e-5, tolOuter = 1.0e-5;
+		}
+		else {
+			iterPre = 10;
+			iterPost = 200;
+			tolPre = 1e-5, tolInner = 1e-5, tolOuter = 1.0e-5;
+		}
+
+		// double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
+
+		/* 1: PRE-SMOOTHING */
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre, false);
+
+		/* 2: COMPUTE RESIDUAL ERROR */
+		/// std::cout << "Residual error \n";
+		Eigen::VectorXd r = b - A * x;
+		double res = r.transpose() * Mv * r;
+		res = res / (b.transpose() * Mv * b);
+		res = sqrt(res);
+		if (isDebug) std::cout << "____[" << k << "] Residu (after pre-smoothing): " << res << std::endl;
+		///std::cout << "______ with " << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
+
+		/* 3: RESTRICTION */
+		Eigen::VectorXd r1 = U[k].transpose() * r;
+		Eigen::VectorXd eps;
+		eps.setZero(r1.rows());
+		Eigen::SparseMatrix<double> A1 = U[k].transpose() * A * U[k];
+		Eigen::SparseMatrix<double> M1 = U[k].transpose() * Mv * U[k];
+
+
+		/* 4: RECURSION */
+		//if (k == DoF.size() - 2) // DIRECT SOLVE for the last level (level k)
+		if (k == level-1) // DIRECT SOLVE for the last level (level k)
+		{
+			// Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+			sparseSolver.compute(A1);
+			eps = sparseSolver.solve(r1);
+		}
+		else // RECURSIVE for level k < max_level
+		{
+			multiGridVCycleGS(A1, M1, r1, eps, k + 1, isDebug);
+		}
+
+		/* 5: PROLONGATION + CORRECTION */
+		x = x + U[k] * eps;
+
+		// r = b - A * x;
+		// res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+		// res = r.transpose() * r;
+		// res = sqrt(res);
+		/// std::cout << "____[" << k << "] Residu (after correction from lower level): " << res << std::endl;
+
+		/* 6: POST-SMOOTHING */
+		// Gauss-Seidel
+		if (k == 0)
+			GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter, false);
+		else
+			GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner, false);
+
+
+
+		// r = b - A*x;res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+		r = b - A * x;
+		// res = r.transpose() * Mv * r;
+		res = r.transpose() * Mv * r;
+		res = res / (b.transpose() * Mv * b);
+		res = sqrt(res);
+		if (isDebug) std::cout << "++++[" << k << "] Residu (after post-smoothing): " << res << std::endl;
+	}
+
+	void MLSolverFunctions::multiGridVCycleCG(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k, bool isDebug)
+	{
+		///std::cout << "______________________________V-CYCLE______________________________ \n";
+		///std::cout << "LEVEL_" << k << std::endl;
+		/* 0: Some variables required */
+		int iterPre, iterPost;
+		double tolPre, tolInner, tolOuter;
+		if (k == 0) {
+			iterPre = 5;
+			iterPost = 200;
+			tolPre = 1e-5, tolInner = 1e-5, tolOuter = 1.0e-5;
+		}
+		else {
+			iterPre = 10;
+			iterPost = 200;
+			tolPre = 1e-5, tolInner = 1e-5, tolOuter = 1.0e-5;
+		}
+
+		/* Conjugate gradient */
+		Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
+		cg.compute(A);
+
+
+		/* 1: PRE-SMOOTHING */
+		// Conjugate gradient
+		/// std::cout << "Pre-smoothing \n";
+		cg.setMaxIterations(iterPre);
+		cg.setTolerance(tolPre);
+		Eigen::VectorXd x1 = cg.solveWithGuess(b, x);
+
+		// GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre);
+
+		/* 2: COMPUTE RESIDUAL ERROR */
+		/// std::cout << "Residual error \n";
+		Eigen::VectorXd r = b - A * x1;
+		double res = r.transpose() * r;
+		res = sqrt(res);
+		res = res / sqrt(b.transpose() * b);
+		if (isDebug) {
+			std::cout << "____[" << k << "] Residu (after pre-smoothing): " << res;
+			std::cout << "______ with " << cg.iterations() << " iterations | CG error:" << cg.error() << ".\n";
+		}
+		/* 3: RESTRICTION */
+		///std::cout << "Restrictions \n";
+		///std::cout << "__restricting residuals \n";
+		///printf("U=%dx%d || r=%d \n", U[k].rows(), U[k].cols(), r.rows());
+		Eigen::VectorXd r1 = U[k].transpose() * r;
+		Eigen::VectorXd eps;
+		eps.setZero(r1.rows());
+		/// std::cout << "__restricting system matrices \n";
+		Eigen::SparseMatrix<double> A1 = U[k].transpose() * A * U[k];
+		Eigen::SparseMatrix<double> M1 = U[k].transpose() * Mv * U[k];
+
+		/* Testing the mass matrix */
+		//Eigen::VectorXd const1(M1.rows());
+		//const1.setOnes();
+		/// std::cout << "__measuring the residuals \n";
+		//double const1Norm = const1.transpose() * M1 * const1;
+		/// printf("___%d => energy: %4.f \n", k, const1Norm);
+
+		/* 4: RECURSION */
+		/// std::cout << "Recursion \n";
+		if (k == level-1) // DIRECT SOLVE for the last level (level k)
+		{
+			/// printf("__Direct (LDLT) solver \n");
+			//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+			sparseSolver.compute(A1);
+			eps = sparseSolver.solve(r1);
+		}
+		else // RECURSIVE for level k < max_level
+		{
+			multiGridVCycleCG(A1, M1, r1, eps, k + 1, isDebug);
+		}
+
+		/* 5: PROLONGATION + CORRECTION */
+		/// std::cout << "Prolongation \n";
+		x1 = x1 + U[k] * eps;
+
+		//r = b - A * x;
+		// res = r.transpose()*A*r;	cout << "____[" << k << "] Residu (after correction from lower level): " << res << endl;
+		//res = r.transpose() * r;
+		//res = sqrt(res);
+		/// std::cout << "____[" << k << "] Residu (after correction from lower level): " << res << std::endl;
+
+		/* 6: POST-SMOOTHING */
+		// Gauss-Seidel
+		// if(k==0)
+		//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolOuter);
+		// else
+		//	GaussSeidelSparseSolver(A, Mv, b, x, x, iterPost, tolInner);
+
+		/// std::cout << "Post-smoothing \n";
+
+		// Conjugate gradient
+		if (k == 0) {
+			cg.setMaxIterations(iterPost);
+			cg.setTolerance(tolOuter);
+			x1 = cg.solveWithGuess(b, x1);
+		}
+		else {
+			cg.setMaxIterations(iterPost);
+			cg.setTolerance(tolInner);
+			x1 = cg.solveWithGuess(b, x1);
+		}
+
+
+		// r = b - A*x;res = r.transpose()*A*r; cout << "++++[" << k << "] Residu (after post-smoothing): " << res << endl;
+		r = b - A * x1;
+		res = r.transpose() * r;
+		//res = r.transpose() * r;
+		res = sqrt(res);
+		res = res / sqrt(b.transpose() * b);
+		if (isDebug) {
+			std::cout << "++++[" << k << "] Residu (after post-smoothing): " << res;
+			std::cout << "____" << cg.iterations() << " iterations | CG error:" << cg.error() << ".\n";
+		}
+		x = x1;
+	}
+
+	void MLSolverFunctions::multiGridCascading(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b,
+		Eigen::VectorXd& x, int k) {
+		int iterPre = 5, iterPost = 200;
+		double tolPre = 1e-5, tolInner = 1e-5, tolOuter = 1.0e-5;
+
+		//Set up the reduced systems
+		std::cout << "Set up the reduced systems\n";
+		Eigen::SparseMatrix<double> Basis(A.rows(), A.rows());
+		Basis.setIdentity();
+		for (unsigned int i = 0; i < U.size(); ++i) {
+			Basis = Basis * U[i];
+		}
+		Eigen::SparseMatrix<double> Abar = Basis.transpose() * A * Basis;
+		Eigen::SparseMatrix<double> Mvbar = Basis.transpose() * Mv * Basis;
+		Eigen::VectorXd bBar = Basis.transpose() * b;
+
+		// Solve coarsest (perhas dense) linear system
+		std::cout << "Solve coarsest (perhas dense) linear system \n";
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> linSolver;
+		linSolver.compute(Abar);
+		x = linSolver.solve(bBar);
+
+		// Move up to the finer levels
+		for (int i = U.size() - 1; i >= 0; --i) {
+			printf("Solve for level %d \n", i);
+			x = U[i] * x;
+			Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
+			cg.compute(A);
+
+			cg.setMaxIterations(iterPost);
+			cg.setTolerance(tolInner);
+			x = cg.solveWithGuess(b, x);
+
+			std::cout << "____" << cg.iterations() << " iterations | residue:" << cg.error() << ".\n";
+		}
+	}
+
+
+	/* Helper Functions */
+	void MLSolverFunctions::GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::SparseMatrix<double>& M, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter,
+		double tol, bool isDebug) {
+		// printf("Dimensionality check: \n");
+		if (isDebug) {
+			printf("____LHS: %dx%d | rhs: %d | init guess: %d | ", LHS.rows(), LHS.cols(), rhs.rows(), x0.rows());
+			std::cout << tol << " | ";
+		}
+
+		// For Timing
+		chrono::high_resolution_clock::time_point t1, t2;
+		chrono::duration<double> duration;
+		// cout << "____Iterative Gauss-Seidel solver...\n";
+		t1 = chrono::high_resolution_clock::now();
+
+		Eigen::VectorXd xk1 = x0;
+		Eigen::VectorXd xk2;
+		double diffIter;
+		double maxDiffNum, minDiffNum;
+		double maxCurNum, minCurNum;
+		int iterUsed = maxIter;
+		double res;
+		Eigen::VectorXd residu;
+
+		residu = rhs - LHS * xk1;
+		res = residu.transpose() * LHS * residu;
+		if (isDebug) cout << "residue: " << res << endl;
+
+		for (int i = 0; i < maxIter; i++) {
+			GaussSeidel1Iter(LHS, rhs, xk1, xk2);
+
+			maxDiffNum = (xk2 - xk1).maxCoeff();
+			minDiffNum = (xk2 - xk1).minCoeff();
+			maxCurNum = xk2.maxCoeff();
+			minCurNum = xk2.minCoeff();
+			// printf("MaxDiff: %.4f | minDiff: %.4f | maxCur: %.4f | minCur: %.4f \n", maxDiffNum, minDiffNum, maxCurNum,
+			// minCurNum);
+			diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
+			// diffIter = maxDiffNum / maxCurNum;
+
+			// cout << "x: " << xk2.transpose() << endl;
+
+			residu = rhs - LHS * xk2;
+			// res = residu.transpose()*LHS*residu;
+			res = residu.transpose() * residu;
+			//res = residu.transpose() * residu;
+			res = sqrt(res);
+			// res = residu.norm();
+			//if (i % 1000 == 0) 
+			if (isDebug)
+			{
+				// printf("______<%d> iter, the convergence: %.16f |", i, diffIter);
+				// printf(" residu: %.16f \n", res);
+				cout << "______" << i << " iter | convergence: " << diffIter << " | residue: " << res << endl;
+			}
+
+			xk1 = xk2;
+
+			if (res < tol)
+			{
+				iterUsed = i + 1;
+				break;
+			}
+		}
+		x = xk2;
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		// cout << "in " << duration.count() << " seconds" << endl;
+
+		//if (isDebug)
+		cout << "____" << iterUsed << " iterations | residue:" << res << ".\n";
+	}
+
+	void MLSolverFunctions::GaussSeidelSparseSolverMatrixForm(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0,
+		Eigen::VectorXd& x, int maxIter, double tol) {
+		cout << "Setting up the L, D, and U matrices \n";
+		/* Defining holder for upper, diagonal, and lower matrices of the LHS*/
+		Eigen::SparseMatrix<double> U, D, L;
+		U.resize(LHS.rows(), LHS.cols());
+		D.resize(LHS.rows(), LHS.cols());
+		L.resize(LHS.rows(), LHS.cols());
+		vector<Eigen::Triplet<double>> UTriplet, DTriplet, LTriplet;
+		UTriplet.reserve(4 * LHS.rows());
+		DTriplet.reserve(LHS.rows());
+		LTriplet.reserve(4 * LHS.rows());
+
+		/* Getting the sum of every non-zero elements in a row */
+		for (int k = 0; k < LHS.outerSize(); ++k) {
+			for (Eigen::SparseMatrix<double>::InnerIterator it(LHS, k); it; ++it) {
+				if (it.row() > it.col())
+					LTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+				else if (it.row() < it.col())
+					UTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+				else if (it.row() == it.col())
+					DTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+			}
+		}
+		U.setFromTriplets(UTriplet.begin(), UTriplet.end());
+		D.setFromTriplets(DTriplet.begin(), DTriplet.end());
+		L.setFromTriplets(LTriplet.begin(), LTriplet.end());
+		UTriplet.clear();
+		UTriplet.shrink_to_fit();
+		DTriplet.clear();
+		DTriplet.shrink_to_fit();
+		LTriplet.clear();
+		LTriplet.shrink_to_fit();
+
+		printf("L: %dx%d (%d nnz) | D:%dx%d (%d nnz) | U:%dx%d (%d nnz) \n", L.rows(), L.cols(), L.nonZeros(), D.rows(),
+			D.cols(), D.nonZeros(), U.rows(), U.cols(), U.nonZeros());
+
+		Eigen::SparseMatrix<double> DL = D + L;
+		// Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+		Eigen::SparseLU<Eigen::SparseMatrix<double>> sparseSolver;
+		sparseSolver.analyzePattern(DL);
+		sparseSolver.factorize(DL);
+
+		printf("Dimensionality check: \n");
+		printf("__LHS: %dx%d | rhs: %d | init guess: %d \n", LHS.rows(), LHS.cols(), rhs.rows(), x0.rows());
+		// For Timing
+		chrono::high_resolution_clock::time_point t1, t2;
+		chrono::duration<double> duration;
+		cout << "Iterative Gauss-Seidel solver...";
+		t1 = chrono::high_resolution_clock::now();
+
+		Eigen::VectorXd xk1 = x0;
+		Eigen::VectorXd xk2;
+		double diffIter;
+		double maxDiffNum, minDiffNum;
+		double maxCurNum, minCurNum;
+		int iterUsed = maxIter;
+
+		cout << "Iterating for solution \n";
+		for (int i = 0; i < maxIter; i++) {
+			GaussSeidel1IterMatrixForm(sparseSolver, U, rhs, xk1, xk2);
+			// GaussSeidel1Iter(LHS, rhs, xk1, xk2);
+
+			maxDiffNum = (xk2 - xk1).maxCoeff();
+			minDiffNum = (xk2 - xk1).minCoeff();
+			maxCurNum = xk2.maxCoeff();
+			minCurNum = xk2.minCoeff();
+			// printf("MaxDiff: %.4f | minDiff: %.4f | maxCur: %.4f | minCur: %.4f \n", maxDiffNum, minDiffNum, maxCurNum,
+			// minCurNum); diffIter = max(maxDiffNum, abs(minDiffNum)) / max(maxCurNum, abs(minCurNum));
+			diffIter = maxDiffNum / maxCurNum;
+
+			// cout << "x: " << xk2.transpose() << endl;
+
+			if (i % 10 == 0) {
+				printf("%d iter, the convergence: %.16f |", i, diffIter);
+				Eigen::VectorXd residu = rhs - LHS * xk2;
+				double res = residu.transpose() * LHS * residu;
+				printf(" reside: %.16f \n", res);
+			}
+
+			xk1 = xk2;
+
+			if (diffIter < tol) {
+				iterUsed = i + 1;
+				break;
+			}
+		}
+		x = xk2;
+
+		t2 = chrono::high_resolution_clock::now();
+		duration = t2 - t1;
+		cout << "in " << duration.count() << " seconds" << endl;
+		printf("It takes %d iter, with %.10f tolerance \n", iterUsed, diffIter);
+	}
+
+	void MLSolverFunctions::GaussSeidel1Iter(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x) {
+		x = x0;
+
+		/* Getting the sum of every non-zero elements in a row */
+		for (int k = 0; k < LHS.outerSize(); ++k) {
+			double l = 0.0;
+			double u = 0.0;
+
+			for (Eigen::SparseMatrix<double>::InnerIterator it(LHS, k); it; ++it) {
+				if (it.row() < k) {
+					l += it.value() * x(it.row());
+				}
+				else if (it.row() > k) {
+					u += it.value() * x(it.row());
+				}
+			}
+			x(k) = (rhs(k) - l - u) / LHS.coeff(k, k);
+		}
+	}
+
+	void MLSolverFunctions::GaussSeidel1IterMatrixForm(const Eigen::SparseLU<Eigen::SparseMatrix<double>>& factor,
+		const Eigen::SparseMatrix<double>& U, Eigen::VectorXd& rhs, Eigen::VectorXd& x0,
+		Eigen::VectorXd& x) {
+		Eigen::VectorXd xk = rhs - (U * x0);
+		x = factor.solve(xk);
+	}
+
+
 	//double MLSolverFunctions::constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor)
 	//{
 	//	// computing the reference in GPU
