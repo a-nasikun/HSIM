@@ -4905,9 +4905,9 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 
 	}
 
-	void MLSolverFunctions::multiGridVCycleGS(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b,
-		Eigen::VectorXd& x, int k, bool isDebug) {
-
+	void MLSolverFunctions::multiGridVCycleGS(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k, bool isDebug) 
+	{
+		std::cout << "Gauss Seidel \n";
 		/* 0: Some variables required */
 		int iterPre, iterPost;
 		double tolPre, tolInner, tolOuter;
@@ -4925,7 +4925,7 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 		// double	tolPre = 5e-5, tolInner = 500*std::numeric_limits<double>::epsilon(), tolOuter = 5.0e-7;
 
 		/* 1: PRE-SMOOTHING */
-		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre, false);
+		GaussSeidelSparseSolver(A, Mv, b, x, x, iterPre, tolPre, true);
 
 		/* 2: COMPUTE RESIDUAL ERROR */
 		/// std::cout << "Residual error \n";
@@ -4987,6 +4987,8 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 
 	void MLSolverFunctions::multiGridVCycleCG(Eigen::SparseMatrix<double>& A, Eigen::SparseMatrix<double>& Mv, Eigen::VectorXd& b, Eigen::VectorXd& x, int k, bool isDebug)
 	{
+		std::cout << "Conjugate Gradient \n";
+		printf("A:%dx%d, %d nnz | M:%dx%d, %d nnz | b=%d, %d nnz | x=%d, %d nnz, k=%d \n", A.rows(), A.cols(), A.nonZeros(), Mv.rows(), Mv.cols(), Mv.nonZeros(), b.rows(), b.nonZeros(), x.rows(), x.nonZeros(), k);
 		///std::cout << "______________________________V-CYCLE______________________________ \n";
 		///std::cout << "LEVEL_" << k << std::endl;
 		/* 0: Some variables required */
@@ -5408,6 +5410,9 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 			std::cout << "Solve the linear system using OUR Multigrid solver (V-cycle) \n";
 			Eigen::VectorXd mxx = mx.col(0), mxy = mx.col(1), mxz = mx.col(2);
 			Eigen::VectorXd xPos, yPos, zPos;
+			xPos.setRandom(mxx.rows());
+			yPos.setRandom(mxy.rows());
+			zPos.setRandom(mxz.rows());
 			// Eigen::SparseMatrix<double> LHS = M + tau * L;
 			// Only print the iterations result for x coordinate
 			if (isSmootherGaussSeidel)
@@ -5441,6 +5446,9 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 			// Eigen::SparseMatrix<double> LHS = M + tau * L;
 			Eigen::VectorXd mxx = mx.col(0), mxy = mx.col(1), mxz = mx.col(2);
 			Eigen::VectorXd xPos, yPos, zPos;
+			xPos.setRandom(mxx.rows());
+			yPos.setRandom(mxy.rows());
+			zPos.setRandom(mxz.rows());
 			{
 				t0 = std::chrono::high_resolution_clock::now();
 				multiGridCascading(LHS, M, mxx, xPos, 0);
@@ -5464,6 +5472,9 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 			Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
 			Eigen::VectorXd mxx = mx.col(0), mxy = mx.col(1), mxz = mx.col(2);
 			Eigen::VectorXd xPos, yPos, zPos;
+			xPos.setRandom(mxx.rows());
+			yPos.setRandom(mxy.rows());
+			zPos.setRandom(mxz.rows());
 			// cg.setMaxIterations(1000);
 			cg.setTolerance(1e-5);
 			cg.compute(LHS);
@@ -5495,6 +5506,9 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 			bicgstab.compute(LHS);
 			Eigen::VectorXd mxx = mx.col(0), mxy = mx.col(1), mxz = mx.col(2);
 			Eigen::VectorXd xPos, yPos, zPos;
+			xPos.setRandom(mxx.rows());
+			yPos.setRandom(mxy.rows());
+			zPos.setRandom(mxz.rows());
 			{
 				t0 = std::chrono::high_resolution_clock::now();
 				xPos = bicgstab.solve(mxx);

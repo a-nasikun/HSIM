@@ -2576,12 +2576,12 @@ void generalMGMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
 			ImGui::RadioButton("Gauss-Seidel##Smoother", &smootherType, 0);
 			ImGui::SameLine();
 			ImGui::RadioButton("Conjugate Grad.##Smoother", &smootherType, 1);
-			if (smootherType == 0)
-				printf("TO DO [1]\n");
-				//pointGrid->isSmootherGaussSeidel = true;
-			else
-				//pointGrid->isSmootherGaussSeidel = false;
-				printf("TO DO [2]\n");
+			//if (smootherType == 0)
+			//	printf("TO DO [1]\n");
+			//	//pointGrid->isSmootherGaussSeidel = true;
+			//else
+			//	//pointGrid->isSmootherGaussSeidel = false;
+			//	printf("TO DO [2]\n");
 		}
 
 		static char smoothingCoeffTxt[15] = "0.001";
