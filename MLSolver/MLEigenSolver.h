@@ -161,7 +161,7 @@ namespace HSIM
 
 	public:
 		/* Mesh-related variables */
-		Eigen::MatrixXd						V;							//!< Coordinates of each vertex
+		Eigen::MatrixXd						V, V0;							//!< Coordinates of each vertex
 		Eigen::MatrixXi						F;							//!< Vertices ID of each face (triangle);
 
 		/* System matrices */

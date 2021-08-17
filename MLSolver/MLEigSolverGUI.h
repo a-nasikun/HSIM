@@ -203,6 +203,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				boolShowSamples = false;
 				//printf("mesh that we have  now: %d \n", viewer.data_list.size());
 				eigenSolver->setV(viewer.data().V);
+				eigenSolver->V0 = viewer.data().V;
 				eigenSolver->setF(viewer.data().F);
 
 				// Boundary-related functionality
@@ -1397,7 +1398,9 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	static int shiftType = 3;		// 0: Bathe, 1: Itoh/Wilson, 2: Gong, 3: Zhao
 	static bool isClampedEigen = false; 
 		
-	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
+	//if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
+	//if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_CollapsingHeader)) {
+	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_CollapsingHeader)){
 		/* some parameters */
 		//static int		numOfModes	= 5;
 		static int		maxIter		= 5;
@@ -2537,6 +2540,77 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	ImGui::End();
 }
 
+void generalMGMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::ImGuiMenu& menu, MLEigenSolver*& eigenSolver)
+{
+	float	menuWindowLeft = 475.f,
+		menuWindowWidth = 200.f,
+		menuWindowHeight = 675.f;
+
+	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	ImGui::Begin("General Multigrid##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
+
+	float w = ImGui::GetContentRegionAvailWidth();
+	float p = ImGui::GetStyle().FramePadding.x;
+
+	if (ImGui::CollapsingHeader("[1] Smoothing", ImGuiTreeNodeFlags_DefaultOpen)) {
+		static float smoothingCoeff;
+		static int solverType;
+		static int sourcePoint;
+		static int smootherType;
+
+
+		ImGui::RadioButton("Direct##Solver", &solverType, 0);
+		ImGui::SameLine();
+		ImGui::RadioButton("Pardiso##Solver", &solverType, 1);
+		ImGui::SameLine();
+		ImGui::RadioButton("MG-VCycle##Solver", &solverType, 2);
+		ImGui::SameLine();
+		ImGui::RadioButton("MG-Casc.##Solver", &solverType, 3);
+		ImGui::SameLine();
+		ImGui::RadioButton("CG##Solver", &solverType, 4);
+		ImGui::SameLine();
+		ImGui::RadioButton("BiCGSTAB##Solver", &solverType, 5);
+
+		if (solverType == 2 || solverType == 3) {
+			ImGui::RadioButton("Gauss-Seidel##Smoother", &smootherType, 0);
+			ImGui::SameLine();
+			ImGui::RadioButton("Conjugate Grad.##Smoother", &smootherType, 1);
+			if (smootherType == 0)
+				printf("TO DO [1]\n");
+				//pointGrid->isSmootherGaussSeidel = true;
+			else
+				//pointGrid->isSmootherGaussSeidel = false;
+				printf("TO DO [2]\n");
+		}
+
+		static char smoothingCoeffTxt[15] = "0.001";
+		ImGui::InputText("Smoothing##Coeff.", smoothingCoeffTxt, 10);
+		smoothingCoeff = atof(smoothingCoeffTxt);
+		
+		if (ImGui::Button("Smoothing")) {
+			if (solverType == 2 && eigenSolver->U.size() < 1) {
+				std::cout << "Error! Please build the hierarchy first before using it for iterative solver \n";
+				return;
+			}
+
+			if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+				solver->smoothing(solverType, smoothingCoeff);
+				viewer.data().set_vertices(solver->getV());
+				viewer.data().compute_normals();
+			}
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button("Reset Vertices")) {
+			eigenSolver->setV(eigenSolver->V0);
+			viewer.data().set_vertices(eigenSolver->getV());
+			viewer.data().compute_normals();
+		}
+
+
+	}
+}
 /* Sampling with fixed target,
 ** The number of levels and ratio between levels is determined accordingly. */
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize)

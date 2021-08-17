@@ -96,6 +96,7 @@ int main(int argc, char *argv[])
 	{
 		showHSIMMenu(viewer, menu, eigenSolver);
 		SIMMenu(viewer, menu, eigenSolver);
+		generalMGMenu(viewer, menu, eigenSolver);
 		//ImGui::ShowDemoWindow();
 	};
 	/* END OF GUI FUNCTIONALITY */

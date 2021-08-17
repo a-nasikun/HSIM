@@ -5339,6 +5339,195 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 		x = factor.solve(xk);
 	}
 
+	void MLSolverFunctions::smoothing(int solverType, float tau) {
+		bool isInvolvedMode = true;
+		bool isSmootherGaussSeidel = true;
+
+		Eigen::MatrixXd mx;
+		Eigen::SparseMatrix<double> LHS;
+
+		// recomputeLaplacian();
+		if (isInvolvedMode) {
+			mx = (1.0 - tau) * M * V;
+			LHS = tau * S + (1.0 - tau) * M;
+		}
+		else {
+			mx = M * V;
+			LHS = tau * S + M;
+		}
+		// double tau = 0.01;
+
+		std::chrono::high_resolution_clock::time_point t0, t1, t2;
+		std::chrono::duration<double> duration1, duration2;
+
+		if (solverType == 0) {
+			std::cout << "Solve the linear system using direct solver \n";
+
+			t0 = std::chrono::high_resolution_clock::now();
+			Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+			sparseSolver.compute(LHS);
+			t1 = std::chrono::high_resolution_clock::now();
+
+			V.col(0) = sparseSolver.solve(mx.col(0));
+			t2 = std::chrono::high_resolution_clock::now();
+
+			duration1 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+			duration2 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+			std::cout << "Factor: " << duration1.count() << std::endl;
+			std::cout << "Factor+Solve: " << duration2.count() << std::endl;
+
+			V.col(1) = sparseSolver.solve(mx.col(1));
+			V.col(2) = sparseSolver.solve(mx.col(2));
+			t2 = std::chrono::high_resolution_clock::now();
+			duration2 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+			std::cout << "Factor+3Solves: " << duration2.count() << std::endl;
+		}
+		else if (solverType == 1) {
+			std::cout << "Solve the linear system using Intel MKL's PARDISO direct solver \n";
+
+			t0 = std::chrono::high_resolution_clock::now();
+			Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> sparseSolver;
+			sparseSolver.compute(LHS);
+			t1 = std::chrono::high_resolution_clock::now();
+
+			V.col(0) = sparseSolver.solve(mx.col(0));
+			t2 = std::chrono::high_resolution_clock::now();
+
+			duration1 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+			duration2 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+			std::cout << "Factor: " << duration1.count() << std::endl;
+			std::cout << "Factor+Solve: " << duration2.count() << std::endl;
+
+			V.col(1) = sparseSolver.solve(mx.col(1));
+			V.col(2) = sparseSolver.solve(mx.col(2));
+			t2 = std::chrono::high_resolution_clock::now();
+			duration2 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+			std::cout << "Factor+3Solves: " << duration2.count() << std::endl;
+		}
+		else if (solverType == 2) {
+			std::cout << "Solve the linear system using OUR Multigrid solver (V-cycle) \n";
+			Eigen::VectorXd mxx = mx.col(0), mxy = mx.col(1), mxz = mx.col(2);
+			Eigen::VectorXd xPos, yPos, zPos;
+			// Eigen::SparseMatrix<double> LHS = M + tau * L;
+			// Only print the iterations result for x coordinate
+			if (isSmootherGaussSeidel)
+			{
+				t0 = std::chrono::high_resolution_clock::now();
+				multiGridVCycleGS(LHS, M, mxx, xPos, 0, true);
+				t1 = std::chrono::high_resolution_clock::now();
+				multiGridVCycleGS(LHS, M, mxy, yPos, 0, false);
+				multiGridVCycleGS(LHS, M, mxz, zPos, 0, false);
+				t2 = std::chrono::high_resolution_clock::now();
+			}
+			else {
+				t0 = std::chrono::high_resolution_clock::now();
+				multiGridVCycleCG(LHS, M, mxx, xPos, 0, true);
+				t1 = std::chrono::high_resolution_clock::now();
+				multiGridVCycleCG(LHS, M, mxy, yPos, 0, false);
+				multiGridVCycleCG(LHS, M, mxz, zPos, 0, false);
+				t2 = std::chrono::high_resolution_clock::now();
+			}
+			duration1 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+			duration2 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+			std::cout << "1 Solve: " << duration1.count() << std::endl;
+			std::cout << "3 Solves: " << duration2.count() << std::endl;
+
+			V.col(0) = xPos;
+			V.col(1) = yPos;
+			V.col(2) = zPos;
+		}
+		else if (solverType == 3) {
+			std::cout << "Solve the linear system using OUR Multigrid solver (Cascading) \n";
+			// Eigen::SparseMatrix<double> LHS = M + tau * L;
+			Eigen::VectorXd mxx = mx.col(0), mxy = mx.col(1), mxz = mx.col(2);
+			Eigen::VectorXd xPos, yPos, zPos;
+			{
+				t0 = std::chrono::high_resolution_clock::now();
+				multiGridCascading(LHS, M, mxx, xPos, 0);
+				t1 = std::chrono::high_resolution_clock::now();
+				multiGridCascading(LHS, M, mxy, yPos, 0);
+				multiGridCascading(LHS, M, mxz, zPos, 0);
+				t2 = std::chrono::high_resolution_clock::now();
+			}
+
+			duration1 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+			duration2 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+			std::cout << "1 Solve: " << duration1.count() << std::endl;
+			std::cout << "3 Solves: " << duration2.count() << std::endl;
+
+			V.col(0) = xPos;
+			V.col(1) = yPos;
+			V.col(2) = zPos;
+		}
+		else if (solverType == 4) {
+			std::cout << "Solve the linear system using iterative solver (Conjugate Gradient) \n";
+			Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
+			Eigen::VectorXd mxx = mx.col(0), mxy = mx.col(1), mxz = mx.col(2);
+			Eigen::VectorXd xPos, yPos, zPos;
+			// cg.setMaxIterations(1000);
+			cg.setTolerance(1e-5);
+			cg.compute(LHS);
+			{
+				t0 = std::chrono::high_resolution_clock::now();
+				xPos = cg.solve(mxx);
+				t1 = std::chrono::high_resolution_clock::now();
+				yPos = cg.solve(mxy);
+				zPos = cg.solve(mxz);
+				t2 = std::chrono::high_resolution_clock::now();
+			}
+			duration1 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+			duration2 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+			std::cout << "1 Solve: " << duration1.count() << std::endl;
+			std::cout << "3 Solves: " << duration2.count() << std::endl;
+
+			std::cout << "CG num iters: " << cg.iterations() << "| CG error: " << cg.error() << std::endl;
+
+			V.col(0) = xPos;
+			V.col(1) = yPos;
+			V.col(2) = zPos;
+
+		}
+		else if (solverType == 5) {
+			std::cout << "Solve the linear system using iterative solver (BiCGSTAB) \n";
+			Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> bicgstab;
+			bicgstab.setTolerance(1e-5);
+			// cg.setMaxIterations(1000);
+			bicgstab.compute(LHS);
+			Eigen::VectorXd mxx = mx.col(0), mxy = mx.col(1), mxz = mx.col(2);
+			Eigen::VectorXd xPos, yPos, zPos;
+			{
+				t0 = std::chrono::high_resolution_clock::now();
+				xPos = bicgstab.solve(mxx);
+				t1 = std::chrono::high_resolution_clock::now();
+				yPos = bicgstab.solve(mxy);
+				zPos = bicgstab.solve(mxz);
+				t2 = std::chrono::high_resolution_clock::now();
+			}
+			duration1 = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+			duration2 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t0);
+			std::cout << "1 Solve: " << duration1.count() << std::endl;
+			std::cout << "3 Solves: " << duration2.count() << std::endl;
+
+			std::cout << "BiCSTAB num iters: " << bicgstab.iterations() << "| BiCGSTAB error: " << bicgstab.error()
+				<< std::endl;
+
+			V.col(0) = xPos;
+			V.col(1) = yPos;
+			V.col(2) = zPos;
+
+		}
+		else if (solverType == 6) {
+			std::cout << "It wont solve. It only write the matrix to external text file\n";
+			std::string filename = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MGPoint/Matlab/Data";
+			//writeLinearSystemToFile(LHS, mx.col(0), filename);
+		}		
+
+		Eigen::VectorXd residual = mx.col(0) - LHS * V.col(0);
+		double residue = residual.dot(residual);
+		residue = residue / (mx.col(0).dot(mx.col(0)));
+		residue = sqrt(residue);
+		std::cout << "| Residue:" << residue << std::endl;
+	}
 
 	//double MLSolverFunctions::constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor)
 	//{

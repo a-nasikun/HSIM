@@ -55,6 +55,7 @@ namespace HSIM
 		}
 
 		scaleMesh(V, F, 2.0);
+		V0 = V;
 		//projectToSphere(V, F, 1.0);
 
 		checkBoundary();
