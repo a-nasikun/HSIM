@@ -1453,6 +1453,13 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		}
 		ImGui::RadioButton("Crit.2##Converge", &(eigenSolver->convergedCriteria), 2);			ImGui::SameLine();
 		ImGui::RadioButton("Crit.3##Converge", &(eigenSolver->convergedCriteria), 3);
+		static int normSelection = 1;
+		if (eigenSolver->convergedCriteria == 2) {
+			ImGui::RadioButton("M^-1##Norm", &normSelection, 1);			ImGui::SameLine();
+			ImGui::RadioButton("M^-2##Norm", &normSelection, -1);
+			if (normSelection > 0) eigenSolver->isInverseNorm = true;
+			else eigenSolver->isInverseNorm = false;
+		}
 
 		static double qParam;
 		static char qParamTxt[10] = "1.5"; ImGui::InputText("q Param", qParamTxt, 10);

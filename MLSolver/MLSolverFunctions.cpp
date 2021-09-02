@@ -3524,8 +3524,23 @@ void MLSolverFunctions::SIMinCPU(const Eigen::SparseMatrix<double>& SL, const Ei
 			//cout << "Conv 3 \n" << conv2.head(numEigs).transpose() << endl;
 		}
 		else {
-			checkConvergenceCat2(EigVects, Alpha, numEigs, ML, MLinv, SL, conv2);
+			//checkConvergenceCat2(EigVects, Alpha, numEigs, ML, MLinv, SL, conv2);
 			//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+			if (isInverseNorm) {
+				printf("<<<<<<<<<<<< Using inverse M^-1 norm at the finest level >>>>>>>>>>>>>>>>> \n");
+				if (k == 0) {
+					checkConvergenceCat2(EigVects, Alpha, numEigs, M, Minv, S, conv2);
+				}
+				else {
+					Eigen::SparseMatrix<double> IdNorm(SL.rows(), SL.rows());
+					IdNorm.setIdentity();
+					checkConvergenceCat2(EigVects, Alpha, numEigs, ML, IdNorm, SL, conv2);
+				}
+			}
+			else {
+				printf("<<<<<<<<<<<< Using M norm at all levels >>>>>>>>>>>>>>>>> \n");
+				checkConvergenceCat2(EigVects, Alpha, numEigs, ML, ML, SL, conv2);
+			}
 		}
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
