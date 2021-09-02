@@ -9,16 +9,26 @@ using namespace std;
 
 namespace HSIM
 {
+	/* Data structure for box numbering in Poisson-Disk */
+	struct BoxStruct {
+		int		id;
+		double	distance;
+		bool	operator> (const BoxStruct& ref) const { return distance > ref.distance; }
+		bool	operator< (const BoxStruct& ref) const { return distance < ref.distance; }
+	};
+
 	/* Enum for different sampling method */
 	enum SamplingType {
 		Sample_Farthest_Point = 0,
-		Sample_Random = 1
+		Sample_Random = 1,
+		Sample_Poisson_Disk = 2
 	};
 
 	void constructRandomSample(Eigen::VectorXi &Sample, const Eigen::MatrixXd &V, int n);
 	void ComputeDijkstra(const Eigen::MatrixXd &V, const int Si, const vector<set<int>> &AdM, Eigen::VectorXd &D);
 	void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<std::set<int>> &AdM, const int &numSamples, Eigen::VectorXi &Samples);
 	void constructFarthestPointSample(const Eigen::MatrixXd &V, const std::vector<std::set<int>> &AdM, Eigen::VectorXi &Samples, vector<int>& SubspaceSize, vector<Eigen::VectorXd>& geoDist);
+	void constructPoissonDiskSample(const Eigen::MatrixXd& V, const std::vector<std::set<int>>& AdM, const int& sampleSize, const double& avgEdgeLength, Eigen::VectorXi& Sample);
 }
 #endif // !SAMPLING_H
 

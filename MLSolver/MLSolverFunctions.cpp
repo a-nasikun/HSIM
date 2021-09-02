@@ -447,7 +447,14 @@ namespace HSIM
 		}
 
 		SampleMap.resize(V.rows());
-		HSIM::constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
+		if (sampleType == SamplingType::Sample_Farthest_Point) {
+			HSIM::constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
+		}
+		else if(sampleType==SamplingType::Sample_Poisson_Disk) {
+			avgEdgeLength = igl::avg_edge_length(V, F);
+			HSIM::constructPoissonDiskSample(V, AdM, sampleSize, avgEdgeLength, Sample);
+			SubspaceSize[0] = Sample.rows();
+		}
 		sampleLevel.resize(V.rows());
 
 		SampleMap.setConstant(-1);

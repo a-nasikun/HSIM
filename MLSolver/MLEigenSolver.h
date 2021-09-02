@@ -179,6 +179,7 @@ namespace HSIM
 		std::vector<set<int>>				AdM;						//!< Adjacency matrix (vertex to neighboring vertices)
 		std::vector<double>					maxNeighDist;				//!< Geodesic distance for sampling (to control the sparsity), for each level
 		DistanceType						distForBasis = DistanceType::DIST_DIJKSTRA;
+		SamplingType						sampleType = SamplingType::Sample_Farthest_Point;
 
 		/* Subspace and spectral-related matrices, vectors, and variables */
 		Eigen::SparseMatrix<double>			Basis;						//!< Basis matrix (U[0]*U[1]*... *U[k])

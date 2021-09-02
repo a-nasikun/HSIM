@@ -567,9 +567,21 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				numOfSupport = atof(numSupTxt);
 			}
 
+			static int samplingMethod;
+			if (numLevels == 2) {
+				ImGui::RadioButton("Poisson-Disk", &samplingMethod, 2); ImGui::SameLine();
+				ImGui::RadioButton("Farthest point", &samplingMethod, 0);				
+			}
+			else {
+				samplingMethod = 0;
+			}
+
 			if (ImGui::Button("[2] Construct Hierarchy##1", ImVec2(w, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1) return;
 				levelRatio = atof(lvlRatTxt);
+
+				if (samplingMethod == 0)			eigenSolver->sampleType = SamplingType::Sample_Farthest_Point;
+				else if (samplingMethod == 2)		eigenSolver->sampleType = SamplingType::Sample_Poisson_Disk;
 
 				cout << "> Creating samples... " << endl;
 				chrono::high_resolution_clock::time_point	t0, t1;
