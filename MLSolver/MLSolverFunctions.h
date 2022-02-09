@@ -27,6 +27,7 @@ namespace HSIM
 	class MLSolverFunctions : public MLEigenSolver
 	{
 	public:
+
 		void virtual doEdgeFlip(unsigned int n) override;
 		void virtual checkBoundary() override;
 		std::tuple<double, double> computeEdgeMinAngle(MyMesh::EdgeHandle& eh);
@@ -81,11 +82,13 @@ namespace HSIM
 		double			avgEdgeLength;						//!< Average edge length (from the mesh)
 		double			surfaceArea;						//!< Total surface area (from the mesh)
 
+
 		void subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK,  Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int solverStatus, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed = true, int lastConvergedId=0) override;
 		int SIMiterationInCPU(const Eigen::MatrixXd& XbarK, const Eigen::SparseMatrix<double>& SK, const Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int& GPUeigsolverStatus);
 		int SIMiterationInGPU(const Eigen::MatrixXd& XbarK, const Eigen::SparseMatrix<double>& SK, const Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int iterCount, int& GPUeigsolverStatus);
 		void constructDiagonalMassMatrix();
 		void constructConsistentMassMatrix();
+		
 	};
 }
 #endif // !ML_SOLVER_FUNCTIONS

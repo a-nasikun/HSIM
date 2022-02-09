@@ -221,6 +221,7 @@ namespace HSIM
 		bool isHamiltonian = false;
 		float hamFactor;
 		bool isInverseNorm = true;
+		int colormapType = 0;
 
 		void virtual subspaceIterationMethodHelper(int k, Eigen::SparseMatrix<double>& SK, Eigen::SparseMatrix<double>& MK, Eigen::MatrixXd XbarK, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int solverStatus, int numEigs, int q, int& iterCount, int maxIter, double tol, Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>>& factorization, bool isWithShift, bool isConvergedNotUsed = true, int lastConvergedId = 0);
 	public:

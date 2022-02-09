@@ -6,6 +6,7 @@
 #include <igl/avg_edge_length.h>
 #include <igl/edges.h>
 #include <igl/per_vertex_normals.h>
+#include <igl/colormap.h>
 
 #include <Eigen/PardisoSupport>
 
@@ -454,6 +455,10 @@ namespace HSIM
 			avgEdgeLength = igl::avg_edge_length(V, F);
 			HSIM::constructPoissonDiskSample(V, AdM, sampleSize, avgEdgeLength, Sample);
 			SubspaceSize[0] = Sample.rows();
+
+			for (int i = 0; i < samples.size(); ++i) {
+				printf("Level %d wtih %d DoFs \n", i, SubspaceSize[i]);
+			}
 		}
 		sampleLevel.resize(V.rows());
 
@@ -1234,7 +1239,8 @@ namespace HSIM
 			//SSel = S;
 		}
 		else {
-			
+			MSel = M;
+			SSel = S;
 		}
 
 		//std::cout << "Lifting the eigenvectors... ";
@@ -2525,10 +2531,12 @@ namespace HSIM
 		Eigen::SparseMatrix<double> SK, MK;
 		if (k == 0) {
 			SK = SL; MK = ML;
+			printf("S:%dx%d \n", SK.rows(), SK.cols());
 		}
-		else {
+		else {			
 			SK = U[k - 1].transpose() * SL * U[k - 1];
 			MK = U[k - 1].transpose() * ML * U[k - 1];
+			printf("U:%dx%d | S:%dx%d \n", U[k - 1].rows(), U[k - 1].cols(), SK.rows(), SK.cols());
 		}
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
@@ -3687,9 +3695,9 @@ void MLSolverFunctions::SIMinGPU(const Eigen::SparseMatrix<double>& SL, const Ei
 	int* d_csrColInd_SSp; cudaStat = cudaMalloc(&d_csrColInd_SSp, nnz_SSp * sizeof(int));		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot allocate memory in GPU\n";
 	
 	//cudaStat = cudaMemcpy(d_X0, EigVects.data(), m_X * n_X * sizeof(double), cudaMemcpyHostToDevice);
-	cudaStat = cudaMemcpy(d_csrVal_MSp, ML.valuePtr(), nnz_MSp * sizeof(double), cudaMemcpyHostToDevice);			if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
-	cudaStat = cudaMemcpy(d_csrRowPtr_MSp, ML.outerIndexPtr(), (m_MSp + 1) * sizeof(int), cudaMemcpyHostToDevice);	if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
-	cudaStat = cudaMemcpy(d_csrColInd_MSp, ML.innerIndexPtr(), nnz_MSp * sizeof(int), cudaMemcpyHostToDevice);		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
+	cudaStat = cudaMemcpy(d_csrVal_MSp, ML.valuePtr(), nnz_MSp * sizeof(double), cudaMemcpyHostToDevice);			if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n" << cudaStat << std::endl;
+	cudaStat = cudaMemcpy(d_csrRowPtr_MSp, ML.outerIndexPtr(), (m_MSp + 1) * sizeof(int), cudaMemcpyHostToDevice);	if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n" << cudaStat << std::endl;
+	cudaStat = cudaMemcpy(d_csrColInd_MSp, ML.innerIndexPtr(), nnz_MSp * sizeof(int), cudaMemcpyHostToDevice);		if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n" << cudaStat << std::endl;
 
 	cudaStat = cudaMemcpy(d_csrVal_SSp, SL.valuePtr(), nnz_SSp * sizeof(double), cudaMemcpyHostToDevice);			if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
 	cudaStat = cudaMemcpy(d_csrRowPtr_SSp, SL.outerIndexPtr(), (m_SSp + 1) * sizeof(int), cudaMemcpyHostToDevice);	if (cudaStat != cudaError_t::cudaSuccess) std::cout << "Cannot copy data to GPU\n";
@@ -4883,7 +4891,34 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 	
 		printf("#kernels=%d | min val: %.10f | max: %.10f | lbound=%.10f | ubound=%.10f | cutoff=%.10f \n", nKernels, hks.minCoeff(), hks.maxCoeff(), lBound, uBound, cutoff);
 		Eigen::MatrixXd VCol;
-		igl::jet(hks, true, VCol);
+		
+		switch (colormapType)
+		{
+		case 0:
+			igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, hks, true, VCol);
+			break;
+		case 1:
+			igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, hks, true, VCol);
+			break;
+		case 2:
+			igl::colormap(igl::COLOR_MAP_TYPE_JET, hks, true, VCol);
+			break;
+		case 3:
+			igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, hks, true, VCol);
+			break;
+		case 4:
+			igl::colormap(igl::COLOR_MAP_TYPE_PARULA, hks, true, VCol);
+			break;
+		case 5:
+			igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, hks, true, VCol);
+			break;
+		case 6:
+			igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, hks, true, VCol);
+			break;
+		default:
+			break;
+		}
+
 		viewer.data().set_colors(VCol);
 		//viewer.data().points.resize(0, 6);
 		//viewer.data().add_points(viewer.data().V.row(ref), Eigen::RowVector3d(0.2, 0.2, 0.2));
@@ -4984,7 +5019,35 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 	
 			funcCols = TempBasis;
 		}
-		igl::jet(funcCols, true, VColor);
+		//igl::jet(funcCols, true, VColor);
+
+		switch (colormapType)
+		{
+		case 0:
+			igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, funcCols, true, VColor);
+			break;
+		case 1:
+			igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, funcCols, true, VColor);
+			break;
+		case 2:
+			igl::colormap(igl::COLOR_MAP_TYPE_JET, funcCols, true, VColor);
+			break;
+		case 3:
+			igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, funcCols, true, VColor);
+			break;
+		case 4:
+			igl::colormap(igl::COLOR_MAP_TYPE_PARULA, funcCols, true, VColor);
+			break;
+		case 5:
+			igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, funcCols, true, VColor);
+			break;
+		case 6:
+			igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, funcCols, true, VColor);
+			break;
+		default:
+			break;
+		}
+
 		viewer.data().set_colors(VColor);
 	}
 	
@@ -5018,7 +5081,35 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 			break;
 		}
 	
-		igl::jet(vColor, id > 0, VColor);
+
+		switch (colormapType)
+		{
+		case 0:
+			igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, vColor, true, VColor);
+			break;
+		case 1:
+			igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, vColor, true, VColor);
+			break;
+		case 2:
+			igl::colormap(igl::COLOR_MAP_TYPE_JET, vColor, true, VColor);
+			break;
+		case 3:
+			igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, vColor, true, VColor);
+			break;
+		case 4:
+			igl::colormap(igl::COLOR_MAP_TYPE_PARULA, vColor, true, VColor);
+			break;
+		case 5:
+			igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, vColor, true, VColor);
+			break;
+		case 6:
+			igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, vColor, true, VColor);
+			break;
+		default:
+			break;
+		}
+
+		//igl::jet(vColor, id > 0, VColor);
 		viewer.data().set_colors(VColor);
 	}
 }

@@ -52,7 +52,8 @@ static int			hierarchyMode	= 3;						// 0: fixed num level, 1: auto (the more co
 static double		sphereScaleRatio= 0.05;
 static int			numLevels		= 3;
 //static bool			isSampleBounded = true;
-static bool			isClampedBasis = false;
+static bool			isClampedBasis	= false;
+static int			colormapType	= 0;				// 0: viridis,		1: inferno,		2: jet,		3: magma,	4: parula,		5: Plasma
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXi& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXi& sampSize);
@@ -271,7 +272,35 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 				// Plot distance
 				Eigen::MatrixXd VCol;
-				igl::jet(DistToBound, true, VCol);
+				//igl::jet(DistToBound, true, VCol);
+
+				switch (colormapType)
+				{
+				case 0:
+					igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, DistToBound, true, VCol);
+					break;
+				case 1:
+					igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, DistToBound, true, VCol);
+					break;
+				case 2:
+					igl::colormap(igl::COLOR_MAP_TYPE_JET, DistToBound, true, VCol);
+					break;
+				case 3:
+					igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, DistToBound, true, VCol);
+					break;
+				case 4:
+					igl::colormap(igl::COLOR_MAP_TYPE_PARULA, DistToBound, true, VCol);
+					break;
+				case 5:
+					igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, DistToBound, true, VCol);
+					break;
+				case 6:
+					igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, DistToBound, true, VCol);
+					break;
+				default:
+					break;
+				}
+
 				viewer.data().set_colors(VCol);
 			}
 
@@ -281,7 +310,35 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				eigenSolver->mapDistanceToFunctionOnBoundary(DistToBound);
 				//std::cout << "polynomial: \n" << eigenSolver->funcBoundary[0].transpose() << std::endl;
 				Eigen::MatrixXd VCol;
-				igl::jet(eigenSolver->funcBoundary[0], false, VCol);
+				//igl::jet(eigenSolver->funcBoundary[0], false, VCol);
+
+				switch (colormapType)
+				{
+				case 0:
+					igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, eigenSolver->funcBoundary[0], true, VCol);
+					break;
+				case 1:
+					igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, eigenSolver->funcBoundary[0], true, VCol);
+					break;
+				case 2:
+					igl::colormap(igl::COLOR_MAP_TYPE_JET, eigenSolver->funcBoundary[0], true, VCol);
+					break;
+				case 3:
+					igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, eigenSolver->funcBoundary[0], true, VCol);
+					break;
+				case 4:
+					igl::colormap(igl::COLOR_MAP_TYPE_PARULA, eigenSolver->funcBoundary[0], true, VCol);
+					break;
+				case 5:
+					igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, eigenSolver->funcBoundary[0], true, VCol);
+					break;
+				case 6:
+					igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, eigenSolver->funcBoundary[0], true, VCol);
+					break;
+				default:
+					break;
+				}
+
 				viewer.data().set_colors(VCol);
 			}
 
@@ -306,7 +363,36 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				//std::cout << "polynomial: \n" << eigenSolver->funcBoundary[0].transpose() << std::endl;
 				Eigen::MatrixXd VCol;
 				///igl::jet(eigenSolver->U[0]*eigenSolver->funcBoundary[1], true, VCol);
-				igl::jet(DistFunc, true, VCol);
+				//igl::jet(DistFunc, true, VCol);
+
+				switch (colormapType)
+				{
+				case 0:
+					igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, DistFunc, true, VCol);
+					break;
+				case 1:
+					igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, DistFunc, true, VCol);
+					break;
+				case 2:
+					igl::colormap(igl::COLOR_MAP_TYPE_JET, DistFunc, true, VCol);
+					break;
+				case 3:
+					igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, DistFunc, true, VCol);
+					break;
+				case 4:
+					igl::colormap(igl::COLOR_MAP_TYPE_PARULA, DistFunc, true, VCol);
+					break;
+				case 5:
+					igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, DistFunc, true, VCol);
+					break;
+				case 6:
+					igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, DistFunc, true, VCol);
+					break;
+				default:
+					break;
+				}
+
+
 				viewer.data().set_colors(VCol);
 			}
 
@@ -316,7 +402,35 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				eigenSolver->mapDistanceToFunctionOnBoundary(DistToBound);
 				//std::cout << "polynomial: \n" << eigenSolver->funcBoundary[0].transpose() << std::endl;
 				Eigen::MatrixXd VCol;
-				igl::jet(eigenSolver->U[0] * (eigenSolver->U[0].transpose()* eigenSolver->funcBoundary[0]), false, VCol);
+				//igl::jet(eigenSolver->U[0] * (eigenSolver->U[0].transpose()* eigenSolver->funcBoundary[0]), false, VCol);
+
+				switch (colormapType)
+				{
+				case 0:
+					igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, eigenSolver->U[0] * (eigenSolver->U[0].transpose() * eigenSolver->funcBoundary[0]), false, VCol);
+					break;
+				case 1:
+					igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, eigenSolver->U[0] * (eigenSolver->U[0].transpose() * eigenSolver->funcBoundary[0]), false, VCol);
+					break;
+				case 2:
+					igl::colormap(igl::COLOR_MAP_TYPE_JET, eigenSolver->U[0] * (eigenSolver->U[0].transpose() * eigenSolver->funcBoundary[0]), false, VCol);
+					break;
+				case 3:
+					igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, eigenSolver->U[0] * (eigenSolver->U[0].transpose() * eigenSolver->funcBoundary[0]), false, VCol);
+					break;
+				case 4:
+					igl::colormap(igl::COLOR_MAP_TYPE_PARULA, eigenSolver->U[0] * (eigenSolver->U[0].transpose() * eigenSolver->funcBoundary[0]), false, VCol);
+					break;
+				case 5:
+					igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, eigenSolver->U[0] * (eigenSolver->U[0].transpose() * eigenSolver->funcBoundary[0]), false, VCol);
+					break;
+				case 6:
+					igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, eigenSolver->U[0] * (eigenSolver->U[0].transpose() * eigenSolver->funcBoundary[0]), false, VCol);
+					break;
+				default:
+					break;
+				}
+
 				viewer.data().set_colors(VCol);
 			}
 
@@ -349,7 +463,35 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 			Eigen::VectorXd stvdDist = Eigen::Map<Eigen::VectorXd>(dist.data(),  dist.size());
 			Eigen::MatrixXd VCol;
-			igl::jet(stvdDist, true, VCol);
+			//igl::jet(stvdDist, true, VCol);
+
+			switch (colormapType)
+			{
+			case 0:
+				igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, stvdDist, true, VCol);
+				break;
+			case 1:
+				igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, stvdDist, true, VCol);
+				break;
+			case 2:
+				igl::colormap(igl::COLOR_MAP_TYPE_JET, stvdDist, true, VCol);
+				break;
+			case 3:
+				igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, stvdDist, true, VCol);
+				break;
+			case 4:
+				igl::colormap(igl::COLOR_MAP_TYPE_PARULA, stvdDist, true, VCol);
+				break;
+			case 5:
+				igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, stvdDist, true, VCol);
+				break;
+			case 6:
+				igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, stvdDist, true, VCol);
+				break;
+			default:
+				break;
+			}
+
 			viewer.data().set_colors(VCol);
 			printf("STVD from %d to %d is %.10f \n", initPoint, targetPoint, stvdDist(targetPoint));
 		}
@@ -396,7 +538,35 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			} while (!DistPQueue.empty());
 			
 			Eigen::MatrixXd VCol;
-			igl::jet(D, true, VCol);
+
+			switch (colormapType)
+			{
+			case 0:
+				igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, D, true, VCol);
+				break;
+			case 1:
+				igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, D, true, VCol);
+				break;
+			case 2:
+				igl::colormap(igl::COLOR_MAP_TYPE_JET, D, true, VCol);
+				break;
+			case 3:
+				igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, D, true, VCol);
+				break;
+			case 4:
+				igl::colormap(igl::COLOR_MAP_TYPE_PARULA, D, true, VCol);
+				break;
+			case 5:
+				igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, D, true, VCol);
+				break;
+			case 6:
+				igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, D, true, VCol);
+				break;
+			default:
+				break;
+			}
+
+			//igl::jet(D, true, VCol);
 			viewer.data().set_colors(VCol);
 			printf("Dijkstra from %d to %d is %.10f \n", initPoint, targetPoint, D(targetPoint));
 		}
@@ -439,7 +609,35 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 			// VISUALIZATION
 			Eigen::MatrixXd VCol;
-			igl::jet(x.real(), true, VCol);
+			//igl::jet(x.real(), true, VCol);
+
+			switch (colormapType)
+			{
+			case 0:
+				igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, x.real(), true, VCol);
+				break;
+			case 1:
+				igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, x.real(), true, VCol);
+				break;
+			case 2:
+				igl::colormap(igl::COLOR_MAP_TYPE_JET, x.real(), true, VCol);
+				break;
+			case 3:
+				igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, x.real(), true, VCol);
+				break;
+			case 4:
+				igl::colormap(igl::COLOR_MAP_TYPE_PARULA, x.real(), true, VCol);
+				break;
+			case 5:
+				igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, x.real(), true, VCol);
+				break;
+			case 6:
+				igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, x.real(), true, VCol);
+				break;
+			default:
+				break;
+			}
+
 			viewer.data().set_colors(VCol);
 		}
 		ImGui::SameLine();
@@ -484,7 +682,35 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 			// VISUALIZATION
 			Eigen::MatrixXd VCol;
-			igl::jet(x.real(), true, VCol);
+			//igl::jet(x.real(), true, VCol);
+
+			switch (colormapType)
+			{
+			case 0:
+				igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, x.real(), true, VCol);
+				break;
+			case 1:
+				igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, x.real(), true, VCol);
+				break;
+			case 2:
+				igl::colormap(igl::COLOR_MAP_TYPE_JET, x.real(), true, VCol);
+				break;
+			case 3:
+				igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, x.real(), true, VCol);
+				break;
+			case 4:
+				igl::colormap(igl::COLOR_MAP_TYPE_PARULA, x.real(), true, VCol);
+				break;
+			case 5:
+				igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, x.real(), true, VCol);
+				break;
+			case 6:
+				igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, x.real(), true, VCol);
+				break;
+			default:
+				break;
+			}
+
 			viewer.data().set_colors(VCol);
 		}
 
@@ -920,7 +1146,11 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				visualizeSampleSecondLevel(viewer, eigenSolver->getV(), eigenSolver->getF(), eigenSolver->getSample(), eigenSolver->getSubspaceSize(), nEps);
 			}
 
-			
+			//const char* colorMaps[] = {"Viridis", "Inferno", "Jet", "Magma", "Parula", "Plasma", "Turbo"};
+			const char* colorMaps[] = { "Viridis", "Inferno", "Jet", "Magma", "Parula", "Plasma", "Coolwarm" };
+			ImGui::Combo("Colormap", &colormapType, colorMaps, IM_ARRAYSIZE(colorMaps));
+			eigenSolver->colormapType = colormapType;
+
 			static int levelViz = 0;
 			ImGui::Text("Show sample dist");
 			for (int i = 0; i < numLevels-1; ++i)
@@ -952,8 +1182,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", basisToShow);
 			ImGui::SameLine(0, p);
-						
-
+			
 
 			if (ImGui::Button("+ 1##Basis1", ImVec2((w - 85.0f - 5.0*p) / 4.f, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1) {
@@ -1368,7 +1597,34 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				printf("Diffusion distance: %.16f \n", diffVector(targetID));
 				printf("Relative error: %.6f \n", abs(refDist-diffVector(targetID))/refDist);
 				
-				igl::jet(diffVector, false, VCol);
+				//igl::jet(diffVector, false, VCol);
+				switch (colormapType)
+				{
+				case 0:
+					igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, diffVector, true, VCol);
+					break;
+				case 1:
+					igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, diffVector, true, VCol);
+					break;
+				case 2:
+					igl::colormap(igl::COLOR_MAP_TYPE_JET, diffVector, true, VCol);
+					break;
+				case 3:
+					igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, diffVector, true, VCol);
+					break;
+				case 4:
+					igl::colormap(igl::COLOR_MAP_TYPE_PARULA, diffVector, true, VCol);
+					break;
+				case 5:
+					igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, diffVector, true, VCol);
+					break;
+				case 6:
+					igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, diffVector, true, VCol);
+					break;
+				default:
+					break;
+				}
+
 				printf("Max Dist: %.16f \n", diffVector.maxCoeff());
 				viewer.data().set_colors(VCol);
 				viewer.data().points.resize(0, 6);
