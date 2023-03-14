@@ -68,6 +68,7 @@ namespace HSIM
 
 		/* Applications */
 		void constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor);
+		void computeDiffusionDistance(const  std::vector<Eigen::VectorXd>& DiffusionTensor, int source, Eigen::VectorXd& distance);
 		void constructProjection(igl::opengl::glfw::Viewer& viewer, int n_filter);
 		double constructHKS(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, bool showColor=true);
 		double constructHKSAll(igl::opengl::glfw::Viewer& viewer, double t, int ref, int nKernels, double neigh=5.0, bool showColor = true);

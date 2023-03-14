@@ -1,5 +1,6 @@
 #include "Visualization.h"
 #include "Utility.h"
+#include <igl/jet.h>
 
 using namespace std;
 
@@ -123,7 +124,7 @@ void visualizeSampleMulti(igl::opengl::glfw::Viewer &viewer, const Eigen::Matrix
 		std::cout << "Num of mesh: " << viewer.data_list.size() << std::endl;
 	}	
 	viewer.selected_data_index = 0;
-	viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
+	viewer.core().align_camera_center(viewer.data().V, viewer.data().F);
 }
 
 //void visualizeSampleMulti(igl::opengl::glfw::Viewer& viewer, const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const Eigen::VectorXi& Sample, const vector<int>& sampleSize, double nEps, double scaleRatio, int sample1, int sample2)

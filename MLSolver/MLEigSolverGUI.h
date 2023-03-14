@@ -7,7 +7,7 @@
 #include <imgui/imgui.cpp>
 #include <imgui/imgui_demo.cpp>
 #include <imgui/imgui_draw.cpp>
-#include <imgui_impl_glfw_gl3.h>
+//#include <imgui/imgui_impl_glfw_gl3.h>
 
 #include <igl/igl_inline.h>
 #include <igl/opengl/glfw/Viewer.h>
@@ -17,6 +17,7 @@
 #include <igl/isolines.h>
 #include <igl/file_dialog_save.h>
 #include <igl/edges.h>
+#include <igl/isolines_map.h>
 
 #include <Eigen/PardisoSupport>
 #include <Eigen/IterativeLinearSolvers>
@@ -70,8 +71,10 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 	Eigen::MatrixXd		VColor;
 	Eigen::VectorXd		Z;
 
-	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	//ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight));
+	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5));
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight));
 	ImGui::Begin("HSIM Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
 
 	float w = ImGui::GetContentRegionAvailWidth();
@@ -195,7 +198,7 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 
 			if (viewer.data().V.rows() > 0) {
 				//scaleMesh(viewer.data().V, viewer.data().F, 2.0);
-				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
+				viewer.core().align_camera_center(viewer.data().V, viewer.data().F);
 
 				viewer.data().show_lines = false;
 				//printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());				
@@ -1348,9 +1351,10 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 			}
 
 			/* Overlays */
-			ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));
-			ImGui::SameLine();
-			ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
+			//ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));
+			//ImGui::SameLine();
+			//ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
+			
 		}		
 
 		/* Axis*/
@@ -1583,11 +1587,20 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				if(sourceID>=eigenSolver->getV().rows()) 
 					sourceID = eigenSolver->getV().rows()-1;
 				std::cout << "Source point: " << sourceID << std::endl;
-				diffVector.resize(eigenSolver->getV().rows());
+				//diffVector.resize(eigenSolver->getV().rows());
 
-				for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
-					Eigen::VectorXd diff = diffTensor2[sourceID] - diffTensor2[i];
-					diffVector(i) = diff.norm();
+				//int numSteps = 50;
+				//int step = std::round(eigenSolver->getV().rows()/ numSteps);
+				//#pragma parallel for
+				//{
+				//	for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
+				//		if (i % step == 0) printf("Check data: %d \n", i);
+				//		Eigen::VectorXd diff = diffTensor2[sourceID] - diffTensor2[i];
+				//		diffVector(i) = diff.norm();
+				//	}
+				//}
+				if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
+					solver->computeDiffusionDistance(diffTensor2, sourceID, diffVector);
 				}
 
 				// Test for circle
@@ -1634,13 +1647,43 @@ void showHSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::I
 				viewer.data().point_size = 20.0;
 			}
 
+			int numIsolines = 10;
 			if (ImGui::Button("Show Isolines", ImVec2(w, 0))) {
-				Eigen::MatrixXd isoV, isoE;									
-				//igl::isolines(eigenSolver->getV(), eigenSolver->getF(), diffVector, 10, isoV, isoE);
+
+
+				switch (colormapType)
+				{
+				case 0:
+					igl::colormap(igl::COLOR_MAP_TYPE_VIRIDIS, Eigen::VectorXd::LinSpaced(numIsolines, 0, 1).eval(), true, VCol);
+					break;
+				case 1:
+					igl::colormap(igl::COLOR_MAP_TYPE_INFERNO, Eigen::VectorXd::LinSpaced(numIsolines, 0, 1).eval(), true, VCol);
+					break;
+				case 2:
+					igl::colormap(igl::COLOR_MAP_TYPE_JET, Eigen::VectorXd::LinSpaced(numIsolines, 0, 1).eval(), true, VCol);
+					break;
+				case 3:
+					igl::colormap(igl::COLOR_MAP_TYPE_MAGMA, Eigen::VectorXd::LinSpaced(numIsolines, 0, 1).eval(), true, VCol);
+					break;
+				case 4:
+					igl::colormap(igl::COLOR_MAP_TYPE_PARULA, Eigen::VectorXd::LinSpaced(numIsolines, 0, 1).eval(), true, VCol);
+					break;
+				case 5:
+					igl::colormap(igl::COLOR_MAP_TYPE_PLASMA, Eigen::VectorXd::LinSpaced(numIsolines, 0, 1).eval(), true, VCol);
+					break;
+				case 6:
+					igl::colormap(igl::COLOR_MAP_TYPE_COOLWARM, Eigen::VectorXd::LinSpaced(numIsolines, 0, 1).eval(), true, VCol);
+					break;
+				default:
+					break;
+				}
+
+				//igl::jet(Eigen::VectorXd::LinSpaced(numIsolines, 0, 1).eval(), false, fCol);
+				igl::isolines_map(Eigen::MatrixXd(VCol), VCol);
 				
-				//for (int i = 0; i < isoE.rows(); i++) {
-				//	viewer.data().add_edges(isoV.row(isoE.row(i)(0)), isoV.row(isoE.row(i)(1)), Eigen::RowVector3d(0.6, 0.1, 0.1));
-				//}
+				viewer.data().set_colormap(VCol);
+				viewer.data().set_data(diffVector);
+			
 
 			}
 		}
@@ -1654,8 +1697,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			menuWindowWidth		= 200.f,
 			menuWindowHeight	= 675.f;
 	
-	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5));
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight));
 	ImGui::Begin("Subspace Iteration Method##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
 
 	float w = ImGui::GetContentRegionAvailWidth();

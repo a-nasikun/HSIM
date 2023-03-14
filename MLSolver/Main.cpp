@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Bar/Bar_rectangle_subdiv_160k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Pulley_full/pulley_40k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere40k.off";
-	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_43243.obj";		
+	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_43243.obj";		
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_subdiv_100k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_subdiv_100k-2_left-foot.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Armadillo/Armadillo_subdiv_100k-3_chest.obj";
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Gargoyle_85K/654_gargoyle_raph_85k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Gargoyle_85K/654_gargoyle_subdiv_200k.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/TurboSquid_Sphere_HighGenus/TurboSquid_Sphere_highgenus.obj";
-	meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Chinese_dragon_quad_PGP_small_wavelength/894_dragon_tris.obj";
+	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Chinese_dragon_quad_PGP_small_wavelength/894_dragon_tris.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/sphere150k.off";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/AIM_Kitten-watertight/366_kitten_final.obj";
 	//meshFile = "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/EigenTrial/models/Sphere/blender_sphere_10k_irreg.obj";
@@ -125,11 +125,11 @@ int main(int argc, char *argv[])
 		case 'N':
 			//selectFace = true; 
 			xMouse = viewer.current_mouse_x;
-			yMouse = viewer.core.viewport(3) - viewer.current_mouse_y;
+			yMouse = viewer.core().viewport(3) - viewer.current_mouse_y;
 
 			//if (selectFace) {
-			if (igl::unproject_onto_mesh(Eigen::Vector2f(xMouse, yMouse), viewer.core.view,
-				viewer.core.proj, viewer.core.viewport, eigenSolver->getV(), eigenSolver->getF(), selectedFace, bc))
+			if (igl::unproject_onto_mesh(Eigen::Vector2f(xMouse, yMouse), viewer.core().view,
+				viewer.core().proj, viewer.core().viewport, eigenSolver->getV(), eigenSolver->getF(), selectedFace, bc))
 			{
 				// paint hit red
 				printf("Selected face is %d [%d, %d, %d]", selectedFace, eigenSolver->getF()(selectedFace,0), eigenSolver->getF()(selectedFace,1), eigenSolver->getF()(selectedFace,2));
@@ -161,9 +161,9 @@ int main(int argc, char *argv[])
 		Eigen::Vector3f bc;
 		// Cast a ray in the view direction starting from the mouse position
 		double x = viewer.current_mouse_x;		
-		double y = viewer.core.viewport(3) - viewer.current_mouse_y;
-		if (igl::unproject_onto_mesh(Eigen::Vector2f(x, y), viewer.core.view,
-			viewer.core.proj, viewer.core.viewport, VV, FF, fid, bc))
+		double y = viewer.core().viewport(3) - viewer.current_mouse_y;
+		if (igl::unproject_onto_mesh(Eigen::Vector2f(x, y), viewer.core().view,
+			viewer.core().proj, viewer.core().viewport, VV, FF, fid, bc))
 		{			
 			printf("Face ID: %d with vertex id [%d, %d, %d] \n", fid, FF(fid, 0), FF(fid, 1), FF(fid, 2));
 			return true;
@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 	//Eigen::Vector4f				bgCol(0.5f, 0.4f, 0.9f, 0.2f);
 	//Eigen::Vector4f				bgCol(0.95f, 0.95f, 0.95f, 1.0f);
 	Eigen::Vector4f					bgCol(1.f, 1.f, 1.f, 1.f);
-	viewer.core.background_color	= bgCol;	
+	viewer.core().background_color	= bgCol;	
 	viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 	//viewer.data().set_colors(Eigen::RowVector3d(255.0, 103.0, 0.0)/255.0);
 	//viewer.data().set_colors(Eigen::RowVector3d(0.96666666, 0.96666666, 0.96666666));

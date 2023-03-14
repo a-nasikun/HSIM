@@ -4833,16 +4833,25 @@ void MLSolverFunctions::BMGiter(const Eigen::SparseMatrix<double>& SL, const Eig
 	*/
 	void MLSolverFunctions::constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor)
 	{
+		printf("Time=%.2f\n", t);
 		DiffusionTensor.resize(V.rows());
 		for (int i = 0; i < V.rows(); ++i) {
 			Eigen::VectorXd diff(numEigs);
 			for (int j = 0; j < numEigs; ++j) {
-				diff(j) = exp(-1.0*EigVals(j)*t/2.0) * EigVects(i, j);
+				diff(j) = exp(-1.0*EigVals(j)*(t/2.0)) * EigVects(i, j);
 			}
 			DiffusionTensor[i] = diff;
 		}
 	}
 
+	void MLSolverFunctions::computeDiffusionDistance(const  std::vector<Eigen::VectorXd>& DiffusionTensor, int source, Eigen::VectorXd& distance)
+	{
+		distance.resize(V.rows());
+		for (int i = 0; i < V.rows(); ++i) {
+			Eigen::VectorXd diff = DiffusionTensor[source] - DiffusionTensor[i];
+			distance(i) = diff.norm();
+		}
+	}
 	void MLSolverFunctions::constructProjection(igl::opengl::glfw::Viewer& viewer, int n_filter)
 	{
 		if (EigVectsSIM.cols() < 1) { std::cout << "Error! Please compute the eigenvecto first \n"; return; }
