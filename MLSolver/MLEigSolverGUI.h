@@ -27,7 +27,6 @@
 #include "MLEigSolver.h"
 
 #include "MLEigenSolver.h"
-#include "MLSolverElastics.h"
 #include "MLSolverFunctions.h"
 
 #include <mkl.h>
@@ -138,8 +137,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		}
 			
 
-		ImGui::RadioButton("Lap--Beltr.", &problemType, 0); ImGui::SameLine();
-		ImGui::RadioButton("Lin. Elasti.", &problemType, 1);
+		ImGui::RadioButton("Lap--Beltr.", &problemType, 0);
 
 		if (ImGui::Button("Set-up Problem##1", ImVec2((w - p) / 2.f, 0))) {
 			if (viewer.data().V.rows() < 1) return;
@@ -148,9 +146,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			if (problemType == 0) {
 				eigenSolver = new MLSolverFunctions();
 			}
-			else if (problemType == 1) {
-				eigenSolver = new MLSolverElastics();
-			}
 			eigenSolver->setV(viewer.data().V);
 			eigenSolver->setF(viewer.data().F);
 
@@ -158,82 +153,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		}
 
 		static int axis = 0;
-		if (problemType == 1) {
-			if (ImGui::Button("Create Tet-Mesh", ImVec2((w), 0))) {
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					if (solver->getF().cols() == 4) return;
-					solver->createTetrahedralMesh();
-					solver->computeVolume();/* Set the parameters of the mesh for deformable objects */
-					viewer.data().clear();
-					viewer.data().set_mesh(solver->getV(), solver->getTF());
-				}
-
-				//viewer.selected_data_index = 0;
-				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
-				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
-				viewer.data().invert_normals = true;
-
-				printf("mesh that we have  now: %d \n", viewer.data_list.size());
-			}
-
-			/* Visualizing the tetrahedral mesh */
-			if (ImGui::Button("Pick Axis", ImVec2((w) / 2.0, 0))) {
-				axis = (axis + 1) % 3;
-				if (axis == 0) cout << "X axis \n";
-				else if (axis == 1) cout << "Y axis \n";
-				else cout << "Z axis \n";
-			}
-			ImGui::SameLine(0, p);
-			if (ImGui::Button("Show Tet Mesh", ImVec2((w) / 2.0, 0))) {
-				viewer.data().invert_normals = false;
-				viewer.data().show_lines = true;
-
-				srand(time(NULL));
-				double t = (double)(rand() % 20 + 1) / 20.0;
-				//double t = 1.0;
-				cout << "The variable is: " << t << endl;
-				int id = axis;
-				Eigen::VectorXd v;
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					v = solver->getVB().col(id).array() - solver->getVB().col(id).minCoeff();
-					v /= v.col(0).maxCoeff();
-
-					vector<int> s;
-					s.reserve(v.size());
-					for (unsigned int i = 0; i < v.size(); i++) {
-						if (v(i) < t) {
-							s.push_back(i);
-						}
-					}
-
-					Eigen::MatrixXd V_temp(s.size() * 4, 3);
-					Eigen::MatrixXi F_temp(s.size() * 4, 3);
-
-					for (unsigned i = 0; i < s.size(); ++i)
-					{
-						V_temp.row(i * 4 + 0) = solver->getV().row(solver->getF()(s[i], 0));
-						V_temp.row(i * 4 + 1) = solver->getV().row(solver->getF()(s[i], 1));
-						V_temp.row(i * 4 + 2) = solver->getV().row(solver->getF()(s[i], 2));
-						V_temp.row(i * 4 + 3) = solver->getV().row(solver->getF()(s[i], 3));
-
-						F_temp.row(i * 4 + 0) << (i * 4) + 0, (i * 4) + 1, (i * 4) + 3;			// CW
-						F_temp.row(i * 4 + 1) << (i * 4) + 0, (i * 4) + 2, (i * 4) + 1;
-						F_temp.row(i * 4 + 2) << (i * 4) + 3, (i * 4) + 2, (i * 4) + 0;
-						F_temp.row(i * 4 + 3) << (i * 4) + 1, (i * 4) + 2, (i * 4) + 3;
-					}
-					printf("Size of V_Temp; %dx%d | F=%dx%d \n", V_temp.rows(), V_temp.cols(), F_temp.rows(), F_temp.cols());
-
-					viewer.data().clear();
-					viewer.data().set_mesh(V_temp, F_temp);
-					viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
-					viewer.data().set_face_based(true);
-				}
-
-				printf("mesh that we have  now: %d \n", viewer.data_list.size());
-			}
-
-			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-		}
 	}
 
 		/* STEP BY STEP CONSTRUCTION */
@@ -280,41 +199,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 				eigenSolver->constructMassMatrix();
 				eigenSolver->initiateAdM();
-
-				/* Setting up materials parameters*/
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver))
-				{
-					switch (matType)
-					{
-					case 0:
-						cout << "MatType: " << matType << ", 1 constant materials" << endl;
-						solver->setLameParametersConstant(m1lame1, m1lame2);
-						break;
-
-						/* 2-Material (left-right) */
-					case 1:
-						cout << "MatType: " << matType << ", 2 materials in halves" << endl;
-						solver->setLameParametersSlices(defAxis, 2, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);
-						break;
-
-						/* 2-Material, in slices */
-					case 2:
-						cout << "MatType: " << matType << ", 2 materials in slices" << endl;
-						solver->setLameParametersSlices(defAxis, numSlices, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);
-						break;
-
-					case 3:
-						cout << "MatType: " << matType << ", Outer box is different from inner. " << endl;
-						solver->setLameParametersBox(defAxis, clampRegion, m1lame1, m1lame2, m2lame1, m2lame2, colorVect);
-						break;
-
-					default:
-						break;
-					}
-					igl::jet(colorVect, false, VColor);
-					viewer.data().set_colors(VColor);
-				}
-
 				eigenSolver->constructStiffnessMatrix();
 			}
 
@@ -387,13 +271,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->setClampBasis(isClampedBasis);
 				numOfSupport = atof(numSupTxt);
 
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					cout << "LBS Basis \n";
-					solver->constructBasis_LBS(numOfSupport, defAxis, clampRegion);
-				}
-				else {
-					eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
-				}
+				eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
+				
 				useNonSmoothBasis = false;
 				//ml_eigSolver.testConstantFuncsProjection();
 
@@ -439,14 +318,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
 
+				eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
 				
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					solver->constructBasisCoarseOnly_LBS(numOfSupport, defAxis, clampRegion);
-				} 
-				else {
-					eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
-				}
-
 				useNonSmoothBasis = false;
 			}
 
@@ -459,13 +332,8 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				numOfSupport = atof(numSupTxt);
 				eigenSolver->setClampBasis(isClampedBasis);
 
-				if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver)) {
-					solver->constructBasisNonSmooth_LBS(numOfSupport, defAxis, clampRegion);
-				}
-				else 
-				{
-					eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
-				}
+				eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
+				
 				//ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
 				useNonSmoothBasis = true;
 			}
@@ -506,24 +374,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
 
-				///if (auto solver = dynamic_cast<MLSolverElastics*>(eigenSolver))
-				///{
-				///	solver->injectRigidModes();
-				///}
+				
 
 				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows()));
-				//eigToShow = 3; 
-				//
-				//cout << "Showing id: " << eigToShow << endl; 
-				//if (problemType == 0) {
-				//	cout << "Eigen functions. \n";
-				//	printf("Pos: %dx%d | vectors: %dx%d | id: %d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols(), eigenSolver->getEigenVectorsReduced().rows(), eigenSolver->getEigenVectorsReduced().cols(), eigToShow);
-				//	showEigenFunctions(viewer, eigenSolver->getEigenVectorsReduced(eigToShow), eigToShow);
-				//}
-				//else if (problemType == 1) {
-				//	cout << "Vibration modes \n";
-				//	showDeformationModes(viewer, eigenSolver->getV(), eigenSolver->getEigenVectorsReduced(eigToShow), eigScale);
-				//}			
+					
 			}
 
 			static char numRedEigTxt[32] = "20";	
