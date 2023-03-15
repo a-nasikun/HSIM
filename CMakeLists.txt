@@ -16,20 +16,20 @@ find_package(OpenGL)
 # directory where SuiteSparse was built.
 # ------------------------------------------------------------------
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/..") # Add the directory where FindSuiteSparse.cmake module can be found.
-set(SuiteSparse_USE_LAPACK_BLAS ON)
+#set(SuiteSparse_USE_LAPACK_BLAS ON)
 
 # Matlab
-set (MATLAB_LIBRARY_DIR "" CACHE PATH "Matlab static library dirs (e.g. R2018a/extern/lib/win64/microsoft)")
-set (MATLAB_INCLUDE_DIR "" CACHE PATH "Matlab include dir ((e.g. R2018a/extern/include)")
-set (SPECTRA_INCLUDE_DIR "" CACHE PATH "Include library for the Spectra eigensolver")
-set (SuiteSparse_LIBRARIES "" CACHE PATH "SuiteSparse install folder")
-include_directories(${MATLAB_INCLUDE_DIR})
-include_directories(${SPECTRA_INCLUDE_DIR}/include)
-include_directories(${SuiteSparse_LIBRARIES}/include/)
-include_directories(${SuiteSparse_LIBRARIES}/include/suitesparse/)
-link_directories(${MATLAB_LIBRARY_DIR})
-link_directories(${SuiteSparse_LIBRARIES}/lib/)
-link_directories(${SuiteSparse_LIBRARIES}/lib64/lapack_blas_windows)
+#set (MATLAB_LIBRARY_DIR "" CACHE PATH "Matlab static library dirs (e.g. R2018a/extern/lib/win64/microsoft)")
+#set (MATLAB_INCLUDE_DIR "" CACHE PATH "Matlab include dir ((e.g. R2018a/extern/include)")
+#set (SPECTRA_INCLUDE_DIR "" CACHE PATH "Include library for the Spectra eigensolver")
+#set (SuiteSparse_LIBRARIES "" CACHE PATH "SuiteSparse install folder")
+#include_directories(${MATLAB_INCLUDE_DIR})
+#include_directories(${SPECTRA_INCLUDE_DIR}/include)
+#include_directories(${SuiteSparse_LIBRARIES}/include/)
+#include_directories(${SuiteSparse_LIBRARIES}/include/suitesparse/)
+#link_directories(${MATLAB_LIBRARY_DIR})
+#link_directories(${SuiteSparse_LIBRARIES}/lib/)
+#link_directories(${SuiteSparse_LIBRARIES}/lib64/lapack_blas_windows)
 					
 # EIGEN
 # #################################################################################################
@@ -105,12 +105,12 @@ target_link_libraries(MultiLevelEigenSolver
 	PUBLIC cublas
 	PUBLIC cusolver
 	PUBLIC cusparse
-	libMatlabEngine.lib			# for Matlab stuff
-	libMatlabDataArray.lib      # 
-	libeng.lib                  # 
-	libut.lib                   # 
-	libmex.lib                  # 
-	libmx.lib                   # for matlab stuff
+	#libMatlabEngine.lib			# for Matlab stuff
+	#libMatlabDataArray.lib      # 
+	#libeng.lib                  # 
+	#libut.lib                   # 
+	#libmex.lib                  # 
+	#libmx.lib                   # for matlab stuff
 	#GPUQREngine.lib 			# SuiteSparse
 	#libblas.lib					
 	#liblapack.lib 
