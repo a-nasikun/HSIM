@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 3.10 FATAL_ERROR)
-project(MultiLevelEigenSolver LANGUAGES CXX CUDA)
+#project(MultiLevelEigenSolver LANGUAGES CXX CUDA)
+project(MultiLevelEigenSolver LANGUAGES CXX)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
 cmake_policy(SET CMP0076 NEW)
@@ -110,23 +111,23 @@ target_link_libraries(MultiLevelEigenSolver
 	libut.lib                   # 
 	libmex.lib                  # 
 	libmx.lib                   # for matlab stuff
-	GPUQREngine.lib 			# SuiteSparse
-	libblas.lib					
-	liblapack.lib 
-	libamd.lib 
-	libbtf.lib
-	libcamd.lib 
-	libccolamd.lib 
-	libcholmod.lib 
-	libcolamd.lib 
-	libcxsparse.lib 
-	libklu.lib 
-	libldl.lib
-	libspqr.lib 
-	libumfpack.lib 
-	metis.lib 
-	SuiteSparse_GPURuntime.lib 
-	suitesparseconfig.lib 		# SuiteSparse
+	#GPUQREngine.lib 			# SuiteSparse
+	#libblas.lib					
+	#liblapack.lib 
+	#libamd.lib 
+	#libbtf.lib
+	#libcamd.lib 
+	#libccolamd.lib 
+	#libcholmod.lib 
+	#libcolamd.lib 
+	#libcxsparse.lib 
+	#libklu.lib 
+	#libldl.lib
+	#libspqr.lib 
+	#libumfpack.lib 
+	#metis.lib 
+	#SuiteSparse_GPURuntime.lib 
+	#suitesparseconfig.lib 		# SuiteSparse
 	)
 set_target_properties(MultiLevelEigenSolver PROPERTIES
 	VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin
