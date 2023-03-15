@@ -4,7 +4,7 @@
 #include <iostream>
 #include <assert.h> 
 
-#include <Eigen/PardisoSupport>
+//#include <Eigen/PardisoSupport>
 
 // For CUDA
 //#include "cublas_v2.h"

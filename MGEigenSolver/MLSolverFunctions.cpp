@@ -6,7 +6,7 @@
 #include <igl/avg_edge_length.h>
 #include <igl/jet.h>
 
-#include <Eigen/PardisoSupport>
+//#include <Eigen/PardisoSupport>
 
 #include <queue>
 
@@ -600,7 +600,8 @@ void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatri
 	Id = eps*Id;
 	SS = SL + Id;		// Adding epsilon to the diagonal
 
-	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 	double mu;
 	if (isWithShift) {
 		if (EigValsReduced.rows() < 1)			// if no information about shifting is available, use no shift
@@ -804,8 +805,8 @@ void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMat
 			lastConvergedId = 6;		// first non-zero eigenvalue of the expected eigenvalues	
 		}
 	}
-	Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-	//Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
+	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+	Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 	do {
 		int dCounter = 0;
 		/* Stage II: Shifting and Sturm's check */
@@ -1051,7 +1052,8 @@ void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Ei
 		//double eps = 1e-6;
 
 		SS = SK + eps*Id;		// Adding epsilon to the diagonal
-		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 		factorization.compute(SS);
 		//factorization.compute(SK);
 		///cout << "SS: \n" << SS.topLeftCorner(12, 6) << endl;
@@ -1198,7 +1200,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix
 		printf("____<3> Lifting, Init vectors: %dx%d \n", XkL.rows(), XkL.cols());
 
 		/* Adding a small number on the diagonal, for robustness */
-		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 
 		//printf("____<4> Embedding a small-valued diagonal matrix \n");
 
@@ -1472,8 +1475,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 		cout << "...in " << duration.count() << " seconds." << endl;
 
 		/* Adding a small number on the diagonal, for robustness */
-		Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
-		//Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
+		//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> factorization;
 
 		//printf("____<4> Embedding a small-valued diagonal matrix \n");
 

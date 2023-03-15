@@ -41,8 +41,13 @@ set(HEADER_FILES
 
 add_library(MGEigenSolver ${SRC_FILES} ${HEADER_FILES})
 include_directories("${PROJECT_SOURCE_DIR}/../libigl/external/glad/include" "${PROJECT_SOURCE_DIR}/../libigl/external/glfw/include")
+include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/")
+include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/intel64/")
 target_include_directories(MGEigenSolver PUBLIC)
 target_link_libraries(MGEigenSolver PUBLIC igl::core OpenMP::OpenMP_CXX)
+#if(MSVC)
+# 	target_compile_definitions(${PROJECT_NAME} PUBLIC _USE_MATH_DEFINES)
+#endif()
 
 
 # GLAD
