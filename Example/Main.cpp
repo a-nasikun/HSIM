@@ -1,5 +1,4 @@
-#include "MGEigenSolver/MLEigSolver.h"
-
+#include "MLEigSolver.h"
 #include "MLEigenSolver.h"
 #include "MLSolverFunctions.h"
 #include "MLEigSolverGUI.h"
@@ -78,11 +77,11 @@ int main(int argc, char *argv[])
 		case 'N':
 			//selectFace = true; 
 			xMouse = viewer.current_mouse_x;
-			yMouse = viewer.core.viewport(3) - viewer.current_mouse_y;
+			yMouse = viewer.core().viewport(3) - viewer.current_mouse_y;
 
 			//if (selectFace) {
-			if (igl::unproject_onto_mesh(Eigen::Vector2f(xMouse, yMouse), viewer.core.view,
-				viewer.core.proj, viewer.core.viewport, eigenSolver->getV(), eigenSolver->getF(), selectedFace, bc))
+			if (igl::unproject_onto_mesh(Eigen::Vector2f(xMouse, yMouse), viewer.core().view,
+				viewer.core().proj, viewer.core().viewport, eigenSolver->getV(), eigenSolver->getF(), selectedFace, bc))
 			{
 				// paint hit red
 				printf("Selected face is %d [%d, %d, %d]", selectedFace, eigenSolver->getF()(selectedFace,0), eigenSolver->getF()(selectedFace,1), eigenSolver->getF()(selectedFace,2));
@@ -113,7 +112,7 @@ int main(int argc, char *argv[])
 	//Eigen::Vector4f				bgCol(0.5f, 0.4f, 0.9f, 0.2f);
 	//Eigen::Vector4f				bgCol(0.95f, 0.95f, 0.95f, 1.0f);
 	Eigen::Vector4f					bgCol(1.f, 1.f, 1.f, 1.f);
-	viewer.core.background_color	= bgCol;	
+	viewer.core().background_color = bgCol;
 	viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 	//viewer.data().set_colors(Eigen::RowVector3d(0.96666666, 0.96666666, 0.96666666));
 	viewer.data().point_size		= 10.0f;

@@ -4,6 +4,7 @@
 #include <igl/doublearea.h>
 #include <igl/invert_diag.h>
 #include <igl/avg_edge_length.h>
+#include <igl/jet.h>
 
 #include <Eigen/PardisoSupport>
 

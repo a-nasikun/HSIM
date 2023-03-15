@@ -10,9 +10,13 @@ option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui"          ON)
 include(libigl)
 
 include_directories("../build/_deps/libigl-src/external/imgui", "../build/_deps/libigl-src/external/imgui/backends", "../build/_deps/libigl-src/external/libigl-imgui")
-
+include_directories("${PROJECT_SOURCE_DIR}/../MGEigenSolver")
 # Add MGSolver library
+#add_subdirectory(../MGEigenSolver mgeigensolver-build)
 add_subdirectory(../MGEigenSolver mgeigensolver-build)
 file(GLOB SRC_FILES *.cpp *.h)
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::core igl::opengl_glfw igl::opengl_glfw_imgui MGEigenSolver)
+if(MSVC)
+ 	target_compile_definitions(${PROJECT_NAME} PUBLIC _USE_MATH_DEFINES)
+endif()

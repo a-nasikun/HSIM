@@ -2,6 +2,8 @@
 #include <Eigen/PardisoSupport>
 #include <omp.h>
 
+#include <igl/jet.h>
+
 /**
 *  @brief Reading a (triangle) mesh specified by the input.
 *

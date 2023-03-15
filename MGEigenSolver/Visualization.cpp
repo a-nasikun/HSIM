@@ -1,5 +1,7 @@
 #include "Visualization.h"
 
+#include <igl/jet.h>
+
 using namespace std;
 
 /* Visualize the samples */

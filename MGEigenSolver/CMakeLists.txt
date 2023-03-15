@@ -43,6 +43,7 @@ set(HEADER_FILES
 )
 
 add_library(MGEigenSolver ${SRC_FILES} ${HEADER_FILES})
+include_directories("${PROJECT_SOURCE_DIR}/../libigl/external/glad/include" "${PROJECT_SOURCE_DIR}/../libigl/external/glfw/include")
 target_include_directories(MGEigenSolver PUBLIC)
 target_link_libraries(MGEigenSolver PUBLIC igl::core OpenMP::OpenMP_CXX)
 
