@@ -57,7 +57,7 @@ static double		eigScale		= 1.005;
 
 void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXd& sampSize);
 void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXd& sampSize);
-void testSolver(Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM);
+//void testSolver(Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM);
 void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
 void testArmadillo(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
 
@@ -1560,7 +1560,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 					t0 = chrono::high_resolution_clock::now();
 					
-					computeEigenMatlab(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, tolVect[i], "");
+					//computeEigenMatlab(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, tolVect[i], "");
 
 					Eigen::VectorXd conv2;
 					eigenSolver->checkConvergenceCat2(EigVects, EigVals, eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
@@ -1689,53 +1689,6 @@ void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEi
 		sampSize(ii) = sampleLevels[ii];
 }
 
-void testSolver(Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM)
-{
-	chrono::high_resolution_clock::time_point	t1, t2;
-	chrono::duration<double>					duration;
-
-	//std::cout << "Simplicial LDLT \n";
-	//Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver; 
-	//std::cout << "PARDISO LDLT \n";
-	//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> solver;	
-	//std::cout << "UmfPack LU \n";
-	//Eigen::UmfPackLU<Eigen::SparseMatrix<double>> solver;
-	//std::cout << "Cholmod LLT \n";
-	//Eigen::CholmodSupernodalLLT<Eigen::SparseMatrix<double>> solver;
-	//std::cout << "SPQR\n";
-	//Eigen::SPQR<Eigen::SparseMatrix<double>> solver;
-	std::cout << "KLU \n";
-	Eigen::KLU<Eigen::SparseMatrix<double>> solver;
-
-	/* Generating random matrix as input */
-	Eigen::MatrixXd input, output;
-	const int numCols = 100;
-	generateRandomMatrix(SS.rows(), numCols, input);
-	output.resize(input.rows(), input.cols());
-
-	/* Normalizing the input */
-	for (int i = 0; i < numCols; ++i) {
-		double mNorm = input.col(i).transpose() * MM * input.col(i);
-		mNorm = (double) 1.0 / std::sqrt(mNorm);
-		input.col(i) = mNorm * input.col(i);
-	}
-	std::cout << "___Factorizing...";
-	t1 = chrono::high_resolution_clock::now();
-	solver.compute(SS);
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	cout << "in " << duration.count() << " seconds" << endl;
-
-	std::cout << "___Solving...";
-	t1 = chrono::high_resolution_clock::now();
-	for (int i = 0; i < numCols; ++i) {
-		output.col(i) = solver.solve(input.col(i));
-	}
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	cout << "in " << duration.count() << " seconds" << endl;
-
-}
 
 void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE)
 {
