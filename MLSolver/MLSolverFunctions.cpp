@@ -650,7 +650,7 @@ void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatri
 
 		/* Reduced eigenvalue problem */
 		printf("________solve reduced eigenvalue problem. ");
-		status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		///status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
 		if (status != 0) {
 			eps *= 10;
 			factorization.compute(SL + eps*Id);
@@ -921,7 +921,7 @@ void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMat
 
 			/* Reduced eigenvalue problem */
 			//printf("________solve reduced eigenvalue problem. ");
-			status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+			//status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
 			//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
 			//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
@@ -1083,7 +1083,7 @@ void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Ei
 			Mproj = XbarK.transpose()*MK*XbarK;
 
 			/* Computing the eigenproblem in reduced space*/
-			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			//status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 			if (status != 0) {
 				cout << status << "Cannot resolve eigenproblem epsilon " << eps << endl;
 				eps *= 10;
@@ -1327,7 +1327,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix
 				Mproj = XbarK.transpose()*MK*XbarK;
 
 				printf("________solve reduced eigenvalue problem. ");
-				status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+				//status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 				cout << "__STATUS: " << status << endl;
 				if (status != 0) {
 					cout << "___!! COmputation of eigenvalues failed! \n";
@@ -1557,7 +1557,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 
 			t1 = chrono::high_resolution_clock::now();
 			printf("________solve reduced eigenvalue problem. ");
-			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			///status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 			cout << "__STATUS: " << status << endl;
 			if (status != 0) {
 				cout << "___!! COmputation of eigenvalues failed! \n";

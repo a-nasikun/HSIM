@@ -251,11 +251,12 @@ void MLEigenSolver::solveRestrictedProblem()
 	int iter = 0;
 
 	do {		
-		if(iter==0)
-			status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
+		if (iter == 0)
+			//status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
+			status = 0;
 		else {
 			eps *= 10;
-			status = computeEigenGPU(S_+eps*Id, M_, EigVectsReducedNonLifted, EigValsReduced);
+			//status = computeEigenGPU(S_+eps*Id, M_, EigVectsReducedNonLifted, EigValsReduced);
 			cout << "Shift: " << eps << endl;
 		}
 		iter++;
@@ -321,14 +322,14 @@ void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& s
 		//computeEigenMatlab(S, M, numEigs, EigVectsRef, EigValsRef);
 		break;
 	case EigenSolverType::EIG_SOLVER_SPECTRA:
-		computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, maxIters, tol);
+		//computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, maxIters, tol);
 		break;
 	case EigenSolverType::EIG_SOLVER_CUDA:
 		if ( M.rows()>7500 ) {
 			cout << "We think the problem is too big to be solved in GPU! \nConsider other solver for this problem.\n";
 			return;
 		}
-		computeEigenGPU(S, M, EigVectsRef, EigValsRef);
+		//computeEigenGPU(S, M, EigVectsRef, EigValsRef);
 		break;
 
 	default:
@@ -395,14 +396,14 @@ void MLEigenSolver::computeRefEigenProblemWithSelector(int numEigs, const EigenS
 		//computeEigenMatlab(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef);
 		break;
 	case EigenSolverType::EIG_SOLVER_SPECTRA:
-		computeEigenSpectraSparse(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef, 0, 50, 1e-2);
+		//computeEigenSpectraSparse(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef, 0, 50, 1e-2);
 		break;
 	case EigenSolverType::EIG_SOLVER_CUDA:
 		if (MLoc.rows()>7500) {
 			cout << "We think the problem is too big to be solved in GPU! \nConsider other solver for this problem.\n";
 			return;
 		}
-		computeEigenGPU(SLoc, MLoc, EigVectsLoc, EigValsRef);
+		//computeEigenGPU(SLoc, MLoc, EigVectsLoc, EigValsRef);
 		break;
 
 	default:

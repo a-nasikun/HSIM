@@ -7,16 +7,16 @@
 #include <Eigen/PardisoSupport>
 
 // For CUDA
-#include "cublas_v2.h"
-#include "cusolverDn.h"
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+//#include "cublas_v2.h"
+//#include "cusolverDn.h"
+//#include "cuda_runtime.h"
+//#include "device_launch_parameters.h"
 
 #include <tuple>
 
 
 // Matlab interface
-#include <igl/matlab/matlabinterface.h> 
+//#include <igl/matlab/matlabinterface.h> 
 
 // SPECTRA EIGENSOLVER
 //#include <Spectra/GenEigsSolver.h>
@@ -28,6 +28,8 @@
 
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
+
+/*
 int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
 	cusolverDnHandle_t	cusolverH = NULL;
@@ -250,6 +252,7 @@ int computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd
 
 	return ((int) cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4); 
 }
+*/
 
 ///void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 ///{
@@ -402,6 +405,7 @@ int computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd
 ///	cudaDeviceReset();
 ///}
 
+/*
 void computeEigenGPUDense2(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
 	cusolverDnHandle_t	cusolverH = NULL;
@@ -516,11 +520,13 @@ void computeEigenGPUDense2(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::Matrix
 	if (cusolverH) cusolverDnDestroy(cusolverH);
 	cudaDeviceReset();
 }
+*/
 
+/*
 void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal)
 {
 
-	/* fake mass matrix */
+	///fake mass matrix
 	Eigen::SparseMatrix<double> M2;
 	M2.resize(S.rows(), S.cols());
 	M2.setIdentity();
@@ -551,8 +557,10 @@ void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int&
 	EigVal = eigensolver.eigenvalues();
 	cout << "Eigenvalues: " << EigVal.transpose() << endl; 
 }
-
+*/
 /* Sparse spectra eigensolver */
+
+/*
 void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, int type, int numIters, double tol)
 {
 	///cout << "Computing eigenproblem in Spectra...";
@@ -596,7 +604,7 @@ void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatr
 	///duration = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
 	///cout << "in " << duration.count()/1000 << " seconds." << endl;
 }
-
+*/
 /* Iterative Gauss-Seidel Solver */
 void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol)
 {
@@ -744,7 +752,7 @@ void GaussSeidelSparseSolverMatrixForm(Eigen::SparseMatrix<double>& LHS, Eigen::
 	DTriplet.reserve(LHS.rows());
 	LTriplet.reserve(4*LHS.rows());
 
-	/* Getting the sum of every non-zero elements in a row */
+	//Getting the sum of every non-zero elements in a row
 	for (int k = 0; k < LHS.outerSize(); ++k) {
 		for (Eigen::SparseMatrix<double>::InnerIterator it(LHS, k); it; ++it) {
 			if (it.row() > it.col())		LTriplet.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
