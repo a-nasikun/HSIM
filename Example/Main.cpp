@@ -1,4 +1,4 @@
-#include "MLEigSolver.h"
+#include "MGEigenSolver/MLEigSolver.h"
 
 #include "MLEigenSolver.h"
 #include "MLSolverFunctions.h"
