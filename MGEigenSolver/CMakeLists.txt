@@ -28,18 +28,15 @@ set(SRC_FILES
 	"EigenSolver.cpp"
 	"Sampling.cpp"
 	"Utility.cpp"
-	"Visualization.cpp"
 )
 
 set(HEADER_FILES
 	"MLEigenSolver.h"
 	"MLSolverFunctions.h"
-	"MLEigSolverGUI.h"
 	"Basis.h"
 	"EigenSolver.h"
 	"Sampling.h"
 	"Utility.h"
-	"Visualization.h"
 )
 
 add_library(MGEigenSolver ${SRC_FILES} ${HEADER_FILES})

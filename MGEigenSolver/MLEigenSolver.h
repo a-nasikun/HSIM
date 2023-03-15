@@ -5,7 +5,7 @@
 #include "Utility.h"
 #include "Sampling.h"
 #include "EigenSolver.h"
-#include "Visualization.h"
+//#include "Visualization.h"
 
 #include <igl/opengl/glfw/Viewer.h>
 

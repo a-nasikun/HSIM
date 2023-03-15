@@ -11,6 +11,7 @@ include(libigl)
 
 include_directories("../build/_deps/libigl-src/external/imgui", "../build/_deps/libigl-src/external/imgui/backends", "../build/_deps/libigl-src/external/libigl-imgui")
 include_directories("${PROJECT_SOURCE_DIR}/../MGEigenSolver")
+include_directories("${PROJECT_SOURCE_DIR}/../libigl/external/imgui/imgui/examples/opengl3_example")
 # Add MGSolver library
 #add_subdirectory(../MGEigenSolver mgeigensolver-build)
 add_subdirectory(../MGEigenSolver mgeigensolver-build)

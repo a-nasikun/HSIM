@@ -15,6 +15,7 @@
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/isolines.h>
+#include <igl/jet.h>
 
 //#define EIGEN_USE_MKL_ALL 
 #include <Eigen/Eigen>
@@ -76,8 +77,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 	Eigen::MatrixXd		VColor;
 	Eigen::VectorXd		Z;
 
-	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	//ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5));
+	//ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight));
 	ImGui::Begin("Reduced Space", nullptr, ImGuiWindowFlags_NoSavedSettings);
 
 	float w = ImGui::GetContentRegionAvailWidth();
@@ -120,7 +123,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				//eigenSolver.setF(viewer.data().F);
 
 				scaleMesh(viewer.data().V, viewer.data().F, 2.0);
-				viewer.core.align_camera_center(viewer.data().V, viewer.data().F);
+				viewer.core().align_camera_center(viewer.data().V, viewer.data().F);
 
 				viewer.data().show_lines = false;
 				printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());
@@ -614,9 +617,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 
 			/* Overlays */
-			ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));
-			ImGui::SameLine();
-			ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
+			//ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));				
+			//ImGui::SameLine();
+			//ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
 		}		
 
 		/* Axis*/
@@ -759,8 +762,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			menuWindowWidth		= 200.f,
 			menuWindowHeight	= 675.f;
 	
-	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5), ImGuiSetCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight), ImGuiSetCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5));
+	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight));
 	ImGui::Begin("Subspace Iteration Method##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
 
 	float w = ImGui::GetContentRegionAvailWidth();
