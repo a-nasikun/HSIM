@@ -17,19 +17,6 @@ find_package(OpenGL)
 # ------------------------------------------------------------------
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/..") # Add the directory where FindSuiteSparse.cmake module can be found.
 #set(SuiteSparse_USE_LAPACK_BLAS ON)
-
-# Matlab
-#set (MATLAB_LIBRARY_DIR "" CACHE PATH "Matlab static library dirs (e.g. R2018a/extern/lib/win64/microsoft)")
-#set (MATLAB_INCLUDE_DIR "" CACHE PATH "Matlab include dir ((e.g. R2018a/extern/include)")
-#set (SPECTRA_INCLUDE_DIR "" CACHE PATH "Include library for the Spectra eigensolver")
-#set (SuiteSparse_LIBRARIES "" CACHE PATH "SuiteSparse install folder")
-#include_directories(${MATLAB_INCLUDE_DIR})
-#include_directories(${SPECTRA_INCLUDE_DIR}/include)
-#include_directories(${SuiteSparse_LIBRARIES}/include/)
-#include_directories(${SuiteSparse_LIBRARIES}/include/suitesparse/)
-#link_directories(${MATLAB_LIBRARY_DIR})
-#link_directories(${SuiteSparse_LIBRARIES}/lib/)
-#link_directories(${SuiteSparse_LIBRARIES}/lib64/lapack_blas_windows)
 					
 # EIGEN
 # #################################################################################################
@@ -75,8 +62,6 @@ add_executable(MultiLevelEigenSolver
 	"MLSolver/Main.cpp"
 	"MLSolver/MLEigenSolver.h"
 	"MLSolver/MLEigenSolver.cpp"
-	"MLSolver/MLSolverElastics.h"
-	"MLSolver/MLSolverElastics.cpp"
 	"MLSolver/MLSolverFunctions.h"
 	"MLSolver/MLSolverFunctions.cpp"
 	"MLSolver/MLEigSolverGUI.h"
@@ -90,7 +75,6 @@ add_executable(MultiLevelEigenSolver
 	"MLSolver/Utility.cpp"
 	"MLSolver/Visualization.h"
 	"MLSolver/Visualization.cpp"
-	"MLSolver/Hessian.h"
 	)
 target_link_libraries(MultiLevelEigenSolver
 	PUBLIC libigl
@@ -104,30 +88,7 @@ target_link_libraries(MultiLevelEigenSolver
 	PUBLIC cudart
 	PUBLIC cublas
 	PUBLIC cusolver
-	PUBLIC cusparse
-	#libMatlabEngine.lib			# for Matlab stuff
-	#libMatlabDataArray.lib      # 
-	#libeng.lib                  # 
-	#libut.lib                   # 
-	#libmex.lib                  # 
-	#libmx.lib                   # for matlab stuff
-	#GPUQREngine.lib 			# SuiteSparse
-	#libblas.lib					
-	#liblapack.lib 
-	#libamd.lib 
-	#libbtf.lib
-	#libcamd.lib 
-	#libccolamd.lib 
-	#libcholmod.lib 
-	#libcolamd.lib 
-	#libcxsparse.lib 
-	#libklu.lib 
-	#libldl.lib
-	#libspqr.lib 
-	#libumfpack.lib 
-	#metis.lib 
-	#SuiteSparse_GPURuntime.lib 
-	#suitesparseconfig.lib 		# SuiteSparse
+	PUBLIC cusparse	
 	)
 set_target_properties(MultiLevelEigenSolver PROPERTIES
 	VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin
