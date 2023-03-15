@@ -318,7 +318,7 @@ void MLEigenSolver::computeRefEigenProblem(int numEigs, const EigenSolverType& s
 	switch (solverType)
 	{
 	case EigenSolverType::EIG_SOLVER_MATLAB:
-		computeEigenMatlab(S, M, numEigs, EigVectsRef, EigValsRef);
+		//computeEigenMatlab(S, M, numEigs, EigVectsRef, EigValsRef);
 		break;
 	case EigenSolverType::EIG_SOLVER_SPECTRA:
 		computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, maxIters, tol);
@@ -392,7 +392,7 @@ void MLEigenSolver::computeRefEigenProblemWithSelector(int numEigs, const EigenS
 	switch (solverType)
 	{
 	case EigenSolverType::EIG_SOLVER_MATLAB:
-		computeEigenMatlab(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef);
+		//computeEigenMatlab(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef);
 		break;
 	case EigenSolverType::EIG_SOLVER_SPECTRA:
 		computeEigenSpectraSparse(SLoc, MLoc, numEigs, EigVectsLoc, EigValsRef, 0, 50, 1e-2);

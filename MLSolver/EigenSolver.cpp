@@ -12,12 +12,8 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-// For MATLAB
-#include <MatlabDataArray.hpp>
-#include <MatlabEngine.hpp>
 #include <tuple>
-#include "engine.h"
-#include "mex.h"
+
 
 // Matlab interface
 #include <igl/matlab/matlabinterface.h> 
@@ -27,8 +23,8 @@
 //#include <Spectra/SymEigsSolver.h>
 //#include <Spectra/SymEigsShiftSolver.h>
 //#include <Spectra/GenEigsRealShiftSolver.h>
-#include <Spectra/SymGEigsSolver.h>
-#include <Spectra/MatOp/SparseCholesky.h>
+//#include <Spectra/SymGEigsSolver.h>
+//#include <Spectra/MatOp/SparseCholesky.h>
 
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
@@ -519,179 +515,6 @@ void computeEigenGPUDense2(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::Matrix
 	if (d_work) cudaFree(d_work);
 	if (cusolverH) cusolverDnDestroy(cusolverH);
 	cudaDeviceReset();
-}
-
-void computeEigenMatlab(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, double tol, const string& filename)
-{
-	//printf("Size of S = %dx%d\n", S.rows(), S.cols());
-	using namespace matlab::engine;
-	Engine *ep;
-	mxArray *MM = NULL, *MS = NULL, *result = NULL, *eigVecResult, *nEigsBuff, *solverTol;
-
-	/* Storing element to determine how many eigenpairs to compute*/
-	if (numEigs > M.rows())
-	{
-		cout << "ERROR! The number of the eigenpairs cannot exceed the size of input matrix(-ces)." << endl;
-		return;
-	}
-	nEigsBuff = mxCreateDoubleMatrix((mwSize)1, (mwSize)1, mxREAL);
-	double *numEigsPtr = mxGetPr(nEigsBuff);
-	*numEigsPtr = numEigs;
-
-	solverTol = mxCreateDoubleMatrix((mwSize)1, (mwSize)1, mxREAL);
-	double *solverTolPtr = mxGetPr(solverTol);
-	*solverTolPtr = tol;
-
-
-	chrono::high_resolution_clock::time_point	t1, t2, t3, t4;
-	chrono::duration<double>					time_span, ts2;
-
-	t1 = chrono::high_resolution_clock::now();
-
-	const int NNZ_S = S.nonZeros();
-	const int NNZ_M = M.nonZeros();
-	double *eigVal, *eigVec;
-
-	// Allocate memory for S and M (sparse representation)
-	double	*srs = (double*)malloc(NNZ_S * sizeof(double));
-	mwIndex *irs = (mwIndex*)malloc(NNZ_S * sizeof(mwIndex));
-	mwIndex *jcs = (mwIndex*)malloc((S.cols() + 1) * sizeof(mwIndex));
-
-	double	*srm = (double*)malloc(NNZ_M * sizeof(double));
-	mwIndex *irm = (mwIndex*)malloc(NNZ_M * sizeof(mwIndex));
-	mwIndex *jcm = (mwIndex*)malloc((M.cols() + 1) * sizeof(mwIndex));
-
-	// Bind MM with M, and MS with S
-	MS = mxCreateSparse(S.rows(), S.cols(), NNZ_S, mxREAL);
-	srs = mxGetPr(MS);
-	irs = mxGetIr(MS);
-	jcs = mxGetJc(MS);
-
-	MM = mxCreateSparse(M.rows(), M.cols(), NNZ_M, mxREAL);
-	srm = mxGetPr(MM);
-	irm = mxGetIr(MM);
-	jcm = mxGetJc(MM);
-
-	// Setting initial variable value
-	int nnzSCounter = 0;
-	int nnzMCounter = 0;
-
-
-
-	// Getting matrix S
-	jcs[0] = nnzSCounter;
-	for (int i = 0; i < S.outerSize(); i++) {
-		for (Eigen::SparseMatrix<double>::InnerIterator it(S, i); it; ++it) {
-			srs[nnzSCounter] = it.value();
-			irs[nnzSCounter] = it.row();
-			nnzSCounter++;
-		}
-		jcs[i + 1] = nnzSCounter;
-	}
-
-	// Getting matrix M
-	jcm[0] = nnzMCounter;
-	for (int i = 0; i < M.outerSize(); i++) {
-		for (Eigen::SparseMatrix<double>::InnerIterator it(M, i); it; ++it) {
-			srm[nnzMCounter] = it.value();
-			irm[nnzMCounter] = it.row();
-			nnzMCounter++;
-		}
-		jcm[i + 1] = nnzMCounter;
-	}
-
-	// Start Matlab Engine
-	int *matlabStatus;
-	ep = engOpen(NULL);
-	if (!(ep = engOpen(""))) {
-		//ep = engOpenSingleUse(NULL, NULL, matlabStatus);
-		//if (!(ep = engOpenSingleUse(NULL, NULL, matlabStatus))) {
-		fprintf(stderr, "\nCan't start MATLAB engine\n");
-		cout << "CANNOT START MATLAB " << endl;
-	}
-	else {
-		//cout << "MATLAB STARTS. OH YEAH!!!" << endl;
-	}
-
-	//cout << "Status => " << matlabStatus << endl; 
-
-	// Compute Eigenvalue in Matlab
-	int NUM_EIGEN = numEigs;
-
-	engPutVariable(ep, "MS", MS);
-	engPutVariable(ep, "MM", MM);
-	engPutVariable(ep, "Num", nEigsBuff);
-	engPutVariable(ep, "Tol", solverTol);
-
-	std::cout << "Solving eigenproblem with tolerance of " << tol << std::endl;
-	t3 = chrono::high_resolution_clock::now();
-	engEvalString(ep, "[data, EigVal]=eigs(MS,MM, Num(1,1),'smallestabs', 'Tolerance',Tol);");	
-	//engEvalString(ep, "[EigVec, EigVal]=eigs(MS,MM);");
-	engEvalString(ep, "EigVal=diag(EigVal);");
-	if (numEigs > 1)
-	{
-		engEvalString(ep, "hold on; plot(1:Num(1,1), EigVal(1:Num(1,1)),'LineWidth',1.5);"); // has to do it this way for "correct" plot		
-		string approxFile = "save('" + filename + "_eigFields','data','EigVal');";
-		//string approxFile = "save('" + filename + "_eigFields','EigVec');";
-		//string approxFile = "save('" + filename + "_eigvalues','EigVal');";
-		//cout << "Saving the eigen problem\n";
-		//engEvalString(ep, approxFile.c_str());
-	}
-	t4 = chrono::high_resolution_clock::now();
-
-
-	result = engGetVariable(ep, "EigVal");
-	eigVal = (double*)malloc(NUM_EIGEN * sizeof(double));
-	memcpy((void *)eigVal, (void *)mxGetPr(result), NUM_EIGEN * sizeof(double));
-
-	eigVecResult = engGetVariable(ep, "data");
-	eigVec = (double*)malloc(M.rows() * NUM_EIGEN * sizeof(double));
-	memcpy((void *)eigVec, (void *)mxGetPr(eigVecResult), M.rows() * NUM_EIGEN * sizeof(double));
-
-	EigVal = Eigen::Map<Eigen::VectorXd>(eigVal, NUM_EIGEN);
-	EigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(eigVec, M.rows(), NUM_EIGEN, Eigen::OuterStride<>(M.rows()));
-
-	t2 = chrono::high_resolution_clock::now();
-	time_span = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
-	ts2 = chrono::duration_cast<chrono::duration<double>>(t4 - t3);
-
-	engEvalString(ep, "clear;");
-
-	mxDestroyArray(MM);
-	mxDestroyArray(MS);
-	mxDestroyArray(result);
-	mxDestroyArray(eigVecResult);
-	mxDestroyArray(nEigsBuff);
-
-	engClose(ep);
-}
-
-void computeEigenMatlabDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, const string& filename)
-{
-	/* Initiating the matlab engine */
-	cout << "Initiating the matlab engine\n";
-	using namespace matlab::engine;
-	Engine *ep;
-	igl::matlab::mlinit(&ep);
-
-	/* Setting the matrix to matlab */
-	cout << "Setting the matrix to matlab\n";
-	igl::matlab::mlsetmatrix(&ep, "S", S);
-	igl::matlab::mlsetmatrix(&ep, "M", M);
-	igl::matlab::mlsetscalar(&ep, "numEigen", numEigs);
-
-	/* Performing the eigenvalue computation */
-	cout << "Performing the eigenvalue computation \n";
-	igl::matlab::mleval(&ep, "[EVec, EVal]=eig(S,M,numEigen,'smallestreal');");
-	igl::matlab::mleval(&ep, "EVal=diag(EVal);");
-	igl::matlab::mleval(&ep, "plot(EVal);");
-
-	cout << "Getting back the matrices\n";
-	/* Getting back the matrices */
-	igl::matlab::mlgetmatrix(&ep, "EVec", EigVec);
-	Eigen::MatrixXd EValMat;
-	igl::matlab::mlgetmatrix(&ep, "EVal", EValMat);
-	EigVal = EValMat.col(0);
 }
 
 void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal)

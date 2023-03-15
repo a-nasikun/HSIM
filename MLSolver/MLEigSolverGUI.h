@@ -19,10 +19,10 @@
 //#define EIGEN_USE_MKL_ALL 
 #include <Eigen/Eigen>
 #include <Eigen/PardisoSupport>
-#include <Eigen/CholmodSupport>
-#include <Eigen/SPQRSupport>
-#include <Eigen/UmfPackSupport>
-#include <Eigen/KLUSupport>
+//#include <Eigen/CholmodSupport>
+//#include <Eigen/SPQRSupport>
+//#include <Eigen/UmfPackSupport>
+//#include <Eigen/KLUSupport>
 
 #include "MLEigSolver.h"
 
