@@ -35,12 +35,13 @@ set(HEADER_FILES
 	"EigenSolver.h"
 	"Sampling.h"
 	"Utility.h"
-)
+) 
 
 add_library(MGEigenSolver ${SRC_FILES} ${HEADER_FILES})
 include_directories("${PROJECT_SOURCE_DIR}/../libigl/external/glad/include" "${PROJECT_SOURCE_DIR}/../libigl/external/glfw/include")
 include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/")
 include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/intel64/")
+include_directories("${PROJECT_SOURCE_DIR}/../../build/_deps/spectra-src/include")
 target_include_directories(MGEigenSolver PUBLIC)
 target_link_libraries(MGEigenSolver PUBLIC igl::core OpenMP::OpenMP_CXX)
 #if(MSVC)

@@ -8,6 +8,8 @@ option(LIBIGL_WITH_OPENGL            "Use OpenGL"         ON)
 option(LIBIGL_WITH_OPENGL_GLFW       "Use GLFW"           ON)
 option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui"          ON)
 include(libigl)
+#include(spectra)
+include_directories("${PROJECT_SOURCE_DIR}/../../build/_deps/spectra-src/include")
 
 include_directories("../build/_deps/libigl-src/external/imgui", "../build/_deps/libigl-src/external/imgui/backends", "../build/_deps/libigl-src/external/libigl-imgui")
 include_directories("${PROJECT_SOURCE_DIR}/../MGEigenSolver")
