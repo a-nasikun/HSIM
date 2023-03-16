@@ -913,6 +913,7 @@ void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatri
 		/* Reduced eigenvalue problem */
 		printf("________solve reduced eigenvalue problem. ");
 		///status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+		computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 		if (status != 0) {
 			eps *= 10;
 			factorization.compute(SL + eps*Id);
@@ -1184,6 +1185,7 @@ void MLSolverFunctions::performSIMwithShift_Draft(SIMType type, Eigen::SparseMat
 			/* Reduced eigenvalue problem */
 			//printf("________solve reduced eigenvalue problem. ");
 			//status = computeEigenGPUDense(Sproj, Mproj, Q, Alpha);
+			computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
 			//computeEigenGPUDenseJacobi(Sproj, Mproj, Q, Alpha);
 			//computeEigenMatlabDense(Sproj, Mproj, Sproj.rows(), Q, Alpha, "");
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, Alpha);
@@ -1347,6 +1349,7 @@ void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Ei
 
 			/* Computing the eigenproblem in reduced space*/
 			//status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
 			if (status != 0) {
 				cout << status << "Cannot resolve eigenproblem epsilon " << eps << endl;
 				eps *= 10;
@@ -1592,6 +1595,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShift_Draft(Eigen::SparseMatrix
 
 				printf("________solve reduced eigenvalue problem. ");
 				//status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+				computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
 				cout << "__STATUS: " << status << endl;
 				if (status != 0) {
 					cout << "___!! COmputation of eigenvalues failed! \n";
@@ -1822,6 +1826,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 			t1 = chrono::high_resolution_clock::now();
 			printf("________solve reduced eigenvalue problem. ");
 			///status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
 			cout << "__STATUS: " << status << endl;
 			if (status != 0) {
 				cout << "___!! COmputation of eigenvalues failed! \n";
@@ -1940,7 +1945,11 @@ void MLSolverFunctions::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eig
 	}
 }
 
-
+/* Reference*/
+void MLSolverFunctions::computeReference(int numEigs)
+{
+	computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, 250, 1e-3);
+}
 /* Applications */
 void MLSolverFunctions::constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor)
 {

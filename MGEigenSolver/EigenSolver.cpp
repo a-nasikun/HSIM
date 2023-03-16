@@ -539,7 +539,8 @@ void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int&
 	cout << "Creating the solver \n";
 	//Spectra::SymGEigsSolver<double, Spectra::SortRule::SmallestAlge,Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop, 50, 2 * 50);
 	//Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop2, 50, 2 * 50);
-	Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop2, 50, 2 * 50);
+	//Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop2, 50, 2 * 50);
+	Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::DenseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop, 50, 2 * 50);
 
 
 	cout << "Initiating the eigenproblem \n";
@@ -554,8 +555,8 @@ void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int&
 		cout << "Failsedl! \n";
 	}
 
-	EigVec = eigensolver.eigenvectors();
-	EigVal = eigensolver.eigenvalues();
+	EigVec = eigensolver.eigenvectors().rowwise().reverse();
+	EigVal = eigensolver.eigenvalues().reverse();
 
 	cout << "Eigenvalues: " << EigVal.transpose() << endl; 
 }
@@ -590,7 +591,7 @@ void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatr
 	cout << "Result of solving: " << info << endl; 
 
 	if (spectraSolver.info() == Spectra::CompInfo::Successful) {
-		EigVal = spectraSolver.eigenvalues().reverse();
+		EigVal = spectraSolver.eigenvalues().inverse();
 		EigVec = spectraSolver.eigenvectors().rowwise().reverse();
 		//EigVal = spectraSolver.eigenvalues();
 		//EigVec = spectraSolver.eigenvectors();
