@@ -134,6 +134,7 @@ private:
 	double			surfaceArea;						// total surface area (from the mesh)
 
 // TEst variable
+public:
 	double zhaoShiftParam;
 	void testParallelFactorization(bool isParallel = true);
 };

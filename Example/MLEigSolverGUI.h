@@ -646,39 +646,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				viewer.data().set_mesh(Vtemp, Ftemp);
 			}
 		}
-		/* LBS check */
-		if (ImGui::CollapsingHeader("Elements material##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
-			static double	transVal = 0;
-			static int		transAxis = 0;
-			static double	rotVal = 45.0;
-			static int		rotAxis = 0;
-			static int		numHandles = 5;
-
-			static char numHandlesTxt[32] = "5";			ImGui::InputText("Num Handles", numHandlesTxt, 32);
-			static char transValTxt[32] = "0.5";			ImGui::InputText("Translation", transValTxt, 32);
-			ImGui::RadioButton("X##trans1", &transAxis, 0); ImGui::SameLine();
-			ImGui::RadioButton("Y##trans1", &transAxis, 1); ImGui::SameLine();
-			ImGui::RadioButton("Z##trans1", &transAxis, 2);
-
-			static char rotValTxt[32] = "45";			ImGui::InputText("Rot. Angle", rotValTxt, 32);
-			ImGui::RadioButton("X##rot1", &rotAxis, 0); ImGui::SameLine();
-			ImGui::RadioButton("Y##rot1", &rotAxis, 1); ImGui::SameLine();
-			ImGui::RadioButton("Z##rot1", &rotAxis, 2);
-
-			if (ImGui::Button("LBS Pos", ImVec2((w - p) / 2.0, 0))) {
-				transVal = atof(transValTxt);
-				rotVal = atof(rotValTxt);
-				numHandles = atoi(numHandlesTxt);
-				eigenSolver->LBSTest_pos(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("LBS Vel", ImVec2((w - p) / 2.0, 0))) {
-				transVal = atof(transValTxt);
-				rotVal = atof(rotValTxt);
-				numHandles = atoi(numHandlesTxt);
-				eigenSolver->LBSTest_vel(viewer, numHandles, 0, transVal, transAxis, rotVal, rotAxis);
-			}
-		}
 
 		if (ImGui::Button("Reset Mesh", ImVec2(w, 0))) {
 			viewer.data().set_vertices(eigenSolver->getV());
@@ -788,18 +755,18 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		static int		maxIter		= 5;
 		static double	tol			= 1e-4;
 		/* Type of the SIM to be computed*/
-		std::map<int, MLEigenSolver::SIMType>			typeMap;
-		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(0, MLEigenSolver::SIMType::SIM_MultiLevel));
-		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(1, MLEigenSolver::SIMType::SIM_1level_WarmStart));
-		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(2, MLEigenSolver::SIMType::SIM_1level_Random));
-		typeMap.insert(std::pair<int, MLEigenSolver::SIMType>(3, MLEigenSolver::SIMType::SIM_1level_Bathe));
+		std::map<int, MLSolverFunctions::SIMType>			typeMap;
+		typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(0, MLSolverFunctions::SIMType::SIM_MultiLevel));
+		typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(1, MLSolverFunctions::SIMType::SIM_1level_WarmStart));
+		typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(2, MLSolverFunctions::SIMType::SIM_1level_Random));
+		typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(3, MLSolverFunctions::SIMType::SIM_1level_Bathe));
 
 		/* Type of shifting approach */
-		std::map<int, MLEigenSolver::ShiftType>			shiftMap;
-		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(0, MLEigenSolver::ShiftType::SHIFT_BATHE));
-		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(1, MLEigenSolver::ShiftType::SHIFT_ITOH_WILSON));
-		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(2, MLEigenSolver::ShiftType::SHIFT_GONG));
-		shiftMap.insert(std::pair<int, MLEigenSolver::ShiftType>(3, MLEigenSolver::ShiftType::SHIFT_ZHAO));
+		std::map<int, MLSolverFunctions::ShiftType>			shiftMap;
+		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(0, MLSolverFunctions::ShiftType::SHIFT_BATHE));
+		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(1, MLSolverFunctions::ShiftType::SHIFT_ITOH_WILSON));
+		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(2, MLSolverFunctions::ShiftType::SHIFT_GONG));
+		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(3, MLSolverFunctions::ShiftType::SHIFT_ZHAO));
 
 
 
@@ -1312,38 +1279,6 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			clampRegion = atof(selScale);
 		}
 
-
-
-		if (ImGui::Button("Compute Reference##1", ImVec2(w, 0))) {
-			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
-
-			eigToCompute = atoi(numEig);	
-			tol = stof(toleTxt);
-			maxIter = stoi(maxItersTxt);
-
-			cout << "> Computing reference eigenproblem ";
-
-			chrono::high_resolution_clock::time_point	t0, t1;
-			chrono::duration<double>					duration;
-			t0 = chrono::high_resolution_clock::now();
-
-			if (!isClampedEigen) {
-				eigenSolver->computeRefEigenProblem(eigToCompute, solverTypeMap[solverType], maxIter, tol);
-			}
-			else {
-				eigenSolver->computeRefEigenProblemWithSelector(eigToCompute, solverTypeMap[solverType], defAxis, clampRegion);
-			}
-
-			t1 = chrono::high_resolution_clock::now();
-			duration = t1 - t0;
-			cout << " in " << duration.count() << " seconds." << endl;
-
-			cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
-		}
-
-
-
-
 		if (ImGui::Button("Spectra Test", ImVec2(w, 0))) {
 			tol = atof(toleTxt);
 			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
@@ -1448,34 +1383,6 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			}
 		}
 
-		if (ImGui::Button("Compute Reference Multi", ImVec2(w, 0))) {
-			//vector<int> numEigs{50, 100, 250};
-			vector<int> numEigs{ 50};
-			chrono::high_resolution_clock::time_point	t0, t1;
-			chrono::duration<double>					duration;		
-
-
-			for (int j = 0; j < 2; ++j) {
-				for (int k = 0; k < 3; ++k) {
-					if (j == 0) std::cout << "Computing ref in Matlab |" << numEigs[k] << std::endl;
-					else if(j==1) std::cout << "Computing ref in Spectra |" << numEigs[k] << std::endl;
-
-					t0 = chrono::high_resolution_clock::now();
-
-					eigenSolver->computeRefEigenProblem(numEigs[k], solverTypeMap[j]);
-					Eigen::VectorXd conv2;
-					eigenSolver->checkConvergenceCat2(eigenSolver->getEigenVectorsRef(), eigenSolver->getEigenValuesRef(), eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
-					std::cout << "Conv: " << conv2 << std::endl;
-
-					t1 = chrono::high_resolution_clock::now();
-					duration = t1 - t0;
-					cout << "___in " << duration.count() << " seconds." << endl;
-
-					cout << "Ref eigenvalues: \n" << eigenSolver->getEigenValuesRef() << endl;
-				}
-			}
-			
-		}
 
 		if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {
 			// read from file 

@@ -22,7 +22,6 @@ find_package(OpenGL)
 #endif()
 
 set(SRC_FILES
-	"MLEigenSolver.cpp"
 	"MLSolverFunctions.cpp"
 	"Basis.cpp"
 	"EigenSolver.cpp"
@@ -31,7 +30,6 @@ set(SRC_FILES
 )
 
 set(HEADER_FILES
-	"MLEigenSolver.h"
 	"MLSolverFunctions.h"
 	"Basis.h"
 	"EigenSolver.h"
