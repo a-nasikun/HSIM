@@ -61,7 +61,7 @@ void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorX
 void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
 void testArmadillo(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
 
-void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) 
+void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLSolverFunctions*& eigenSolver)
 {
 	// Variables For Viewer visualization
 	float	menuWindowLeft		= 0.f,
@@ -374,7 +374,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
 				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
 
 				
@@ -498,7 +498,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow > 0)
 					eigToShow--;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", eigToShow);
@@ -513,7 +513,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow < (eigenSolver->getEigenValuesReduced().rows() - 1))
 					eigToShow++;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Red##EigVec1", ImVec2((w-85.0-3 * p) / 3.f, 0))) {
@@ -526,7 +526,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					return;
 				}
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
 			}
 
 			/* For Reference Eigenvectors */
@@ -541,7 +541,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow > 0)
 					eigToShow--;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REFERENCE, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", eigToShow);
@@ -557,7 +557,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow < (eigenSolver->getEigenValuesRef().rows() - 1))
 					eigToShow++;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REFERENCE, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Ref##EigVec1", ImVec2((w-85.0-3*p) / 3.f, 0))) {
@@ -570,7 +570,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					return;
 				}
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_REFERENCE, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REFERENCE, eigScale);
 			}
 
 			/* For SIM Eigenvectors */
@@ -585,7 +585,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow > 0)
 					eigToShow--;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_SIM, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", eigToShow);
@@ -600,7 +600,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				if (eigToShow < (eigenSolver->getEigenValuesSIM().rows() - 1))
 					eigToShow++;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_SIM, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("SIM##EigVec1", ImVec2((w-85.0-3* p) / 3.f, 0))) {
@@ -613,7 +613,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 					return;
 				}
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_SIM, eigScale);
 			}
 
 			/* Overlays */
@@ -756,7 +756,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		ImGui::End();
 }
 
-void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLEigenSolver*& eigenSolver) {
+void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLSolverFunctions*& eigenSolver) {
 	// Variables For Viewer visualization
 	float	menuWindowLeft		= 475.f,
 			menuWindowWidth		= 200.f,

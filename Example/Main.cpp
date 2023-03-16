@@ -1,5 +1,4 @@
 #include "MLEigSolver.h"
-#include "MLEigenSolver.h"
 #include "MLSolverFunctions.h"
 #include "MLEigSolverGUI.h"
 #include "MLTest.h"
@@ -9,7 +8,7 @@
 int main(int argc, char *argv[])
 {
 	string							meshFile; 
-	MLEigenSolver*					eigenSolver = new MLEigenSolver();
+	MLSolverFunctions*					eigenSolver = new MLSolverFunctions();
 
 
 	/* GUI FUNCTIONALITY */	
