@@ -19,12 +19,12 @@
 //#include <igl/matlab/matlabinterface.h> 
 
 // SPECTRA EIGENSOLVER
-//#include <Spectra/GenEigsSolver.h>
-//#include <Spectra/SymEigsSolver.h>
-//#include <Spectra/SymEigsShiftSolver.h>
-//#include <Spectra/GenEigsRealShiftSolver.h>
-//#include <Spectra/SymGEigsSolver.h>
-//#include <Spectra/MatOp/SparseCholesky.h>
+#include <Spectra/GenEigsSolver.h>
+#include <Spectra/SymEigsSolver.h>
+#include <Spectra/SymEigsShiftSolver.h>
+#include <Spectra/GenEigsRealShiftSolver.h>
+#include <Spectra/SymGEigsSolver.h>
+#include <Spectra/MatOp/SparseCholesky.h>
 
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
@@ -522,7 +522,7 @@ void computeEigenGPUDense2(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::Matrix
 }
 */
 
-/*
+
 void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal)
 {
 
@@ -537,30 +537,30 @@ void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int&
 	Spectra::SparseCholesky<double> Mop2(M2);
 
 	cout << "Creating the solver \n";
-	Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::DenseSymMatProd<double>, Spectra::DenseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop, 50, 2 * 50);
+	//Spectra::SymGEigsSolver<double, Spectra::SortRule::SmallestAlge,Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop, 50, 2 * 50);
 	//Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop2, 50, 2 * 50);
+	Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop2, 50, 2 * 50);
+
 
 	cout << "Initiating the eigenproblem \n";
 	eigensolver.init();
 
 	cout << "Computing the eigenproblem \n";
-	int nconv = eigensolver.compute();
-	if (eigensolver.info() == Spectra::SUCCESSFUL) {
+	int nconv = eigensolver.compute(Spectra::SortRule::SmallestAlge);
+	if (eigensolver.info() == Spectra::CompInfo::Successful) {
 		cout << "Successful! \n";
 	}
 	else {
 		cout << "Failsedl! \n";
 	}
 
-
 	EigVec = eigensolver.eigenvectors();
 	EigVal = eigensolver.eigenvalues();
+
 	cout << "Eigenvalues: " << EigVal.transpose() << endl; 
 }
-*/
-/* Sparse spectra eigensolver */
 
-/*
+/* Sparse spectra eigensolver */
 void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, int type, int numIters, double tol)
 {
 	///cout << "Computing eigenproblem in Spectra...";
@@ -574,29 +574,30 @@ void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatr
 
 	printf("Wrapper \n");
 
-	map<int, int> typeMap;
-	typeMap.insert(std::pair<int, int>(0, Spectra::SMALLEST_ALGE));
-	typeMap.insert(std::pair<int, int>(1, Spectra::SMALLEST_MAGN));
-	const int paramType = typeMap[type];
+	map<int, Spectra::SortRule> typeMap;
+	typeMap.insert(std::pair<int, Spectra::SortRule>(0, Spectra::SortRule::SmallestAlge));
+	typeMap.insert(std::pair<int, Spectra::SortRule>(1, Spectra::SortRule::SmallestImag));
+	const Spectra::SortRule paramType = typeMap[type];
 
-	Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> spectraSolver(&SOp, &MOp, numEigs, 2 * numEigs);
-	
+	//Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> spectraSolver(&SOp, &MOp, numEigs, 2 * numEigs);
+	Spectra::SymGEigsSolver<Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> spectraSolver(SOp, MOp, numEigs, 2*numEigs);
 
 	cout << "Trying to initiate \n";
 	spectraSolver.init();
 	std::cout << "Trying to solve | " << numEigs << " eigenpairs |" << numIters << "max iters |" << tol << " tolerance \n";
-	int info = spectraSolver.compute(numIters, tol, typeMap[type]);
+	//int info = spectraSolver.compute(numIters, tol, typeMap[type]);
+	int info = spectraSolver.compute(typeMap[type], numIters, tol);
 	cout << "Result of solving: " << info << endl; 
 
-	if (spectraSolver.info() == Spectra::SUCCESSFUL) {
-		//EigVal = spectraSolver.eigenvalues().reverse();
-		//EigVec = spectraSolver.eigenvectors().rowwise().reverse();
-		EigVal = spectraSolver.eigenvalues();
-		EigVec = spectraSolver.eigenvectors();
+	if (spectraSolver.info() == Spectra::CompInfo::Successful) {
+		EigVal = spectraSolver.eigenvalues().reverse();
+		EigVec = spectraSolver.eigenvectors().rowwise().reverse();
+		//EigVal = spectraSolver.eigenvalues();
+		//EigVec = spectraSolver.eigenvectors();
 		cout << "Yes! Made it! \n";
 	}
 	else {
-		std::cout << "Computation failed " << spectraSolver.info() <<" \n";
+		std::cout << "Computation failed \n";
 		std::cout << "Converged eigenpairs " << spectraSolver.compute() << std::endl;
 	}
 
@@ -604,7 +605,7 @@ void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatr
 	///duration = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
 	///cout << "in " << duration.count()/1000 << " seconds." << endl;
 }
-*/
+
 /* Iterative Gauss-Seidel Solver */
 void GaussSeidelSparseSolver(Eigen::SparseMatrix<double>& LHS, Eigen::VectorXd& rhs, Eigen::VectorXd& x0, Eigen::VectorXd& x, int maxIter, double tol)
 {

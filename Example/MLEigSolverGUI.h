@@ -25,9 +25,8 @@
 //#include <Eigen/UmfPackSupport>
 //#include <Eigen/KLUSupport>
 
-#include "MLEigSolver.h"
+//#include "MLEigSolver.h"
 
-#include "MLEigenSolver.h"
 #include "MLSolverFunctions.h"
 
 #include <mkl.h>
@@ -55,9 +54,6 @@ static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
 
-void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXd& sampSize);
-void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXd& sampSize);
-//void testSolver(Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM);
 void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
 void testArmadillo(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
 
@@ -1247,212 +1243,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 	ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
-	/* [REFERENCE] Eigenvectors */
-	static int solverType = 0; // 0: Matlab, 1: Spectra, 2: CUDA (GPU)
-	if (ImGui::CollapsingHeader("Compute Ref. Eigen", ImGuiTreeNodeFlags_DefaultOpen)) {
-		/* Type of the SIM to be computed*/
-		std::map<int, MLEigenSolver::EigenSolverType>			solverTypeMap;
-		solverTypeMap.insert(std::pair<int, MLEigenSolver::EigenSolverType>(0, MLEigenSolver::EigenSolverType::EIG_SOLVER_MATLAB));
-		solverTypeMap.insert(std::pair<int, MLEigenSolver::EigenSolverType>(1, MLEigenSolver::EigenSolverType::EIG_SOLVER_SPECTRA));
-		solverTypeMap.insert(std::pair<int, MLEigenSolver::EigenSolverType>(2, MLEigenSolver::EigenSolverType::EIG_SOLVER_CUDA));
-
-		static char numEig[6] = "100"; ImGui::InputText("Num eigenpairs", numEig, 6);
-
-		ImGui::RadioButton("Matlab", &solverType, 0); ImGui::SameLine();
-		ImGui::RadioButton("Spectra", &solverType, 1); ImGui::SameLine();
-		ImGui::RadioButton("CUDA", &solverType, 2);
-
-		static double tol;
-		static char toleTxt[15] = "0.0001"; ImGui::InputText("Tolerance##2", toleTxt, 15);
-		static int maxIter;
-		static char maxItersTxt[15] = "500"; ImGui::InputText("Max Iters##1", maxItersTxt, 15);
-		tol = stof(toleTxt);
-		maxIter = stoi(maxItersTxt);
-
-		ImGui::Checkbox("Clamped Eigen", &isClampedEigen);
-		if (isClampedEigen) {
-
-			ImGui::RadioButton("X", &defAxis, 0); ImGui::SameLine();
-			ImGui::RadioButton("Y", &defAxis, 1); ImGui::SameLine();
-			ImGui::RadioButton("Z", &defAxis, 2); ImGui::SameLine();
-			static char selScale[10] = "0.01"; ImGui::InputText("Selection", selScale, 10);
-			clampRegion = atof(selScale);
-		}
-
-		if (ImGui::Button("Spectra Test", ImVec2(w, 0))) {
-			tol = atof(toleTxt);
-			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
-			//std::vector<double>		tolVect{ 5e-2, 1e-2, 1e-3, 1e-4, 1e-5 };
-			std::vector<double>		tolVect{1e-1, 5.0e-2, 1e-4 };
-			vector<int>				wantedModes{ 250 };
-			//vector<int>				wantedModes{ 100, 150, 250 };
-			//eigToCompute = atoi(numEig);
-			Eigen::MatrixXd EigVects;
-			Eigen::VectorXd EigVals;
-			Eigen::VectorXd timing(1);
-
-			cout << "> Computing reference eigenproblem ";
-			chrono::high_resolution_clock::time_point	t0, t1;
-			chrono::duration<double>					duration;
-
-			for (int j = 0; j < wantedModes.size(); ++j) {
-				for (int i = 0; i < tolVect.size(); ++i) {
-
-					t0 = chrono::high_resolution_clock::now();
-
-					//computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigToCompute, EigVects, EigVals, 0, 1000, tol);
-					///computeEigenSpectraSparse(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, 1, 5000, tolVect[i]);
-					
-					Eigen::VectorXd conv2;
-					eigenSolver->checkConvergenceCat2(EigVects, EigVals, eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
-					std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
-					//tol /= 10000;
-
-					t1 = chrono::high_resolution_clock::now();
-					duration = t1 - t0;
-					cout << "\n in " << duration.count() << " seconds." << endl;
-					timing(0) = duration.count();
-
-					string modelName = "Sphere_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
-					string filename = "../../Data/" + modelName + "_EigVects-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
-					writeDenseMatrixToFile(EigVects, filename);
-					filename = "../../Data/" + modelName + "_EigVals-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
-					writeDenseMatrixToFile(EigVals, filename);
-					filename = "../../Data/" + modelName + "_Tolerance-Spectra_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
-					writeDenseMatrixToFile(timing, filename);
-					writeDenseMatrixToFile(conv2, filename);
-
-
-					//cout << "Ref eigenvalues: \n" << EigVals << std::endl;
-					cout << "Ref eigenvalues: \n";
-					//std::cout << EigVals(0) << std::endl;
-					//printVector(EigVals.tail(wantedModes[j]));
-					printVector(EigVals.head(wantedModes[j]));
-				}
-			}
-		}
-
-		if (ImGui::Button("Matlab Test", ImVec2(w, 0))) {
-			tol = atof(toleTxt);
-			//std::vector<double> tolVect{1e-2, 1e-4, 1e-7, 1e-10};
-			std::vector<double>		tolVect{ 1e-2, 1e-3, 1e-4, 1e-5, 1e-10 };
-			//std::vector<double>		tolVect{1e-5};
-			vector<int>				wantedModes{ 50, 100, 250 };
-			//eigToCompute = atoi(numEig);
-			Eigen::MatrixXd EigVects;
-			Eigen::VectorXd EigVals;
-			Eigen::VectorXd timing(1);
-
-			cout << "> Computing reference eigenproblem ";
-			chrono::high_resolution_clock::time_point	t0, t1;
-			chrono::duration<double>					duration;
-
-			for (int j = 0; j < wantedModes.size(); ++j) {
-				for (int i = 0; i < tolVect.size(); ++i) {
-
-					t0 = chrono::high_resolution_clock::now();
-					
-					//computeEigenMatlab(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), wantedModes[j], EigVects, EigVals, tolVect[i], "");
-
-					Eigen::VectorXd conv2;
-					eigenSolver->checkConvergenceCat2(EigVects, EigVals, eigenSolver->getMassMatrix(), eigenSolver->getStiffnessMatrix(), conv2);
-					std::cout << "Conv (" << tolVect[i] << ") : \n\t" << conv2.transpose() << std::endl;
-					//tol /= 10000;
-
-					t1 = chrono::high_resolution_clock::now();
-					duration = t1 - t0;
-					cout << "\n in " << duration.count() << " seconds." << endl;
-					timing(0) = duration.count();
-
-					string modelName = "Sphere_" + to_string(eigenSolver->getV().rows()) + "_" + to_string(eigenSolver->getF().cols());
-					string filename = "../../Data/" + modelName + "_EigVects-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
-					writeDenseMatrixToFile(EigVects, filename);
-					filename = "../../Data/" + modelName + "_EigVals-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
-					writeDenseMatrixToFile(EigVals, filename);
-					filename = "../../Data/" + modelName + "_Tolerance-Matlab_" + to_string(wantedModes[j]) + "_" + to_string(tolVect[i]) + ".txt";
-					writeDenseMatrixToFile(timing, filename);
-					writeDenseMatrixToFile(conv2, filename);
-
-
-					//cout << "Ref eigenvalues: \n" << EigVals << std::endl;
-					cout << "Ref eigenvalues: \n";
-					//std::cout << EigVals(0) << std::endl;
-					//printVector(EigVals.tail(wantedModes[j]));
-					printVector(EigVals.head(wantedModes[j]));
-				}
-			}
-		}
-
-
-		if (ImGui::Button("Read Ref. Eigs", ImVec2(w, 0))) {
-			// read from file 
-		}
-		if (ImGui::Button("Save EigVals#REF", ImVec2(w / 2, 0))) {
-			writeDenseMatrixToFile(eigenSolver->getEigenValuesRef(), "../../Data/" + model + "_EigVals_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
-		}
-		ImGui::SameLine(0, p);
-		if (ImGui::Button("Save EigVect#REF", ImVec2(w / 2, 0))) {
-			writeDenseMatrixToFile(eigenSolver->getEigenVectorsRef(), "../../Data/" + model + "_EigVects_Ref_" + to_string(eigenSolver->getEigenVectorsRef().rows()) + ".txt");
-		}
-	}
-	ImGui::End();
 }
-
-/* Sampling with fixed target,
-** The number of levels and ratio between levels is determined accordingly. */
-void setSamplingLevels(MLEigenSolver*& eigenSolver, int numEigen, Eigen::VectorXd& sampSize)
-{
-	std::cout << "Auto sampling for " << numEigen << " number of eigenvalues \n";
-	double	spRatio			= 1.25;
-	int		sizeSubsp		= spRatio * 2 * numEigen;
-	double	desiredRatio	= 10.0;
-	double	VSRatio			= (double)eigenSolver->getV().rows() / (double) sizeSubsp;
-	double	logRatio		= std::log(VSRatio) / std::log(desiredRatio);
-	int		numLevels		= std::round(logRatio);
-	double	sampleRatio		= std::pow(VSRatio, 1.0 / (double) numLevels);
-	std::cout << "Wanted mode: " << numEigen << " | subspace dim: " << 2 * numEigen << " | provided subspace: " << sizeSubsp << "(" << spRatio << ")\n";
-	std::cout << ">>> LEVEL Ratio of " << sampleRatio << std::endl;
-
-	int numSample = eigenSolver->getV().rows();
-	sampSize.resize(numLevels);
-	for (int i = 0; i < numLevels; ++i) {
-		numSample = (int)std::round(numSample / sampleRatio);
-		sampSize(i) = numSample;
-	}
-}
-
-/* Sampling with fixed Ratio,
-** The number of levels and number of coarsest level is determined accordingly. */
-void setSamplingLevels(MLEigenSolver*& eigenSolver, double levelRatio, int numEigen, Eigen::VectorXd& sampSize)
-{
-	double	spRatio = 1.25;
-	int		sizeSubsp = spRatio * 2 * numEigen;
-
-	vector<int> sampleLevels;
-	sampleLevels.reserve(10);
-	int SAMPLE_CUT_OFF = std::max(250, sizeSubsp);			//500
-	int SAMPLE_LOW_BOUND = 2 * SAMPLE_CUT_OFF;
-	if (problemType == 1) {
-		SAMPLE_LOW_BOUND /= 3;
-		SAMPLE_CUT_OFF /= 3;
-	}
-	int numSample = eigenSolver->getV().rows();
-	
-
-	/* automated */
-	do {
-		numSample = (int)std::round(numSample / levelRatio);
-		if (numSample < SAMPLE_CUT_OFF) break;
-		sampleLevels.push_back(numSample);
-		std::cout << "Inserted sample: " << numSample << std::endl; 
-	} while (numSample > SAMPLE_LOW_BOUND);
-
-	
-	sampSize.resize(sampleLevels.size());
-	for (int ii = 0; ii < sampleLevels.size(); ++ii)
-		sampSize(ii) = sampleLevels[ii];
-}
-
 
 void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE)
 {

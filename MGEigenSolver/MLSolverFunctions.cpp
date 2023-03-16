@@ -671,20 +671,28 @@ void MLSolverFunctions::solveRestrictedProblem()
 	int status;
 	int iter = 0;
 
+	Eigen::MatrixXd SDense(S_);
+	Eigen::MatrixXd MDense(M_);
+	Eigen::MatrixXd IdDense; IdDense.setIdentity(S_.rows(), S_.cols());
+
 	do {
-		if (iter == 0)
+		if (iter == 0) {
 			//status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
+			computeEigenSpectraDense(SDense, MDense, std::min((int)SDense.rows(), sampleSize), EigVectsReducedNonLifted, EigValsReduced);
 			status = 0;
+		}
 		else {
 			eps *= 10;
 			//status = computeEigenGPU(S_+eps*Id, M_, EigVectsReducedNonLifted, EigValsReduced);
+			Eigen::MatrixXd AA = SDense + eps * IdDense;
+			computeEigenSpectraDense(AA, MDense, std::min((int)SDense.rows(), sampleSize), EigVectsReducedNonLifted, EigValsReduced);
 			cout << "Shift: " << eps << endl;
 		}
 		iter++;
 	} while (status != 0 && iter < 10);
 
 	std::cout << "Succesful and lifted to fine resolution \n";
-	//EigVectsReduced = Basis * EigVectsReducedNonLifted;
+	EigVectsReduced = Basis * EigVectsReducedNonLifted;
 }
 
 void MLSolverFunctions::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset)
