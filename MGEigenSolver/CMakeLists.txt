@@ -12,6 +12,16 @@ include(libigl)
 find_package(OpenMP)
 find_package(OpenGL)
 
+# Check for CUDA and set the flags
+find_package(CUDA QUIET)
+if(CUDA_FOUND)
+  # Add the necessary libraries and include directories for CUDA
+  include_directories(${CUDA_INCLUDE_DIRS})
+  add_definitions(-DUSE_CUDA)
+  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_30" CACHE STRING "nvcc flags" FORCE)
+  set(LIBS ${LIBS} ${CUDA_LIBRARIES})
+endif()
+
 					
 # EIGEN
 # #################################################################################################

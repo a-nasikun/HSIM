@@ -678,14 +678,16 @@ void MLSolverFunctions::solveRestrictedProblem()
 	do {
 		if (iter == 0) {
 			//status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
-			computeEigenSpectraDense(SDense, MDense, std::min((int)SDense.rows(), sampleSize), EigVectsReducedNonLifted, EigValsReduced);
+			//computeEigenSpectraDense(SDense, MDense, std::min((int)SDense.rows()/2, 2*), EigVectsReducedNonLifted, EigValsReduced);
+			computeEigenSpectraDense(SDense, MDense, 50, EigVectsReducedNonLifted, EigValsReduced);
 			status = 0;
 		}
 		else {
 			eps *= 10;
 			//status = computeEigenGPU(S_+eps*Id, M_, EigVectsReducedNonLifted, EigValsReduced);
 			Eigen::MatrixXd AA = SDense + eps * IdDense;
-			computeEigenSpectraDense(AA, MDense, std::min((int)SDense.rows(), sampleSize), EigVectsReducedNonLifted, EigValsReduced);
+			//computeEigenSpectraDense(AA, MDense, std::min((int)SDense.rows()/2, 2*sampleSize), EigVectsReducedNonLifted, EigValsReduced);
+			computeEigenSpectraDense(AA, MDense, 50,EigVectsReducedNonLifted, EigValsReduced);
 			cout << "Shift: " << eps << endl;
 		}
 		iter++;
@@ -1948,7 +1950,7 @@ void MLSolverFunctions::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eig
 /* Reference*/
 void MLSolverFunctions::computeReference(int numEigs)
 {
-	computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 1, 250, 1e-3);
+	computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 0, 1000, 1e-7);
 }
 /* Applications */
 void MLSolverFunctions::constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor)

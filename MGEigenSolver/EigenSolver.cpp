@@ -7,10 +7,10 @@
 //#include <Eigen/PardisoSupport>
 
 // For CUDA
-//#include "cublas_v2.h"
-//#include "cusolverDn.h"
-//#include "cuda_runtime.h"
-//#include "device_launch_parameters.h"
+#include "cublas_v2.h"
+#include "cusolverDn.h"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
 
 #include <tuple>
 
@@ -29,7 +29,7 @@
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
 
-/*
+
 int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
 	cusolverDnHandle_t	cusolverH = NULL;
@@ -136,6 +136,7 @@ int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMa
 	return ((int)cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4);
 }
 
+/*
 int computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
 	cusolverDnHandle_t	cusolverH = NULL;
@@ -251,8 +252,8 @@ int computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd
 	cudaDeviceReset();
 
 	return ((int) cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4); 
-}
-*/
+} */
+
 
 ///void computeEigenGPUDenseJacobi(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 ///{
@@ -540,7 +541,7 @@ void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int&
 	//Spectra::SymGEigsSolver<double, Spectra::SortRule::SmallestAlge,Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop, 50, 2 * 50);
 	//Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop2, 50, 2 * 50);
 	//Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop2, 50, 2 * 50);
-	Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::DenseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop, 50, 2 * 50);
+	Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::DenseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop, numEigs, 2 * numEigs);
 
 
 	cout << "Initiating the eigenproblem \n";
@@ -587,8 +588,9 @@ void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatr
 	spectraSolver.init();
 	std::cout << "Trying to solve | " << numEigs << " eigenpairs |" << numIters << "max iters |" << tol << " tolerance \n";
 	//int info = spectraSolver.compute(numIters, tol, typeMap[type]);
-	int info = spectraSolver.compute(typeMap[type], numIters, tol);
-	cout << "Result of solving: " << info << endl; 
+	//int info = spectraSolver.compute(typeMap[type], numIters, tol);
+	int info = spectraSolver.compute(Spectra::SortRule::SmallestAlge, numIters, tol);
+	cout << "Result of solving: " << (int) spectraSolver.info() << endl;
 
 	if (spectraSolver.info() == Spectra::CompInfo::Successful) {
 		EigVal = spectraSolver.eigenvalues().inverse();
@@ -598,8 +600,12 @@ void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatr
 		cout << "Yes! Made it! \n";
 	}
 	else {
-		std::cout << "Computation failed \n";
-		std::cout << "Converged eigenpairs " << spectraSolver.compute() << std::endl;
+		int numConverged = spectraSolver.compute();
+		std::cout << "Converged eigenpairs " << numConverged << std::endl;
+		std::cout << "EigVals" << spectraSolver.eigenvalues().topRows(numConverged - 1).transpose() << std::endl;
+		EigVal = spectraSolver.eigenvalues().topRows(numConverged-1).inverse();
+		EigVec = spectraSolver.eigenvectors().leftCols(numConverged-1).rowwise().reverse();
+		//std::cout << "Computation failed \n";
 	}
 
 	///t2 = chrono::high_resolution_clock::now();
