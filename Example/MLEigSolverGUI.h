@@ -29,7 +29,7 @@
 
 #include "MLSolverFunctions.h"
 
-#include <mkl.h>
+//#include <mkl.h>
 //#include <armadillo>
 
 using namespace std;
