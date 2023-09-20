@@ -21,12 +21,12 @@
 //#include <igl/matlab/matlabinterface.h> 
 
 // SPECTRA EIGENSOLVER
-#include <Spectra/GenEigsSolver.h>
-#include <Spectra/SymEigsSolver.h>
-#include <Spectra/SymEigsShiftSolver.h>
-#include <Spectra/GenEigsRealShiftSolver.h>
-#include <Spectra/SymGEigsSolver.h>
-#include <Spectra/MatOp/SparseCholesky.h>
+//#include <Spectra/GenEigsSolver.h>
+//#include <Spectra/SymEigsSolver.h>
+//#include <Spectra/SymEigsShiftSolver.h>
+//#include <Spectra/GenEigsRealShiftSolver.h>
+//#include <Spectra/SymGEigsSolver.h>
+//#include <Spectra/MatOp/SparseCholesky.h>
 
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
@@ -104,112 +104,115 @@ int computeEigenGPU2(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseM
 	
 	return ((int)cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4);
 	*/
+	return 0;
 }
 
 int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
-	cusolverDnHandle_t	cusolverH = NULL;
-	cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;
-	cudaError_t			cudaStat1 = cudaSuccess;
-	cudaError_t			cudaStat2 = cudaSuccess;
-	cudaError_t			cudaStat3 = cudaSuccess;
-	cudaError_t			cudaStat4 = cudaSuccess;
+	////cusolverDnHandle_t	cusolverH = NULL;
+	////cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;
+	////cudaError_t			cudaStat1 = cudaSuccess;
+	////cudaError_t			cudaStat2 = cudaSuccess;
+	////cudaError_t			cudaStat3 = cudaSuccess;
+	////cudaError_t			cudaStat4 = cudaSuccess;
+	////
+	////const int m = S_.rows();
+	////const int lda = m;
+	////
+	////double *A = (double*)std::malloc(m*lda * sizeof(double));
+	////double *B = (double*)std::malloc(m*lda * sizeof(double));
+	////Eigen::MatrixXd Snew(S_);
+	////Eigen::MatrixXd Mnew(M_);
+	////A = Snew.data();
+	////B = Mnew.data();
+	////
+	////double	*V = (double*)std::malloc(m*lda * sizeof(double)); // [lda*m];		// eigenvectors 
+	////double	*W = (double*)std::malloc(m * sizeof(double)); 			// eigenvalues 
+	////double	*d_A = NULL;
+	////double	*d_B = NULL;
+	////double	*d_W = NULL;
+	////int		*devInfo = NULL;
+	////double	*d_work = NULL;
+	////int		lwork = 0;
+	////int		info_gpu = 0;
+	////
+	////// step 1: create cusolver/cublas handle 
+	////cusolver_status = cusolverDnCreate(&cusolverH);
+	////assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+	////
+	////// step 2: copy A and B to device 
+	////cudaStat1 = cudaMalloc((void**)&d_A, sizeof(double) * lda * m);
+	////cudaStat2 = cudaMalloc((void**)&d_B, sizeof(double) * lda * m);
+	////cudaStat3 = cudaMalloc((void**)&d_W, sizeof(double) * m);
+	////cudaStat4 = cudaMalloc((void**)&devInfo, sizeof(int));
+	////if (cudaStat1 != 0 || cudaStat2 != 0 || cudaStat3 != 0 || cudaStat4 !=0) {
+	////	cout << "Error! Cannot allocate memory in GPU." << endl; 
+	////}	
+	////assert(cudaSuccess == cudaStat1);
+	////assert(cudaSuccess == cudaStat2);
+	////assert(cudaSuccess == cudaStat3);
+	////assert(cudaSuccess == cudaStat4);
+	////
+	////cudaStat1			= cudaMemcpy(d_A, A, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
+	////cudaStat2			= cudaMemcpy(d_B, B, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
+	////assert(cudaSuccess == cudaStat1);
+	////assert(cudaSuccess == cudaStat2);
+	////if (cudaStat1 != 0 || cudaStat2 != 0) {
+	////	cout << "Error! Cannot copy data to GPU." << endl;
+	////}
+	////
+	////// step 3: query working space of sygvd 
+	////cusolverEigType_t	itype = CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
+	////cusolverEigMode_t	jobz = CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
+	////cublasFillMode_t	uplo = CUBLAS_FILL_MODE_UPPER;
+	////cusolver_status = cusolverDnDsygvd_bufferSize(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, &lwork);
+	////assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
+	////cudaStat1 = cudaMalloc((void**)&d_work, sizeof(double)*lwork);
+	////assert(cudaSuccess == cudaStat1);
+	////if (cudaStat1 != 0) {
+	////	cout << "Error! Cannot request space to solve the eigenproblem." << endl;
+	////}
+	////
+	////// step 4: compute spectrum of (A,B) 
+	////cusolver_status = cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, devInfo);
+	////cudaStat1 = cudaDeviceSynchronize();
+	////assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
+	////assert(cudaSuccess == cudaStat1);
+	////if (cudaStat1 != 0 || cudaStat2 != 0) {
+	////	cout << "Error! CUDA cuSolver's eigensolver FAILED to solve the eigenproblem." << endl;
+	////}
+	////
+	////cudaStat1 = cudaMemcpy(W, d_W, sizeof(double)*m, cudaMemcpyDeviceToHost);
+	////cudaStat2 = cudaMemcpy(V, d_A, sizeof(double)*lda*m, cudaMemcpyDeviceToHost);
+	////cudaStat3 = cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost);
+	////if (cudaStat1 != 0 || cudaStat2 != 0 || cudaStat3 != 0) {
+	////	cout << "Error! Cannot copy data from GPU to CPU." << endl;
+	////}
+	////assert(cudaSuccess == cudaStat1);
+	////assert(cudaSuccess == cudaStat2);
+	////assert(cudaSuccess == cudaStat3);
+	////
+	////if (info_gpu != 0) {
+	////	cout << "Error! There's some error with sygvd." << endl;
+	////}
+	////assert(0 == info_gpu);
+	////
+	////// Copying back to EigenFormat (dense) for Eigenvalues and Eigenvectors
+	////LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V, m, lda, Eigen::OuterStride<>(m));
+	////LDEigVal = Eigen::Map<Eigen::VectorXd>(W, m);
+	////
+	////// free resources 
+	////if (d_A) cudaFree(d_A);
+	////if (d_B) cudaFree(d_B);
+	////if (d_W) cudaFree(d_W);
+	////if (devInfo) cudaFree(devInfo);
+	////if (d_work) cudaFree(d_work);
+	////if (cusolverH) cusolverDnDestroy(cusolverH);
+	////cudaDeviceReset();
+	////
+	////return ((int)cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4);
 
-	const int m = S_.rows();
-	const int lda = m;
-
-	double *A = (double*)std::malloc(m*lda * sizeof(double));
-	double *B = (double*)std::malloc(m*lda * sizeof(double));
-	Eigen::MatrixXd Snew(S_);
-	Eigen::MatrixXd Mnew(M_);
-	A = Snew.data();
-	B = Mnew.data();
-
-	double	*V = (double*)std::malloc(m*lda * sizeof(double)); // [lda*m];		// eigenvectors 
-	double	*W = (double*)std::malloc(m * sizeof(double)); 			// eigenvalues 
-	double	*d_A = NULL;
-	double	*d_B = NULL;
-	double	*d_W = NULL;
-	int		*devInfo = NULL;
-	double	*d_work = NULL;
-	int		lwork = 0;
-	int		info_gpu = 0;
-
-	// step 1: create cusolver/cublas handle 
-	cusolver_status = cusolverDnCreate(&cusolverH);
-	assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
-
-	// step 2: copy A and B to device 
-	cudaStat1 = cudaMalloc((void**)&d_A, sizeof(double) * lda * m);
-	cudaStat2 = cudaMalloc((void**)&d_B, sizeof(double) * lda * m);
-	cudaStat3 = cudaMalloc((void**)&d_W, sizeof(double) * m);
-	cudaStat4 = cudaMalloc((void**)&devInfo, sizeof(int));
-	if (cudaStat1 != 0 || cudaStat2 != 0 || cudaStat3 != 0 || cudaStat4 !=0) {
-		cout << "Error! Cannot allocate memory in GPU." << endl; 
-	}	
-	assert(cudaSuccess == cudaStat1);
-	assert(cudaSuccess == cudaStat2);
-	assert(cudaSuccess == cudaStat3);
-	assert(cudaSuccess == cudaStat4);
-	
-	cudaStat1			= cudaMemcpy(d_A, A, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
-	cudaStat2			= cudaMemcpy(d_B, B, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
-	assert(cudaSuccess == cudaStat1);
-	assert(cudaSuccess == cudaStat2);
-	if (cudaStat1 != 0 || cudaStat2 != 0) {
-		cout << "Error! Cannot copy data to GPU." << endl;
-	}
-
-	// step 3: query working space of sygvd 
-	cusolverEigType_t	itype = CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
-	cusolverEigMode_t	jobz = CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors. 
-	cublasFillMode_t	uplo = CUBLAS_FILL_MODE_UPPER;
-	cusolver_status = cusolverDnDsygvd_bufferSize(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, &lwork);
-	assert(cusolver_status == CUSOLVER_STATUS_SUCCESS);
-	cudaStat1 = cudaMalloc((void**)&d_work, sizeof(double)*lwork);
-	assert(cudaSuccess == cudaStat1);
-	if (cudaStat1 != 0) {
-		cout << "Error! Cannot request space to solve the eigenproblem." << endl;
-	}
-
-	// step 4: compute spectrum of (A,B) 
-	cusolver_status = cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, devInfo);
-	cudaStat1 = cudaDeviceSynchronize();
-	assert(CUSOLVER_STATUS_SUCCESS == cusolver_status);
-	assert(cudaSuccess == cudaStat1);
-	if (cudaStat1 != 0 || cudaStat2 != 0) {
-		cout << "Error! CUDA cuSolver's eigensolver FAILED to solve the eigenproblem." << endl;
-	}
-
-	cudaStat1 = cudaMemcpy(W, d_W, sizeof(double)*m, cudaMemcpyDeviceToHost);
-	cudaStat2 = cudaMemcpy(V, d_A, sizeof(double)*lda*m, cudaMemcpyDeviceToHost);
-	cudaStat3 = cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost);
-	if (cudaStat1 != 0 || cudaStat2 != 0 || cudaStat3 != 0) {
-		cout << "Error! Cannot copy data from GPU to CPU." << endl;
-	}
-	assert(cudaSuccess == cudaStat1);
-	assert(cudaSuccess == cudaStat2);
-	assert(cudaSuccess == cudaStat3);
-
-	if (info_gpu != 0) {
-		cout << "Error! There's some error with sygvd." << endl;
-	}
-	assert(0 == info_gpu);
-
-	// Copying back to EigenFormat (dense) for Eigenvalues and Eigenvectors
-	LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V, m, lda, Eigen::OuterStride<>(m));
-	LDEigVal = Eigen::Map<Eigen::VectorXd>(W, m);
-
-	// free resources 
-	if (d_A) cudaFree(d_A);
-	if (d_B) cudaFree(d_B);
-	if (d_W) cudaFree(d_W);
-	if (devInfo) cudaFree(devInfo);
-	if (d_work) cudaFree(d_work);
-	if (cusolverH) cusolverDnDestroy(cusolverH);
-	cudaDeviceReset();
-
-	return ((int)cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4);
+	return 0;
 }
 
 /*
@@ -603,90 +606,90 @@ void computeEigenGPUDense2(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::Matrix
 void computeEigenSpectraDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal)
 {
 
-	///fake mass matrix
-	Eigen::SparseMatrix<double> M2;
-	M2.resize(S.rows(), S.cols());
-	M2.setIdentity();
-
-	cout << "Describe operator \n";
-	Spectra::DenseSymMatProd<double> Sop(S);
-	Spectra::DenseCholesky<double> Mop(M);
-	Spectra::SparseCholesky<double> Mop2(M2);
-
-	cout << "Creating the solver \n";
-	//Spectra::SymGEigsSolver<double, Spectra::SortRule::SmallestAlge,Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop, 50, 2 * 50);
-	//Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop2, 50, 2 * 50);
-	//Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop2, 50, 2 * 50);
-	Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::DenseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop, numEigs, 2 * numEigs);
-
-
-	cout << "Initiating the eigenproblem \n";
-	eigensolver.init();
-
-	cout << "Computing the eigenproblem \n";
-	int nconv = eigensolver.compute(Spectra::SortRule::SmallestAlge);
-	if (eigensolver.info() == Spectra::CompInfo::Successful) {
-		cout << "Successful! \n";
-	}
-	else {
-		cout << "Failsedl! \n";
-	}
-
-	EigVec = eigensolver.eigenvectors().rowwise().reverse();
-	EigVal = eigensolver.eigenvalues().reverse();
-
-	cout << "Eigenvalues: " << EigVal.transpose() << endl; 
+	///////fake mass matrix
+	////Eigen::SparseMatrix<double> M2;
+	////M2.resize(S.rows(), S.cols());
+	////M2.setIdentity();
+	////
+	////cout << "Describe operator \n";
+	////Spectra::DenseSymMatProd<double> Sop(S);
+	////Spectra::DenseCholesky<double> Mop(M);
+	////Spectra::SparseCholesky<double> Mop2(M2);
+	////
+	////cout << "Creating the solver \n";
+	//////Spectra::SymGEigsSolver<double, Spectra::SortRule::SmallestAlge,Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop, 50, 2 * 50);
+	//////Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> eigensolver(&Sop, &Mop2, 50, 2 * 50);
+	//////Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop2, 50, 2 * 50);
+	////Spectra::SymGEigsSolver<Spectra::DenseSymMatProd<double>, Spectra::DenseCholesky<double>, Spectra::GEigsMode::Cholesky> eigensolver(Sop, Mop, numEigs, 2 * numEigs);
+	////
+	////
+	////cout << "Initiating the eigenproblem \n";
+	////eigensolver.init();
+	////
+	////cout << "Computing the eigenproblem \n";
+	////int nconv = eigensolver.compute(Spectra::SortRule::SmallestAlge);
+	////if (eigensolver.info() == Spectra::CompInfo::Successful) {
+	////	cout << "Successful! \n";
+	////}
+	////else {
+	////	cout << "Failsedl! \n";
+	////}
+	////
+	////EigVec = eigensolver.eigenvectors().rowwise().reverse();
+	////EigVal = eigensolver.eigenvalues().reverse();
+	////
+	////cout << "Eigenvalues: " << EigVal.transpose() << endl; 
 }
 
 /* Sparse spectra eigensolver */
 void computeEigenSpectraSparse(Eigen::SparseMatrix<double> &S, Eigen::SparseMatrix<double> &M, const int& numEigs, Eigen::MatrixXd &EigVec, Eigen::VectorXd &EigVal, int type, int numIters, double tol)
 {
-	///cout << "Computing eigenproblem in Spectra...";
-	///chrono::high_resolution_clock::time_point	t1, t2;
-	///chrono::duration<double>					duration;
-
-	printf("M: %dx%d | S:%dx%d \n", M.rows(), M.cols(), S.rows(), S.cols());
-
-	Spectra::SparseSymMatProd<double> SOp(S);
-	Spectra::SparseCholesky<double> MOp(M);
-
-	printf("Wrapper \n");
-
-	map<int, Spectra::SortRule> typeMap;
-	typeMap.insert(std::pair<int, Spectra::SortRule>(0, Spectra::SortRule::SmallestAlge));
-	typeMap.insert(std::pair<int, Spectra::SortRule>(1, Spectra::SortRule::SmallestImag));
-	const Spectra::SortRule paramType = typeMap[type];
-
-	//Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> spectraSolver(&SOp, &MOp, numEigs, 2 * numEigs);
-	Spectra::SymGEigsSolver<Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> spectraSolver(SOp, MOp, numEigs, 2*numEigs);
-
-	cout << "Trying to initiate \n";
-	spectraSolver.init();
-	std::cout << "Trying to solve | " << numEigs << " eigenpairs |" << numIters << "max iters |" << tol << " tolerance \n";
-	//int info = spectraSolver.compute(numIters, tol, typeMap[type]);
-	//int info = spectraSolver.compute(typeMap[type], numIters, tol);
-	int info = spectraSolver.compute(Spectra::SortRule::SmallestAlge, numIters, tol);
-	cout << "Result of solving: " << (int) spectraSolver.info() << endl;
-
-	if (spectraSolver.info() == Spectra::CompInfo::Successful) {
-		EigVal = spectraSolver.eigenvalues().inverse();
-		EigVec = spectraSolver.eigenvectors().rowwise().reverse();
-		//EigVal = spectraSolver.eigenvalues();
-		//EigVec = spectraSolver.eigenvectors();
-		cout << "Yes! Made it! \n";
-	}
-	else {
-		int numConverged = spectraSolver.compute();
-		std::cout << "Converged eigenpairs " << numConverged << std::endl;
-		std::cout << "EigVals" << spectraSolver.eigenvalues().topRows(numConverged - 1).transpose() << std::endl;
-		EigVal = spectraSolver.eigenvalues().topRows(numConverged-1).inverse();
-		EigVec = spectraSolver.eigenvectors().leftCols(numConverged-1).rowwise().reverse();
-		//std::cout << "Computation failed \n";
-	}
-
-	///t2 = chrono::high_resolution_clock::now();
-	///duration = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
-	///cout << "in " << duration.count()/1000 << " seconds." << endl;
+	///////cout << "Computing eigenproblem in Spectra...";
+	///////chrono::high_resolution_clock::time_point	t1, t2;
+	///////chrono::duration<double>					duration;
+	////
+	////printf("M: %dx%d | S:%dx%d \n", M.rows(), M.cols(), S.rows(), S.cols());
+	////
+	////Spectra::SparseSymMatProd<double> SOp(S);
+	////Spectra::SparseCholesky<double> MOp(M);
+	////
+	////printf("Wrapper \n");
+	////
+	////map<int, Spectra::SortRule> typeMap;
+	////typeMap.insert(std::pair<int, Spectra::SortRule>(0, Spectra::SortRule::SmallestAlge));
+	////typeMap.insert(std::pair<int, Spectra::SortRule>(1, Spectra::SortRule::SmallestImag));
+	////const Spectra::SortRule paramType = typeMap[type];
+	////
+	//////Spectra::SymGEigsSolver<double, Spectra::SMALLEST_ALGE, Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> spectraSolver(&SOp, &MOp, numEigs, 2 * numEigs);
+	////Spectra::SymGEigsSolver<Spectra::SparseSymMatProd<double>, Spectra::SparseCholesky<double>, Spectra::GEigsMode::Cholesky> spectraSolver(SOp, MOp, numEigs, 2*numEigs);
+	////
+	////cout << "Trying to initiate \n";
+	////spectraSolver.init();
+	////std::cout << "Trying to solve | " << numEigs << " eigenpairs |" << numIters << "max iters |" << tol << " tolerance \n";
+	//////int info = spectraSolver.compute(numIters, tol, typeMap[type]);
+	//////int info = spectraSolver.compute(typeMap[type], numIters, tol);
+	////int info = spectraSolver.compute(Spectra::SortRule::SmallestAlge, numIters, tol);
+	////cout << "Result of solving: " << (int) spectraSolver.info() << endl;
+	////
+	////if (spectraSolver.info() == Spectra::CompInfo::Successful) {
+	////	EigVal = spectraSolver.eigenvalues().inverse();
+	////	EigVec = spectraSolver.eigenvectors().rowwise().reverse();
+	////	//EigVal = spectraSolver.eigenvalues();
+	////	//EigVec = spectraSolver.eigenvectors();
+	////	cout << "Yes! Made it! \n";
+	////}
+	////else {
+	////	int numConverged = spectraSolver.compute();
+	////	std::cout << "Converged eigenpairs " << numConverged << std::endl;
+	////	std::cout << "EigVals" << spectraSolver.eigenvalues().topRows(numConverged - 1).transpose() << std::endl;
+	////	EigVal = spectraSolver.eigenvalues().topRows(numConverged-1).inverse();
+	////	EigVec = spectraSolver.eigenvectors().leftCols(numConverged-1).rowwise().reverse();
+	////	//std::cout << "Computation failed \n";
+	////}
+	////
+	///////t2 = chrono::high_resolution_clock::now();
+	///////duration = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
+	///////cout << "in " << duration.count()/1000 << " seconds." << endl;
 }
 
 /* Iterative Gauss-Seidel Solver */
