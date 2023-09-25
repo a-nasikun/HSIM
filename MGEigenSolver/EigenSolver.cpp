@@ -36,6 +36,7 @@
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
 
 
+
 int computeEigenGPU2(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseMatrix<double>& M_, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
 {
 
@@ -103,82 +104,11 @@ int computeEigenGPU2(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseM
 	LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V.data(), m, lda, Eigen::OuterStride<>(m));
 	LDEigVal = Eigen::Map<Eigen::VectorXd>(W.data(), m);
 
-	//Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>> LDEigVec(V.data(), m, lda, Eigen::OuterStride<>(m));
-
-
-	/*
-	cusolverDnHandle_t	cusolverH = NULL;
-	cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;
-	cudaError_t			cudaStat1 = cudaSuccess;
-	cudaError_t			cudaStat2 = cudaSuccess;
-	cudaError_t			cudaStat3 = cudaSuccess;
-	cudaError_t			cudaStat4 = cudaSuccess;
-
-	const int m = S_.rows();
-	const int lda = m;
-
-	double* A = (double*)std::malloc(m * lda * sizeof(double));
-	double* B = (double*)std::malloc(m * lda * sizeof(double));
-	Eigen::MatrixXd Snew(S_);
-	Eigen::MatrixXd Mnew(M_);
-	A = Snew.data();
-	B = Mnew.data();
-
-	double* V = (double*)std::malloc(m * lda * sizeof(double)); // [lda*m];		// eigenvectors 
-	double* W = (double*)std::malloc(m * sizeof(double)); 			// eigenvalues 
-	double* d_A = NULL;
-	double* d_B = NULL;
-	double* d_W = NULL;
-	int* devInfo = NULL;
-	double* d_work = NULL;
-	int		lwork = 0;
-	int		info_gpu = 0;
-
-	// step 1: create cusolver handle 
-	cusolverDnCreate(&cusolverH);
-
-	// step 2: copy A and B to device 
-	cudaStat1 = cudaMalloc((void**)&d_A, sizeof(double) * lda * m);
-	cudaStat2 = cudaMalloc((void**)&d_B, sizeof(double) * lda * m);
-	cudaStat3 = cudaMalloc((void**)&d_W, sizeof(double) * m);
-	cudaStat4 = cudaMalloc((void**)&devInfo, sizeof(int));
-
-	cudaStat1 = cudaMemcpy(d_A, A, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
-	cudaStat2 = cudaMemcpy(d_B, B, sizeof(double) * lda * m, cudaMemcpyHostToDevice);
-
-	// step 3: query working space of sygvd 
-	cusolverEigMode_t	jobz = CUSOLVER_EIG_MODE_VECTOR;	// compute eigenvalues and eigenvectors.
-	cublasFillMode_t	uplo = CUBLAS_FILL_MODE_UPPER;
-	cusolver_status = cusolverDnDsyevd_bufferSize(cusolverH, jobz, uplo,m, d_A, lda, d_B, &lwork );
-	cudaStat1 = cudaMalloc((void**)&d_work, sizeof(double) * lwork);
-
-	// step 4: compute spectrum of (A,B) 
-	cusolverEigType_t	itype = CUSOLVER_EIG_TYPE_1;		// A*x = (lambda)*B*x 
-	cusolver_status = cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, devInfo);
-	cudaStat1 = cudaDeviceSynchronize();
-
-	// step 5: Copy back to CPU
-	cudaStat1 = cudaMemcpy(W, d_W, sizeof(double) * m, cudaMemcpyDeviceToHost);
-	cudaStat2 = cudaMemcpy(V, d_A, sizeof(double) * lda * m, cudaMemcpyDeviceToHost);
-	cudaStat3 = cudaMemcpy(&info_gpu, devInfo, sizeof(int), cudaMemcpyDeviceToHost);
-
-	// step 6: Copying back to EigenFormat (dense) for Eigenvalues and Eigenvectors
-	LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V, m, lda, Eigen::OuterStride<>(m));
-	LDEigVal = Eigen::Map<Eigen::VectorXd>(W, m);
-
-	// free resources 
-	if (d_A) cudaFree(d_A);
-	if (d_B) cudaFree(d_B);
-	if (d_W) cudaFree(d_W);
-	if (devInfo) cudaFree(devInfo);
-	if (d_work) cudaFree(d_work);
-	if (cusolverH) cusolverDnDestroy(cusolverH);
-	cudaDeviceReset();
 	
-	return ((int)cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4);
-	*/
 	return 0;
 }
+
+
 int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
 {
 	cusolverDnHandle_t cusolverH = NULL;

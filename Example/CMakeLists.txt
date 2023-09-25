@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(HSIM_Example)
+project(HSIM_Example CXX CUDA)
 
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../MGEigenSolver/cmake)
 
@@ -21,7 +21,7 @@ include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries
 add_subdirectory(../MGEigenSolver mgeigensolver-build)
 file(GLOB SRC_FILES *.cpp *.h)
 add_executable(${PROJECT_NAME} ${SRC_FILES})
-target_link_libraries(${PROJECT_NAME} PUBLIC igl::core igl::opengl_glfw igl::opengl_glfw_imgui MGEigenSolver)
+target_link_libraries(${PROJECT_NAME} PUBLIC igl::core igl::opengl_glfw igl::opengl_glfw_imgui MGEigenSolver PUBLIC cudart PUBLIC cublas PUBLIC cusolver PUBLIC cusparse)
 if(MSVC)
  	target_compile_definitions(${PROJECT_NAME} PUBLIC _USE_MATH_DEFINES)
 endif()
