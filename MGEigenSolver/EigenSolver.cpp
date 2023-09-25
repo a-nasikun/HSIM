@@ -35,6 +35,7 @@
 /* Computing Eigenstructure in GPU */
 /* This code is mostly taken from CUDA's cuSOLVER's example codes */
 
+
 int computeEigenGPU2(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseMatrix<double>& M_, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
 {
 
@@ -178,7 +179,78 @@ int computeEigenGPU2(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseM
 	*/
 	return 0;
 }
+int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
+{
+	cusolverDnHandle_t cusolverH = NULL;
+	cudaStream_t stream = NULL;
 
+	using data_type = double;
+
+	const int m = S.rows();
+	const int lda = m;
+
+	double* A = (double*)std::malloc(m * lda * sizeof(data_type));
+	double* B = (double*)std::malloc(m * lda * sizeof(data_type));
+	A = S.data();
+	B = M.data();
+
+	std::vector<data_type> V(lda * m, 0); // eigenvectors
+	std::vector<data_type> W(m, 0);       // eigenvalues
+
+	data_type* d_A = nullptr;
+	data_type* d_B = nullptr;
+	data_type* d_W = nullptr;
+	data_type vl;
+	data_type vu;
+
+	int64_t h_meig = 0;
+
+	int* d_info = nullptr;
+	double* d_work = nullptr;
+	int lwork = 0;
+	int info = 0;
+
+	/* step 1: create cusolver handle, bind a stream */
+	cusolverDnCreate(&cusolverH);
+
+	cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+	cusolverDnSetStream(cusolverH, stream);
+
+	cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * m);
+	cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(double) * lda * m);
+	cudaMalloc(reinterpret_cast<void**>(&d_W), sizeof(double) * W.size());
+	cudaMalloc(reinterpret_cast<void**>(&d_info), sizeof(int));
+
+	cudaMemcpyAsync(d_A, A, sizeof(double) * lda * m, cudaMemcpyHostToDevice, stream);
+	cudaMemcpyAsync(d_B, B, sizeof(double) * lda * m, cudaMemcpyHostToDevice, stream);
+
+	// step 3: query working space of sygvd
+	cusolverEigType_t itype = CUSOLVER_EIG_TYPE_1;     // A*x = (lambda)*B*x
+	cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR; // compute eigenvalues and eigenvectors.
+	cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+	cusolverDnDsygvd_bufferSize(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, &lwork);
+	cudaMalloc(reinterpret_cast<void**>(&d_work), sizeof(double) * lwork);
+
+	// step 4: compute spectrum of (A,B)
+	cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, d_info);
+	cudaMemcpyAsync(V.data(), d_A, sizeof(double) * lda * m, cudaMemcpyDeviceToHost, stream);
+	cudaMemcpyAsync(W.data(), d_W, sizeof(double) * lda * m, cudaMemcpyDeviceToHost, stream);
+	cudaMemcpyAsync(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost, stream);
+
+	cudaStreamSynchronize(stream);
+
+	// step 6: Copying back to EigenFormat (dense) for Eigenvalues and Eigenvectors
+	LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V.data(), m, lda, Eigen::OuterStride<>(m));
+	LDEigVal = Eigen::Map<Eigen::VectorXd>(W.data(), m);
+
+	if (LDEigVal(1) > 0)
+	{
+		return 1;
+	} else {
+		return 0;
+	}
+
+}
 int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
 {
 	////cusolverDnHandle_t	cusolverH = NULL;

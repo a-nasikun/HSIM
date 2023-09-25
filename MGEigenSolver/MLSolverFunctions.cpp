@@ -1827,8 +1827,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 
 			t1 = chrono::high_resolution_clock::now();
 			printf("________solve reduced eigenvalue problem. ");
-			///status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
-			computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
+			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			//computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
 			cout << "__STATUS: " << status << endl;
 			if (status != 0) {
 				cout << "___!! COmputation of eigenvalues failed! \n";
