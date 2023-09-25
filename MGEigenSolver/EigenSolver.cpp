@@ -37,7 +37,7 @@
 
 
 
-int computeEigenGPU2(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseMatrix<double>& M_, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
+int computeEigenGPU(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseMatrix<double>& M_, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
 {
 
 	cusolverDnHandle_t cusolverH = NULL;
@@ -181,8 +181,8 @@ int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd
 	}
 
 }
-int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
-{
+//int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMatrix<double> &M_, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)
+//{
 	////cusolverDnHandle_t	cusolverH = NULL;
 	////cusolverStatus_t	cusolver_status = CUSOLVER_STATUS_SUCCESS;
 	////cudaError_t			cudaStat1 = cudaSuccess;
@@ -286,8 +286,8 @@ int computeEigenGPU(const Eigen::SparseMatrix<double> &S_, const Eigen::SparseMa
 	////
 	////return ((int)cusolver_status || info_gpu || cudaStat1 || cudaStat2 || cudaStat3 || cudaStat4);
 
-	return 0;
-}
+//	return 0;
+//}
 
 /*
 int computeEigenGPUDense(Eigen::MatrixXd &S, Eigen::MatrixXd &M, Eigen::MatrixXd &LDEigVec, Eigen::VectorXd &LDEigVal)

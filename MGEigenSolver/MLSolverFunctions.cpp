@@ -677,9 +677,9 @@ void MLSolverFunctions::solveRestrictedProblem()
 
 	do {
 		if (iter == 0) {
-			//status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
+			status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
 			//computeEigenSpectraDense(SDense, MDense, std::min((int)SDense.rows()/2, 2*), EigVectsReducedNonLifted, EigValsReduced);
-			computeEigenSpectraDense(SDense, MDense, 50, EigVectsReducedNonLifted, EigValsReduced);
+			//computeEigenSpectraDense(SDense, MDense, 50, EigVectsReducedNonLifted, EigValsReduced);
 			status = 0;
 		}
 		else {
