@@ -117,8 +117,14 @@ int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd
 
 	double* A = (double*)std::malloc(m * lda * sizeof(data_type));
 	double* B = (double*)std::malloc(m * lda * sizeof(data_type));
-	A = S.data();
-	B = M.data();
+	//A = S.data();
+	//B = M.data();
+	Eigen::MatrixXd Snew(S);
+	Eigen::MatrixXd Mnew(M);
+	A = Snew.data();
+	B = Mnew.data();
+	std::cout << "S == " << S.topLeftCorner(10,5) << std::endl;
+	std::cout << "A == " << A << std::endl;
 
 	std::vector<data_type> V(lda * m, 0); // eigenvectors
 	std::vector<data_type> W(m, 0);       // eigenvalues
@@ -168,6 +174,8 @@ int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd
 	// step 6: Copying back to EigenFormat (dense) for Eigenvalues and Eigenvectors
 	LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V.data(), m, lda, Eigen::OuterStride<>(m));
 	LDEigVal = Eigen::Map<Eigen::VectorXd>(W.data(), m);
+
+	std::cout << "Eigenvalues == " << LDEigVal.topRows(10).transpose() << std::endl;
 
 	if (LDEigVal(1) > 0)
 	{

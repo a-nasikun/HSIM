@@ -752,9 +752,15 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 		SSel = S;
 	}
 
+	std::cout << "Check modes... ";
+	std::cout << EigVectsReducedNonLifted.topLeftCorner(10, 3) << std::endl << std::endl;
+
 	std::cout << "Lifting the eigenvectors... ";
 	EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2*numEigs);
 	std::cout << "...successful\n";
+
+	std::cout << "Check modes... ";
+	std::cout << EigVectsReduced.topLeftCorner(10, 3) << std::endl << std::endl;
 
 	/* Performing the SIM according to user selected methods */
 	if (type == SIMType::SIM_MultiLevel) {
@@ -1829,6 +1835,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 			printf("________solve reduced eigenvalue problem. ");
 			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
+			std::cout << "Cur eigvals == " << AkL.topRows(10).transpose() << std::endl;
+
 			cout << "__STATUS: " << status << endl;
 			if (status != 0) {
 				cout << "___!! COmputation of eigenvalues failed! \n";
