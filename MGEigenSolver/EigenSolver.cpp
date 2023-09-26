@@ -92,7 +92,7 @@ int computeEigenGPU(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseMa
 	// step 4: compute spectrum of (A,B)
 	cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, d_info);
 	cudaMemcpyAsync(V.data(), d_A, sizeof(double) * lda * m, cudaMemcpyDeviceToHost, stream);
-	cudaMemcpyAsync(W.data(), d_W, sizeof(double) * lda * m, cudaMemcpyDeviceToHost, stream);
+	cudaMemcpyAsync(W.data(), d_W, sizeof(double) * m, cudaMemcpyDeviceToHost, stream);
 	cudaMemcpyAsync(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost, stream);
 
 	cudaStreamSynchronize(stream);
@@ -101,7 +101,6 @@ int computeEigenGPU(const Eigen::SparseMatrix<double>& S_, const Eigen::SparseMa
 	LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V.data(), m, lda, Eigen::OuterStride<>(m));
 	LDEigVal = Eigen::Map<Eigen::VectorXd>(W.data(), m);
 
-	
 	return 0;
 }
 
@@ -117,12 +116,12 @@ int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd
 
 	double* A = (double*)std::malloc(m * lda * sizeof(data_type));
 	double* B = (double*)std::malloc(m * lda * sizeof(data_type));
-	//A = S.data();
-	//B = M.data();
-	Eigen::MatrixXd Snew(S);
-	Eigen::MatrixXd Mnew(M);
-	A = Snew.data();
-	B = Mnew.data();
+	A = S.data();
+	B = M.data();
+	//Eigen::MatrixXd Snew(S);
+	//Eigen::MatrixXd Mnew(M);
+	//A = Snew.data();
+	//B = Mnew.data();
 	std::cout << "S == " << S.topLeftCorner(10,5) << std::endl;
 	std::cout << "A == " << A << std::endl;
 
@@ -166,7 +165,7 @@ int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd
 	// step 4: compute spectrum of (A,B)
 	cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, d_info);
 	cudaMemcpyAsync(V.data(), d_A, sizeof(double) * lda * m, cudaMemcpyDeviceToHost, stream);
-	cudaMemcpyAsync(W.data(), d_W, sizeof(double) * lda * m, cudaMemcpyDeviceToHost, stream);
+	cudaMemcpyAsync(W.data(), d_W, sizeof(double) * m, cudaMemcpyDeviceToHost, stream);
 	cudaMemcpyAsync(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost, stream);
 
 	cudaStreamSynchronize(stream);
@@ -175,13 +174,15 @@ int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd
 	LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V.data(), m, lda, Eigen::OuterStride<>(m));
 	LDEigVal = Eigen::Map<Eigen::VectorXd>(W.data(), m);
 
-	std::cout << "Eigenvalues == " << LDEigVal.topRows(10).transpose() << std::endl;
+	std::cout << "Eigenvalues (first) == " << LDEigVal.topRows(10).transpose() << std::endl;
+	std::cout << "Eigenvalues (last) == " << LDEigVal.bottomRows(10).transpose() << std::endl;
+	std::cout << "Eigenvectors (first) == " << LDEigVec.topLeftCorner(10,5) << std::endl;
 
 	if (LDEigVal(1) > 0)
 	{
-		return 1;
-	} else {
 		return 0;
+	} else {
+		return 1;
 	}
 
 }

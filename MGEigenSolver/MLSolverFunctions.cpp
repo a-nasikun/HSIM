@@ -678,6 +678,8 @@ void MLSolverFunctions::solveRestrictedProblem()
 	do {
 		if (iter == 0) {
 			status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
+			std::cout << "Show eigenvalues at reduced levels \n" << EigValsReduced.topRows(20).transpose() << std::endl << std::endl;
+			//computeEigenGPUDense(SDense, MDense, EigVectsReducedNonLifted, EigValsReduced);
 			//computeEigenSpectraDense(SDense, MDense, std::min((int)SDense.rows()/2, 2*), EigVectsReducedNonLifted, EigValsReduced);
 			//computeEigenSpectraDense(SDense, MDense, 50, EigVectsReducedNonLifted, EigValsReduced);
 			status = 0;
@@ -753,10 +755,12 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 	}
 
 	std::cout << "Check modes... ";
+	printf("size = %dx%d \n", EigVectsReducedNonLifted.rows(), EigVectsReducedNonLifted.cols());
 	std::cout << EigVectsReducedNonLifted.topLeftCorner(10, 3) << std::endl << std::endl;
 
 	std::cout << "Lifting the eigenvectors... ";
 	EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2*numEigs);
+	printf("size = %dx%d \n", EigVectsReduced.rows(), EigVectsReduced.cols());
 	std::cout << "...successful\n";
 
 	std::cout << "Check modes... ";
@@ -1711,6 +1715,9 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 		XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
 		AkL = EigValsReduced.head(q);
 		///printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
+
+		std::cout << "Lowest level [EigenValues] \n" << AkL.topRows(10) << std::endl << std::endl;
+		std::cout << "Lowest level [EigenVectors] \n" << XkL.topLeftCorner(10, 5) << std::endl << std::endl;
 	}
 	// RECURSIVE for level k < max_level
 	else
@@ -1731,6 +1738,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
+
+		std::cout << "Stiffness Matrix: Level "  << k << "\n"  << SK.topLeftCorner(10, 5) << std::endl << std::endl;
 
 
 		printf("____<2> Going deeper => \n ################");
@@ -1818,6 +1827,9 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 				v = MK * (XkL.col(j));
 				XbarK.col(j) = factorization.solve(v);
 			}
+
+			std::cout << "XBar: Level " << k << "\n" << XbarK.topLeftCorner(10, 5) << std::endl << std::endl;
+
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
 			cout << "...in " << duration.count() << " seconds." << endl;
@@ -1831,20 +1843,23 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 			duration = t2 - t1;
 			cout << "...in " << duration.count() << " seconds." << endl;
 
+			std::cout << "SProj (very small) Level " << k << "\n" << Sproj.topLeftCorner(10, 5) << std::endl << std::endl;
+
 			t1 = chrono::high_resolution_clock::now();
 			printf("________solve reduced eigenvalue problem. ");
 			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
 			std::cout << "Cur eigvals == " << AkL.topRows(10).transpose() << std::endl;
+			std::cout << "Cur eigvects == " << Q.topLeftCorner(10,10) << std::endl;
 
 			cout << "__STATUS: " << status << endl;
-			if (status != 0) {
-				cout << "___!! COmputation of eigenvalues failed! \n";
-				cout << "____Status: " << status << endl;
-				//i = Imax;
-				continue;
-				//break;
-			}
+			//if (status != 0) {
+			//	cout << "___!! COmputation of eigenvalues failed! \n";
+			//	cout << "____Status: " << status << endl;
+			//	//i = Imax;
+			//	continue;
+			//	//break;
+			//}
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
 			cout << "...in " << duration.count() << " seconds." << endl;
@@ -2017,9 +2032,11 @@ void MLSolverFunctions::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, 
 		break;
 	case EigenVectorType::EIGEN_REDUCED:
 		vColor = EigVectsReduced.col(id);
+		std::cout << "eigval=" << EigValsReduced(id);
 		break;
 	case EigenVectorType::EIGEN_SIM:
 		vColor = EigVectsSIM.col(id);
+		std::cout << "eigval=" << EigValsSIM(id);
 		break;
 
 	default:

@@ -804,8 +804,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
 
 			printf("Successfully computing the eigenvalues \n");
-			///cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM() << endl;
-			///cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
+			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM() << endl;
+			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
 		}
 
 		if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
