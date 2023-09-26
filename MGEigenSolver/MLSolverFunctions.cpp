@@ -655,19 +655,12 @@ void MLSolverFunctions::solveRestrictedProblem()
 	Eigen::SparseMatrix<double> Id(Basis.cols(), Basis.cols());
 	Id.setIdentity();
 
-
 	cout << "> Creating the reduced system matrices.\n";
 	Eigen::SparseMatrix<double> S_, M_;			//reduced stiffness and mass matrix
 	S_ = Basis.transpose() * S * Basis;
 	M_ = Basis.transpose() * M * Basis;
 
-	printf("__S red %.4f (%d nnz)\n", (double)S_.nonZeros() / (double)S_.rows(), S_.nonZeros());
-	//cout << S_.topLeftCorner(10, 10) << endl;
-	printf("__M red %.4f (%d nnz)\n", (double)M_.nonZeros() / (double)M_.rows(), M_.nonZeros());
-	//cout << M_.topLeftCorner(10, 10) << endl;
-
 	cout << "> Computing the reduced eigenproblem (in GPU). \n";
-
 	int status;
 	int iter = 0;
 
@@ -678,7 +671,6 @@ void MLSolverFunctions::solveRestrictedProblem()
 	do {
 		if (iter == 0) {
 			status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
-			std::cout << "Show eigenvalues at reduced levels \n" << EigValsReduced.topRows(20).transpose() << std::endl << std::endl;
 			//computeEigenGPUDense(SDense, MDense, EigVectsReducedNonLifted, EigValsReduced);
 			//computeEigenSpectraDense(SDense, MDense, std::min((int)SDense.rows()/2, 2*), EigVectsReducedNonLifted, EigValsReduced);
 			//computeEigenSpectraDense(SDense, MDense, 50, EigVectsReducedNonLifted, EigValsReduced);
@@ -754,17 +746,9 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 		SSel = S;
 	}
 
-	std::cout << "Check modes... ";
-	printf("size = %dx%d \n", EigVectsReducedNonLifted.rows(), EigVectsReducedNonLifted.cols());
-	std::cout << EigVectsReducedNonLifted.topLeftCorner(10, 3) << std::endl << std::endl;
-
 	std::cout << "Lifting the eigenvectors... ";
 	EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2*numEigs);
-	printf("size = %dx%d \n", EigVectsReduced.rows(), EigVectsReduced.cols());
 	std::cout << "...successful\n";
-
-	std::cout << "Check modes... ";
-	std::cout << EigVectsReduced.topLeftCorner(10, 3) << std::endl << std::endl;
 
 	/* Performing the SIM according to user selected methods */
 	if (type == SIMType::SIM_MultiLevel) {
@@ -788,23 +772,25 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 		}
 	}
 
-	printf("Size of eigenvalues: %d | eigVectors: %dx%d \n", EigValsSIM.rows(), EigVectsSIM.rows(), EigVectsSIM.cols());
 
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
 	cout << "...in " << duration.count() << " seconds." << endl;
 
+	bool isWrittenToFile = false;
 	/* Write the convergence information to an external file. */
-	string modelName = "Sphere_" + to_string(V.rows()) + "_" + to_string(F.cols());
-	string fileConv = "../../Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";	
-	cout << fileConv << endl; 
-	writeDenseMatrixToFile(itersPerLevel, fileConv);
-	writeDenseMatrixToFile(timingPerLevel, fileConv);
-	writeDenseMatrixToFile(EigValsSIMStack, fileConv);
-	string fileEigs = "../../Data/" + modelName + "_Convergence2Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
-	writeDenseMatrixToFile(convergence2Stacks, fileEigs);
-	fileEigs = "../../Data/" + modelName + "_Convergence3Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
-	writeDenseMatrixToFile(convergence3Stacks, fileEigs);
+	if (isWrittenToFile) {
+		string modelName = "Sphere_" + to_string(V.rows()) + "_" + to_string(F.cols());
+		string fileConv = "../../Data/" + modelName + "_EigValsStack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
+		cout << fileConv << endl;
+		writeDenseMatrixToFile(itersPerLevel, fileConv);
+		writeDenseMatrixToFile(timingPerLevel, fileConv);
+		writeDenseMatrixToFile(EigValsSIMStack, fileConv);
+		string fileEigs = "../../Data/" + modelName + "_Convergence2Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
+		writeDenseMatrixToFile(convergence2Stacks, fileEigs);
+		fileEigs = "../../Data/" + modelName + "_Convergence3Stack_" + to_string(numEigs) + "_method_" + to_string((int)type) + "_" + (isWithShift ? "shift_" + to_string((int)shiftType) + "_" : "") + to_string(tol) + ".txt";
+		writeDenseMatrixToFile(convergence3Stacks, fileEigs);
+	}
 }
 
 void MLSolverFunctions::performSIMwithWarmStart(SIMType type, Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int numEigs, int maxIter, double tol, bool isWithShift)
@@ -1360,8 +1346,8 @@ void MLSolverFunctions::performMultiLevelSIM(Eigen::SparseMatrix<double>& SL, Ei
 			Mproj = XbarK.transpose()*MK*XbarK;
 
 			/* Computing the eigenproblem in reduced space*/
-			//status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
-			computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
+			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
+			//computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
 			if (status != 0) {
 				cout << status << "Cannot resolve eigenproblem epsilon " << eps << endl;
 				eps *= 10;
@@ -1716,8 +1702,6 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 		AkL = EigValsReduced.head(q);
 		///printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
 
-		std::cout << "Lowest level [EigenValues] \n" << AkL.topRows(10) << std::endl << std::endl;
-		std::cout << "Lowest level [EigenVectors] \n" << XkL.topLeftCorner(10, 5) << std::endl << std::endl;
 	}
 	// RECURSIVE for level k < max_level
 	else
@@ -1738,8 +1722,6 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
 		cout << "...in " << duration.count() << " seconds." << endl;
-
-		std::cout << "Stiffness Matrix: Level "  << k << "\n"  << SK.topLeftCorner(10, 5) << std::endl << std::endl;
 
 
 		printf("____<2> Going deeper => \n ################");
@@ -1828,8 +1810,6 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 				XbarK.col(j) = factorization.solve(v);
 			}
 
-			std::cout << "XBar: Level " << k << "\n" << XbarK.topLeftCorner(10, 5) << std::endl << std::endl;
-
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
 			cout << "...in " << duration.count() << " seconds." << endl;
@@ -1843,14 +1823,10 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 			duration = t2 - t1;
 			cout << "...in " << duration.count() << " seconds." << endl;
 
-			std::cout << "SProj (very small) Level " << k << "\n" << Sproj.topLeftCorner(10, 5) << std::endl << std::endl;
-
 			t1 = chrono::high_resolution_clock::now();
 			printf("________solve reduced eigenvalue problem. ");
 			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
-			std::cout << "Cur eigvals == " << AkL.topRows(10).transpose() << std::endl;
-			std::cout << "Cur eigvects == " << Q.topLeftCorner(10,10) << std::endl;
 
 			cout << "__STATUS: " << status << endl;
 			//if (status != 0) {
@@ -2031,12 +2007,10 @@ void MLSolverFunctions::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, 
 		vColor = EigVectsRef.col(id);
 		break;
 	case EigenVectorType::EIGEN_REDUCED:
-		vColor = EigVectsReduced.col(id);
-		std::cout << "eigval=" << EigValsReduced(id);
+		vColor = EigVectsReduced.col(id);		
 		break;
 	case EigenVectorType::EIGEN_SIM:
 		vColor = EigVectsSIM.col(id);
-		std::cout << "eigval=" << EigValsSIM(id);
 		break;
 
 	default:
