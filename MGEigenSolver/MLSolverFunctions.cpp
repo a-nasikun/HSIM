@@ -45,6 +45,15 @@ void MLSolverFunctions::readMesh(const string& meshFile)
 	}
 }
 
+void MLSolverFunctions::setup(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
+{
+	/* Initial setup*/
+	setV(V);
+	setF(F);
+	constructMassMatrix();
+	initiateAdM();
+	constructStiffnessMatrix();
+}
 
 /**
 *  @brief Setting up the system to have required levels.
@@ -129,6 +138,45 @@ void MLSolverFunctions::constructStiffnessMatrix()
 }
 
 
+/* Main functions for user */
+tuple<Eigen::VectorXd, Eigen::MatrixXd> MLSolverFunctions::eigs(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes, double tol, int maxIters, double shiftParam)
+{
+	setup(V, F, numModes);
+	buildHierarchy(V, F, numModes);
+	performSubspaceIterationMethod(MLSolverFunctions::SIMType::SIM_MultiLevel, numModes, maxIters, tol, true, MLSolverFunctions::ShiftType::SHIFT_ZHAO, 0, 0.0);
+	return make_tuple(EigValsSIM, EigVectsSIM);
+}
+
+void MLSolverFunctions::buildHierarchy()
+{
+
+}
+
+void MLSolverFunctions::buildHierarchy(int numModes)
+{
+
+}
+
+void MLSolverFunctions::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
+{
+
+	/* Sampling levels */
+	Eigen::VectorXd sampSize;
+	double levelRatio = 10.0;
+	setSamplingLevels(sampSize, numModes, levelRatio);
+	setInitialSystem(sampSize.rows());
+	constructSampleHierarchy(sampSize);
+
+	/* Creating prolongation operator */
+	double numOfSupport = 7.5;
+	int defAxis = 0;
+	double clampRegion = 0.0;
+	setClampBasis(isClampedBasis);
+	constructBasis(numOfSupport, defAxis, clampRegion);
+	solveRestrictedProblem();
+}
+
+/* Construction of the subspace and/or hierarchy */
 void MLSolverFunctions::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
 {
 	double	spRatio = 1.0;

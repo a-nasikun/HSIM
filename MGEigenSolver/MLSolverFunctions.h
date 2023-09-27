@@ -6,6 +6,8 @@
 #include "Sampling.h"
 #include "EigenSolver.h"
 
+#include <tuple>
+
 using namespace std;
 
 class MLSolverFunctions
@@ -17,11 +19,19 @@ public:
 	enum class ShiftType { SHIFT_BATHE, SHIFT_ITOH_WILSON, SHIFT_GONG, SHIFT_ZHAO };
 
 	void readMesh(const string& meshFile);
+	void setup(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes);
 	void setInitialSystem(int n);
 	void initiateAdM();
 	void computeArea();
 	void virtual constructMassMatrix();
 	void virtual constructStiffnessMatrix();
+
+	/* Main functions for user */
+	tuple<Eigen::VectorXd, Eigen::MatrixXd> eigs(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes, double tol=0.01, int maxIters=2, double shiftParam = 0.3);
+	void buildHierarchy();
+	void buildHierarchy(int numModes);
+	void buildHierarchy(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes);
+
 
 	/* Construction of the subspace and/or hierarchy */
 	void setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen = 50, double levelRatio = 10.0);

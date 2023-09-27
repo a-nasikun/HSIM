@@ -763,6 +763,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(2, MLSolverFunctions::ShiftType::SHIFT_GONG));
 		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(3, MLSolverFunctions::ShiftType::SHIFT_ZHAO));
 
+		
 
 
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
@@ -789,6 +790,15 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			ImGui::RadioButton("Zhao##Shift",		&shiftType, 3);
 			static char zhaoTxt[10] = "0.25";		ImGui::InputText("Zhao shift", zhaoTxt, 10);
 			zhaoShiftParam = atof(zhaoTxt);
+		}
+
+		Eigen::VectorXd EigValTest;
+		Eigen::MatrixXd EigVectTest;
+		if (ImGui::Button("Check SIM")) {
+			tie(EigValTest, EigVectTest) = eigenSolver->eigs(viewer.data().V, viewer.data().F, numOfModes, tol, zhaoShiftParam);
+			
+			std::cout << "Eigenvalues " << EigValTest.transpose() << std::endl << std::endl;
+			std::cout << "Eigenvectors " << EigVectTest.topLeftCorner(10,10) << std::endl << std::endl;
 		}
 
 		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
