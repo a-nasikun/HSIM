@@ -780,7 +780,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			ImGui::RadioButton("Multi-level",	&SIMType, 0);			//ImGui::SameLine();
 		}
 
-		static bool isShiftedSIM = false;
+		static bool isShiftedSIM = true;
 		ImGui::Checkbox("with shift", &(isShiftedSIM));
 		static double zhaoShiftParam = 0.25;
 		if (isShiftedSIM) {
@@ -795,7 +795,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 		Eigen::VectorXd EigValTest;
 		Eigen::MatrixXd EigVectTest;
 		if (ImGui::Button("Check SIM")) {
-			tie(EigValTest, EigVectTest) = eigenSolver->eigs(viewer.data().V, viewer.data().F, numOfModes, tol, zhaoShiftParam);
+			tie(EigValTest, EigVectTest) = eigenSolver->eigs(viewer.data().V, viewer.data().F, numOfModes, tol, maxIter, zhaoShiftParam);
 			
 			std::cout << "Eigenvalues " << EigValTest.transpose() << std::endl << std::endl;
 			std::cout << "Eigenvectors " << EigVectTest.topLeftCorner(10,10) << std::endl << std::endl;

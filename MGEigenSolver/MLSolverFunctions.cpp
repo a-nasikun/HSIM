@@ -143,7 +143,10 @@ tuple<Eigen::VectorXd, Eigen::MatrixXd> MLSolverFunctions::eigs(const Eigen::Mat
 {
 	setup(V, F, numModes);
 	buildHierarchy(V, F, numModes);
+	zhaoShiftParam = zhaoShiftParam;
+	zhaoShiftParam = 0.25;
 	performSubspaceIterationMethod(MLSolverFunctions::SIMType::SIM_MultiLevel, numModes, maxIters, tol, true, MLSolverFunctions::ShiftType::SHIFT_ZHAO, 0, 0.0);
+	std::cout << "COMPUTATION IS SUCCESSFUL \n";
 	return make_tuple(EigValsSIM, EigVectsSIM);
 }
 
@@ -159,7 +162,7 @@ void MLSolverFunctions::buildHierarchy(int numModes)
 
 void MLSolverFunctions::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
 {
-
+	std::cout << "Modes = " << numModes << std::endl;
 	/* Sampling levels */
 	Eigen::VectorXd sampSize;
 	double levelRatio = 10.0;
@@ -775,12 +778,17 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 	/* Initializations */
 	//EigValsSIM.resize(numEigs);
 	//EigVectsSIM.resize()
+	std::cout << "Max itter = " << maxIter << std::endl;
 	EigValsSIMStack.resize(numEigs, maxIter);
 	EigValsSIMStack.setZero();
 	convergence2Stacks.resize(numEigs, maxIter);
 	convergence2Stacks.setZero();
 	convergence3Stacks.resize(numEigs, maxIter);
 	convergence3Stacks.setZero();
+	printf("Eigenvalues %dx%d \n", EigValsSIMStack.rows(), EigValsSIMStack.cols());
+	printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
+	printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
+
 
 	Eigen::SparseMatrix<double> MSel, SSel;
 	if (isClampedBasis) {
@@ -1908,12 +1916,16 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 			cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
 
 			///cout << AkL.head(numEigs).transpose() << endl;
-
+			std::cout << "Stacking is ....";
+			printf("Eigenvalues %dx%d \n", EigValsSIMStack.rows(), EigValsSIMStack.cols());
+			printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
+			printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
 			if (k == 0) {
 				EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
 				convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
 				convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
 			}
+			std::cout << "... successful\n";
 
 			iterCount++;
 
@@ -1935,6 +1947,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 				}
 				else break;
 			}
+
+			std::cout << "Last convergence =" << lastConvergedId << " \n";
 
 			if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
 				isConverged = false;
