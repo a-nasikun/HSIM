@@ -1850,7 +1850,8 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 			/* Convergence Check*
 			** Type 2: */
 			checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
-			cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+			//cout << "Conv 2 \n" << conv2.head(numEigs).transpose() << endl;
+
 			/** Type 3: */
 			checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
 			///cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
