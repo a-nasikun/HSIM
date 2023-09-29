@@ -48,7 +48,7 @@ static int			dataToShow		= 0;
 float				tauScale		= 10.0f;
 string				model			= "Sphere40k";
 static int			SIMtype			= 2;
-static int			problemType		= 0;					// type of problem (0=Laplace--Beltrami, 1=Linear Elasticity)
+static int			problemType		= 0;					// type of problem (0=Laplace--Beltrami)
 static int			matType			= 0;					// material type (for hessian/linear elasticity)
 static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
@@ -133,64 +133,18 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		ImGui::SameLine(0, p);
 		if (ImGui::Button("Save##Mesh1", ImVec2((w - p) / 2.f, 0))) {
 			viewer.open_dialog_save_mesh();
-		}
-			
-
-		ImGui::RadioButton("Lap--Beltr.", &problemType, 0);
-
-		if (ImGui::Button("Set-up Problem##1", ImVec2((w - p) / 2.f, 0))) {
-			if (viewer.data().V.rows() < 1) return;
-
-			delete eigenSolver;
-			if (problemType == 0) {
-				eigenSolver = new MLSolverFunctions();
-			}
-			eigenSolver->setV(viewer.data().V);
-			eigenSolver->setF(viewer.data().F);
-
-			printf("Mesh in eigensolver object: %dx%d \n", eigenSolver->getV().rows(), eigenSolver->getV().cols());
-		}
+		}	
 
 		static int axis = 0;
 	}
 
 		/* STEP BY STEP CONSTRUCTION */
 		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
-			/* Set material propertries*/
-			double	m1lame1 = 1.49977776131565*1e-9,
-				m1lame2 = 0.000333358026520483*1e-9,
-				m2lame1 = 19.8175675675676*1e-9,
-				m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
+			
 			int		numSlices;
 			static	Eigen::VectorXd colorVect;
 			static bool	isClampedBasis = false;
-			static int numLevels;
-
-			if (problemType == 1) {
-				if (ImGui::CollapsingHeader("Elements material##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
-					/* Radio button to select material type */
-					ImGui::RadioButton("Const", &matType, 0); ImGui::SameLine();
-					ImGui::RadioButton("2-Mat", &matType, 1); ImGui::SameLine();
-					ImGui::RadioButton("Slices", &matType, 2);
-					ImGui::RadioButton("Box", &matType, 3); ImGui::SameLine();
-					ImGui::RadioButton("n-Mat", &matType, 4); ImGui::SameLine();
-					ImGui::RadioButton("Hetero", &matType, 5);
-					if (matType == 2) {
-						static char numSlicesTxt[10] = "5";						ImGui::InputText("Num of slices", numSlicesTxt, 10);
-						numSlices = atoi(numSlicesTxt);
-					}
-
-					/* Setting up the lame parameters */
-					static char lame1txt[32] = "1.49977776131565";			ImGui::InputText("L1_1", lame1txt, 32);
-					static char lame2txt[32] = "0.000333358026520483";		ImGui::InputText("L1_2", lame2txt, 32);
-					static char lame3txt[32] = "19.8175675675676";			ImGui::InputText("L2_1", lame3txt, 32);
-					static char lame4txt[32] = "0.875";						ImGui::InputText("L2_2", lame4txt, 32);
-					m1lame1 = atof(lame1txt)*1e-9;
-					m1lame2 = atof(lame2txt)*1e-9;
-					m2lame1 = atof(lame3txt)*1e-9;
-					m2lame2 = atof(lame4txt)*1e-9;
-				}
-			}
+			static int numLevels;			
 
 			/* Setup stiffness Matrix */
 			if (ImGui::Button("[1] Construct Stiffness Matrix##1", ImVec2(w, 0))) {
@@ -735,15 +689,6 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 	static int shiftType = 3;		// 0: Bathe, 1: Itoh/Wilson, 2: Gong, 3: Zhao
 	static bool isClampedEigen = false; 
 
-	static bool isParallel = true;
-	ImGui::Checkbox("Parallel solver", &isParallel);
-	if (ImGui::Button("Test parallel solver", ImVec2(w, 0))) {
-		//eigenSolver->testParallelFactorization(isParallel);
-		//testSolver(eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix());
-		testMatrixMultiplication(isParallel, eigenSolver->getBasisMatrix(), eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getEigenVectorsReduced());
-		//testArmadillo(isParallel, eigenSolver->getBasisMatrix(), eigenSolver->getStiffnessMatrix(), eigenSolver->getMassMatrix(), eigenSolver->getEigenVectorsReduced());
-	}
-
 	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
 		/* some parameters */
 		//static int		numOfModes	= 5;
@@ -768,8 +713,8 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
 			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
-			static char maxIterTxt[10] = "20"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
-			static char tolTxt[15] = "0.0001"; ImGui::InputText("Tolerance##1", tolTxt, 15);
+			static char maxIterTxt[10] = "5"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
+			static char tolTxt[15] = "0.01"; ImGui::InputText("Tolerance##1", tolTxt, 15);
 			numOfModes	= atoi(numModesTxt);
 			maxIter		= atoi(maxIterTxt);
 			tol			= atof(tolTxt);

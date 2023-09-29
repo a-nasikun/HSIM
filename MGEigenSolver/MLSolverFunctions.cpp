@@ -143,8 +143,7 @@ tuple<Eigen::VectorXd, Eigen::MatrixXd> MLSolverFunctions::eigs(const Eigen::Mat
 {
 	setup(V, F, numModes);
 	buildHierarchy(V, F, numModes);
-	zhaoShiftParam = zhaoShiftParam;
-	zhaoShiftParam = 0.25;
+	zhaoShiftParam = shiftParam;
 	performSubspaceIterationMethod(MLSolverFunctions::SIMType::SIM_MultiLevel, numModes, maxIters, tol, true, MLSolverFunctions::ShiftType::SHIFT_ZHAO, 0, 0.0);
 	std::cout << "COMPUTATION IS SUCCESSFUL \n";
 	return make_tuple(EigValsSIM, EigVectsSIM);
@@ -776,8 +775,6 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 	t0 = chrono::high_resolution_clock::now();
 
 	/* Initializations */
-	//EigValsSIM.resize(numEigs);
-	//EigVectsSIM.resize()
 	std::cout << "Max itter = " << maxIter << std::endl;
 	EigValsSIMStack.resize(numEigs, maxIter);
 	EigValsSIMStack.setZero();
@@ -785,10 +782,6 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 	convergence2Stacks.setZero();
 	convergence3Stacks.resize(numEigs, maxIter);
 	convergence3Stacks.setZero();
-	printf("Eigenvalues %dx%d \n", EigValsSIMStack.rows(), EigValsSIMStack.cols());
-	printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
-	printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
-
 
 	Eigen::SparseMatrix<double> MSel, SSel;
 	if (isClampedBasis) {
