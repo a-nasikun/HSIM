@@ -11,15 +11,12 @@ int main(int argc, char *argv[])
 	string								meshFile; 
 	MLSolverFunctions*					eigenSolver = new MLSolverFunctions();
 
-
 	/* GUI FUNCTIONALITY */	
 	igl::opengl::glfw::Viewer			viewer;			// Set up main viewer
 	igl::opengl::glfw::imgui::ImGuiMenu menu;			// Attach a menu plugin
 	viewer.plugins.push_back(&menu);	
-	//IMGUI_CHECKVERSION();								// Setup Dear ImGui binding
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();							// Set style
-
 	
 	 //meshFile = "D:/2. Programming/1. Research (Geometry)/HSIM Implementation/HSIM/Models/AIM366_Kitten/366_Kitten_Flip.obj";
 	meshFile = "../HSIM/Models/AIM366_Kitten/366_Kitten_Flip.obj";
@@ -27,11 +24,11 @@ int main(int argc, char *argv[])
 	eigenSolver->readMesh(meshFile);
 
 			
+	/* Pembuatan menu GUI */
 	menu.callback_draw_viewer_window = [&]()
 	{
 	 	reducedSpaceMenu(viewer, menu, eigenSolver);
 		SIMMenu(viewer, menu, eigenSolver);
-		//ImGui::ShowDemoWindow();
 
 	};
 	/* END OF GUI FUNCTIONALITY */
@@ -51,10 +48,8 @@ int main(int argc, char *argv[])
 		switch (key)
 		{
 		case '0':
-			viewer.data().clear();
-			
+			viewer.data().clear();			
 			viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
-
 			viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 			break;
 		case 'n':
@@ -98,7 +93,6 @@ int main(int argc, char *argv[])
 	Eigen::Vector4f					bgCol(1.f, 1.f, 1.f, 1.f);
 	viewer.core().background_color = bgCol;
 	viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
-	//viewer.data().set_colors(Eigen::RowVector3d(0.96666666, 0.96666666, 0.96666666));
 	viewer.data().point_size		= 10.0f;
 	viewer.data().line_width		= 0.5f; 	
 	return viewer.launch();

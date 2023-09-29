@@ -125,6 +125,11 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		}
 		static int axis = 0;
 	}
+	if (ImGui::Button("Construct Hierarchy", ImVec2((w), 0)))
+	{
+		eigenSolver->setup(viewer.data().V, viewer.data().F, numOfModes);
+		eigenSolver->buildHierarchy(viewer.data().V, viewer.data().F, numOfModes);
+	}
 
 		/* STEP BY STEP CONSTRUCTION */
 		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -270,6 +275,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::SameLine();
 			ImGui::InputText("#eigs", numRedEigTxt, 32);
 		}
+
 
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
