@@ -1,7 +1,6 @@
 #ifndef FAST_SPECTRUM_H
 #define FAST_SPECTRUM_H
 
-#include "Basis.h"
 #include "Utility.h"
 #include "Sampling.h"
 #include "EigenSolver.h"
@@ -24,17 +23,17 @@ public:
 	// <Constructor> INPUT: String of mesh-location & number of samples/subpsace, OUTPUT: Basis & reduced eigenvectors & eigenvalues )
 	void computeEigenPairs(const string &meshFile, const int &numOfSamples, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals);
 	// <Constructor> INPUT: String of mesh-location & number of samples/subpsace & type of sampling, OUTPUT: approximated lifted eigenvectors & eigenvalues)
-	void computeEigenPairs(const string &meshFile, const int &numOfSamples, SamplingType sampleType, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals);
+	void computeEigenPairs(const string &meshFile, const int &numOfSamples, HSIM::SamplingType sampleType, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals);
 	// <Constructor> INPUT: String of mesh-location & number of samples/subpsace & type of sampling, OUTPUT: Basis & reduced eigenvectors & eigenvalues)
-	void computeEigenPairs(const string &meshFile, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals);
+	void computeEigenPairs(const string &meshFile, const int &numOfSamples, HSIM::SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals);
 	// <Constructor> INPUT: V and F matrices & number of samples/subpsace, OUTPUT: approximated lifted eigenvectors & eigenvalues)
 	void computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals);
 	// <Constructor> INPUT: V and F matrices & number of samples/subpsace, OUTPUT: OUTPUT: Basis & reduced eigenvectors & eigenvalues )
 	void computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals);
 	// <Constructor> INPUT: V and F matrices & number of samples/subpsace & type of sampling, OUTPUT: approximated lifted eigenvectors & eigenvalues)
-	void computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, SamplingType sampleType, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals);
+	void computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, HSIM::SamplingType sampleType, Eigen::MatrixXd &approxEigVects, Eigen::VectorXd &approxEigVals);
 	// <Constructor> INPUT: V and F matrices & number of samples / subpsace & type of sampling, OUTPUT : Basis & reduced eigenvectors & eigenvalues)
-	void computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals);
+	void computeEigenPairs(Eigen::MatrixXd &V, Eigen::MatrixXi &F, const int &numOfSamples, HSIM::SamplingType sampleType, Eigen::SparseMatrix<double> &Basis, Eigen::MatrixXd &reducedEigVects, Eigen::VectorXd &reducedEigVals);
 	
 	void setInitialSystem(int n);
 	void constructLaplacianMatrix();
@@ -83,9 +82,9 @@ public:
 	void setF(const Eigen::MatrixXi &F);
 	void setMesh(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F);
 	void setMesh(const string &meshFile);
-	void setSample(const int &sampleSize, SamplingType sampleType);
+	void setSample(const int &sampleSize, HSIM::SamplingType sampleType);
 	void setSampleNumber(const int &sampleSize);
-	void setSampleType(SamplingType sampleType);
+	void setSampleType(HSIM::SamplingType sampleType);
 
 	/* For Volumetric Data */
 	void createTetrahedralMesh();
@@ -197,7 +196,7 @@ public:
 	double							avgEdgeLength, surfaceArea;						// average edge length and total surface area (from the mesh)
 	int								sampleSize;										// sample of the finest level sample, i.e. level 0
 	int								heatSource;
-	SamplingType					sampleType = Sample_Farthest_Point;				// we only use Farthest point sampling on this scenario
+	HSIM::SamplingType				sampleType = HSIM::Sample_Farthest_Point;				// we only use Farthest point sampling on this scenario
 	bool							isClampedBasis;
 
 	/* [SUBSPACE ITERATION METHOD] */
