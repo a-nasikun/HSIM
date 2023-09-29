@@ -10,7 +10,7 @@
 using namespace std;
 
 namespace HSIM {
-	class MLSolverFunctions
+	class LBEigenSolver
 	{
 	public:
 		enum class EigenVectorType { EIGEN_REFERENCE, EIGEN_REDUCED, EIGEN_SIM };

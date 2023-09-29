@@ -54,7 +54,7 @@ static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion = 0.0;							// percentage of the clampling
 static double		eigScale		= 1.005;
 
-void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, HSIM::MLSolverFunctions*& eigenSolver)
+void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, HSIM::LBEigenSolver*& eigenSolver)
 {
 	// Variables For Viewer visualization
 	float	menuWindowLeft		= 0.f,
@@ -154,7 +154,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 		{
 			eigenSolver->zhaoShiftParam = zhaoShiftParam;
 			std::cout << "Shift param = " << zhaoShiftParam << std::endl;
-			eigenSolver->performSubspaceIterationMethod(HSIM::MLSolverFunctions::SIMType::SIM_MultiLevel, numOfModes, maxIter, tol, isShiftedSIM, HSIM::MLSolverFunctions::ShiftType::SHIFT_ZHAO, defAxis, clampRegion);
+			eigenSolver->performSubspaceIterationMethod(HSIM::LBEigenSolver::SIMType::SIM_MultiLevel, numOfModes, maxIter, tol, isShiftedSIM, HSIM::LBEigenSolver::ShiftType::SHIFT_ZHAO, defAxis, clampRegion);
 
 			printf("Successfully computing the eigenvalues \n");
 			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM().transpose() << endl;
@@ -295,7 +295,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				duration = t1 - t0;
 				cout << "in " << duration.count() << " seconds." << endl;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
 
 				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows()));
@@ -406,7 +406,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				if (eigToShow > 0)
 					eigToShow--;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", eigToShow);
@@ -421,7 +421,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				if (eigToShow < (eigenSolver->getEigenValuesReduced().rows() - 1))
 					eigToShow++;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("Red##EigVec1", ImVec2((w-85.0-3 * p) / 3.f, 0))) {
@@ -434,7 +434,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					return;
 				}
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
 			}			
 
 			/* For SIM Eigenvectors */
@@ -449,7 +449,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				if (eigToShow > 0)
 					eigToShow--;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::MLSolverFunctions::EigenVectorType::EIGEN_SIM, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			ImGui::Text("[%d]", eigToShow);
@@ -464,7 +464,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				if (eigToShow < (eigenSolver->getEigenValuesSIM().rows() - 1))
 					eigToShow++;
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::MLSolverFunctions::EigenVectorType::EIGEN_SIM, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("SIM##EigVec1", ImVec2((w-85.0-3* p) / 3.f, 0))) {
@@ -477,7 +477,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 					return;
 				}
 
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::MLSolverFunctions::EigenVectorType::EIGEN_SIM, eigScale);
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
 			}
 
 			/* Overlays */

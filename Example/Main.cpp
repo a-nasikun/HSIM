@@ -7,7 +7,7 @@
 int main(int argc, char *argv[])
 {
 	string								meshFile; 
-	HSIM::MLSolverFunctions*					eigenSolver = new HSIM::MLSolverFunctions();
+	HSIM::LBEigenSolver*					eigenSolver = new HSIM::LBEigenSolver();
 
 	/* GUI FUNCTIONALITY */	
 	igl::opengl::glfw::Viewer			viewer;			// Set up main viewer

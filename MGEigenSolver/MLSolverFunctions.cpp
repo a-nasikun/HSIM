@@ -20,7 +20,7 @@ namespace HSIM {
 *	currently it supports 'obj' and 'off' file format only
 *  @param meshFile  Location of the mesh
 */
-void MLSolverFunctions::readMesh(const string& meshFile)
+void LBEigenSolver::readMesh(const string& meshFile)
 {
 	V.resize(0, 0);
 	F.resize(0, 0);
@@ -47,7 +47,7 @@ void MLSolverFunctions::readMesh(const string& meshFile)
 	}
 }
 
-void MLSolverFunctions::setup(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
+void LBEigenSolver::setup(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
 {
 	/* Initial setup*/
 	setV(V);
@@ -64,7 +64,7 @@ void MLSolverFunctions::setup(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F
 *   Setting up the system to have required levels.
 *  @param n Number of specified levels of the system.
 */
-void MLSolverFunctions::setInitialSystem(int n)
+void LBEigenSolver::setInitialSystem(int n)
 {
 	level = n;
 	maxNeighDist.resize(level);
@@ -82,7 +82,7 @@ void MLSolverFunctions::setInitialSystem(int n)
 *  @details
 *   Setting up the adjacency matrix.
 */
-void MLSolverFunctions::initiateAdM()
+void LBEigenSolver::initiateAdM()
 {
 	cout << "> Creating neighborhood structure of the mesh. \n";
 	AdM.clear();
@@ -104,7 +104,7 @@ void MLSolverFunctions::initiateAdM()
 
 }
 
-void MLSolverFunctions::computeArea()
+void LBEigenSolver::computeArea()
 {
 	/* Constructing Average length of the edges */
 	avgEdgeLength = igl::avg_edge_length(V, F);
@@ -114,7 +114,7 @@ void MLSolverFunctions::computeArea()
 	surfaceArea = dArea.sum() / 2.0;
 }
 
-void MLSolverFunctions::constructMassMatrix()
+void LBEigenSolver::constructMassMatrix()
 {
 	cout << "> Creating mass matrix for the surface mesh \n";
 	/* Construct Mass matrix M*/
@@ -127,7 +127,7 @@ void MLSolverFunctions::constructMassMatrix()
 	surfaceArea = dblArea.sum();
 }
 
-void MLSolverFunctions::constructStiffnessMatrix()
+void LBEigenSolver::constructStiffnessMatrix()
 {
 	cout << "> Creating stiffness matrix (Cotangent Laplacian). \n";
 	igl::cotmatrix(V, F, S);
@@ -136,27 +136,27 @@ void MLSolverFunctions::constructStiffnessMatrix()
 
 
 /* Main functions for user */
-tuple<Eigen::VectorXd, Eigen::MatrixXd> MLSolverFunctions::eigs(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes, double tol, int maxIters, double shiftParam)
+tuple<Eigen::VectorXd, Eigen::MatrixXd> LBEigenSolver::eigs(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes, double tol, int maxIters, double shiftParam)
 {
 	setup(V, F, numModes);
 	buildHierarchy(V, F, numModes);
 	zhaoShiftParam = shiftParam;
-	performSubspaceIterationMethod(MLSolverFunctions::SIMType::SIM_MultiLevel, numModes, maxIters, tol, true, MLSolverFunctions::ShiftType::SHIFT_ZHAO, 0, 0.0);
+	performSubspaceIterationMethod(LBEigenSolver::SIMType::SIM_MultiLevel, numModes, maxIters, tol, true, LBEigenSolver::ShiftType::SHIFT_ZHAO, 0, 0.0);
 	std::cout << "COMPUTATION IS SUCCESSFUL \n";
 	return make_tuple(EigValsSIM, EigVectsSIM);
 }
 
-void MLSolverFunctions::buildHierarchy()
+void LBEigenSolver::buildHierarchy()
 {
 
 }
 
-void MLSolverFunctions::buildHierarchy(int numModes)
+void LBEigenSolver::buildHierarchy(int numModes)
 {
 
 }
 
-void MLSolverFunctions::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
+void LBEigenSolver::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
 {
 	std::cout << "Modes = " << numModes << std::endl;
 	/* Sampling levels */
@@ -176,7 +176,7 @@ void MLSolverFunctions::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::Ma
 }
 
 /* Construction of the subspace and/or hierarchy */
-void MLSolverFunctions::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
+void LBEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
 {
 	double	spRatio = 1.0;
 	int		sizeSubsp = spRatio * 2 * numEigen;
@@ -208,7 +208,7 @@ void MLSolverFunctions::setSamplingLevels(Eigen::VectorXd& sampSize, int numEige
 		sampSize(ii) = sampleLevels[ii];
 }
 
-void MLSolverFunctions::constructSampleHierarchy(const Eigen::VectorXd& samples)
+void LBEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 {
 	printf("____Sampling on %d levels \n", samples.size());
 	for (int i = 0; i < samples.size(); ++i) {
@@ -239,7 +239,7 @@ void MLSolverFunctions::constructSampleHierarchy(const Eigen::VectorXd& samples)
 	}
 }
 
-void MLSolverFunctions::constructBasis(double support, int axis, double offset)
+void LBEigenSolver::constructBasis(double support, int axis, double offset)
 {
 	cout << "> Constructing multi-level basis \n";
 	for (int i = 0; i < level; i++) {
@@ -262,7 +262,7 @@ void MLSolverFunctions::constructBasis(double support, int axis, double offset)
 	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
 }
 
-void MLSolverFunctions::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
+void LBEigenSolver::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
 {
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
@@ -348,7 +348,7 @@ void MLSolverFunctions::constructRadialBasisFunctions(int k, int axis, bool isCl
 	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
 }
 
-void MLSolverFunctions::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter)
+void LBEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter)
 {
 	priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
 
@@ -424,7 +424,7 @@ void MLSolverFunctions::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, 
 	D.setConstant(numeric_limits<double>::infinity());
 }
 
-void MLSolverFunctions::formPartitionOfUnityMultiLevel()
+void LBEigenSolver::formPartitionOfUnityMultiLevel()
 {
 	cout << "Partition of unity \n";
 	/* Temporary variables */
@@ -465,7 +465,7 @@ void MLSolverFunctions::formPartitionOfUnityMultiLevel()
 	}
 }
 
-void MLSolverFunctions::solveRestrictedProblem()
+void LBEigenSolver::solveRestrictedProblem()
 {
 	double eps = 1e-16;
 	Eigen::SparseMatrix<double> Id(Basis.cols(), Basis.cols());
@@ -507,7 +507,7 @@ void MLSolverFunctions::solveRestrictedProblem()
 	EigVectsReduced = Basis * EigVectsReducedNonLifted;
 }
 
-void MLSolverFunctions::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset)
+void LBEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis, double offset)
 {
 	SelMat.resize(M.rows(), M.cols());
 	vector<Eigen::Triplet<double>> STriplet;
@@ -533,7 +533,7 @@ void MLSolverFunctions::constructSelectorMatrixFullSize(Eigen::SparseMatrix<doub
 }
 
 /* Subspace Iteration methods */
-void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset)
+void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset)
 {
 	cout << "> The Subspace Iteration Method \n";
 	chrono::high_resolution_clock::time_point	t0, t1;
@@ -591,7 +591,7 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 	}
 }
 
-void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
+void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
 {
 	std::cout << "Functions" << std::endl;
 
@@ -832,7 +832,7 @@ void MLSolverFunctions::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<d
 	}
 }
 
-void MLSolverFunctions::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const
+void LBEigenSolver::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const
 {
 	convRate.resize(A.rows());
 	Eigen::VectorXd Kq, AMq, diff;
@@ -849,7 +849,7 @@ void MLSolverFunctions::checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eig
 	//printf("eigVals: %d | S: %dx%d | M: %dx%d \n", A.rows(), SK.rows(), SK.cols(), MK.rows(), MK.cols());
 }
 
-void MLSolverFunctions::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate) const
+void LBEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate) const
 {
 	convRate.resize(A.rows());
 
@@ -865,12 +865,12 @@ void MLSolverFunctions::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eig
 }
 
 /* Reference*/
-void MLSolverFunctions::computeReference(int numEigs)
+void LBEigenSolver::computeReference(int numEigs)
 {
 	computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 0, 1000, 1e-7);
 }
 /* Applications */
-void MLSolverFunctions::constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor)
+void LBEigenSolver::constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor)
 {
 	DiffusionTensor.resize(V.rows());
 	for (int i = 0; i < V.rows(); ++i) {
@@ -883,14 +883,14 @@ void MLSolverFunctions::constructDiffusionTensor(const int numEigs, double t, co
 }
 
 /* Visualization Tools*/
-void MLSolverFunctions::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer& viewer, int k) const
+void LBEigenSolver::visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer& viewer, int k) const
 {
 	Eigen::MatrixXd VColor;
 	igl::jet(geoDist[k], true, VColor);
 	viewer.data().set_colors(VColor);
 }
 
-void MLSolverFunctions::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k,  double scale) const
+void LBEigenSolver::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id, int k,  double scale) const
 {
 	Eigen::MatrixXd VColor;
 	Eigen::VectorXd funcCols;
@@ -912,7 +912,7 @@ void MLSolverFunctions::visualizeBasis(igl::opengl::glfw::Viewer &viewer, int id
 	viewer.data().set_colors(VColor);
 }
 
-void MLSolverFunctions::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const
+void LBEigenSolver::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int id, const EigenVectorType& eigType, double scale) const
 {
 	cout << "Visualizing the eigenvector of id " << id << endl; 
 	Eigen::VectorXd vColor;
@@ -939,7 +939,7 @@ void MLSolverFunctions::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, 
 	viewer.data().set_colors(VColor);
 }
 
-void MLSolverFunctions::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer& viewer)
+void LBEigenSolver::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer& viewer)
 {
 	Eigen::MatrixXd VColor;
 	Eigen::VectorXd vcolor(V.rows());
@@ -952,7 +952,7 @@ void MLSolverFunctions::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewe
 	viewer.data().set_colors(VColor);
 }
 
-void MLSolverFunctions::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer& viewer, int k)
+void LBEigenSolver::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer& viewer, int k)
 {
 	viewer.data().points.resize(0, 6);
 	Eigen::MatrixXd VColor;
@@ -974,62 +974,62 @@ void MLSolverFunctions::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewe
 
 
 /* Some getters */
-Eigen::MatrixXd MLSolverFunctions::getV() const { return V; }
-Eigen::MatrixXi MLSolverFunctions::getF() const { return F; }
-void MLSolverFunctions::setV(const Eigen::MatrixXd& Vin) { V = Vin; }
-void MLSolverFunctions::setF(const Eigen::MatrixXi& Fin) { F = Fin; }
-Eigen::SparseMatrix<double> MLSolverFunctions::getStiffnessMatrix() const { return S; }
-Eigen::SparseMatrix<double> MLSolverFunctions::getMassMatrix() const { return M; }
-Eigen::SparseMatrix<double> MLSolverFunctions::getBasisMatrix() const { return Basis; }
-bool MLSolverFunctions::getClampBasis() const { return isClampedBasis; }
-void MLSolverFunctions::setClampBasis(bool isClamped) { isClampedBasis = isClamped; }
-int MLSolverFunctions::getLevel() const { return level; }
-int MLSolverFunctions::getSampleSize() const { return sampleSize; }
-const Eigen::VectorXi& MLSolverFunctions::getSample() const { return Sample; }
-const vector<int>& MLSolverFunctions::getSubspaceSize() const { return SubspaceSize; }
+Eigen::MatrixXd LBEigenSolver::getV() const { return V; }
+Eigen::MatrixXi LBEigenSolver::getF() const { return F; }
+void LBEigenSolver::setV(const Eigen::MatrixXd& Vin) { V = Vin; }
+void LBEigenSolver::setF(const Eigen::MatrixXi& Fin) { F = Fin; }
+Eigen::SparseMatrix<double> LBEigenSolver::getStiffnessMatrix() const { return S; }
+Eigen::SparseMatrix<double> LBEigenSolver::getMassMatrix() const { return M; }
+Eigen::SparseMatrix<double> LBEigenSolver::getBasisMatrix() const { return Basis; }
+bool LBEigenSolver::getClampBasis() const { return isClampedBasis; }
+void LBEigenSolver::setClampBasis(bool isClamped) { isClampedBasis = isClamped; }
+int LBEigenSolver::getLevel() const { return level; }
+int LBEigenSolver::getSampleSize() const { return sampleSize; }
+const Eigen::VectorXi& LBEigenSolver::getSample() const { return Sample; }
+const vector<int>& LBEigenSolver::getSubspaceSize() const { return SubspaceSize; }
 
 /* Getters of the eigen-values + vectors*/
-const Eigen::MatrixXd& MLSolverFunctions::getEigenVectorsRef() const { return EigVectsRef; }
-const Eigen::VectorXd& MLSolverFunctions::getEigenVectorsRef(int id) const
+const Eigen::MatrixXd& LBEigenSolver::getEigenVectorsRef() const { return EigVectsRef; }
+const Eigen::VectorXd& LBEigenSolver::getEigenVectorsRef(int id) const
 {
 	if (id >= EigVectsRef.cols())	return EigVectsRef.col(EigValsRef.rows() - 1);
 	else if (id < 0)						return EigVectsRef.col(0);
 
 	return EigVectsRef.col(id);
 }
-const Eigen::VectorXd& MLSolverFunctions::getEigenValuesRef() const { return EigValsRef; }
-const double MLSolverFunctions::getEigenValueRef(int id) const
+const Eigen::VectorXd& LBEigenSolver::getEigenValuesRef() const { return EigValsRef; }
+const double LBEigenSolver::getEigenValueRef(int id) const
 {
 	if (id >= EigValsRef.rows())	return EigValsRef(EigValsRef.rows() - 1);
 	else if (id < 0)						return EigValsRef(0);
 
 	return EigValsRef(id);
 }
-const Eigen::MatrixXd& MLSolverFunctions::getEigenVectorsReduced() const { return EigVectsReducedNonLifted; }
-const Eigen::VectorXd& MLSolverFunctions::getEigenVectorsReduced(int id) const
+const Eigen::MatrixXd& LBEigenSolver::getEigenVectorsReduced() const { return EigVectsReducedNonLifted; }
+const Eigen::VectorXd& LBEigenSolver::getEigenVectorsReduced(int id) const
 {
 	if (id >= EigVectsReduced.cols())	return EigVectsReduced.col(EigValsReduced.rows() - 1);
 	else if (id < 0)						return EigVectsReduced.col(0);
 
 	return EigVectsReduced.col(id);
 }
-const Eigen::VectorXd& MLSolverFunctions::getEigenValuesReduced() const { return EigValsReduced; }
-const double MLSolverFunctions::getEigenValueReduced(int id) const
+const Eigen::VectorXd& LBEigenSolver::getEigenValuesReduced() const { return EigValsReduced; }
+const double LBEigenSolver::getEigenValueReduced(int id) const
 {
 	if (id >= EigValsReduced.rows())	return EigValsReduced(EigValsReduced.rows() - 1);
 	else if (id < 0)						return EigValsReduced(0);
 
 	return EigValsReduced(id);
 }
-const Eigen::MatrixXd& MLSolverFunctions::getEigenVectorsSIM() const { return EigVectsSIM; }
-const Eigen::VectorXd& MLSolverFunctions::getEigenVectorsSIM(int id) const
+const Eigen::MatrixXd& LBEigenSolver::getEigenVectorsSIM() const { return EigVectsSIM; }
+const Eigen::VectorXd& LBEigenSolver::getEigenVectorsSIM(int id) const
 {
 	if (id >= EigVectsSIM.cols())		return EigVectsSIM.col(EigValsSIM.rows() - 1);
 	else if (id < 0)						return EigVectsSIM.col(0);
 	return EigVectsSIM.col(id);
 }
-const Eigen::VectorXd& MLSolverFunctions::getEigenValuesSIM() const { return EigValsSIM; }
-const double MLSolverFunctions::getEigenValueSIM(int id) const
+const Eigen::VectorXd& LBEigenSolver::getEigenValuesSIM() const { return EigValsSIM; }
+const double LBEigenSolver::getEigenValueSIM(int id) const
 {
 	if (id >= EigValsSIM.rows())		return EigValsSIM(EigValsSIM.rows() - 1);
 	else if (id < 0)						return EigValsSIM(0);
