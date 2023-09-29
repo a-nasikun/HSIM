@@ -1,4 +1,4 @@
-#include "MLSolverFunctions.h"
+#include "LBEigenSolver.h"
 #include "MLEigSolverGUI.h"
 #include <igl/unproject_onto_mesh.h>
 
@@ -48,7 +48,6 @@ int main(int argc, char *argv[])
 		default:
 			return false;
 		}
-		//viewer.data.set_vertices(V);
 		viewer.data().compute_normals();
 		//viewer.core.align_camera_center(V, F);
 		return true;

@@ -1,4 +1,4 @@
-#include "MLSolverFunctions.h"
+#include "LBEigenSolver.h"
 
 #include <igl/cotmatrix.h>
 #include <igl/doublearea.h>
