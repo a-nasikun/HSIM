@@ -307,7 +307,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::InputText("#eigs", numRedEigTxt, 32);
 		}
 
-
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
 
 		/* VISUALIZATION WINDOW */
@@ -429,57 +428,10 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
-			}
-
-			/* For Reference Eigenvectors */
-			ImGui::Text("Reference");
-			ImGui::SameLine(0, p);
-			if (ImGui::Button("- 1##RefEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
-					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
-					return;
-				}
-
-				if (eigToShow > 0)
-					eigToShow--;
-
-				std::cout << "["<< eigToShow << "]"<< "Eigenvalue=" << eigenSolver->getEigenValueRef(eigToShow) << std::endl;
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REFERENCE, eigScale);
-			}
-			ImGui::SameLine(0, p);
-			ImGui::Text("[%d]", eigToShow);
-			ImGui::SameLine(0, p);
-
-			if (ImGui::Button("+ 1##RefEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
-					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
-					return;
-				}
-
-
-				if (eigToShow < (eigenSolver->getEigenValuesRef().rows() - 1))
-					eigToShow++;
-
-				std::cout << "[" << eigToShow << "]" << "Eigenvalue=" << eigenSolver->getEigenValueRef(eigToShow) << std::endl;
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REFERENCE, eigScale);
-			}
-			ImGui::SameLine(0, p);
-			if (ImGui::Button("Ref##EigVec1", ImVec2((w-85.0-3*p) / 3.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getEigenValuesRef().rows() < 1) {
-					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
-					return;
-				}
-				if (eigToShow >= eigenSolver->getEigenValuesRef().rows()) {
-					cout << "Error! Index out of bound\n";
-					return;
-				}
-
-				std::cout << "[" << eigToShow << "]" << "Eigenvalue=" << eigenSolver->getEigenValueRef(eigToShow) << std::endl;
-				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REFERENCE, eigScale);
-			}
+			}			
 
 			/* For SIM Eigenvectors */
-			ImGui::Text("SIM Eigs.");
+			ImGui::Text("HSIM Eigs.");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##SIMEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
 				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
@@ -527,51 +479,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			//ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
 		}		
 
-		/* Axis*/
-		if (ImGui::Button("Show axis", ImVec2((w), 0))) {
-			isShowAxis = !isShowAxis;
-			if (isShowAxis) {
-				double maxAxis = eigenSolver->getV().maxCoeff();
-				std::cout << "Max Coef: " << maxAxis << std::endl;
-				//viewer.data().line_width = 0.5f;
-				viewer.data().add_edges(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(maxAxis, 0, 0), Eigen::RowVector3d(1.0, 0, 0));
-				viewer.data().add_edges(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(0, maxAxis, 0), Eigen::RowVector3d(0, 1.0, 0));
-				viewer.data().add_edges(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(0, 0, maxAxis), Eigen::RowVector3d(0, 0, 1.0));
-				//viewer.data().line_width = 4.5f;
-
-				std::stringstream l1;
-				l1 << maxAxis;
-				viewer.data().add_label(Eigen::RowVector3d(maxAxis, 0, 0), l1.str());
-				//viewer.data().line_width = 0.5f;
-			}
-			else {
-				Eigen::MatrixXd Vtemp = viewer.data().V;
-				Eigen::MatrixXi Ftemp = viewer.data().F;
-				viewer.data().clear();
-				viewer.data().set_mesh(Vtemp, Ftemp);
-			}
-		}
-
-		if (ImGui::Button("Reset Mesh", ImVec2(w, 0))) {
-			viewer.data().set_vertices(eigenSolver->getV());
-		}
-
-		if (ImGui::Button("Lighter", ImVec2((w-p) / 2.f, 0))) {
-			viewer.data().line_width *= 0.5f;
-		}
-		ImGui::SameLine(0, p);
-		if (ImGui::Button("Bolder", ImVec2((w-p) / 2.f, 0))) {
-			viewer.data().line_width *= 2.0f;
-		}
-
-		if (ImGui::Button("Smaller", ImVec2((w - p) / 2.f, 0))) {
-			viewer.data().point_size *= 1.0/1.5f;
-		}
-		ImGui::SameLine(0, p);
-		if (ImGui::Button("Larger", ImVec2((w - p) / 2.f, 0))) {
-			viewer.data().point_size *= 1.5f;
-		}
-
 		ImGui::Separator(); 
 
 		/* Diffusion distance */
@@ -579,52 +486,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		static std::vector<Eigen::VectorXd> diffTensor2;
 		static Eigen::VectorXd diffVector(eigenSolver->getV().rows());
 		static int sourceID = 0;
-
-		if (ImGui::CollapsingHeader("Diffusion Distance##1", ImGuiTreeNodeFlags_CollapsingHeader))
-		{			
-			static char weighttxt[32] = "0.5";						ImGui::InputText("Weight", weighttxt, 32);
-			if (ImGui::Button("Create Diffusion Tensor", ImVec2(w, 0))) {			
-
-				if (auto solver = dynamic_cast<MLSolverFunctions*>(eigenSolver)) {
-					double weight = atof(weighttxt);
-					//solver->constructDiffusionTensor(min(numOfModes, 50), 1.0, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor1);
-					solver->constructDiffusionTensor(std::min(numOfModes, 50), weight, solver->getEigenVectorsSIM(), solver->getEigenValuesSIM(), diffTensor2);					
-					std::cout << "Diffusion tensor successfully created \n";
-				}
-			}
-
-			static char sourceIDtxt[32] = "0";						ImGui::InputText("0", sourceIDtxt, 32);
-			Eigen::MatrixXd VCol;
-			if (ImGui::Button("Compute Diffusion Distance", ImVec2(w, 0))) {
-				
-				sourceID = atoi(sourceIDtxt);				
-				if(sourceID>=eigenSolver->getV().rows()) 
-					sourceID = eigenSolver->getV().rows()-1;
-				std::cout << "Source point: " << sourceID << std::endl;
-				diffVector.resize(eigenSolver->getV().rows());
-
-				for (int i = 0; i < eigenSolver->getV().rows(); ++i) {
-					Eigen::VectorXd diff = diffTensor2[sourceID] - diffTensor2[i];
-					diffVector(i) = diff.norm();
-				}
-
-				
-				igl::jet(diffVector, true, VCol);
-				viewer.data().set_colors(VCol);
-				viewer.data().add_points(eigenSolver->getV().row(sourceID), Eigen::RowVector3d(0.7, 0.1, 0.1));
-			}
-
-			if (ImGui::Button("Show Isolines", ImVec2(w, 0))) {
-				Eigen::MatrixXd isoV, isoE;									
-				//igl::isolines(eigenSolver->getV(), eigenSolver->getF(), diffVector, 10, isoV, isoE);
-				
-				//for (int i = 0; i < isoE.rows(); i++) {
-				//	viewer.data().add_edges(isoV.row(isoE.row(i)(0)), isoV.row(isoE.row(i)(1)), Eigen::RowVector3d(0.6, 0.1, 0.1));
-				//}
-
-			}
-		}
-
+		
 		ImGui::End();
 }
 
