@@ -54,21 +54,13 @@ static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion;							// percentage of the clampling
 static double		eigScale		= 1.005;
 
-void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
-void testArmadillo(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE);
-
 void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLSolverFunctions*& eigenSolver)
 {
 	// Variables For Viewer visualization
 	float	menuWindowLeft		= 0.f,
-			menuWindowWidth		= 200.f,
-			menuWindowHeight	= 475.f;
+			menuWindowWidth		= 250.f,
+			menuWindowHeight	= 600.f;
 
-	/* Material properties (for linear elasticity) */
-	static double	m1lame1 = 1.49977776131565*1e-9,
-					m1lame2 = 0.000333358026520483*1e-9,
-					m2lame1 = 19.8175675675676*1e-9,
-					m2lame2 = 0.875*1e-9;		//maaterial 1 lame 1, etc.
 
 	Eigen::MatrixXd		VColor;
 	Eigen::VectorXd		Z;
@@ -91,7 +83,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			Eigen::MatrixXd tempV;// = viewer.data_list[0].V;
 			Eigen::MatrixXi tempF;// = viewer.data_list[0].F;
 
-								  // Load mesh + display the correct mesh
+			// Load mesh + display the correct mesh
 			int numOfModel = viewer.data_list.size();
 			printf("mesh that we have  now: %d \n", viewer.data_list.size());
 
@@ -103,7 +95,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 			viewer.open_dialog_load_mesh();
 
-			// if no mesh is selected, re-used the old one
 			if (viewer.data_list.size() < 1) {
 				cout << "data less than 1 \n";
 				viewer.append_mesh();
@@ -115,8 +106,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 
 			if (viewer.data().V.rows() > 0) {
-				//eigenSolver.setV(viewer.data().V);
-				//eigenSolver.setF(viewer.data().F);
 
 				scaleMesh(viewer.data().V, viewer.data().F, 2.0);
 				viewer.core().align_camera_center(viewer.data().V, viewer.data().F);
@@ -133,8 +122,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		ImGui::SameLine(0, p);
 		if (ImGui::Button("Save##Mesh1", ImVec2((w - p) / 2.f, 0))) {
 			viewer.open_dialog_save_mesh();
-		}	
-
+		}
 		static int axis = 0;
 	}
 
@@ -226,7 +214,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
 				
 				useNonSmoothBasis = false;
-				//ml_eigSolver.testConstantFuncsProjection();
 
 				t1 = chrono::high_resolution_clock::now();
 				duration = t1 - t0;
@@ -243,65 +230,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				}
 				if (i<(eigenSolver->getLevel()-1)) ImGui::SameLine(0, p);
 			}
-
-
-			if (ImGui::Button("[3] Coarse Basis only##1", ImVec2(w, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) {
-					cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
-					return;
-				}
-				numOfSupport = atof(numSupTxt);
-				eigenSolver->setClampBasis(isClampedBasis);
 				
-
-				chrono::high_resolution_clock::time_point	t0, t1;
-				chrono::duration<double>					duration;
-				t0 = chrono::high_resolution_clock::now();
-
-				cout << "> Creating samples... " << endl;
-				t0 = chrono::high_resolution_clock::now();
-
-				eigenSolver->setInitialSystem(1);
-				Eigen::VectorXd			sampSize;
-				sampSize.resize(1);
-				sampSize(0) = 2 * numOfModes;
-				eigenSolver->constructSampleHierarchy(sampSize);
-				t1 = chrono::high_resolution_clock::now();
-				duration = t1 - t0;
-				cout << "in " << duration.count() << " seconds." << endl;
-
-				eigenSolver->constructBasisCoarseOnly(numOfSupport, defAxis, clampRegion);
-				
-				useNonSmoothBasis = false;
-			}
-
-			// Non-smooth basis, based on SIGGRAPH-Asia Paper by Xiang (2019)
-			if (ImGui::Button("[3] Non Smooth Basis##1", ImVec2(w, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1 || eigenSolver->getSampleSize() < 1) {
-					cout << "Error! Make sure you execute previous steps before constructing basis functions." << endl;
-					return;
-				}
-				numOfSupport = atof(numSupTxt);
-				eigenSolver->setClampBasis(isClampedBasis);
-
-				eigenSolver->constructBasisNonSmooth(numOfSupport, defAxis, clampRegion);
-				
-				//ml_eigSolver.visualizeClusterOfSamplesLevel0(viewer);
-				useNonSmoothBasis = true;
-			}
-
-			for (int i = 0; i < numLevels; i++)
-			{
-				string disp = "Cluster "; disp += to_string(i);
-				char const* ca = disp.c_str();
-				if (ImGui::Button(ca, ImVec2(w / (double)numLevels - p, 0))) {
-					if (i == 0)
-						eigenSolver->visualizeClusterOfSamplesLevel0(viewer);
-					else
-						eigenSolver->visualizeClusterOfSamplesLevelK(viewer, i);
-				} ImGui::SameLine(0, p);
-			}
-						
 			ImGui::Spacing(); ImGui::Spacing();
 			
 
@@ -340,16 +269,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 			ImGui::SameLine();
 			ImGui::InputText("#eigs", numRedEigTxt, 32);
-			///
-			///if (ImGui::Button("Save EigVals#Approx", ImVec2(w / 2.0, 0))) {
-			///	int toStore = min(250, (int)ml_eigSolver.reducedEigVals.rows());
-			///	writeDenseMatrixToFile(ml_eigSolver.reducedEigVals.block(0, 0, toStore, 1), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVals_Red_" + to_string(toStore) + ".txt");
-			///}
-			///ImGui::SameLine(0, p);
-			///if (ImGui::Button("Save EigVect#Approx", ImVec2(w / 2.0, 0))) {
-			///	int toStore = 250;
-			///	writeDenseMatrixToFile(ml_eigSolver.Basis*ml_eigSolver.reducedEigVects.block(0, 0, ml_eigSolver.V.rows(), toStore), "D:/Nasikun/4_SCHOOL/TU Delft/Research/Projects/MultigridSolver/Data/" + model + "_EigVects_Red_" + to_string(toStore) + ".txt");
-			///}
 		}
 
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
@@ -672,12 +591,12 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		ImGui::End();
 }
 
-void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLSolverFunctions*& eigenSolver) {
+void SIMMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::ImGuiMenu& menu, MLSolverFunctions*& eigenSolver) {
 	// Variables For Viewer visualization
-	float	menuWindowLeft		= 475.f,
-			menuWindowWidth		= 200.f,
-			menuWindowHeight	= 675.f;
-	
+	float	menuWindowLeft = 475.f,
+		menuWindowWidth = 200.f,
+		menuWindowHeight = 675.f;
+
 	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5));
 	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight));
 	ImGui::Begin("Subspace Iteration Method##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
@@ -687,146 +606,99 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 	static int SIMType = 0;			// 0: M-L, 1: SGP, 2:random, 3: Bathe
 	static int shiftType = 3;		// 0: Bathe, 1: Itoh/Wilson, 2: Gong, 3: Zhao
-	static bool isClampedEigen = false; 
+	static bool isClampedEigen = false;
 
-	if (ImGui::CollapsingHeader("Eigenproblem with SIM", ImGuiTreeNodeFlags_DefaultOpen)) {
-		/* some parameters */
-		//static int		numOfModes	= 5;
-		static int		maxIter		= 5;
-		static double	tol			= 1e-4;
-		/* Type of the SIM to be computed*/
-		std::map<int, MLSolverFunctions::SIMType>			typeMap;
-		typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(0, MLSolverFunctions::SIMType::SIM_MultiLevel));
-		typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(1, MLSolverFunctions::SIMType::SIM_1level_WarmStart));
-		typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(2, MLSolverFunctions::SIMType::SIM_1level_Random));
-		typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(3, MLSolverFunctions::SIMType::SIM_1level_Bathe));
+	/* some parameters */
+	//static int		numOfModes	= 5;
+	static int		maxIter = 5;
+	static double	tol = 1e-2;
+	/* Type of the SIM to be computed*/
+	std::map<int, MLSolverFunctions::SIMType>			typeMap;
+	typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(0, MLSolverFunctions::SIMType::SIM_MultiLevel));
+	typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(1, MLSolverFunctions::SIMType::SIM_1level_WarmStart));
+	typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(2, MLSolverFunctions::SIMType::SIM_1level_Random));
+	typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(3, MLSolverFunctions::SIMType::SIM_1level_Bathe));
 
-		/* Type of shifting approach */
-		std::map<int, MLSolverFunctions::ShiftType>			shiftMap;
-		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(0, MLSolverFunctions::ShiftType::SHIFT_BATHE));
-		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(1, MLSolverFunctions::ShiftType::SHIFT_ITOH_WILSON));
-		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(2, MLSolverFunctions::ShiftType::SHIFT_GONG));
-		shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(3, MLSolverFunctions::ShiftType::SHIFT_ZHAO));
-
-		
-
-		static bool isShiftedSIM = true;
-		static double zhaoShiftParam = 0.25;
-		shiftType = 3;
-		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
-			static char numModesTxt[10]		= "125";	ImGui::InputText("Num Eigs", numModesTxt, 10);			
-			static char maxIterTxt[10]		= "5";		ImGui::InputText("Max Iter", maxIterTxt, 10);			
-			static char tolTxt[15]			= "0.01";	ImGui::InputText("Tolerance##1", tolTxt, 15);
-			static char zhaoTxt[10]			= "0.25";	ImGui::InputText("Shift param", zhaoTxt, 10);
-			numOfModes						= atoi(numModesTxt);
-			maxIter							= atoi(maxIterTxt);
-			tol								= atof(tolTxt);
-			zhaoShiftParam					= atof(zhaoTxt);
-		}
+	/* Type of shifting approach */
+	std::map<int, MLSolverFunctions::ShiftType>			shiftMap;
+	shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(0, MLSolverFunctions::ShiftType::SHIFT_BATHE));
+	shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(1, MLSolverFunctions::ShiftType::SHIFT_ITOH_WILSON));
+	shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(2, MLSolverFunctions::ShiftType::SHIFT_GONG));
+	shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(3, MLSolverFunctions::ShiftType::SHIFT_ZHAO));
 
 
-		Eigen::VectorXd EigValTest;
-		Eigen::MatrixXd EigVectTest;
-		if (ImGui::Button("Check SIM")) {
-			tie(EigValTest, EigVectTest) = eigenSolver->eigs(viewer.data().V, viewer.data().F, numOfModes, tol, maxIter, zhaoShiftParam);
-			
-			std::cout << "Eigenvalues " << EigValTest.transpose() << std::endl << std::endl;
-			std::cout << "Eigenvectors " << EigVectTest.topLeftCorner(10,10) << std::endl << std::endl;
-		}
 
-		if (ImGui::Button("Solve Eigenproblem.##1", ImVec2(w, 0))) {
-			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
-			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
-			
-			eigenSolver->zhaoShiftParam = zhaoShiftParam;
-			std::cout << "Shift param = " << zhaoShiftParam << std::endl; 
-			eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
-
-			printf("Successfully computing the eigenvalues \n");
-			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM().transpose() << endl;
-			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
-		}
-
-		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
+	static bool isShiftedSIM = true;
+	static double zhaoShiftParam = 0.25;
+	shiftType = 3;
+	if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
+		static char numModesTxt[10] = "125";	ImGui::InputText("Num Eigs", numModesTxt, 10);
+		static char maxIterTxt[10] = "5";		ImGui::InputText("Max Iter", maxIterTxt, 10);
+		static char tolTxt[15] = "0.01";	ImGui::InputText("Tolerance##1", tolTxt, 15);
+		static char zhaoTxt[10] = "0.25";	ImGui::InputText("Shift param", zhaoTxt, 10);
+		numOfModes = atoi(numModesTxt);
+		maxIter = atoi(maxIterTxt);
+		tol = atof(tolTxt);
+		zhaoShiftParam = atof(zhaoTxt);
+	}
 
 
-		if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
-			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
-			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+	Eigen::VectorXd EigValTest;
+	Eigen::MatrixXd EigVectTest;
+	if (ImGui::Button("Check SIM")) {
+		tie(EigValTest, EigVectTest) = eigenSolver->eigs(viewer.data().V, viewer.data().F, numOfModes, tol, maxIter, zhaoShiftParam);
 
-			/*  Testing on :
-			*	(1) random, (2) Bathe
-			*	(3) ML without shift
-			*   (4) ML with shift-once
-			*/
+		std::cout << "Eigenvalues " << EigValTest.transpose() << std::endl << std::endl;
+		std::cout << "Eigenvectors " << EigVectTest.topLeftCorner(10, 10) << std::endl << std::endl;
+	}
 
-			eigenSolver->zhaoShiftParam = 0.25;
-			int maxIters = 250;
-			//vector<int> wantedModes{ 50, 100, 250 };
-			vector<int> wantedModes{ 50 };
-			//vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9,1e-10};
-			vector<double> wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9,1e-10 };
+	if (ImGui::Button("Solve Eigenproblem.##1", ImVec2(w, 0))) {
+		if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
+		if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
-			for (int j = 0; j < wantedModes.size(); ++j) {
-				for (int k = 0; k < wantedTols.size(); ++k) {
-					// ML-with shift
-					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-					// ML no shift
-					//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-					// random
-					//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-					/// // bathe init vector
-					///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-				}
+		eigenSolver->zhaoShiftParam = zhaoShiftParam;
+		std::cout << "Shift param = " << zhaoShiftParam << std::endl;
+		eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
+
+		printf("Successfully computing the eigenvalues \n");
+		cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM().transpose() << endl;
+		cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
+	}
+
+	ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
+
+
+	if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
+		if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
+		if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
+
+		/*  Testing on :
+		*	(1) random, (2) Bathe
+		*	(3) ML without shift
+		*   (4) ML with shift-once
+		*/
+
+		eigenSolver->zhaoShiftParam = 0.25;
+		int maxIters = 250;
+		//vector<int> wantedModes{ 50, 100, 250 };
+		vector<int> wantedModes{ 50 };
+		//vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9,1e-10};
+		vector<double> wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9,1e-10 };
+
+		for (int j = 0; j < wantedModes.size(); ++j) {
+			for (int k = 0; k < wantedTols.size(); ++k) {
+				// ML-with shift
+				eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
+				// ML no shift
+				//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+				// random
+				//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
+				/// // bathe init vector
+				///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 			}
 		}
-
-	}
-	
-}
-
-void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE)
-{
-	Eigen::SparseMatrix<double, Eigen::RowMajor> UUr = UU;
-	Eigen::SparseMatrix<double> SSr;
-	Eigen::MatrixXd Res;
-
-	// For Timing
-	chrono::high_resolution_clock::time_point	t1, t2;
-	chrono::duration<double>					duration;
-	cout << "___Matrix multiplication... ";
-	t1 = chrono::high_resolution_clock::now();
-
-	if (isParallel) {
-
-		Eigen::setNbThreads(omp_get_num_procs());
-		cout << " (parallel) " << omp_get_num_procs() ;
-		//Res = UUr*EE;
-		SSr = (UUr.transpose()*SS)*UU;
-	}
-	else {
-		cout << " (not parallel) ";
-		//Res = UU*EE;
-		SSr = UU.transpose()*SS*UU;
 	}
 
-	// timing
-	t2 = chrono::high_resolution_clock::now();
-	duration = t2 - t1;
-	cout << "in " << duration.count() << " seconds" << endl;
-}
-
-
-void testArmadillo(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE)
-{
-
-	//arma::SpMat<double> A = arma::sprandu(100, 100, 0.01);
-	//arma::SpMat<double> B = arma::sprandu(100, 100, 0.01);
-	//
-	//arma::sp_mat E = A*B;
-	//std::cout << E << std::endl;
-	//std::cout << "Matrix E" << std::endl; 
-	//std::cout << E.print();
 }
 
 #endif // !FAST_SPECTRUM_GUI
