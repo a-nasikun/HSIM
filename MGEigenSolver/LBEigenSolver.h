@@ -49,9 +49,6 @@ namespace HSIM {
 		void checkConvergenceCat2(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, const Eigen::SparseMatrix<double>& MK, const Eigen::SparseMatrix<double>& SK, Eigen::VectorXd& convRate) const;
 		void checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::VectorXd& A, bool isWithShift, double mu, Eigen::VectorXd& convRate) const;
 
-		/* Reference*/
-		void computeReference(int numEigs);
-
 		/* Applications [need to be deleted later] */
 		void constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd& EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd>& DiffusionTensor);
 
@@ -76,11 +73,7 @@ namespace HSIM {
 		int getSampleSize() const;
 		const Eigen::VectorXi& getSample() const;
 		const vector<int>& getSubspaceSize() const;
-
-		const Eigen::MatrixXd& getEigenVectorsRef() const;
-		const Eigen::VectorXd& getEigenVectorsRef(int id) const;
-		const Eigen::VectorXd& getEigenValuesRef() const;
-		const double getEigenValueRef(int id) const;
+		
 		const Eigen::MatrixXd& getEigenVectorsReduced() const;
 		const Eigen::VectorXd& getEigenVectorsReduced(int id) const;
 		const Eigen::VectorXd& getEigenValuesReduced() const;
@@ -112,10 +105,8 @@ namespace HSIM {
 		/* Subspace and spectral-related matrices, vectors, and variables */
 		Eigen::SparseMatrix<double>			Basis;				// Basis matrix (U[0]*U[1]*... *U[k])
 		bool								isClampedBasis;		// toogling if the basis is a clamped version
-		Eigen::MatrixXd						EigVectsRef;		// reference eigenvectors
 		Eigen::MatrixXd						EigVectsReduced;	// approximated eigenvectors
 		Eigen::MatrixXd						EigVectsReducedNonLifted;	// approximated eigenvectors, not Lifted
-		Eigen::VectorXd						EigValsRef;			// reference eigenvalues
 		Eigen::VectorXd						EigValsReduced;		// approximated eigenvalues
 		Eigen::MatrixXd						EigVectsSIM;		// matrix storing eigenvectors, after Subspace Iteration Method (SIM)
 		Eigen::VectorXd						EigValsSIM;			// vector stroing eigenvalues,  after Subspace Iteration Method (SIM)

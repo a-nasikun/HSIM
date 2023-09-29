@@ -864,11 +864,7 @@ void LBEigenSolver::checkConvergenceCat3(const Eigen::MatrixXd& Q, const Eigen::
 	}
 }
 
-/* Reference*/
-void LBEigenSolver::computeReference(int numEigs)
-{
-	computeEigenSpectraSparse(S, M, numEigs, EigVectsRef, EigValsRef, 0, 1000, 1e-7);
-}
+
 /* Applications */
 void LBEigenSolver::constructDiffusionTensor(const int numEigs, double t, const Eigen::MatrixXd &EigVects, const Eigen::VectorXd& EigVals, std::vector<Eigen::VectorXd> &DiffusionTensor)
 {
@@ -921,9 +917,6 @@ void LBEigenSolver::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int 
 
 	switch (eigType)
 	{
-	case EigenVectorType::EIGEN_REFERENCE:
-		vColor = EigVectsRef.col(id);
-		break;
 	case EigenVectorType::EIGEN_REDUCED:
 		vColor = EigVectsReduced.col(id);		
 		break;
@@ -988,23 +981,6 @@ int LBEigenSolver::getSampleSize() const { return sampleSize; }
 const Eigen::VectorXi& LBEigenSolver::getSample() const { return Sample; }
 const vector<int>& LBEigenSolver::getSubspaceSize() const { return SubspaceSize; }
 
-/* Getters of the eigen-values + vectors*/
-const Eigen::MatrixXd& LBEigenSolver::getEigenVectorsRef() const { return EigVectsRef; }
-const Eigen::VectorXd& LBEigenSolver::getEigenVectorsRef(int id) const
-{
-	if (id >= EigVectsRef.cols())	return EigVectsRef.col(EigValsRef.rows() - 1);
-	else if (id < 0)						return EigVectsRef.col(0);
-
-	return EigVectsRef.col(id);
-}
-const Eigen::VectorXd& LBEigenSolver::getEigenValuesRef() const { return EigValsRef; }
-const double LBEigenSolver::getEigenValueRef(int id) const
-{
-	if (id >= EigValsRef.rows())	return EigValsRef(EigValsRef.rows() - 1);
-	else if (id < 0)						return EigValsRef(0);
-
-	return EigValsRef(id);
-}
 const Eigen::MatrixXd& LBEigenSolver::getEigenVectorsReduced() const { return EigVectsReducedNonLifted; }
 const Eigen::VectorXd& LBEigenSolver::getEigenVectorsReduced(int id) const
 {

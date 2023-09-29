@@ -479,11 +479,6 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
 			}
-
-			/* Overlays */
-			//ImGui::Checkbox("Wireframe", &(viewer.data().show_lines));				
-			//ImGui::SameLine();
-			//ImGui::Checkbox("Fill Faces", &(viewer.data().show_faces));
 		}		
 
 		ImGui::Separator(); 
