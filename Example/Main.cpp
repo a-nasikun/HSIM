@@ -27,9 +27,7 @@ int main(int argc, char *argv[])
 	/* Pembuatan menu GUI */
 	menu.callback_draw_viewer_window = [&]()
 	{
-	 	reducedSpaceMenu(viewer, menu, eigenSolver);
-		SIMMenu(viewer, menu, eigenSolver);
-
+		HSIMMenu(viewer, menu, eigenSolver);
 	};
 	/* END OF GUI FUNCTIONALITY */
 

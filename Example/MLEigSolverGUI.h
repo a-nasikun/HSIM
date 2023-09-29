@@ -54,7 +54,7 @@ static int			defAxis = 0;							// axis in selecting the partial eigenproblem
 static double		clampRegion = 0.0;							// percentage of the clampling
 static double		eigScale		= 1.005;
 
-void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLSolverFunctions*& eigenSolver)
+void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLSolverFunctions*& eigenSolver)
 {
 	// Variables For Viewer visualization
 	float	menuWindowLeft		= 0.f,
@@ -78,7 +78,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 
 	// Main Algorithm
 	if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
-		if (ImGui::Button("Load##Mesh1", ImVec2((w) / 2.f, 0))) {
+		if (ImGui::Button("Load Mesh##Mesh1", ImVec2((w) / 2.f, 0))) {
 			// Load mesh + display the correct mesh
 			Eigen::MatrixXd tempV;// = viewer.data_list[0].V;
 			Eigen::MatrixXi tempF;// = viewer.data_list[0].F;
@@ -120,7 +120,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("Save##Mesh1", ImVec2((w - p) / 2.f, 0))) {
+		if (ImGui::Button("Save Mesh##Mesh1", ImVec2((w - p) / 2.f, 0))) {
 			viewer.open_dialog_save_mesh();
 		}
 		static int axis = 0;
@@ -161,6 +161,15 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			printf("Successfully computing the eigenvalues \n");
 			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM().transpose() << endl;
 			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
+		}
+
+		Eigen::VectorXd EigValTest;
+		Eigen::MatrixXd EigVectTest;
+		if (ImGui::Button("Check HSIM", ImVec2((w), 0))) {
+			tie(EigValTest, EigVectTest) = eigenSolver->eigs(viewer.data().V, viewer.data().F, numOfModes, tol, maxIter, zhaoShiftParam);
+
+			std::cout << "Eigenvalues " << EigValTest.transpose() << std::endl << std::endl;
+			std::cout << "Eigenvectors " << EigVectTest.topLeftCorner(10, 10) << std::endl << std::endl;
 		}
 
 	// ============================================================
@@ -488,116 +497,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		static int sourceID = 0;
 		
 		ImGui::End();
-}
-
-void SIMMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::ImGuiMenu& menu, MLSolverFunctions*& eigenSolver) {
-	// Variables For Viewer visualization
-	float	menuWindowLeft = 475.f,
-		menuWindowWidth = 200.f,
-		menuWindowHeight = 675.f;
-
-	ImGui::SetNextWindowPos(ImVec2(5 + menuWindowLeft * menu.menu_scaling(), 5));
-	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight));
-	ImGui::Begin("Subspace Iteration Method##Menu", nullptr, ImGuiWindowFlags_NoSavedSettings);
-
-	float w = ImGui::GetContentRegionAvailWidth();
-	float p = ImGui::GetStyle().FramePadding.x;
-
-	static int SIMType = 0;			// 0: M-L, 1: SGP, 2:random, 3: Bathe
-	static int shiftType = 3;		// 0: Bathe, 1: Itoh/Wilson, 2: Gong, 3: Zhao
-	static bool isClampedEigen = false;
-
-	/* some parameters */
-	//static int		numOfModes	= 5;
-	static int		maxIter = 5;
-	static double	tol = 1e-2;
-	/* Type of the SIM to be computed*/
-	std::map<int, MLSolverFunctions::SIMType>			typeMap;
-	typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(0, MLSolverFunctions::SIMType::SIM_MultiLevel));
-	typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(1, MLSolverFunctions::SIMType::SIM_1level_WarmStart));
-	typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(2, MLSolverFunctions::SIMType::SIM_1level_Random));
-	typeMap.insert(std::pair<int, MLSolverFunctions::SIMType>(3, MLSolverFunctions::SIMType::SIM_1level_Bathe));
-
-	/* Type of shifting approach */
-	std::map<int, MLSolverFunctions::ShiftType>			shiftMap;
-	shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(0, MLSolverFunctions::ShiftType::SHIFT_BATHE));
-	shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(1, MLSolverFunctions::ShiftType::SHIFT_ITOH_WILSON));
-	shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(2, MLSolverFunctions::ShiftType::SHIFT_GONG));
-	shiftMap.insert(std::pair<int, MLSolverFunctions::ShiftType>(3, MLSolverFunctions::ShiftType::SHIFT_ZHAO));
-
-
-
-	static bool isShiftedSIM = true;
-	static double zhaoShiftParam = 0.25;
-	shiftType = 3;
-	if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
-		static char numModesTxt[10] = "125";	ImGui::InputText("Num Eigs", numModesTxt, 10);
-		static char maxIterTxt[10] = "5";		ImGui::InputText("Max Iter", maxIterTxt, 10);
-		static char tolTxt[15] = "0.01";	ImGui::InputText("Tolerance##1", tolTxt, 15);
-		static char zhaoTxt[10] = "0.25";	ImGui::InputText("Shift param", zhaoTxt, 10);
-		numOfModes = atoi(numModesTxt);
-		maxIter = atoi(maxIterTxt);
-		tol = atof(tolTxt);
-		zhaoShiftParam = atof(zhaoTxt);
-	}
-
-
-	Eigen::VectorXd EigValTest;
-	Eigen::MatrixXd EigVectTest;
-	if (ImGui::Button("Check SIM")) {
-		tie(EigValTest, EigVectTest) = eigenSolver->eigs(viewer.data().V, viewer.data().F, numOfModes, tol, maxIter, zhaoShiftParam);
-
-		std::cout << "Eigenvalues " << EigValTest.transpose() << std::endl << std::endl;
-		std::cout << "Eigenvectors " << EigVectTest.topLeftCorner(10, 10) << std::endl << std::endl;
-	}
-
-	if (ImGui::Button("Solve Eigenproblem.##1", ImVec2(w, 0))) {
-		if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
-		if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
-
-		eigenSolver->zhaoShiftParam = zhaoShiftParam;
-		std::cout << "Shift param = " << zhaoShiftParam << std::endl;
-		eigenSolver->performSubspaceIterationMethod(typeMap[SIMType], numOfModes, maxIter, tol, isShiftedSIM, shiftMap[shiftType], defAxis, clampRegion);
-
-		printf("Successfully computing the eigenvalues \n");
-		cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM().transpose() << endl;
-		cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
-	}
-
-	ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
-
-
-	if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
-		if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
-		if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
-
-		/*  Testing on :
-		*	(1) random, (2) Bathe
-		*	(3) ML without shift
-		*   (4) ML with shift-once
-		*/
-
-		eigenSolver->zhaoShiftParam = 0.25;
-		int maxIters = 250;
-		//vector<int> wantedModes{ 50, 100, 250 };
-		vector<int> wantedModes{ 50 };
-		//vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9,1e-10};
-		vector<double> wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9,1e-10 };
-
-		for (int j = 0; j < wantedModes.size(); ++j) {
-			for (int k = 0; k < wantedTols.size(); ++k) {
-				// ML-with shift
-				eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
-				// ML no shift
-				//eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-				// random
-				//eigenSolver->performSubspaceIterationMethod(typeMap[2], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-				/// // bathe init vector
-				///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
-			}
-		}
-	}
-
 }
 
 #endif // !FAST_SPECTRUM_GUI
