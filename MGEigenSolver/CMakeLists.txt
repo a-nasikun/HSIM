@@ -32,16 +32,14 @@ endif()
 #endif()
 
 set(SRC_FILES
-	"MLSolverFunctions.cpp"
-	"Basis.cpp"
+	"LBEigenSolver.cpp"
 	"EigenSolver.cpp"
 	"Sampling.cpp"
 	"Utility.cpp"
 )
 
 set(HEADER_FILES
-	"MLSolverFunctions.h"
-	"Basis.h"
+	"LBEigenSolver.h"
 	"EigenSolver.h"
 	"Sampling.h"
 	"Utility.h"
