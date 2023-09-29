@@ -27,7 +27,7 @@
 
 //#include "MLEigSolver.h"
 
-#include "MLSolverFunctions.h"
+#include "LBEigenSolver.h"
 #include "Visualization.h"
 
 //#include <mkl.h>
