@@ -35,7 +35,7 @@
 using namespace std;
 
 enum BasisType { Coarse_1Level_Basis = 0, MultiGrid_Geom_Basis = 1, MultiGrid_NonSmooth_Basis =2 };
-static int			numOfModes		= 25;
+static int			numOfModes		= 50;
 int					basisToShow		= 0;
 int					eigToShow		= 0;
 static int			eigToCompute    = 500;
@@ -710,32 +710,20 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 
 		
 
-
-		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
-			static char numModesTxt[10] = "125"; ImGui::InputText("Num Eigs", numModesTxt, 10);			
-			static char maxIterTxt[10] = "5"; ImGui::InputText("Max Iter", maxIterTxt, 10);			
-			static char tolTxt[15] = "0.01"; ImGui::InputText("Tolerance##1", tolTxt, 15);
-			numOfModes	= atoi(numModesTxt);
-			maxIter		= atoi(maxIterTxt);
-			tol			= atof(tolTxt);
-
-			ImGui::RadioButton("Random init",	&SIMType, 2);			ImGui::SameLine();
-			ImGui::RadioButton("Bathe init",	&SIMType, 3);			//ImGui::SameLine();
-			ImGui::RadioButton("SGP init",		&SIMType, 1);			ImGui::SameLine();
-			ImGui::RadioButton("Multi-level",	&SIMType, 0);			//ImGui::SameLine();
-		}
-
 		static bool isShiftedSIM = true;
-		ImGui::Checkbox("with shift", &(isShiftedSIM));
 		static double zhaoShiftParam = 0.25;
-		if (isShiftedSIM) {
-			ImGui::RadioButton("Bathe##Shift",		&shiftType, 0);			ImGui::SameLine();
-			ImGui::RadioButton("Wilson##ItohShift", &shiftType, 1);			
-			ImGui::RadioButton("Gong##Shift",		&shiftType, 2);			ImGui::SameLine();
-			ImGui::RadioButton("Zhao##Shift",		&shiftType, 3);
-			static char zhaoTxt[10] = "0.25";		ImGui::InputText("Zhao shift", zhaoTxt, 10);
-			zhaoShiftParam = atof(zhaoTxt);
+		shiftType = 3;
+		if (ImGui::CollapsingHeader("SIM Option##1", ImGuiTreeNodeFlags_CollapsingHeader)) {
+			static char numModesTxt[10]		= "125";	ImGui::InputText("Num Eigs", numModesTxt, 10);			
+			static char maxIterTxt[10]		= "5";		ImGui::InputText("Max Iter", maxIterTxt, 10);			
+			static char tolTxt[15]			= "0.01";	ImGui::InputText("Tolerance##1", tolTxt, 15);
+			static char zhaoTxt[10]			= "0.25";	ImGui::InputText("Shift param", zhaoTxt, 10);
+			numOfModes						= atoi(numModesTxt);
+			maxIter							= atoi(maxIterTxt);
+			tol								= atof(tolTxt);
+			zhaoShiftParam					= atof(zhaoTxt);
 		}
+
 
 		Eigen::VectorXd EigValTest;
 		Eigen::MatrixXd EigVectTest;
@@ -746,7 +734,7 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			std::cout << "Eigenvectors " << EigVectTest.topLeftCorner(10,10) << std::endl << std::endl;
 		}
 
-		if (ImGui::Button("Perform SIM iters.##1", ImVec2(w, 0))) {
+		if (ImGui::Button("Solve Eigenproblem.##1", ImVec2(w, 0))) {
 			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1 ) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;					
 			
@@ -759,25 +747,28 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
 		}
 
+		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
+
+
 		if (ImGui::Button("Scripted (1) OURS", ImVec2(w, 0))) {
-			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows()<1) return;
+			if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getStiffnessMatrix().rows() < 1) return;
 			if ((SIMType == 0 || SIMType == 1) && eigenSolver->getEigenValuesReduced().rows() < 1) return;
 
-			/*  Testing on : 
-			*	(1) random, (2) Bathe 
+			/*  Testing on :
+			*	(1) random, (2) Bathe
 			*	(3) ML without shift
 			*   (4) ML with shift-once
 			*/
 
 			eigenSolver->zhaoShiftParam = 0.25;
-			int maxIters = 250;	
+			int maxIters = 250;
 			//vector<int> wantedModes{ 50, 100, 250 };
 			vector<int> wantedModes{ 50 };
 			//vector<double> wantedTols{1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9,1e-10};
 			vector<double> wantedTols{ 1e-6, 1e-7, 1e-8, 1e-9,1e-10 };
 
 			for (int j = 0; j < wantedModes.size(); ++j) {
-				for(int k=0; k<wantedTols.size(); ++k){
+				for (int k = 0; k < wantedTols.size(); ++k) {
 					// ML-with shift
 					eigenSolver->performSubspaceIterationMethod(typeMap[0], wantedModes[j], maxIters, wantedTols[k], true, shiftMap[3], defAxis, clampRegion);
 					// ML no shift
@@ -787,15 +778,11 @@ void SIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiM
 					/// // bathe init vector
 					///eigenSolver->performSubspaceIterationMethod(typeMap[3], wantedModes[j], maxIters, wantedTols[k], false, shiftMap[0], defAxis, clampRegion);
 				}
-			}			
+			}
 		}
 
-		if (ImGui::Button("Solve Reference")) {
-			printf("Computing %d eigenvalues \n", numOfModes);
-			eigenSolver->computeReference(numOfModes);
-		}
 	}
-	ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing(); ImGui::Spacing();
+	
 }
 
 void testMatrixMultiplication(bool isParallel, Eigen::SparseMatrix<double> UU, Eigen::SparseMatrix<double> SS, Eigen::SparseMatrix<double> MM, Eigen::MatrixXd EE)
