@@ -51,7 +51,7 @@ static int			SIMtype			= 2;
 static int			problemType		= 0;					// type of problem (0=Laplace--Beltrami)
 static int			matType			= 0;					// material type (for hessian/linear elasticity)
 static int			defAxis = 0;							// axis in selecting the partial eigenproblem
-static double		clampRegion;							// percentage of the clampling
+static double		clampRegion = 0.0;							// percentage of the clampling
 static double		eigScale		= 1.005;
 
 void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGuiMenu &menu, MLSolverFunctions*& eigenSolver)
@@ -131,13 +131,46 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 		eigenSolver->buildHierarchy(viewer.data().V, viewer.data().F, numOfModes);
 	}
 
+	// ============================================================
+	static bool isClampedEigen = false;
+
+	/* some parameters */
+	//static int		numOfModes	= 5;
+	static int		maxIter = 5;
+	static double	tol = 1e-2;
+
+
+
+	static bool isShiftedSIM = true;
+	static double zhaoShiftParam = 0.25;
+		static char numModesTxt[10] = "125";	ImGui::InputText("Num Eigs", numModesTxt, 10);
+		static char maxIterTxt[10] = "5";		ImGui::InputText("Max Iter", maxIterTxt, 10);
+		static char tolTxt[15] = "0.01";	ImGui::InputText("Tolerance##1", tolTxt, 15);
+		static char zhaoTxt[10] = "0.25";	ImGui::InputText("Shift param", zhaoTxt, 10);
+		numOfModes = atoi(numModesTxt);
+		maxIter = atoi(maxIterTxt);
+		tol = atof(tolTxt);
+		zhaoShiftParam = atof(zhaoTxt);
+
+		if (ImGui::Button("Solve Eigenproblem", ImVec2((w), 0)))
+		{
+			eigenSolver->zhaoShiftParam = zhaoShiftParam;
+			std::cout << "Shift param = " << zhaoShiftParam << std::endl;
+			eigenSolver->performSubspaceIterationMethod(MLSolverFunctions::SIMType::SIM_MultiLevel, numOfModes, maxIter, tol, isShiftedSIM, MLSolverFunctions::ShiftType::SHIFT_ZHAO, defAxis, clampRegion);
+
+			printf("Successfully computing the eigenvalues \n");
+			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM().transpose() << endl;
+			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
+		}
+
+	// ============================================================
 		/* STEP BY STEP CONSTRUCTION */
 		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
-			
+
 			int		numSlices;
 			static	Eigen::VectorXd colorVect;
 			static bool	isClampedBasis = false;
-			static int numLevels;			
+			static int numLevels;
 
 			/* Setup stiffness Matrix */
 			if (ImGui::Button("[1] Construct Stiffness Matrix##1", ImVec2(w, 0))) {
@@ -177,7 +210,6 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			}
 
 
-			ImGui::Text("Show sample dist");
 			for (int i = 0; i < numLevels; ++i)
 			{
 				string disp = "Dist ";
@@ -190,10 +222,9 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			ImGui::Spacing(); ImGui::Spacing();
 
 			/* For Basis */
-			ImGui::Checkbox("Clamp Basis##1", &isClampedBasis);
 			static double numOfSupport;
 			static char numSupTxt[15] = "7.5"; ImGui::InputText("Num of Supports", numSupTxt, 6);
-						
+
 			if (isClampedBasis) {
 				ImGui::RadioButton("X", &defAxis, 0); ImGui::SameLine();
 				ImGui::RadioButton("Y", &defAxis, 1); ImGui::SameLine();
@@ -217,7 +248,7 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				numOfSupport = atof(numSupTxt);
 
 				eigenSolver->constructBasis(numOfSupport, defAxis, clampRegion);
-				
+
 				useNonSmoothBasis = false;
 
 				t1 = chrono::high_resolution_clock::now();
@@ -230,14 +261,14 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 			{
 				string disp = "Lvl. "; disp += to_string(i);
 				char const* ca = disp.c_str();
-				if (ImGui::Button(ca, ImVec2(w / (double)eigenSolver->getLevel() - p, 0))) {					
+				if (ImGui::Button(ca, ImVec2(w / (double)eigenSolver->getLevel() - p, 0))) {
 					eigenSolver->visualizeBasis(viewer, basisToShow, i);
 				}
-				if (i<(eigenSolver->getLevel()-1)) ImGui::SameLine(0, p);
+				if (i < (eigenSolver->getLevel() - 1)) ImGui::SameLine(0, p);
 			}
-				
+
 			ImGui::Spacing(); ImGui::Spacing();
-			
+
 
 			/* Solving Low-Dim Eigenproblem */
 			if (ImGui::Button("[4] Solve Reduced Eigenproblem##1", ImVec2(w, 0))) {
@@ -258,14 +289,14 @@ void reducedSpaceMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgu
 				cout << "in " << duration.count() << " seconds." << endl;
 
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, MLSolverFunctions::EigenVectorType::EIGEN_REDUCED, eigScale);
-				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();				
+				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows())).transpose();
 
-				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows()));					
+				cout << eigenSolver->getEigenValuesReduced().head(std::min(20, (int)eigenSolver->getEigenValuesReduced().rows()));
 			}
 
-			static char numRedEigTxt[32] = "20";	
-			if (ImGui::Button("Print reduced eigenvals##1", ImVec2(w/2.0-p, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesReduced().rows()<1) {
+			static char numRedEigTxt[32] = "20";
+			if (ImGui::Button("Print reduced eigenvals##1", ImVec2(w / 2.0 - p, 0))) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getMassMatrix().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesReduced().rows() < 1) {
 					cout << "Error! Make sure you execute previous steps before solving the Low-Dim Eigenproblem." << endl;
 					return;
 				}
