@@ -28,6 +28,7 @@
 //#include "MLEigSolver.h"
 
 #include "MLSolverFunctions.h"
+#include "Visualization.h"
 
 //#include <mkl.h>
 //#include <armadillo>

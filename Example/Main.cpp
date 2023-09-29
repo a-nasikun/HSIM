@@ -1,7 +1,5 @@
-#include "MLEigSolver.h"
 #include "MLSolverFunctions.h"
 #include "MLEigSolverGUI.h"
-#include "MLTest.h"
 #include <igl/unproject_onto_mesh.h>
 
 
