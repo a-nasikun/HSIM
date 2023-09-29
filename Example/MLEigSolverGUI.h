@@ -157,8 +157,8 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			eigenSolver->performSubspaceIterationMethod(HSIM::LBEigenSolver::SIMType::SIM_MultiLevel, numOfModes, maxIter, tol, isShiftedSIM, HSIM::LBEigenSolver::ShiftType::SHIFT_ZHAO, defAxis, clampRegion);
 
 			printf("Successfully computing the eigenvalues \n");
-			cout << "Eigenvalues: \n" << eigenSolver->getEigenValuesSIM().transpose() << endl;
-			cout << "EigenVectors: \n" << eigenSolver->getEigenVectorsSIM().topLeftCorner(6, 9) << endl;
+			cout << "Eigenvalues: \n" << eigenSolver->getEigenValues().transpose() << endl;
+			cout << "EigenVectors: \n" << eigenSolver->getEigenVectors().topLeftCorner(6, 9) << endl;
 		}
 
 		Eigen::VectorXd EigValTest;
@@ -441,7 +441,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			ImGui::Text("HSIM Eigs.");
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("- 1##SIMEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValues().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
@@ -456,23 +456,23 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			ImGui::SameLine(0, p);
 
 			if (ImGui::Button("+ 1##SIMEigVec1", ImVec2((w-120.0-3* p) / 2.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValues().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
 
-				if (eigToShow < (eigenSolver->getEigenValuesSIM().rows() - 1))
+				if (eigToShow < (eigenSolver->getEigenValues().rows() - 1))
 					eigToShow++;
 
 				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
 			}
 			ImGui::SameLine(0, p);
 			if (ImGui::Button("SIM##EigVec1", ImVec2((w-85.0-3* p) / 3.f, 0))) {
-				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValuesSIM().rows() < 1) {
+				if (eigenSolver->getV().rows() < 1 || eigenSolver->getSampleSize() < 1 || eigenSolver->getBasisMatrix().rows() < 1 || eigenSolver->getEigenValues().rows() < 1) {
 					cout << "Error! Make sure you have computed the eigenfunctions on the current model." << endl;
 					return;
 				}
-				if (eigToShow >= eigenSolver->getEigenValuesSIM().rows()) {
+				if (eigToShow >= eigenSolver->getEigenValues().rows()) {
 					cout << "Error! Index out of bound\n";
 					return;
 				}

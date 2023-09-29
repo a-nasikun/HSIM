@@ -997,14 +997,14 @@ const double LBEigenSolver::getEigenValueReduced(int id) const
 
 	return EigValsReduced(id);
 }
-const Eigen::MatrixXd& LBEigenSolver::getEigenVectorsSIM() const { return EigVectsSIM; }
-const Eigen::VectorXd& LBEigenSolver::getEigenVectorsSIM(int id) const
+const Eigen::MatrixXd& LBEigenSolver::getEigenVectors() const { return EigVectsSIM; }
+const Eigen::VectorXd& LBEigenSolver::getEigenVectors(int id) const
 {
 	if (id >= EigVectsSIM.cols())		return EigVectsSIM.col(EigValsSIM.rows() - 1);
 	else if (id < 0)						return EigVectsSIM.col(0);
 	return EigVectsSIM.col(id);
 }
-const Eigen::VectorXd& LBEigenSolver::getEigenValuesSIM() const { return EigValsSIM; }
+const Eigen::VectorXd& LBEigenSolver::getEigenValues() const { return EigValsSIM; }
 const double LBEigenSolver::getEigenValueSIM(int id) const
 {
 	if (id >= EigValsSIM.rows())		return EigValsSIM(EigValsSIM.rows() - 1);

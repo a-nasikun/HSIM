@@ -78,9 +78,9 @@ namespace HSIM {
 		const Eigen::VectorXd& getEigenVectorsReduced(int id) const;
 		const Eigen::VectorXd& getEigenValuesReduced() const;
 		const double getEigenValueReduced(int id) const;
-		const Eigen::MatrixXd& getEigenVectorsSIM() const;
-		const Eigen::VectorXd& getEigenVectorsSIM(int id) const;
-		const Eigen::VectorXd& getEigenValuesSIM() const;
+		const Eigen::MatrixXd& getEigenVectors() const;
+		const Eigen::VectorXd& getEigenVectors(int id) const;
+		const Eigen::VectorXd& getEigenValues() const;
 		const double getEigenValueSIM(int id) const;
 
 	protected:
