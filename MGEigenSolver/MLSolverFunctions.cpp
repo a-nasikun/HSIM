@@ -10,6 +10,8 @@
 
 #include <queue>
 
+namespace HSIM {
+
 /**
 *  @brief Reading a (triangle) mesh specified by the input.
 *
@@ -564,6 +566,8 @@ void MLSolverFunctions::performSubspaceIterationMethod(SIMType type, int numEigs
 	std::cout << "...successful\n";
 
 	/* Performing the SIM according to user selected methods */
+	timingPerLevel.resize(level);
+	itersPerLevel.resize(level);
 	performMultiLevelSIM_withShiftOnce(SSel, MSel, 0, EigVectsSIM, EigValsSIM, numEigs, maxIter, tol, isWithShift, shiftType);
 
 
@@ -1031,4 +1035,5 @@ const double MLSolverFunctions::getEigenValueSIM(int id) const
 	else if (id < 0)						return EigValsSIM(0);
 
 	return EigValsSIM(id);
+}
 }
