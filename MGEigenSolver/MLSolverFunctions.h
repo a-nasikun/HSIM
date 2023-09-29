@@ -41,7 +41,6 @@ public:
 	void virtual constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter);
 	void virtual constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>& SelMat, int axis = 0, double offset = 0.0);
 	void formPartitionOfUnityMultiLevel();
-	void formPartitionOfUnity();
 	void solveRestrictedProblem();
 	
 	/* Subspace Iteration methods */

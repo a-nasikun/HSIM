@@ -463,33 +463,6 @@ void MLSolverFunctions::formPartitionOfUnityMultiLevel()
 	}
 }
 
-void MLSolverFunctions::formPartitionOfUnity()
-{
-	cout << "> Partition of unity \n";
-	/* Temporary variables */
-	vector<Eigen::Triplet<double>>		diagTrip;
-	Eigen::SparseMatrix<double>			DiagNormMatrix;
-	Eigen::VectorXd						rowSum = Eigen::VectorXd::Zero(Basis.rows());
-	DiagNormMatrix.resize(Basis.rows(), Basis.rows());
-	diagTrip.reserve(Basis.nonZeros());
-
-	/* Getting the sum of every non-zero elements in a row */
-	for (int k = 0; k < Basis.outerSize(); ++k) {
-		for (Eigen::SparseMatrix<double>::InnerIterator it(Basis, k); it; ++it) {
-			rowSum(it.row()) += it.value();
-		}
-	}
-
-	/* Get the diagonal matrix, reciprocal of the total sum per row */
-	for (int i = 0; i < rowSum.size(); i++) {
-		diagTrip.push_back(Eigen::Triplet<double>(i, i, 1.0 / rowSum(i)));
-	}
-	DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
-
-	/* Form partition of unity */
-	Basis = DiagNormMatrix * Basis;
-}
-
 void MLSolverFunctions::solveRestrictedProblem()
 {
 	double eps = 1e-16;
