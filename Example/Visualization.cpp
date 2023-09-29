@@ -12,7 +12,6 @@ void visualizeSample(igl::opengl::glfw::Viewer &viewer, const Eigen::MatrixXd &V
 
 	for (int i = 0; i < Sample.size(); i++)
 	{
-		//viewer.data().add_points(V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0));
 		viewer.data().points.row(lastID + i) << V.row(Sample(i)), Eigen::RowVector3d(1.0, 0.1, 0.0);
 	}
 }
