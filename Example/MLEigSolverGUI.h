@@ -41,7 +41,6 @@ int					eigToShow		= 0;
 static int			eigToCompute    = 500;
 bool				boolShowSamples = false;
 bool				useNonSmoothBasis = false; 
-//static int			numOfSample		= 250;
 static int			sampleType		= Sample_Farthest_Point; 
 static int		 	basisType		= MultiGrid_Geom_Basis;
 static int			dataToShow		= 0;
@@ -74,10 +73,8 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 	float w = ImGui::GetContentRegionAvailWidth();
 	float p = ImGui::GetStyle().FramePadding.x;
 
-	static bool isShowAxis = false;
 
 	// Main Algorithm
-	if (ImGui::CollapsingHeader("Setting Reduce Space", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::Button("Load Mesh##Mesh1", ImVec2((w) / 2.f, 0))) {
 			// Load mesh + display the correct mesh
 			Eigen::MatrixXd tempV;// = viewer.data_list[0].V;
@@ -124,17 +121,19 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 			viewer.open_dialog_save_mesh();
 		}
 		static int axis = 0;
-	}
+	
+	
+	static char numModesTxt[10] = "125";	ImGui::InputText("Num Eigs", numModesTxt, 10);
+	numOfModes = atoi(numModesTxt);
 	if (ImGui::Button("Construct Hierarchy", ImVec2((w), 0)))
 	{
 		eigenSolver->setup(viewer.data().V, viewer.data().F, numOfModes);
 		eigenSolver->buildHierarchy(viewer.data().V, viewer.data().F, numOfModes);
 	}
 
-	// ============================================================
-	static bool isClampedEigen = false;
 
 	/* some parameters */
+	static bool isClampedEigen = false;
 	//static int		numOfModes	= 5;
 	static int		maxIter = 5;
 	static double	tol = 1e-2;
@@ -143,11 +142,9 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 	static bool isShiftedSIM = true;
 	static double zhaoShiftParam = 0.25;
-		static char numModesTxt[10] = "125";	ImGui::InputText("Num Eigs", numModesTxt, 10);
-		static char maxIterTxt[10] = "5";		ImGui::InputText("Max Iter", maxIterTxt, 10);
+		static char maxIterTxt[10] = "5";	ImGui::InputText("Max Iter", maxIterTxt, 10);
 		static char tolTxt[15] = "0.01";	ImGui::InputText("Tolerance##1", tolTxt, 15);
 		static char zhaoTxt[10] = "0.25";	ImGui::InputText("Shift param", zhaoTxt, 10);
-		numOfModes = atoi(numModesTxt);
 		maxIter = atoi(maxIterTxt);
 		tol = atof(tolTxt);
 		zhaoShiftParam = atof(zhaoTxt);
@@ -174,8 +171,8 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 	// ============================================================
 		/* STEP BY STEP CONSTRUCTION */
-		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_DefaultOpen)) {
-
+		if (ImGui::CollapsingHeader("Program Step by Step##1", ImGuiTreeNodeFlags_CollapsingHeader)) 
+		{			
 			int		numSlices;
 			static	Eigen::VectorXd colorVect;
 			static bool	isClampedBasis = false;
