@@ -1,5 +1,5 @@
 #include "LBEigenSolver.h"
-#include "MLEigSolverGUI.h"
+#include "HSIMwithGUI.h"
 #include <igl/unproject_onto_mesh.h>
 
 

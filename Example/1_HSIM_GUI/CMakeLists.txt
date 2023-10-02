@@ -11,9 +11,9 @@ include(libigl)
 #include(spectra)
 include_directories("${PROJECT_SOURCE_DIR}/../../build/_deps/spectra-src/include")
 
-include_directories("../build/_deps/libigl-src/external/imgui", "../build/_deps/libigl-src/external/imgui/backends", "../build/_deps/libigl-src/external/libigl-imgui")
-include_directories("${PROJECT_SOURCE_DIR}/../HSIM")
-include_directories("${PROJECT_SOURCE_DIR}/../libigl/external/imgui/imgui/examples/opengl3_example")
+include_directories("/build/_deps/libigl-src/external/imgui", "/build/_deps/libigl-src/external/imgui/backends", "/build/_deps/libigl-src/external/libigl-imgui")
+include_directories("${PROJECT_SOURCE_DIR}/../../HSIM")
+include_directories("${PROJECT_SOURCE_DIR}/../../libigl/external/imgui/imgui/examples/opengl3_example")
 include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/")
 include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/intel64/")
 # Add MGSolver library
