@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(HSIM_Example CXX CUDA)
 
-list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../HSIM/cmake)
+list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../HSIM/cmake)
 
 # Libigl
 option(LIBIGL_WITH_OPENGL            "Use OpenGL"         ON)
@@ -17,7 +17,7 @@ include_directories("${PROJECT_SOURCE_DIR}/../libigl/external/imgui/imgui/exampl
 include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/")
 include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/intel64/")
 # Add MGSolver library
-add_subdirectory(../HSIM HSIM-build)
+add_subdirectory(../../HSIM HSIM-build)
 file(GLOB SRC_FILES *.cpp *.h)
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::core igl::opengl_glfw igl::opengl_glfw_imgui HSIM PUBLIC cudart PUBLIC cublas PUBLIC cusolver PUBLIC cusparse)
