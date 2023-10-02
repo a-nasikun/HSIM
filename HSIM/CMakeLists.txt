@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.10 FATAL_ERROR)
-project(MultiLevelEigenSolver LANGUAGES CXX)
+project(HSIM LANGUAGES CXX)
 
 #set(BUILD_SHARED_LIBS OFF CACHE BOOL "")
 cmake_policy(SET CMP0076 NEW)
@@ -45,14 +45,14 @@ set(HEADER_FILES
 	"Utility.h"
 ) 
 
-add_library(MGEigenSolver ${SRC_FILES} ${HEADER_FILES})
+add_library(HSIM ${SRC_FILES} ${HEADER_FILES})
 include_directories("${PROJECT_SOURCE_DIR}/../libigl/external/glad/include" "${PROJECT_SOURCE_DIR}/../libigl/external/glfw/include")
 include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/")
 include_directories("C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2019.1.144/windows/mkl/include/intel64/")
 include_directories("${PROJECT_SOURCE_DIR}/../../build/_deps/spectra-src/include")
 add_compile_definitions(_USE_MATH_DEFINES)
-target_include_directories(MGEigenSolver PUBLIC)
-target_link_libraries(MGEigenSolver PUBLIC igl::core OpenMP::OpenMP_CXX)
+target_include_directories(HSIM PUBLIC)
+target_link_libraries(HSIM PUBLIC igl::core OpenMP::OpenMP_CXX)
 #if(MSVC)
 # 	target_compile_definitions(${PROJECT_NAME} PUBLIC _USE_MATH_DEFINES)
 #endif()
