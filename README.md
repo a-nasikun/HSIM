@@ -1,43 +1,50 @@
-## Fast Approximation of Eigenproblem of Laplace-Beltrami Operator from Triangle Mesh
+## The Hierarchical Subspace Iteration Method for Laplace–Beltrami Eigenproblems
 
-We _approximate_ the lowest part of the _eigenvalues_ and _eigenfunctions_ of **Laplace-Beltrami operator**, to have a faster speed, less storage, and quicker mapping to world coordinates. Our general idea is to construct a **subspace** (from the original space) that can approximate the _low frequency (smooth)_ functions on the manifold. Then we will solve the eigenproblem _restricted to such subspace_.
+This is the public release code for **The Hierarchical Subspace Iteration Method for Laplace–Beltrami Eigenproblems**. For more details, please refer to [the paper](https://dl.acm.org/doi/abs/10.1145/3495208). 
 
-Here is main component of our approximation scheme:
-1. Construct a subspace
-   1. sampling
-   2. radial basis functions
-   3. partition of unity
-2. Solve the eigenproblem in subpace
-   1. low-dim eigenproblem
-   2. lift the eigenfunction (only when necessary/as requested since it's expensive for memory)
+In this paper, we propose a new method to compute the lowest spectrum of Laplace--Beltrami operator on surface mesh. The main contribution is designing a multigrid prolongation operator to speed up the Subspace Iteration Method (SIM). The main ingredients of our method are:
+1. Hierarchy construction
+  - Setting up degrees of freedom (DOFs) on multiple levels and performing sampling accordingly
+  - Computing the prolongation operator, using the (approximated) geodesic distance as the weight
+2. Performing SIM on the hierarchy
+  - Executing SIM from the coarsest level
+  - Using the result as an approximation for the next (finer) level
 
-Please note that this program requires **Eigen**, **LibIGL**, and an **eigensolver** (e.g. **CUDA's cuSOLVER** function).
+Please note that this program requires **Eigen**, **LibIGL**, and an **GPU-based eigensolver** (e.g. **CUDA's cuSOLVER** function).
 
-## How to compile and run our implementation
+## Installation and Compilation
 
-We use **CMake** for easy installation/deployment on your machine, by creating a CMakeFiles.txt that hopefully do (almost) everything to make our code runs in your machine. Here are the steps to get our program runs:
+We use **CMake** for easy installation/deployment on your machine. Here are the steps to get our program run:
 
-1. **Clone** our repository **recursively** using `git clone https://github.com/a-nasikun/FastSpectrum --recursive`.
+1. **Clone** our repository **recursively** using `git clone https://github.com/a-nasikun/HSIM.git --recursive`.
 2. Ensure that you have **CUDA set-up** on your machine. You can download from [here](https://developer.nvidia.com/cuda-zone "CUDA Developer Zone") if you haven't done so.
-3. **Update dependency** submodule(s). Among many external libraries in LibIGL, we'll be using eigen, glfw, glad, and imgui only. During our test, the commit version of eigen in libIGL is an old one and doesn't support `Eigen::SparseMatrix.` We can solve this by simply updating the eigen, using `git submodule update --remote external\eigen`.
-4. Run the Cmake command and it should be working and **running** without any problem.
-   If some headers/libraries are missing (perhaps because you locate the wrong folder), you could specify it directly in your application. For example, in Visual Studio you could go to `Project` > `Properties` > `C/C++` > `General` > `Additional Include Directories`.
+<!---3. **Update dependency** submodule(s). Among many external libraries in LibIGL, we'll be using eigen, glfw, glad, and imgui only. During our test, the commit version of eigen in libIGL is an old one and doesn't support `Eigen::SparseMatrix.` We can solve this by simply updating the eigen, using `git submodule update --remote external\eigen`. --->
+3. Run the Cmake command (either the command line or the `CMakeGUI`)
+   ```C++
+   cd Example
+   mkdir Build
+   cd Build
+   cmake -DCMAKE_BUILD_TYPE=Release
+   make -j8
+   ```
+   If some headers/libraries are missing (perhaps because you located the wrong folder), you could specify it directly in your application. For example, in Visual Studio you could go to `Project` > `Properties` > `C/C++` > `General` > `Additional Include Directories`.
 
-Having followed those steps, our program **should compile and run** well. This program is still under continuous development, so please expect some errors/bugs/mistakes within it. If you have any problem compiling it or having some nice suggestion(s) or question(s), please drop me an **email** at `a.nasikun[at]tudelft.nl`.
+Having followed those steps, our program **should compile and run** well. This program is still under continuous development, so please expect some errors/bugs/mistakes within it. If you have any problem compiling it or having some nice suggestion(s) or question(s), please drop me an **email** at `ahmad.nasikun[at]ugm.ac.id`.
 
-## SGP 2018 (Symposium on Geometry Processing 2018)
+## ACM Transactions on Graphics 2022 (ACM SIGGRAPH 2022)
 
-This work was presented at [SGP 2018](https://sgp2018.sciencesconf.org/resource/page/id/10#s4 "SGP 2018") at Paris TelecomTech, organized by EuroGraphics and ACM SIGGRAPH, and will be published at [Computer Graphics Forum (CGF) Vol.37(5)](https://onlinelibrary.wiley.com/loi/14678659 "CGF Volume 37 Issue 5"). You can read the paper from [our website](https://graphics.tudelft.nl/ahmad-nasikun/ "Fast Approximation of Laplace-Beltrami Eigenproblems") for a more detailed explation of our approximation algorithm.
+This work was presented at [SIGGRAPH 2022](https://s2022.siggraph.org/full-program/) at Vancouver Convention Center, Vancouver, Canada, and is published at [ACM Transactions on Graphics](https://dl.acm.org/doi/abs/10.1145/3495208). 
 
 If you use our application in your work, please kindly cite our work.
 ```
-@article{nasikun2018fastspectrum,
-  title={Fast Approximation of Laplace-–Beltrami Eigenproblems},
-  author={Nasikun, Ahmad and Brandt, Christopher and Hildebrandt, Klaus},
-  journal={Computer Graphics Forum},
-  volume={37},
-  number={5},
-  year={2018},
-  publisher={Wiley}
+@article{nasikun2022hierarchical,
+  title={The hierarchical subspace iteration method for Laplace--Beltrami eigenproblems},
+  author={Nasikun, Ahmad and Hildebrandt, Klaus},
+  journal={ACM Transactions on Graphics (TOG)},
+  volume={41},
+  number={2},
+  pages={1--14},
+  year={2022},
+  publisher={ACM New York, NY}
 }
 ```
