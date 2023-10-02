@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();							// Set style
 	
-	meshFile = "../HSIM/Models/AIM366_Kitten/366_Kitten_Flip.obj";
+	meshFile = "../../../Models/AIM366_Kitten/366_Kitten_Flip.obj";
 		
 	eigenSolver->readMesh(meshFile);
 
