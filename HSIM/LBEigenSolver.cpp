@@ -471,12 +471,16 @@ void LBEigenSolver::solveRestrictedProblem()
 	Eigen::SparseMatrix<double> Id(Basis.cols(), Basis.cols());
 	Id.setIdentity();
 
+#ifdef VERBOSE
 	cout << "> Creating the reduced system matrices.\n";
+#endif // VERBOSE	
 	Eigen::SparseMatrix<double> S_, M_;			//reduced stiffness and mass matrix
 	S_ = Basis.transpose() * S * Basis;
 	M_ = Basis.transpose() * M * Basis;
-
+#ifdef VERBOSE
 	cout << "> Computing the reduced eigenproblem (in GPU). \n";
+#endif 
+
 	int status;
 	int iter = 0;
 
@@ -487,23 +491,19 @@ void LBEigenSolver::solveRestrictedProblem()
 	do {
 		if (iter == 0) {
 			status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
-			//computeEigenGPUDense(SDense, MDense, EigVectsReducedNonLifted, EigValsReduced);
-			//computeEigenSpectraDense(SDense, MDense, std::min((int)SDense.rows()/2, 2*), EigVectsReducedNonLifted, EigValsReduced);
-			//computeEigenSpectraDense(SDense, MDense, 50, EigVectsReducedNonLifted, EigValsReduced);
 			status = 0;
 		}
 		else {
 			eps *= 10;
-			//status = computeEigenGPU(S_+eps*Id, M_, EigVectsReducedNonLifted, EigValsReduced);
 			Eigen::MatrixXd AA = SDense + eps * IdDense;
-			//computeEigenSpectraDense(AA, MDense, std::min((int)SDense.rows()/2, 2*sampleSize), EigVectsReducedNonLifted, EigValsReduced);
 			computeEigenSpectraDense(AA, MDense, 50,EigVectsReducedNonLifted, EigValsReduced);
 			cout << "Shift: " << eps << endl;
 		}
 		iter++;
 	} while (status != 0 && iter < 10);
-
+#ifdef VERBOSE
 	std::cout << "Succesful and lifted to fine resolution \n";
+#endif 
 	EigVectsReduced = Basis * EigVectsReducedNonLifted;
 }
 

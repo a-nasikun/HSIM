@@ -12,6 +12,12 @@ include(libigl)
 find_package(OpenMP)
 find_package(OpenGL)
 
+option(IF_VERBOSE "Print the intermediate steps" ON)
+if(IF_VERBOSE)
+	message(STATUS "Print the intermediate step into")
+	add_definitions(-DVERBOSE)
+endif()
+
 # Check for CUDA and set the flags
 find_package(CUDA QUIET)
 if(CUDA_FOUND)
@@ -21,6 +27,8 @@ if(CUDA_FOUND)
   set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_30" CACHE STRING "nvcc flags" FORCE)
   set(LIBS ${LIBS} ${CUDA_LIBRARIES})
 endif()
+
+
 
 					
 # EIGEN
