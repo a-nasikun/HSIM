@@ -158,7 +158,7 @@ void LBEigenSolver::buildHierarchy()
 
 void LBEigenSolver::buildHierarchy(int numModes)
 {
-
+	buildHierarchy(V, F, numModes);
 }
 
 void LBEigenSolver::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
@@ -569,6 +569,17 @@ void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 {
 	
 	cout << "2. Computing the eigenvectors and eigenvalues.\n";
+	if (U.size() < 1 || EigVectsReducedNonLifted.rows() < 1 || level < 1)
+	{
+		if (V.rows() < 1) {
+			std::cout << "There is no mesh data. Please load one before computing the eigenvalues of its Laplacian. Thank you.\n";
+			return;
+		}
+		std::cout << "!!! The hierarchy has not been constructed. We'll help you build one. No worries. \n";
+		setup(V, F, numEigs);
+		buildHierarchy(numEigs);
+	}
+
 	
 	chrono::high_resolution_clock::time_point	t0, t1;
 	chrono::duration<double>					duration;
