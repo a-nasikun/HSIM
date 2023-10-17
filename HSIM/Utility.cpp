@@ -23,7 +23,10 @@ namespace HSIM {
 
 		/* For triangle mesh / faces */
 		if (F.cols() == 3) {
-			cout << "Neighborhood structure for triangle mesh. \n";
+			#ifdef VERBOSE
+				cout << "Neighborhood structure for triangle mesh. \n";
+			#endif
+
 			for (int i = 0; i < F.rows(); i++)
 			{
 				int a1 = F(i, 0);
@@ -40,7 +43,10 @@ namespace HSIM {
 		}
 		else if (F.cols() == 4)
 		{
-			cout << "Neighborhood structure for tet-mesh\n";
+			#ifdef VERBOSE
+				cout << "Neighborhood structure for tet-mesh\n";
+			#endif
+
 			for (int i = 0; i < F.rows(); i++)
 			{
 				for (int j = 0; j < 4; j++) {
@@ -119,11 +125,13 @@ namespace HSIM {
 		double energy1 = diff.transpose() * M * diff;
 		double energy2 = ref.transpose() * M * ref;
 		double energyApp = approx.transpose() * M * approx;
-		//printf("diff en: %.6f | ref en: %.6f | red en: %.6f (%.6f) \n", energy1, energy2, energyApp, sqrt(energy1/energy2));
-		cout << "__Diff: " << abs(energy1);
-		cout << " | ref: " << energy2;
-		cout << " | red: " << energyApp;
-		cout << " | rel err.: " << sqrt(abs(energy1 / energy2)) << endl;
+		#ifdef VERBOSE
+			cout << "__Diff: " << abs(energy1);
+			cout << " | ref: " << energy2;
+			cout << " | red: " << energyApp;
+			cout << " | rel err.: " << sqrt(abs(energy1 / energy2)) << endl;
+		#endif
+
 		return sqrt(abs(energy1 / energy2));
 	}
 
@@ -152,22 +160,6 @@ namespace HSIM {
 
 		/* Use as it is */
 		Mat = MTemp;
-
-		/* Regular normalization */
-		//for (int j = 0; j < n; j++) {
-		//	M.col(j) = MTemp.col(j).normalized();
-		//}
-
-		/* QR orthonormalized*/
-		//cout << "Householder QR :";
-		//Eigen::HouseholderQR<Eigen::MatrixXd> qr(MTemp);
-		//M = qr.householderQ()*Id;	
-		//cout << "ColPivHouseholder QR :";
-		//Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(MTemp);
-		//cout << "its rank:" << qr.rank() << endl;
-		//M = qr.householderQ()*Id;
-
-		///cout << "Block: \n" << Mat.topLeftCorner(20, min(n, 10)) << endl;
 	}
 
 	void generateBatheInitVectors(int m, int n, const Eigen::SparseMatrix<double> M, Eigen::MatrixXd& Mat)
@@ -200,7 +192,10 @@ namespace HSIM {
 
 	void scaleMesh(Eigen::MatrixXd& V, const Eigen::MatrixXi& F, double scaleRatio)
 	{
-		cout << "> Scaling the mesh to have a unit length \n";
+		#ifdef VERBOSE
+			cout << "> Scaling the mesh to have a unit length \n";
+		#endif
+
 		Eigen::Vector3d minV;
 		Eigen::Vector3d maxV;
 		Eigen::Vector3d length;
@@ -242,7 +237,9 @@ namespace HSIM {
 			length(i) = maxV(i) - minV(i);
 		}
 		maxVal = length.maxCoeff();
-		cout << "____after scaling: " << maxVal << endl;
+		#ifdef VERBOSE
+			cout << "____after scaling: " << maxVal << endl;
+		#endif
 	}
 
 	void printVector(const Eigen::VectorXd& V, bool isTranspose, int numDigit)

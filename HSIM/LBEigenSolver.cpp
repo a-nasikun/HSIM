@@ -471,15 +471,18 @@ void LBEigenSolver::solveRestrictedProblem()
 	Eigen::SparseMatrix<double> Id(Basis.cols(), Basis.cols());
 	Id.setIdentity();
 
-#ifdef VERBOSE
-	cout << "> Creating the reduced system matrices.\n";
-#endif // VERBOSE	
+	#ifdef VERBOSE	
+		cout << "> Creating the reduced system matrices.\n";
+	#endif
+
 	Eigen::SparseMatrix<double> S_, M_;			//reduced stiffness and mass matrix
 	S_ = Basis.transpose() * S * Basis;
 	M_ = Basis.transpose() * M * Basis;
-#ifdef VERBOSE
-	cout << "> Computing the reduced eigenproblem (in GPU). \n";
-#endif 
+	
+	#ifdef VERBOSE	
+		cout << "> Computing the reduced eigenproblem (in GPU). \n";
+	#endif	
+
 
 	int status;
 	int iter = 0;
@@ -501,9 +504,11 @@ void LBEigenSolver::solveRestrictedProblem()
 		}
 		iter++;
 	} while (status != 0 && iter < 10);
-#ifdef VERBOSE
-	std::cout << "Succesful and lifted to fine resolution \n";
-#endif 
+
+	#ifdef VERBOSE
+		std::cout << "Succesful and lifted to fine resolution \n";
+	#endif
+
 	EigVectsReduced = Basis * EigVectsReducedNonLifted;
 }
 
@@ -518,30 +523,38 @@ void LBEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>&
 	if (isClampedBasis) {
 		double xMin = V.col(axis).minCoeff();
 		double xMax = V.col(axis).maxCoeff();
-		xBound = xMin + offset*(xMax - xMin);		// within this bound, the elements will be discarded
+		xBound = xMin + offset * (xMax - xMin);		// within this bound, the elements will be discarded
 	}
 
 	for (int i = 0; i < V.rows(); i++) {
 		if (V(i, axis) >= xBound) {							// only select entries corresponding to selected vertices
 			// entries for the selector matrix			
-			STriplet.push_back(Eigen::Triplet<double>(i,i, 1.0));
+			STriplet.push_back(Eigen::Triplet<double>(i, i, 1.0));
 		}
 	}
 
 	SelMat.setFromTriplets(STriplet.begin(), STriplet.end());
-	printf("__Dim of this selector matrix: %dx%d \n", SelMat.rows(), SelMat.cols());
+	#ifdef VERBOSE
+		printf("__Dim of this selector matrix: %dx%d \n", SelMat.rows(), SelMat.cols());
+	#endif
+
 }
 
 /* Subspace Iteration methods */
 void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset)
 {
-	cout << "> The Subspace Iteration Method \n";
+	#ifdef VERBOSE
+		cout << "> The Subspace Iteration Method \n";
+	#endif
 	chrono::high_resolution_clock::time_point	t0, t1;
 	chrono::duration<double>					duration;
 	t0 = chrono::high_resolution_clock::now();
 
 	/* Initializations */
-	std::cout << "Max itter = " << maxIter << std::endl;
+	#ifdef VERBOSE
+		std::cout << "Max itter = " << maxIter << std::endl;
+	#endif
+
 	EigValsSIMStack.resize(numEigs, maxIter);
 	EigValsSIMStack.setZero();
 	convergence2Stacks.resize(numEigs, maxIter);
@@ -561,10 +574,14 @@ void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 		SSel = S;
 	}
 
-	std::cout << "Lifting the eigenvectors... ";
-	EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2*numEigs);
-	std::cout << "...successful\n";
+	#ifdef VERBOSE
+		std::cout << "Lifting the eigenvectors... ";
+	#endif
 
+	EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2*numEigs);
+	#ifdef VERBOSE
+		std::cout << "...successful\n";
+	#endif
 	/* Performing the SIM according to user selected methods */
 	timingPerLevel.resize(level);
 	itersPerLevel.resize(level);
@@ -573,7 +590,9 @@ void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
-	cout << "...in " << duration.count() << " seconds." << endl;
+	#ifdef VERBOSE
+		cout << "...in " << duration.count() << " seconds." << endl;
+	#endif
 
 	bool isWrittenToFile = false;
 	/* Write the convergence information to an external file. */
@@ -593,13 +612,18 @@ void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 
 void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
 {
-	std::cout << "Functions" << std::endl;
+	#ifdef VERBOSE
+		std::cout << "Functions" << std::endl;
+	#endif
 
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
 	chrono::duration<double>					duration;
 	t0 = chrono::high_resolution_clock::now();
 
-	printf("____[1] level: %d \n", k);
+	#ifdef VERBOSE
+		printf("____[1] level: %d \n", k);
+	#endif
+
 	int		q = max(2 * numEigs, numEigs + 8);
 
 	int iterCount = 0;
@@ -618,7 +642,10 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 	else
 	{
 		/* 1: RESTRICTION */
-		printf("____<1> Restriction: ");
+		#ifdef VERBOSE
+			printf("____<1> Restriction: ");
+		#endif
+
 		t1 = chrono::high_resolution_clock::now();
 		Eigen::SparseMatrix<double> SK, MK, Id;
 		if (k == 0) {
@@ -632,10 +659,13 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 		Id.setIdentity();
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
-		cout << "...in " << duration.count() << " seconds." << endl;
+		#ifdef VERBOSE
+			cout << "...in " << duration.count() << " seconds." << endl;
+		#endif
 
-
-		printf("____<2> Going deeper => \n ################");
+		#ifdef VERBOSE
+			printf("____<2> Going deeper => \n ################");
+		#endif
 		performMultiLevelSIM_withShiftOnce(SK, MK, k + 1, XkL, AkL, numEigs, maxIter, tol, isWithShift, shiftType);
 
 		///printf(" level %d | SK: %dx%d | MK: %dx%d | tol: %.10f \n", k, SK.rows(), SK.cols(), MK.rows(), MK.cols(), tol);
@@ -643,10 +673,15 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 		/* [3] SUBSPACE ITERATION METHOD */
 		t1 = chrono::high_resolution_clock::now();
 		XkL = U[k] * XkL;
-		printf("____<3> Lifting, Init vectors: %dx%d ", XkL.rows(), XkL.cols());
+		#ifdef VERBOSE
+			printf("____<3> Lifting, Init vectors: %dx%d ", XkL.rows(), XkL.cols());
+		#endif
+
 		t2 = chrono::high_resolution_clock::now();
 		duration = t2 - t1;
-		cout << "...in " << duration.count() << " seconds." << endl;
+		#ifdef VERBOSE
+			cout << "...in " << duration.count() << " seconds." << endl;
+		#endif
 
 		/* Adding a small number on the diagonal, for robustness */
 		//Eigen::PardisoLDLT<Eigen::SparseMatrix<double>> factorization;
@@ -678,7 +713,10 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 		double mu;
 		double eps = 1e3*std::numeric_limits<double>::epsilon();
 
-		printf("____<5> Subspace iteration.\n");
+		#ifdef VERBOSE
+			printf("____<5> Subspace iteration.\n");
+		#endif
+
 		do {
 			t1 = chrono::high_resolution_clock::now();
 			if (status != 0)
@@ -688,12 +726,16 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 				zhaoShiftId = lastConvergedId + (int)floor(zhaoParam*(numEigs - lastConvergedId));
 				if (factCounter == 0) {
 					if (tol < 1e-9 && k == 0) {
-						std::cout << "__On finest level, no shift on really high accuracy!" << std::endl;						
+						#ifdef VERBOSE	
+							std::cout << "__On finest level, no shift on really high accuracy!" << std::endl;
+						#endif
 						factorization.compute(SK + eps*Id);
 					}
 					else {
 						mu = AkL(zhaoShiftId);
-						std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId; // << std::endl;
+						#ifdef VERBOSE	
+							std::cout << "___Zhao's aggressive shift proposal | shifting on index " << zhaoShiftId; // << std::endl;
+						#endif
 						factorization.compute(SK - mu*MK);
 					}
 				}
@@ -704,16 +746,22 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 				}
 
 				factCounter++;
-				std::cout << "__> Factorization " << factCounter << " with shift of " << mu; // << std::endl;
+				#ifdef VERBOSE
+					std::cout << "__> Factorization " << factCounter << " with shift of " << mu; // << std::endl;
+				#endif
 			}
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
-			cout << "...in " << duration.count() << " seconds." << endl;
-
+			#ifdef VERBOSE
+				cout << "...in " << duration.count() << " seconds." << endl;
+			#endif
 			/* Stage III: Iterations */
-			printf("Iteration: %d \n", iterCount + 1);
-
-			std::cout << "Solving each RHS ";
+			#ifdef VERBOSE
+				printf("Iteration: %d \n", iterCount + 1);
+			#endif
+			#ifdef VERBOSE
+				std::cout << "Solving each RHS ";
+			#endif
 			t1 = chrono::high_resolution_clock::now();
 			for (int j = 0; j < q; ++j) {						// easily parallelizeable
 				Eigen::VectorXd v;
@@ -723,23 +771,31 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
-			cout << "...in " << duration.count() << " seconds." << endl;
-
+			#ifdef VERBOSE
+				cout << "...in " << duration.count() << " seconds." << endl;
+			#endif
 			/* Projection of M and K*/
 			t1 = chrono::high_resolution_clock::now();
-			printf("________setting up reduced matrix M and S. ");
+			#ifdef VERBOSE
+				printf("________setting up reduced matrix M and S. ");
+			#endif
 			Sproj = XbarK.transpose()*SK*XbarK;
 			Mproj = XbarK.transpose()*MK*XbarK;
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
-			cout << "...in " << duration.count() << " seconds." << endl;
-
+			#ifdef VERBOSE
+				cout << "...in " << duration.count() << " seconds." << endl;
+			#endif
 			t1 = chrono::high_resolution_clock::now();
-			printf("________solve reduced eigenvalue problem. ");
+			#ifdef VERBOSE
+				printf("________solve reduced eigenvalue problem. ");
+			#endif
 			status = computeEigenGPUDense(Sproj, Mproj, Q, AkL);
 			//computeEigenSpectraDense(Sproj, Mproj, q, Q, AkL);
 
-			cout << "__STATUS: " << status << endl;
+			#ifdef VERBOSE
+				cout << "__STATUS: " << status << endl;
+			#endif
 			//if (status != 0) {
 			//	cout << "___!! COmputation of eigenvalues failed! \n";
 			//	cout << "____Status: " << status << endl;
@@ -749,15 +805,20 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 			//}
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
-			cout << "...in " << duration.count() << " seconds." << endl;
+			#ifdef VERBOSE
+				cout << "...in " << duration.count() << " seconds." << endl;
+			#endif
 
 			t1 = chrono::high_resolution_clock::now();
-			printf("________lifting up/prolongation.");
+			#ifdef VERBOSE
+				printf("________lifting up/prolongation.");
+			#endif
 			XkL = XbarK*Q;
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
-			cout << "...in " << duration.count() << " seconds." << endl;
-
+			#ifdef VERBOSE
+				cout << "...in " << duration.count() << " seconds." << endl;
+			#endif
 			/* Convergence Check*
 			** Type 2: */
 			checkConvergenceCat2(XkL, AkL, MK, SK, conv2);
@@ -767,20 +828,27 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 			checkConvergenceCat3(Q, AkL, isWithShift, mu, conv3);
 			///cout << "Conv 3 \n" << conv3.head(numEigs).transpose() << endl;
 
-			cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;
-			cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
+			#ifdef VERBOSE
+				cout << "_____ [" << iterCount + 1 << "] convergence2 check:" << conv2(1) << " " << conv2(numEigs / 2) << " " << conv2(numEigs - 1) << endl;			
+				cout << "_____ [" << iterCount + 1 << "] convergence3 check:" << conv3(1) << " " << conv3(numEigs / 2) << " " << conv3(numEigs - 1) << endl;
+			#endif
 
 			///cout << AkL.head(numEigs).transpose() << endl;
-			std::cout << "Stacking is ....";
-			printf("Eigenvalues %dx%d \n", EigValsSIMStack.rows(), EigValsSIMStack.cols());
-			printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
-			printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
+			#ifdef VERBOSE {
+				std::cout << "Stacking is ....";
+				printf("Eigenvalues %dx%d \n", EigValsSIMStack.rows(), EigValsSIMStack.cols());
+				printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
+				printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
+			#endif
+
 			if (k == 0) {
 				EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
 				convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
 				convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
 			}
-			std::cout << "... successful\n";
+			#ifdef VERBOSE
+				std::cout << "... successful\n";
+			#endif
 
 			iterCount++;
 
@@ -803,20 +871,26 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 				else break;
 			}
 
-			std::cout << "Last convergence =" << lastConvergedId << " \n";
+			#ifdef VERBOSE
+				std::cout << "Last convergence =" << lastConvergedId << " \n";
+			#endif
 
 			if ((iterCount<maxIter) && (lastConvergedId < (numEigs - 1)))
 				isConverged = false;
 
-			cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
-
+			#ifdef VERBOSE
+				cout << "____Last convergence on ID: " << lastConvergedId << " with value of " << conv2(lastConvergedId) << endl;
+			#endif
 		} while (!isConverged);
 
-		printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
-
+		#ifdef VERBOSE
+			printf("____<6> After iteration: XL= %dx%d \n", XkL.rows(), XkL.cols());
+		#endif
 		/* Print some data when it's on the finest level */
 		if (k == 0) {
-			cout << "____<7> Storing the convergence data. \n";
+			#ifdef VERBOSE
+				cout << "____<7> Storing the convergence data. \n";
+			#endif
 			convergence2Stacks.conservativeResize(Eigen::NoChange, iterCount);
 			convergence3Stacks.conservativeResize(Eigen::NoChange, iterCount);
 			EigValsSIMStack.conservativeResize(Eigen::NoChange, iterCount);
