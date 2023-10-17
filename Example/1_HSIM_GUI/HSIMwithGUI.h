@@ -129,6 +129,10 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 	{
 		eigenSolver->setup(viewer.data().V, viewer.data().F, numOfModes);
 		eigenSolver->buildHierarchy(viewer.data().V, viewer.data().F, numOfModes);
+		if (eigenSolver->getEigenValuesReduced().rows() > 0) {
+			if (eigToShow == 0) eigToShow = 1;
+			eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_REDUCED, eigScale);
+		}
 	}
 
 
@@ -159,6 +163,11 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 				cout << "Eigenvalues: \n" << eigenSolver->getEigenValues().transpose() << endl;
 				cout << "EigenVectors: \n" << eigenSolver->getEigenVectors().topLeftCorner(6, 9) << endl;
 			#endif
+
+			if (eigenSolver->getEigenVectors().rows() > 0) {
+				if (eigToShow == 0) eigToShow = 1;
+				eigenSolver->visualizeEigenvector(viewer, eigToShow, HSIM::LBEigenSolver::EigenVectorType::EIGEN_SIM, eigScale);
+			}
 		}
 
 		Eigen::VectorXd EigValTest;
