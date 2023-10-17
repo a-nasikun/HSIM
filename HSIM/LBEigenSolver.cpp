@@ -59,7 +59,7 @@ void LBEigenSolver::setup(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, in
 
 /**
 *  @brief Setting up the system to have required levels.
-*
+*build neighborhood structure
 *  @details
 *   Setting up the system to have required levels.
 *  @param n Number of specified levels of the system.
@@ -84,7 +84,9 @@ void LBEigenSolver::setInitialSystem(int n)
 */
 void LBEigenSolver::initiateAdM()
 {
+#ifdef VERBOSE
 	cout << "> Creating neighborhood structure of the mesh. \n";
+#endif
 	AdM.clear();
 	AdM.resize(V.rows());
 
@@ -116,7 +118,9 @@ void LBEigenSolver::computeArea()
 
 void LBEigenSolver::constructMassMatrix()
 {
-	cout << "> Creating mass matrix for the surface mesh \n";
+	#ifdef VERBOSE
+		cout << "> Creating mass matrix for the surface mesh \n";
+	#endif // VERBOSE	
 	/* Construct Mass matrix M*/
 	//igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_BARYCENTRIC, M);
 	igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_VORONOI, M);
@@ -129,11 +133,12 @@ void LBEigenSolver::constructMassMatrix()
 
 void LBEigenSolver::constructStiffnessMatrix()
 {
-	cout << "> Creating stiffness matrix (Cotangent Laplacian). \n";
+	#ifdef VERBOSE
+		cout << "> Creating stiffness matrix (Cotangent Laplacian). \n";
+	#endif 
 	igl::cotmatrix(V, F, S);
 	S = -S;
 }
-
 
 /* Main functions for user */
 tuple<Eigen::VectorXd, Eigen::MatrixXd> LBEigenSolver::eigs(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes, double tol, int maxIters, double shiftParam)
@@ -158,7 +163,10 @@ void LBEigenSolver::buildHierarchy(int numModes)
 
 void LBEigenSolver::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
 {
-	std::cout << "Modes = " << numModes << std::endl;
+	#ifdef VERBOSE
+		std::cout << "Modes = " << numModes << std::endl;
+	#endif
+
 	/* Sampling levels */
 	Eigen::VectorXd sampSize;
 	double levelRatio = 10.0;
@@ -187,14 +195,15 @@ void LBEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, d
 	int SAMPLE_CUT_OFF = (sizeSubsp);			//500
 	int SAMPLE_LOW_BOUND = 2 * SAMPLE_CUT_OFF;
 	int numSample = V.rows();
-	std::cout << "cut-out" << SAMPLE_CUT_OFF << "| Low bound " << SAMPLE_LOW_BOUND << ": " << std::endl;
+	#ifdef VERBOSE
+		std::cout << "cut-out" << SAMPLE_CUT_OFF << "| Low bound " << SAMPLE_LOW_BOUND << ": " << std::endl;
+	#endif
 
 	/* automated */
 	do {
 		numSample = (int)round(numSample / levelRatio);
 		if (numSample < SAMPLE_CUT_OFF) break;
-		sampleLevels.push_back(numSample);
-		std::cout << "Inserted sample: " << numSample << std::endl;
+		sampleLevels.push_back(numSample);		
 	} while (numSample > SAMPLE_LOW_BOUND);
 
 	if (sampleLevels.size() < 1)
@@ -210,16 +219,18 @@ void LBEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, d
 
 void LBEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 {
-	printf("____Sampling on %d levels \n", samples.size());
+	#ifdef VERBOSE
+		printf("____Sampling on %d levels \n", samples.size());
+	#endif
 	for (int i = 0; i < samples.size(); ++i) {
 		SubspaceSize[i] = samples(i);
-		printf("______Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
+		//printf("______Level %d -> Subspace size: %d\n", i, SubspaceSize[i]);
 	}
 	sampleSize = SubspaceSize[0];
 
 	SampleMap.resize(V.rows());
 	constructFarthestPointSample(V, AdM, Sample, SubspaceSize, geoDist);
-	cout << "___Assigning level \n";
+	//cout << "___Assigning level \n";
 	sampleLevel.resize(V.rows());
 
 	SampleMap.setConstant(-1);
@@ -241,15 +252,17 @@ void LBEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 
 void LBEigenSolver::constructBasis(double support, int axis, double offset)
 {
-	cout << "> Constructing multi-level basis \n";
+	#ifdef VERBOSE
+		cout << "> Constructing prolongation operator \n";
+	#endif
 	for (int i = 0; i < level; i++) {
 		maxNeighDist[i] = sqrt((surfaceArea*support) / (M_PI*SubspaceSize[i]));
-		printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
+		//printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
 	}
 
 	for (int i = 0; i < level; i++) {
 		constructRadialBasisFunctions(i, axis, isClampedBasis, offset, support);
-		printf("basis level %d: done \n", i);
+		//printf("basis level %d: done \n", i);
 	}
 
 	formPartitionOfUnityMultiLevel();
@@ -259,7 +272,9 @@ void LBEigenSolver::constructBasis(double support, int axis, double offset)
 	for (int i = 0; i < level; i++)
 		Basis = Basis * U[i];
 
-	printf("Basis sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
+	#ifdef VERBOSE
+		printf("Prolongation sparsity:  %.4f (%d/%d) \n", (double)Basis.nonZeros() / (double)Basis.rows(), Basis.nonZeros(), Basis.rows());
+	#endif
 }
 
 void LBEigenSolver::constructRadialBasisFunctions(int k, int axis, bool isClamped, double offset, double support)
@@ -267,7 +282,9 @@ void LBEigenSolver::constructRadialBasisFunctions(int k, int axis, bool isClampe
 	// For Timing
 	chrono::high_resolution_clock::time_point	t1, t2;
 	chrono::duration<double>					duration;
-	cout << "___Basis construction (level " << k <<" )... ";
+	#ifdef VERBOSE
+		cout << "___Prolongation construction (level " << k <<" )... ";
+	#endif
 	t1 = chrono::high_resolution_clock::now();
 
 	vector<vector<Eigen::Triplet<double>>>	UTriplet;
@@ -343,9 +360,12 @@ void LBEigenSolver::constructRadialBasisFunctions(int k, int axis, bool isClampe
 	// timing
 	t2 = chrono::high_resolution_clock::now();
 	duration = t2 - t1;
-	cout << "in " << duration.count() << " seconds" << endl;
-
-	printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
+	#ifdef VERBOSE
+		cout << "in " << duration.count() << " seconds" << endl;
+	#endif
+	#ifdef VERBOSE
+		printf("A basis matrix (%dx%d) is constructed, with %.2f average support.\n", U[k].rows(), U[k].cols(), (double)(U[k].nonZeros() / (double)U[k].rows()));
+	#endif
 }
 
 void LBEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, const double a, const double b, double maxDist, const int col, int k, int axis, double offset, vector<Eigen::Triplet<double>> &UTriplet, int &elementCounter)
@@ -426,7 +446,9 @@ void LBEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, cons
 
 void LBEigenSolver::formPartitionOfUnityMultiLevel()
 {
-	cout << "Partition of unity \n";
+	#ifdef VERBOSE
+		cout << "Partition of unity \n";
+	#endif
 	/* Temporary variables */
 	vector<Eigen::Triplet<double>>		diagTrip;
 	Eigen::SparseMatrix<double>			DiagNormMatrix;
@@ -500,7 +522,9 @@ void LBEigenSolver::solveRestrictedProblem()
 			eps *= 10;
 			Eigen::MatrixXd AA = SDense + eps * IdDense;
 			computeEigenSpectraDense(AA, MDense, 50,EigVectsReducedNonLifted, EigValsReduced);
-			cout << "Shift: " << eps << endl;
+			#ifdef VERBOSE
+				cout << "Shift: " << eps << endl;
+			#endif
 		}
 		iter++;
 	} while (status != 0 && iter < 10);

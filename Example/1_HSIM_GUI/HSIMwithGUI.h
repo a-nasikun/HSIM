@@ -110,11 +110,10 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 				viewer.data().show_lines = false;
 				printf("A new mesh with %d vertices (%d faces).\n", viewer.data().V.rows(), viewer.data().F.rows());
-				//viewer.data().set_mesh(V, F);
 				viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
 
 				boolShowSamples = false;
-				printf("mesh that we have  now: %d \n", viewer.data_list.size());
+				//printf("mesh that we have  now: %d \n", viewer.data_list.size());
 			}
 		}
 		ImGui::SameLine(0, p);
@@ -152,13 +151,14 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 
 		if (ImGui::Button("Solve Eigenproblem", ImVec2((w), 0)))
 		{
-			eigenSolver->zhaoShiftParam = zhaoShiftParam;
-			std::cout << "Shift param = " << zhaoShiftParam << std::endl;
+			eigenSolver->zhaoShiftParam = zhaoShiftParam;			
 			eigenSolver->performSubspaceIterationMethod(HSIM::LBEigenSolver::SIMType::SIM_MultiLevel, numOfModes, maxIter, tol, isShiftedSIM, HSIM::LBEigenSolver::ShiftType::SHIFT_ZHAO, defAxis, clampRegion);
 
-			printf("Successfully computing the eigenvalues \n");
-			cout << "Eigenvalues: \n" << eigenSolver->getEigenValues().transpose() << endl;
-			cout << "EigenVectors: \n" << eigenSolver->getEigenVectors().topLeftCorner(6, 9) << endl;
+			#ifdef VERBOSE
+				printf("Successfully computing the eigenvalues \n");
+				cout << "Eigenvalues: \n" << eigenSolver->getEigenValues().transpose() << endl;
+				cout << "EigenVectors: \n" << eigenSolver->getEigenVectors().topLeftCorner(6, 9) << endl;
+			#endif
 		}
 
 		Eigen::VectorXd EigValTest;
