@@ -163,8 +163,9 @@ void LBEigenSolver::buildHierarchy(int numModes)
 
 void LBEigenSolver::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes)
 {
+	std::cout << "1. Building Hierarchy. \n";
 	#ifdef VERBOSE
-		std::cout << "Modes = " << numModes << std::endl;
+		std::cout << "Number of eigenvalues to compute = " << numModes << std::endl;
 	#endif
 
 	/* Sampling levels */
@@ -219,6 +220,7 @@ void LBEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, d
 
 void LBEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 {
+	std::cout << "____ Performing sampling on the surface \n";
 	#ifdef VERBOSE
 		printf("____Sampling on %d levels \n", samples.size());
 	#endif
@@ -252,9 +254,8 @@ void LBEigenSolver::constructSampleHierarchy(const Eigen::VectorXd& samples)
 
 void LBEigenSolver::constructBasis(double support, int axis, double offset)
 {
-	#ifdef VERBOSE
-		cout << "> Constructing prolongation operator \n";
-	#endif
+	cout << "____ Constructing prolongation operator \n";
+
 	for (int i = 0; i < level; i++) {
 		maxNeighDist[i] = sqrt((surfaceArea*support) / (M_PI*SubspaceSize[i]));
 		//printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
@@ -493,9 +494,8 @@ void LBEigenSolver::solveRestrictedProblem()
 	Eigen::SparseMatrix<double> Id(Basis.cols(), Basis.cols());
 	Id.setIdentity();
 
-	#ifdef VERBOSE	
-		cout << "> Creating the reduced system matrices.\n";
-	#endif
+	cout << "____ Computing the approximated eigenvectors.\n";
+	
 
 	Eigen::SparseMatrix<double> S_, M_;			//reduced stiffness and mass matrix
 	S_ = Basis.transpose() * S * Basis;
@@ -567,9 +567,9 @@ void LBEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>&
 /* Subspace Iteration methods */
 void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType, int axis, double offset)
 {
-	#ifdef VERBOSE
-		cout << "> The Subspace Iteration Method \n";
-	#endif
+	
+	cout << "2. Computing the eigenvectors and eigenvalues.\n";
+	
 	chrono::high_resolution_clock::time_point	t0, t1;
 	chrono::duration<double>					duration;
 	t0 = chrono::high_resolution_clock::now();
@@ -614,9 +614,7 @@ void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
-	#ifdef VERBOSE
 		cout << "...in " << duration.count() << " seconds." << endl;
-	#endif
 
 	bool isWrittenToFile = false;
 	/* Write the convergence information to an external file. */
@@ -636,17 +634,10 @@ void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 
 void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<double>& SL, Eigen::SparseMatrix<double>& ML, int k, Eigen::MatrixXd& XkL, Eigen::VectorXd& AkL, int numEigs, int maxIter, double tol, bool isWithShift, const ShiftType& shiftType)
 {
-	#ifdef VERBOSE
-		std::cout << "Functions" << std::endl;
-	#endif
-
 	chrono::high_resolution_clock::time_point	t0, t1, t2;
 	chrono::duration<double>					duration;
 	t0 = chrono::high_resolution_clock::now();
-
-	#ifdef VERBOSE
-		printf("____[1] level: %d \n", k);
-	#endif
+	
 
 	int		q = max(2 * numEigs, numEigs + 8);
 
@@ -659,7 +650,6 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 	{
 		XkL = EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), q);
 		AkL = EigValsReduced.head(q);
-		///printf("____Size of the initial vectors: %dx%d \n", XkL.rows(), XkL.cols());
 
 	}
 	// RECURSIVE for level k < max_level
@@ -820,13 +810,7 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 			#ifdef VERBOSE
 				cout << "__STATUS: " << status << endl;
 			#endif
-			//if (status != 0) {
-			//	cout << "___!! COmputation of eigenvalues failed! \n";
-			//	cout << "____Status: " << status << endl;
-			//	//i = Imax;
-			//	continue;
-			//	//break;
-			//}
+
 			t2 = chrono::high_resolution_clock::now();
 			duration = t2 - t1;
 			#ifdef VERBOSE
@@ -923,7 +907,14 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 
 	t1 = chrono::high_resolution_clock::now();
 	duration = t1 - t0;
+	
+	if(k==level)
+		printf("____ level:%d ", k);
+	else 
+		printf("____ level:%d and below", k);
 	cout << "...in " << duration.count() << " seconds." << endl;
+	
+
 	if (k < level) {
 		timingPerLevel(k) = duration.count();
 		itersPerLevel(k) = iterCount;
