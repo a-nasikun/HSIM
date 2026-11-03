@@ -16,10 +16,10 @@ int main(int argc, char* argv[])
 	Eigen::MatrixXi F;
 	try {
 		hsim::readMesh(meshFile, V, F);
-		std::cout << "Loaded " << meshFile << ": " << V.rows() << " vertices, " << F.rows() << " faces" << std::endl;
+		std::cout << "Loaded " << meshFile << ": " << V.rows() << " vertices, " << F.rows() << " faces" << '\n';
 	}
 	catch (const std::exception& e) {
-		std::cerr << e.what() << std::endl;
+		std::cerr << e.what() << '\n';
 		return 1;
 	}
 

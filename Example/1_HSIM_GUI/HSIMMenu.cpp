@@ -27,8 +27,7 @@ hsim::Options guiDefaultOptions()
 }
 
 /// Runs an action and reports exceptions in the menu instead of terminating the program.
-template <typename Action>
-void guarded(GuiState& state, const char* what, Action&& action)
+template <typename Action> void guarded(GuiState& state, const char* what, Action&& action)
 {
 	try {
 		state.message.clear();
@@ -36,7 +35,7 @@ void guarded(GuiState& state, const char* what, Action&& action)
 	}
 	catch (const std::exception& e) {
 		state.message = std::string(what) + " failed: " + e.what();
-		std::cerr << state.message << std::endl;
+		std::cerr << state.message << '\n';
 	}
 }
 
@@ -79,12 +78,12 @@ void showBasis(igl::opengl::glfw::Viewer& viewer, GuiState& state)
 
 void printEigenvalues(const char* title, const Eigen::VectorXd& values, int count)
 {
-	std::cout << title << ":\n" << values.head(std::min<Eigen::Index>(count, values.size())).transpose() << std::endl;
+	std::cout << title << ":\n" << values.head(std::min<Eigen::Index>(count, values.size())).transpose() << '\n';
 }
 
 } // namespace
 
-GuiState::GuiState() : options(guiDefaultOptions()), solver(options) {}
+GuiState::GuiState() : options(guiDefaultOptions()), solver(options) { }
 
 void showMesh(igl::opengl::glfw::Viewer& viewer, const Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
 {
@@ -118,7 +117,7 @@ void drawHSIMMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::I
 			state.solver = hsim::Solver(state.options);
 			state.hasResult = false;
 			state.samplesShown = false;
-			std::cout << "Loaded " << path << ": " << V.rows() << " vertices, " << F.rows() << " faces" << std::endl;
+			std::cout << "Loaded " << path << ": " << V.rows() << " vertices, " << F.rows() << " faces" << '\n';
 		});
 	}
 	ImGui::SameLine(0, p);
@@ -154,7 +153,8 @@ void drawHSIMMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::I
 
 	/* Step-by-step construction */
 	if (ImGui::CollapsingHeader("Step by step")) {
-		if (ImGui::Button("[1] Assemble operators", ImVec2(w, 0))) guarded(state, "Assembling the operators", [&] { setSolverMesh(viewer, state); });
+		if (ImGui::Button("[1] Assemble operators", ImVec2(w, 0)))
+			guarded(state, "Assembling the operators", [&] { setSolverMesh(viewer, state); });
 
 		ImGui::InputDouble("Level ratio", &state.options.levelRatio, 0.0, 0.0, "%.2f");
 		if (ImGui::Button("[2] Sampling", ImVec2(w, 0))) {
@@ -206,8 +206,10 @@ void drawHSIMMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::I
 				const hsim::Hierarchy& h = state.solver.hierarchy();
 				if (!h.hasSamples()) throw std::logic_error("compute the samples first");
 				state.samplesShown = !state.samplesShown;
-				if (state.samplesShown) showSamples(viewer, state.solver.vertices(), h.samples.vertices, h.levelSizes);
-				else clearPoints(viewer);
+				if (state.samplesShown)
+					showSamples(viewer, state.solver.vertices(), h.samples.vertices, h.levelSizes);
+				else
+					clearPoints(viewer);
 				viewer.data().point_size = 10.0f;
 			});
 		}
@@ -215,9 +217,15 @@ void drawHSIMMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::I
 		const float bw = (w - 110.f - 4.f * p) / 3.f;
 		ImGui::Text("Basis (lvl %d)", state.basisLevel);
 		ImGui::SameLine(110.f);
-		if (ImGui::Button("-##basis", ImVec2(bw, 0))) { --state.basisIndex; guarded(state, "Showing the basis", [&] { showBasis(viewer, state); }); }
+		if (ImGui::Button("-##basis", ImVec2(bw, 0))) {
+			--state.basisIndex;
+			guarded(state, "Showing the basis", [&] { showBasis(viewer, state); });
+		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("+##basis", ImVec2(bw, 0))) { ++state.basisIndex; guarded(state, "Showing the basis", [&] { showBasis(viewer, state); }); }
+		if (ImGui::Button("+##basis", ImVec2(bw, 0))) {
+			++state.basisIndex;
+			guarded(state, "Showing the basis", [&] { showBasis(viewer, state); });
+		}
 		ImGui::SameLine(0, p);
 		if (ImGui::Button("Rand##basis", ImVec2(bw, 0))) {
 			static std::mt19937 rng(0);
@@ -227,23 +235,38 @@ void drawHSIMMenu(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::I
 
 		ImGui::Text("Coarse [%d]", state.eigenIndex);
 		ImGui::SameLine(110.f);
-		if (ImGui::Button("-##coarse", ImVec2(bw, 0))) { state.eigenIndex = std::max(0, state.eigenIndex - 1); guarded(state, "Showing the eigenvector", [&] { showCoarseEigenvector(viewer, state); }); }
+		if (ImGui::Button("-##coarse", ImVec2(bw, 0))) {
+			state.eigenIndex = std::max(0, state.eigenIndex - 1);
+			guarded(state, "Showing the eigenvector", [&] { showCoarseEigenvector(viewer, state); });
+		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("+##coarse", ImVec2(bw, 0))) { ++state.eigenIndex; guarded(state, "Showing the eigenvector", [&] { showCoarseEigenvector(viewer, state); }); }
+		if (ImGui::Button("+##coarse", ImVec2(bw, 0))) {
+			++state.eigenIndex;
+			guarded(state, "Showing the eigenvector", [&] { showCoarseEigenvector(viewer, state); });
+		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("Show##coarse", ImVec2(bw, 0))) guarded(state, "Showing the eigenvector", [&] { showCoarseEigenvector(viewer, state); });
+		if (ImGui::Button("Show##coarse", ImVec2(bw, 0)))
+			guarded(state, "Showing the eigenvector", [&] { showCoarseEigenvector(viewer, state); });
 
 		ImGui::Text("HSIM [%d]", state.eigenIndex);
 		ImGui::SameLine(110.f);
-		if (ImGui::Button("-##hsim", ImVec2(bw, 0))) { state.eigenIndex = std::max(0, state.eigenIndex - 1); guarded(state, "Showing the eigenvector", [&] { showEigenvector(viewer, state); }); }
+		if (ImGui::Button("-##hsim", ImVec2(bw, 0))) {
+			state.eigenIndex = std::max(0, state.eigenIndex - 1);
+			guarded(state, "Showing the eigenvector", [&] { showEigenvector(viewer, state); });
+		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("+##hsim", ImVec2(bw, 0))) { ++state.eigenIndex; guarded(state, "Showing the eigenvector", [&] { showEigenvector(viewer, state); }); }
+		if (ImGui::Button("+##hsim", ImVec2(bw, 0))) {
+			++state.eigenIndex;
+			guarded(state, "Showing the eigenvector", [&] { showEigenvector(viewer, state); });
+		}
 		ImGui::SameLine(0, p);
-		if (ImGui::Button("Show##hsim", ImVec2(bw, 0))) guarded(state, "Showing the eigenvector", [&] { showEigenvector(viewer, state); });
+		if (ImGui::Button("Show##hsim", ImVec2(bw, 0)))
+			guarded(state, "Showing the eigenvector", [&] { showEigenvector(viewer, state); });
 
 		if (state.hasResult) {
 			const hsim::Diagnostics& d = state.result.diagnostics;
-			ImGui::Text("lambda[%d] = %.6g", state.eigenIndex, state.result.eigenvalues(std::min<Eigen::Index>(state.eigenIndex, state.result.eigenvalues.size() - 1)));
+			ImGui::Text("lambda[%d] = %.6g", state.eigenIndex,
+			            state.result.eigenvalues(std::min<Eigen::Index>(state.eigenIndex, state.result.eigenvalues.size() - 1)));
 			ImGui::Text("hierarchy %.3f s, iteration %.3f s", d.hierarchySeconds, d.iterationSeconds);
 		}
 	}

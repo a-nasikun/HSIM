@@ -16,7 +16,7 @@ namespace hsim {
 ///   options.tolerance = 1e-4;
 ///   hsim::Result result = hsim::eigs(V, F, 100, options);
 /// @endcode
-Result eigs(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes, const Options& options = {});
+[[nodiscard]] Result eigs(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes, const Options& options = {});
 
 /// Stateful solver that keeps the operators and the hierarchy of one mesh.
 ///
@@ -37,7 +37,7 @@ public:
 
 	/// Computes numModes eigenpairs. The hierarchy is (re)built if it is missing, incomplete, or was built for a
 	/// different number of modes.
-	Result solve(int numModes);
+	[[nodiscard]] Result solve(int numModes);
 
 	/* Individual stages of buildHierarchy() */
 	void computeSamples(int numModes);

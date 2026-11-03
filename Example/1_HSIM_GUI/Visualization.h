@@ -12,7 +12,7 @@ void showScalarField(igl::opengl::glfw::Viewer& viewer, const Eigen::VectorXd& f
 
 /// Shows the nested samples as points, one colour per level.
 void showSamples(igl::opengl::glfw::Viewer& viewer, const Eigen::MatrixXd& V, const Eigen::VectorXi& samples,
-	const std::vector<int>& levelSizes);
+                 const std::vector<int>& levelSizes);
 
 /// Removes all points.
 void clearPoints(igl::opengl::glfw::Viewer& viewer);

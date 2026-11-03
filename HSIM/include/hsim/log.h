@@ -14,8 +14,8 @@ namespace hsim {
 
 /// Amount of progress output.
 enum class Verbosity {
-	Silent = 0,   ///< no output (default)
-	Summary = 1,  ///< one line per stage of the algorithm
+	Silent = 0, ///< no output (default)
+	Summary = 1, ///< one line per stage of the algorithm
 	Detailed = 2, ///< additionally one line per level and iteration
 };
 
@@ -23,6 +23,6 @@ enum class Verbosity {
 using LogSink = std::function<void(Verbosity level, const std::string& message)>;
 
 /// Sink that writes each message as one line to std::clog.
-LogSink defaultLogSink();
+[[nodiscard]] LogSink defaultLogSink();
 
 } // namespace hsim

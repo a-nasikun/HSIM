@@ -59,7 +59,8 @@ Adjacency::Adjacency(const Eigen::MatrixXi& F, Eigen::Index numVertices)
 		++offsets_[static_cast<size_t>(edges[e].first) + 1];
 		neighbors_[e] = edges[e].second;
 	}
-	for (size_t v = 0; v < static_cast<size_t>(numVertices); ++v) offsets_[v + 1] += offsets_[v];
+	for (size_t v = 0; v < static_cast<size_t>(numVertices); ++v)
+		offsets_[v + 1] += offsets_[v];
 }
 
 Operators assembleOperators(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F)

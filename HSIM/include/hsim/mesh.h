@@ -43,7 +43,8 @@ public:
 	Eigen::Index numVertices() const { return static_cast<Eigen::Index>(offsets_.empty() ? 0 : offsets_.size() - 1); }
 	Range neighbors(Eigen::Index vertex) const
 	{
-		return { neighbors_.data() + offsets_[static_cast<size_t>(vertex)], neighbors_.data() + offsets_[static_cast<size_t>(vertex) + 1] };
+		return {neighbors_.data() + offsets_[static_cast<size_t>(vertex)],
+		        neighbors_.data() + offsets_[static_cast<size_t>(vertex) + 1]};
 	}
 
 private:
@@ -54,11 +55,11 @@ private:
 /// Discretisation of the Laplace--Beltrami eigenproblem S x = lambda M x with linear finite elements.
 struct Operators {
 	SparseMatrix stiffness; ///< S: cotangent Laplacian, symmetric positive semi-definite
-	SparseMatrix mass;      ///< M: lumped (Voronoi) mass matrix, diagonal positive definite
-	double area = 0.0;      ///< total surface area
+	SparseMatrix mass; ///< M: lumped (Voronoi) mass matrix, diagonal positive definite
+	double area = 0.0; ///< total surface area
 };
 
 /// Assembles the stiffness and mass matrices of a triangle mesh.
-Operators assembleOperators(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F);
+[[nodiscard]] Operators assembleOperators(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F);
 
 } // namespace hsim

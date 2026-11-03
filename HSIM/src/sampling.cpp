@@ -30,27 +30,28 @@ std::vector<int> samplingLevelSizes(Eigen::Index numVertices, int numModes, doub
 	} while (numSamples > stopSize);
 
 	if (sizes.empty()) {
-		throw std::invalid_argument("samplingLevelSizes: the mesh (" + std::to_string(numVertices) + " vertices) is too coarse to compute "
-			+ std::to_string(numModes) + " eigenpairs with level ratio " + std::to_string(levelRatio) + "; at least "
-			+ std::to_string(static_cast<long>(std::ceil(levelRatio * minimalSize))) + " vertices are needed");
+		throw std::invalid_argument(
+		    "samplingLevelSizes: the mesh (" + std::to_string(numVertices) + " vertices) is too coarse to compute "
+		    + std::to_string(numModes) + " eigenpairs with level ratio " + std::to_string(levelRatio) + "; at least "
+		    + std::to_string(static_cast<long>(std::ceil(levelRatio * minimalSize))) + " vertices are needed");
 	}
 	return sizes;
 }
 
 namespace {
-	struct QueueEntry {
-		int vertex;
-		double distance;
-		bool operator>(const QueueEntry& other) const { return distance > other.distance; }
-	};
-	using MinQueue = std::priority_queue<QueueEntry, std::vector<QueueEntry>, std::greater<QueueEntry>>;
-}
+struct QueueEntry {
+	int vertex;
+	double distance;
+	bool operator>(const QueueEntry& other) const { return distance > other.distance; }
+};
+using MinQueue = std::priority_queue<QueueEntry, std::vector<QueueEntry>, std::greater<QueueEntry>>;
+} // namespace
 
 void accumulateGraphDistance(const Eigen::MatrixXd& V, const Adjacency& adjacency, int source, Eigen::VectorXd& distance)
 {
 	MinQueue queue;
 	distance(source) = 0.0;
-	queue.push({ source, 0.0 });
+	queue.push({source, 0.0});
 
 	while (!queue.empty()) {
 		const QueueEntry top = queue.top();
@@ -61,7 +62,7 @@ void accumulateGraphDistance(const Eigen::MatrixXd& V, const Adjacency& adjacenc
 			const double candidate = top.distance + (b - a).norm();
 			if (candidate < distance(neighbor)) {
 				distance(neighbor) = candidate;
-				queue.push({ neighbor, candidate });
+				queue.push({neighbor, candidate});
 			}
 		}
 	}

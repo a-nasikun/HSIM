@@ -9,8 +9,10 @@ namespace {
 
 void loadMesh(const std::string& mesh, Eigen::MatrixXd& V, Eigen::MatrixXi& F)
 {
-	if (mesh.rfind("ico", 0) == 0) hsim_test::icosphere(std::stoi(mesh.substr(3)), V, F);
-	else hsim::readMesh(hsim_test::repoPath(mesh), V, F);
+	if (mesh.rfind("ico", 0) == 0)
+		hsim_test::icosphere(std::stoi(mesh.substr(3)), V, F);
+	else
+		hsim::readMesh(hsim_test::repoPath(mesh), V, F);
 }
 
 hsim::Options optionsFor(const hsim_test::Baseline& b)
@@ -62,7 +64,8 @@ void checkAgainstBaseline(const std::string& name, double relTol)
 	}
 
 	// Every non-constant mode satisfies the requested tolerance.
-	const Eigen::VectorXd residual = hsim::relativeResiduals(res.eigenvectors, res.eigenvalues, r.operators.stiffness, r.operators.mass);
+	const Eigen::VectorXd residual
+	    = hsim::relativeResiduals(res.eigenvectors, res.eigenvalues, r.operators.stiffness, r.operators.mass);
 	for (int i = 1; i < n; ++i) {
 		INFO("residual index " << i);
 		CHECK(residual(i) < b.tol);

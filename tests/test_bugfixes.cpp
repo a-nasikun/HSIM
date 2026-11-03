@@ -62,7 +62,7 @@ TEST_CASE("invalid input is reported by exceptions")
 		badF(0, 0) = static_cast<int>(V.rows());
 		CHECK_THROWS_AS(solver.setMesh(V, badF), std::invalid_argument);
 		CHECK_THROWS_AS(solver.setMesh(V.leftCols(2), F), std::invalid_argument);
-		CHECK_THROWS_AS(solver.solve(5), std::logic_error); // no mesh set
+		CHECK_THROWS_AS((void)solver.solve(5), std::logic_error); // no mesh set
 	}
 
 	SUBCASE("invalid options")
@@ -70,7 +70,7 @@ TEST_CASE("invalid input is reported by exceptions")
 		hsim::Options options;
 		options.shiftParameter = 1.5;
 		CHECK_THROWS_AS(options.validate(), std::invalid_argument);
-		CHECK_THROWS_AS(hsim::Solver{ options }, std::invalid_argument);
+		CHECK_THROWS_AS(hsim::Solver{options}, std::invalid_argument);
 		options = hsim::Options{};
 		options.maxIterations = 0;
 		CHECK_THROWS_AS(options.validate(), std::invalid_argument);
@@ -90,8 +90,8 @@ TEST_CASE("invalid input is reported by exceptions")
 		hsim::Solver solver;
 		solver.setMesh(V, F);
 		solver.buildHierarchy(5);
-		CHECK_THROWS_AS(hsim::hierarchicalSubspaceIteration(solver.operators(), solver.hierarchy(), 40, solver.options()),
-			std::invalid_argument);
+		CHECK_THROWS_AS((void)hsim::hierarchicalSubspaceIteration(solver.operators(), solver.hierarchy(), 40, solver.options()),
+		                std::invalid_argument);
 		// The Solver rebuilds the hierarchy instead.
 		const hsim::Result result = solver.solve(10);
 		CHECK(result.eigenvalues.size() == 10);

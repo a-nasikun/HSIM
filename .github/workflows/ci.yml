@@ -5,6 +5,13 @@ on:
   pull_request:
 
 jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        run: clang-format --dry-run --Werror HSIM/include/hsim/*.h HSIM/src/*.h HSIM/src/*.cpp tests/*.h tests/*.cpp Example/*/*.h Example/*/*.cpp
+
   linux-cpu:
     runs-on: ubuntu-24.04
     steps:
@@ -14,7 +21,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHSIM_BUILD_TESTS=ON -DHSIM_BUILD_EXAMPLES=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHSIM_BUILD_TESTS=ON -DHSIM_BUILD_EXAMPLES=ON -DHSIM_WARNINGS_AS_ERRORS=ON
       - name: Build
         run: cmake --build build
       - name: Test
@@ -30,7 +37,7 @@ jobs:
           sudo apt-get install -y ninja-build libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev
       - name: Configure
         run: >
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHSIM_BUILD_EXAMPLES=OFF
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHSIM_BUILD_EXAMPLES=OFF -DHSIM_WARNINGS_AS_ERRORS=ON
           "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined"
       - name: Build
         run: cmake --build build

@@ -20,7 +20,7 @@ struct DenseEigenpairs {
 /// Solves S x = lambda M x for symmetric S and symmetric positive definite M (only the lower triangles are used).
 /// @throws std::invalid_argument for inconsistent sizes or if the CuSolver backend is requested in a CPU-only build;
 ///         std::runtime_error for CUDA runtime errors.
-DenseEigenpairs solveDenseGeneralized(const Eigen::MatrixXd& S, const Eigen::MatrixXd& M,
-	DenseEigenBackend backend = DenseEigenBackend::Default);
+[[nodiscard]] DenseEigenpairs solveDenseGeneralized(const Eigen::MatrixXd& S, const Eigen::MatrixXd& M,
+                                                    DenseEigenBackend backend = DenseEigenBackend::Default);
 
 } // namespace hsim

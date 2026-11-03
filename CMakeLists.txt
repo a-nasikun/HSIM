@@ -17,6 +17,7 @@ endif()
 option(HSIM_WITH_CUDA      "Solve the dense (Rayleigh-Ritz) eigenproblems on the GPU with cuSOLVER" OFF)
 option(HSIM_BUILD_EXAMPLES "Build the example applications (requires OpenGL/GLFW)"                  ${HSIM_TOPLEVEL_PROJECT})
 option(HSIM_BUILD_TESTS    "Build the test-suite"                                                   ${HSIM_TOPLEVEL_PROJECT})
+option(HSIM_WARNINGS_AS_ERRORS "Treat compiler warnings in HSIM code as errors"                       OFF)
 
 if(HSIM_TOPLEVEL_PROJECT AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	message(STATUS "HSIM: no build type given, defaulting to Release")
@@ -27,6 +28,7 @@ endif()
 # #################################################################################################
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(libigl)
+include(HSIMWarnings)
 
 # Targets
 # #################################################################################################

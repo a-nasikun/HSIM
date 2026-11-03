@@ -38,12 +38,7 @@ else()
 	message(STATUS "HSIM: OpenMP not found, the prolongation is built single-threaded")
 endif()
 
-if(MSVC)
-	target_compile_definitions(HSIM PUBLIC _USE_MATH_DEFINES)
-	target_compile_options(HSIM PRIVATE /W4)
-else()
-	target_compile_options(HSIM PRIVATE -Wall -Wextra)
-endif()
+hsim_set_warnings(HSIM)
 
 if(HSIM_WITH_CUDA)
 	find_package(CUDAToolkit REQUIRED)

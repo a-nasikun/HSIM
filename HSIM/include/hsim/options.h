@@ -14,8 +14,8 @@ namespace hsim {
 
 /// Backend used for the small dense generalized eigenproblems (coarsest level and Rayleigh--Ritz steps).
 enum class DenseEigenBackend {
-	Default,  ///< cuSOLVER if the library was built with HSIM_WITH_CUDA, Eigen otherwise
-	Eigen,    ///< Eigen::GeneralizedSelfAdjointEigenSolver on the CPU
+	Default, ///< cuSOLVER if the library was built with HSIM_WITH_CUDA, Eigen otherwise
+	Eigen, ///< Eigen::GeneralizedSelfAdjointEigenSolver on the CPU
 	CuSolver, ///< cusolverDnDsygvd on the GPU (requires a build with HSIM_WITH_CUDA)
 };
 
@@ -73,9 +73,9 @@ struct Options {
 };
 
 /// Number q of vectors in the iterated subspace when numModes eigenpairs are sought: q = max(2 numModes, numModes + 8).
-int subspaceSize(int numModes);
+[[nodiscard]] int subspaceSize(int numModes);
 
 /// True if the library was built with cuSOLVER support (CMake option HSIM_WITH_CUDA).
-bool builtWithCuda();
+[[nodiscard]] bool builtWithCuda();
 
 } // namespace hsim

@@ -1,0 +1,33 @@
+# Formatting rules of the HSIM code base (clang-format >= 14). Apply with:
+#   clang-format -i HSIM/include/hsim/*.h HSIM/src/*.h HSIM/src/*.cpp tests/*.h tests/*.cpp Example/*/*.h Example/*/*.cpp
+BasedOnStyle: WebKit
+Language: Cpp
+Standard: c++17
+UseTab: ForIndentation
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 130
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterClass: false
+  AfterStruct: false
+  AfterNamespace: false
+  AfterControlStatement: Never
+  BeforeElse: true
+  BeforeCatch: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortBlocksOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: All
+NamespaceIndentation: None
+FixNamespaceComments: true
+IndentPPDirectives: AfterHash
+PointerAlignment: Left
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+SpaceBeforeCpp11BracedList: false
+Cpp11BracedListStyle: true
+AlignAfterOpenBracket: Align
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerIndentWidth: 4

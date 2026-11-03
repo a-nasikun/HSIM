@@ -8,20 +8,20 @@ namespace hsim {
 
 namespace detail {
 #ifdef HSIM_WITH_CUDA
-	DenseEigenpairs solveDenseCuSolver(const Eigen::MatrixXd& S, const Eigen::MatrixXd& M); // dense_eigensolver_cuda.cpp
+DenseEigenpairs solveDenseCuSolver(const Eigen::MatrixXd& S, const Eigen::MatrixXd& M); // dense_eigensolver_cuda.cpp
 #endif
 
-	DenseEigenpairs solveDenseEigen(const Eigen::MatrixXd& S, const Eigen::MatrixXd& M)
-	{
-		DenseEigenpairs result;
-		const Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> solver(S, M); // lower triangles, Cholesky of M
-		if (solver.info() != Eigen::Success) return result;
-		result.values = solver.eigenvalues();
-		result.vectors = solver.eigenvectors();
-		result.success = result.values.allFinite() && result.vectors.allFinite();
-		return result;
-	}
+DenseEigenpairs solveDenseEigen(const Eigen::MatrixXd& S, const Eigen::MatrixXd& M)
+{
+	DenseEigenpairs result;
+	const Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> solver(S, M); // lower triangles, Cholesky of M
+	if (solver.info() != Eigen::Success) return result;
+	result.values = solver.eigenvalues();
+	result.vectors = solver.eigenvectors();
+	result.success = result.values.allFinite() && result.vectors.allFinite();
+	return result;
 }
+} // namespace detail
 
 DenseEigenpairs solveDenseGeneralized(const Eigen::MatrixXd& S, const Eigen::MatrixXd& M, DenseEigenBackend backend)
 {

@@ -16,7 +16,10 @@ Result eigs(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, int numModes, co
 	return solver.solve(numModes);
 }
 
-Solver::Solver(Options options) : options_(std::move(options)) { options_.validate(); }
+Solver::Solver(Options options) : options_(std::move(options))
+{
+	options_.validate();
+}
 
 void Solver::setMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
 {
@@ -29,7 +32,7 @@ void Solver::setMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
 	hierarchy_ = Hierarchy{};
 	hierarchySeconds_ = 0.0;
 	log(Verbosity::Summary, "[hsim] mesh with ", V_.rows(), " vertices and ", F_.rows(), " faces, operators assembled in ",
-		timer.seconds(), " s");
+	    timer.seconds(), " s");
 }
 
 void Solver::setOptions(const Options& options)
