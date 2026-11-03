@@ -10,26 +10,30 @@ In this paper, we propose a new method to compute the lowest spectrum of Laplace
   - Executing SIM from the coarsest level
   - Using the result as an approximation for the next (finer) level
 
-Please note that this program requires **Eigen**, **LibIGL**, and an **GPU-based eigensolver** (e.g. **CUDA's cuSOLVER** function).
+Dependencies: **Eigen** and **libigl** (both downloaded automatically by CMake), **OpenMP**, and optionally **CUDA** (cuSOLVER) for the dense eigenproblems. Without CUDA, a CPU implementation based on Eigen is used.
 
 ## Installation and Compilation
 
-We use **CMake** for easy installation/deployment on your machine. Here are the steps to get our program run:
+We use **CMake** (version 3.20 or newer) and a C++17 compiler.
 
-1. **Clone** our repository **recursively** using `git clone https://github.com/a-nasikun/HSIM.git --recursive`.
-2. Ensure that you have **CUDA set-up** on your machine. You can download from [here](https://developer.nvidia.com/cuda-zone "CUDA Developer Zone") if you haven't done so.
-<!---3. **Update dependency** submodule(s). Among many external libraries in LibIGL, we'll be using eigen, glfw, glad, and imgui only. During our test, the commit version of eigen in libIGL is an old one and doesn't support `Eigen::SparseMatrix.` We can solve this by simply updating the eigen, using `git submodule update --remote external\eigen`. --->
-3. Run the Cmake command (either the command line or the `CMakeGUI`)
-   ```C++
-   cd Example
-   mkdir Build
-   cd Build
-   cmake -DCMAKE_BUILD_TYPE=Release
-   make -j8
+1. **Clone** the repository: `git clone https://github.com/a-nasikun/HSIM.git`
+2. **Configure and build** from the repository root:
+   ```bash
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+   cmake --build build -j8
    ```
-   If some headers/libraries are missing (perhaps because you located the wrong folder), you could specify it directly in your application. For example, in Visual Studio you could go to `Project` > `Properties` > `C/C++` > `General` > `Additional Include Directories`.
+   CMake options:
 
-Having followed those steps, our program **should compile and run** well. This program is still under continuous development, so please expect some errors/bugs/mistakes within it. If you have any problem compiling it or having some nice suggestion(s) or question(s), please drop me an **email** at `ahmad.nasikun[at]ugm.ac.id`.
+   | option | default | meaning |
+   |--------|---------|---------|
+   | `HSIM_WITH_CUDA` | `OFF` | solve the dense eigenproblems with cuSOLVER (needs the CUDA toolkit) |
+   | `HSIM_BUILD_EXAMPLES` | `ON` | build the GUI example `HSIM_GUI` (needs OpenGL; on Linux the X11 development packages) |
+   | `HSIM_BUILD_TESTS` | `ON` | build the test-suite (`ctest --test-dir build`) |
+   | `HSIM_VERBOSE` | `OFF` | print the intermediate steps of the solver |
+
+3. **Run** the example: `./build/Example/1_HSIM_GUI/HSIM_GUI [mesh.obj]`
+
+This program is still under continuous development, so please expect some errors/bugs/mistakes within it. If you have any problem compiling it or having some nice suggestion(s) or question(s), please drop me an **email** at `ahmad.nasikun[at]ugm.ac.id`.
 
 ## ACM Transactions on Graphics 2022 (ACM SIGGRAPH 2022)
 

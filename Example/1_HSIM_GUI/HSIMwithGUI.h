@@ -3,15 +3,12 @@
 
 #include <iostream>
 
-#include <imgui/imgui.h>
-#include <imgui/imgui.cpp>
-#include <imgui/imgui_demo.cpp>
-#include <imgui/imgui_draw.cpp>
-#include <imgui_impl_glfw_gl3.h>
+#include <imgui.h>
 
 #include <igl/igl_inline.h>
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/opengl/glfw/ViewerPlugin.h>
+#include <igl/opengl/glfw/imgui/ImGuiPlugin.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/isolines.h>
@@ -71,7 +68,7 @@ void HSIMMenu(igl::opengl::glfw::Viewer &viewer, igl::opengl::glfw::imgui::ImGui
 	ImGui::SetNextWindowSize(ImVec2(menuWindowWidth, menuWindowHeight));
 	ImGui::Begin("Reduced Space", nullptr, ImGuiWindowFlags_NoSavedSettings);
 
-	float w = ImGui::GetContentRegionAvailWidth();
+	float w = ImGui::GetContentRegionAvail().x;
 	float p = ImGui::GetStyle().FramePadding.x;
 
 

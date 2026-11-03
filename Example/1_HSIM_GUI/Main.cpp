@@ -11,12 +11,12 @@ int main(int argc, char *argv[])
 
 	/* GUI FUNCTIONALITY */	
 	igl::opengl::glfw::Viewer			viewer;			// Set up main viewer
-	igl::opengl::glfw::imgui::ImGuiMenu menu;			// Attach a menu plugin
-	viewer.plugins.push_back(&menu);	
-	ImGui::CreateContext();
-	ImGui::StyleColorsDark();							// Set style
+	igl::opengl::glfw::imgui::ImGuiPlugin plugin;		// ImGui plugin of the viewer
+	viewer.plugins.push_back(&plugin);
+	igl::opengl::glfw::imgui::ImGuiMenu menu;			// Attach a menu widget
+	plugin.widgets.push_back(&menu);
 	
-	meshFile = "../../../Models/AIM366_Kitten/366_Kitten_Flip.obj";
+	meshFile = (argc > 1) ? argv[1] : HSIM_MODELS_DIR "/AIM366_Kitten/366_Kitten_Flip.obj";
 		
 	eigenSolver->readMesh(meshFile);
 

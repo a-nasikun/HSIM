@@ -1,4 +1,8 @@
 /bin
 /build
 /build-*
+/out
 /Example/*/build
+/.vscode
+/.idea
+CMakeUserPresets.json
