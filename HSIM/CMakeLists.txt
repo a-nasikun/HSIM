@@ -1,4 +1,6 @@
 # HSIM core library
+configure_file(version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/hsim/version.h @ONLY)
+
 add_library(HSIM
 	include/hsim/common.h
 	include/hsim/dense_eigensolver.h
@@ -25,7 +27,7 @@ add_library(HSIM
 add_library(HSIM::HSIM ALIAS HSIM)
 
 target_include_directories(HSIM
-	PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include
+	PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/include
 	PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_compile_features(HSIM PUBLIC cxx_std_17)

@@ -6,7 +6,9 @@
 |------|---------|
 | `HSIM/include/hsim/` | public headers of the library (one module per header, `hsim.h` includes all) |
 | `HSIM/src/` | implementation and private helpers (`logger.h`, `timer.h`) |
-| `Example/` | applications built on the library (GUI) |
+| `Example/` | applications built on the library (`1_HSIM_GUI`, `2_HSIM_CLI`) |
+| `benchmarks/` | stage-timing program |
+| `docs/` | description of the method and notation (`method.md`), Doxygen configuration |
 | `tests/` | doctest test-suite, regression baselines in `tests/data/` |
 | `cmake/` | dependency recipes and compiler-warning settings |
 

@@ -1,0 +1,15 @@
+# Doxygen configuration of the HSIM API documentation. Build with the CMake target `hsim_docs`
+# (option HSIM_BUILD_DOCS) or from the repository root: doxygen docs/Doxyfile
+PROJECT_NAME           = HSIM
+PROJECT_BRIEF          = "Hierarchical Subspace Iteration Method for Laplace-Beltrami eigenproblems"
+OUTPUT_DIRECTORY       = build/docs
+INPUT                  = README.md CHANGELOG.md CONTRIBUTING.md HSIM/include/hsim
+FILE_PATTERNS          = *.h *.md
+USE_MDFILE_AS_MAINPAGE = README.md
+EXTRACT_ALL            = NO
+WARN_IF_UNDOCUMENTED   = NO
+GENERATE_LATEX         = NO
+USE_MATHJAX            = YES
+MARKDOWN_SUPPORT       = YES
+QUIET                  = YES
+HAVE_DOT               = NO

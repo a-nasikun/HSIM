@@ -16,6 +16,8 @@ for the refactoring: every later version must reproduce these eigenvalues.
   (then uninitialised) member `isClampedBasis` is `false`.
 * Meshes are used as stored in `Models/` (no rescaling); `icoN` is a unit icosphere with `N`
   subdivision rounds (generator in `tests/test_support.h`).
+* The mesh paths in the file headers were later updated when `Models/AIM894_Chinese Dragon/` was renamed to
+  `Models/AIM894_Chinese_Dragon/` (file contents unchanged); the numbers are untouched.
 
 Command line of the driver: `generate_baseline <name> <mesh|icoN> <nModes> <tol> <maxIter> <shift> <out.txt>`.
 

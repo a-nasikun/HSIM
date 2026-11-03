@@ -22,8 +22,11 @@ struct Options;
 
 /// Prolongation operator U_k of level k: an (n x m_0) matrix for k = 0 and an (m_{k-1} x m_k) matrix otherwise.
 /// The rows are not yet normalised (see makePartitionOfUnity()).
+/// @param V          vertex positions
+/// @param adjacency  vertex adjacency of the mesh
 /// @param samples    nested sample vertices (Samples::vertices)
 /// @param levelSizes m_0, ..., m_{L-1}
+/// @param k          level index
 /// @param radius     support radius r_k
 /// @param numThreads OpenMP threads (0: default)
 [[nodiscard]] SparseMatrix radialBasisLevel(const Eigen::MatrixXd& V, const Adjacency& adjacency, const Eigen::VectorXi& samples,

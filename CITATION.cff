@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "HSIM: The Hierarchical Subspace Iteration Method for Laplace-Beltrami Eigenproblems"
+version: 2.0.0
+license: MIT
+repository-code: "https://github.com/a-nasikun/HSIM"
+authors:
+  - family-names: Nasikun
+    given-names: Ahmad
+  - family-names: Hildebrandt
+    given-names: Klaus
+preferred-citation:
+  type: article
+  title: "The Hierarchical Subspace Iteration Method for Laplace-Beltrami Eigenproblems"
+  authors:
+    - family-names: Nasikun
+      given-names: Ahmad
+    - family-names: Hildebrandt
+      given-names: Klaus
+  journal: "ACM Transactions on Graphics"
+  volume: 41
+  issue: 2
+  start: 1
+  end: 14
+  year: 2022
+  publisher:
+    name: "ACM"
+  doi: "10.1145/3495208"
