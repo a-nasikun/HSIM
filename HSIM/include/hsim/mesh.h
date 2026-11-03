@@ -41,6 +41,13 @@ public:
 	Adjacency(const Eigen::MatrixXi& F, Eigen::Index numVertices);
 
 	Eigen::Index numVertices() const { return static_cast<Eigen::Index>(offsets_.empty() ? 0 : offsets_.size() - 1); }
+	/// Position of the first neighbour of `vertex` in the flat neighbour array (see edgeLengths()).
+	size_t offset(Eigen::Index vertex) const { return static_cast<size_t>(offsets_[static_cast<size_t>(vertex)]); }
+
+	/// Euclidean length of every adjacency entry, in the order of the flat neighbour array: the length of the edge to the
+	/// j-th neighbour of v is edgeLengths(V)[offset(v) + j].
+	std::vector<double> edgeLengths(const Eigen::MatrixXd& V) const;
+
 	Range neighbors(Eigen::Index vertex) const
 	{
 		return {neighbors_.data() + offsets_[static_cast<size_t>(vertex)],

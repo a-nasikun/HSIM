@@ -3,6 +3,7 @@
 #include "hsim/mesh.h"
 #include "hsim/options.h"
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -32,28 +33,34 @@ struct QueueEntry {
 };
 using MinQueue = std::priority_queue<QueueEntry, std::vector<QueueEntry>, std::greater<QueueEntry>>;
 
-/* Dijkstra from `source` that stops once the front has passed `radius`; on return D holds the exact graph
- * distance for every vertex with D <= radius. */
-void truncatedDijkstra(const Eigen::MatrixXd& V, const Adjacency& adjacency, int source, double radius, Eigen::VectorXd& D)
+/* Dijkstra from `source` that stops once the front has passed `radius`; on return D holds the exact graph distance
+ * for every vertex with D <= radius. Every vertex whose entry of D was changed is appended to `touched` (possibly more
+ * than once), so that the caller can visit and reset exactly the explored region. */
+void truncatedDijkstra(const Adjacency& adjacency, const std::vector<double>& lengths, int source, double radius,
+                       Eigen::VectorXd& D, std::vector<int>& touched)
 {
 	MinQueue queue;
 	D(source) = 0.0;
+	touched.push_back(source);
 	queue.push({source, 0.0});
 
-	double front = 0.0;
-	do {
-		if (queue.empty()) break;
+	while (!queue.empty()) {
 		const QueueEntry top = queue.top();
-		front = top.distance;
 		queue.pop();
-		for (const int neighbor : adjacency.neighbors(top.vertex)) {
-			const double candidate = top.distance + (V.row(neighbor) - V.row(top.vertex)).norm();
+		if (top.distance > D(top.vertex)) continue; // stale entry
+		if (top.distance > radius) break; // every remaining vertex is farther than the support radius
+		const Adjacency::Range neighbors = adjacency.neighbors(top.vertex);
+		const double* length = lengths.data() + adjacency.offset(top.vertex);
+		for (Eigen::Index j = 0; j < neighbors.size(); ++j) {
+			const int neighbor = neighbors.first[j];
+			const double candidate = top.distance + length[j];
 			if (candidate < D(neighbor)) {
 				D(neighbor) = candidate;
+				touched.push_back(neighbor);
 				queue.push({neighbor, candidate});
 			}
 		}
-	} while (front <= radius);
+	}
 }
 } // namespace
 
@@ -64,6 +71,11 @@ SparseMatrix radialBasisLevel(const Eigen::MatrixXd& V, const Adjacency& adjacen
 
 	const int numCenters = levelSizes[static_cast<size_t>(k)];
 	const Eigen::Index numRows = (k == 0) ? V.rows() : levelSizes[static_cast<size_t>(k) - 1];
+
+	// Row index of every vertex: the vertex itself on level 0, its index among the samples of level k-1 otherwise.
+	std::vector<int> rowOf(static_cast<size_t>(V.rows()), -1);
+	for (Eigen::Index row = 0; row < numRows; ++row)
+		rowOf[static_cast<size_t>((k == 0) ? static_cast<int>(row) : samples(row))] = static_cast<int>(row);
 
 	// Cubic polynomial phi(d) = a d^3 + b d^2 + 1 with phi(0) = 1, phi(r) = 0, phi'(0) = phi'(r) = 0.
 	const double a = 2.0 / std::pow(radius, 3);
@@ -76,6 +88,7 @@ SparseMatrix radialBasisLevel(const Eigen::MatrixXd& V, const Adjacency& adjacen
 	const int threads = 1;
 #endif
 	std::vector<std::vector<Eigen::Triplet<double>>> triplets(static_cast<size_t>(threads));
+	const std::vector<double> lengths = adjacency.edgeLengths(V);
 
 #ifdef _OPENMP
 #	pragma omp parallel num_threads(threads)
@@ -88,18 +101,22 @@ SparseMatrix radialBasisLevel(const Eigen::MatrixXd& V, const Adjacency& adjacen
 #endif
 		auto& local = triplets[static_cast<size_t>(tid)];
 		Eigen::VectorXd D = Eigen::VectorXd::Constant(V.rows(), std::numeric_limits<double>::infinity());
+		std::vector<int> touched;
 
 #ifdef _OPENMP
 #	pragma omp for schedule(dynamic, 16)
 #endif
 		for (int col = 0; col < numCenters; ++col) {
-			truncatedDijkstra(V, adjacency, samples(col), radius, D);
-			for (Eigen::Index row = 0; row < numRows; ++row) {
-				const int vertex = (k == 0) ? static_cast<int>(row) : samples(row);
+			touched.clear();
+			truncatedDijkstra(adjacency, lengths, samples(col), radius, D, touched);
+			std::sort(touched.begin(), touched.end());
+			touched.erase(std::unique(touched.begin(), touched.end()), touched.end());
+			for (const int vertex : touched) {
 				const double d = D(vertex);
-				if (d <= radius) local.emplace_back(row, col, a * d * d * d + b * d * d + 1.0);
+				const int row = rowOf[static_cast<size_t>(vertex)];
+				if (row >= 0 && d <= radius) local.emplace_back(row, col, a * d * d * d + b * d * d + 1.0);
+				D(vertex) = std::numeric_limits<double>::infinity();
 			}
-			D.setConstant(std::numeric_limits<double>::infinity());
 		}
 	}
 

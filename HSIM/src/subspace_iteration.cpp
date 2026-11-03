@@ -9,22 +9,43 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
+#ifdef _OPENMP
+#	include <omp.h>
+#endif
 
 namespace hsim {
+
+namespace {
+
+/* Y = A X for sparse A and a dense block X, computed column by column (in parallel). Eigen's built-in product for a
+ * column-major sparse matrix updates whole rows of Y, which is cache-unfriendly for blocks with many columns. */
+Eigen::MatrixXd multiply(const SparseMatrix& A, const Eigen::MatrixXd& X, int numThreads = 0)
+{
+	Eigen::MatrixXd Y(A.rows(), X.cols());
+#ifdef _OPENMP
+	const int threads = (numThreads > 0) ? numThreads : omp_get_max_threads();
+#	pragma omp parallel for schedule(static) num_threads(threads)
+#else
+	(void)numThreads;
+#endif
+	for (Eigen::Index j = 0; j < X.cols(); ++j)
+		Y.col(j).noalias() = A * X.col(j);
+	return Y;
+}
+
+} // namespace
 
 Eigen::VectorXd relativeResiduals(const Eigen::MatrixXd& X, const Eigen::VectorXd& lambda, const SparseMatrix& S,
                                   const SparseMatrix& M)
 {
-	Eigen::VectorXd r(lambda.rows());
-	for (Eigen::Index i = 0; i < lambda.rows(); ++i) {
-		const Eigen::VectorXd Sx = S * X.col(i);
-		const Eigen::VectorXd lambdaMx = lambda(i) * M * X.col(i);
-		const Eigen::VectorXd diff = Sx - lambdaMx;
-		const double numerator = diff.transpose() * M * diff;
-		const double denominator = Sx.transpose() * M * Sx;
-		r(i) = std::sqrt(numerator / denominator);
-	}
-	return r;
+	const Eigen::Index n = lambda.rows();
+	const Eigen::MatrixXd SX = multiply(S, X.leftCols(n));
+	const Eigen::MatrixXd R = SX - multiply(M, X.leftCols(n)) * lambda.asDiagonal();
+	const Eigen::RowVectorXd numerator = R.cwiseProduct(multiply(M, R)).colwise().sum();
+	const Eigen::RowVectorXd denominator = SX.cwiseProduct(multiply(M, SX)).colwise().sum();
+	return numerator.cwiseQuotient(denominator).cwiseSqrt().transpose();
 }
 
 namespace {
@@ -77,6 +98,7 @@ LevelDiagnostics iterateLevel(const SparseMatrix& S, const SparseMatrix& M, bool
 	do {
 		/* Factorise the (shifted) operator: once with the shift, again with a tiny regularisation whenever the
 		 * Rayleigh--Ritz step failed. */
+		detail::Timer stage;
 		if (!ritzSuccess) {
 			if (factorizations == 0) {
 				if (tol < 1e-9 && finest) {
@@ -99,19 +121,31 @@ LevelDiagnostics iterateLevel(const SparseMatrix& S, const SparseMatrix& M, bool
 				throw std::runtime_error("hierarchicalSubspaceIteration: sparse LDLT factorization failed on level "
 				                         + std::to_string(level));
 			++factorizations;
-			log(Verbosity::Detailed, "[hsim]   level ", level, ": factorization ", factorizations, " with shift ", mu);
+			log(Verbosity::Detailed, "[hsim]   level ", level, ": factorization ", factorizations, " with shift ", mu, " in ",
+			    stage.seconds(), " s");
 		}
 
 		/* Inverse iteration step  Xbar = (S - mu M)^{-1} M X */
-		for (int j = 0; j < q; ++j) {
-			const Eigen::VectorXd rhs = M * X.col(j);
-			Xbar.col(j) = factorization.solve(rhs);
-		}
+		stage = detail::Timer();
+		// The q solves are independent and share the (read-only) factorization.
+		const Eigen::MatrixXd rhs = multiply(M, X, options.numThreads);
+#ifdef _OPENMP
+		const int threads = (options.numThreads > 0) ? options.numThreads : omp_get_max_threads();
+#	pragma omp parallel for schedule(static) num_threads(threads)
+#endif
+		for (int j = 0; j < q; ++j)
+			Xbar.col(j) = factorization.solve(rhs.col(j));
+
+		const double solveSeconds = stage.seconds();
 
 		/* Rayleigh--Ritz projection */
-		Sproj = Xbar.transpose() * S * Xbar;
-		Mproj = Xbar.transpose() * M * Xbar;
+		stage = detail::Timer();
+		Sproj.noalias() = Xbar.transpose() * multiply(S, Xbar, options.numThreads);
+		Mproj.noalias() = Xbar.transpose() * multiply(M, Xbar, options.numThreads);
+		const double projectionSeconds = stage.seconds();
+		stage = detail::Timer();
 		const DenseEigenpairs ritz = solveDenseGeneralized(Sproj, Mproj, options.denseBackend);
+		const double ritzSeconds = stage.seconds();
 		ritzSuccess = ritz.success;
 		++iterations;
 
@@ -125,7 +159,10 @@ LevelDiagnostics iterateLevel(const SparseMatrix& S, const SparseMatrix& M, bool
 		X = Xbar * ritz.vectors;
 
 		/* Convergence check */
+		stage = detail::Timer();
 		const Eigen::VectorXd residual = relativeResiduals(X, lambda, S, M);
+		log(Verbosity::Detailed, "[hsim]   level ", level, ", iteration ", iterations, ": solves ", solveSeconds,
+		    " s, projection ", projectionSeconds, " s, Rayleigh-Ritz ", ritzSeconds, " s, residuals ", stage.seconds(), " s");
 		if (finest && history) {
 			history->eigenvalues.col(iterations - 1) = lambda.head(numModes);
 			history->residuals.col(iterations - 1) = residual.head(numModes);
@@ -171,14 +208,14 @@ Result hierarchicalSubspaceIteration(const Operators& operators, const Hierarchy
 	const detail::Timer timer;
 	const int numLevels = hierarchy.numLevels();
 
-	// Galerkin restrictions S^(0) = S, S^(k) = U_{k-1}^T S^(k-1) U_{k-1}, and likewise for M.
-	std::vector<SparseMatrix> S(static_cast<size_t>(numLevels)), M(static_cast<size_t>(numLevels));
-	S[0] = operators.stiffness;
-	M[0] = operators.mass;
-	for (size_t k = 1; k < static_cast<size_t>(numLevels); ++k) {
-		S[k] = hierarchy.prolongation[k - 1].transpose() * S[k - 1] * hierarchy.prolongation[k - 1];
-		M[k] = hierarchy.prolongation[k - 1].transpose() * M[k - 1] * hierarchy.prolongation[k - 1];
-	}
+	// Operators of the space iterated on level k: S itself on level 0, the Galerkin restriction to the samples of
+	// level k-1 otherwise (cached in the hierarchy).
+	auto stiffnessOn = [&](int k) -> const SparseMatrix& {
+		return (k == 0) ? operators.stiffness : hierarchy.levelStiffness[static_cast<size_t>(k) - 1];
+	};
+	auto massOn = [&](int k) -> const SparseMatrix& {
+		return (k == 0) ? operators.mass : hierarchy.levelMass[static_cast<size_t>(k) - 1];
+	};
 
 	Result result;
 	Diagnostics& diag = result.diagnostics;
@@ -195,8 +232,8 @@ Result hierarchicalSubspaceIteration(const Operators& operators, const Hierarchy
 	Eigen::VectorXd lambda = hierarchy.coarse.values.head(q);
 	for (int k = numLevels - 1; k >= 0; --k) {
 		X = hierarchy.prolongation[static_cast<size_t>(k)] * X;
-		diag.levels[static_cast<size_t>(k)] = iterateLevel(S[static_cast<size_t>(k)], M[static_cast<size_t>(k)], k == 0, numModes,
-		                                                   options, log, k, X, lambda, &history);
+		diag.levels[static_cast<size_t>(k)]
+		    = iterateLevel(stiffnessOn(k), massOn(k), k == 0, numModes, options, log, k, X, lambda, &history);
 		const LevelDiagnostics& d = diag.levels[static_cast<size_t>(k)];
 		log(Verbosity::Summary, "[hsim] level ", k, " (", d.dimension, " DOFs): ", d.iterations, " iteration(s) in ", d.seconds,
 		    " s");

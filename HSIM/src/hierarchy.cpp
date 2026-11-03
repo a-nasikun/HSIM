@@ -38,6 +38,18 @@ void computeProlongation(Hierarchy& hierarchy, const Eigen::MatrixXd& V, const A
 	hierarchy.basis = composeProlongation(hierarchy.prolongation, V.rows());
 	hierarchy.coarse = DenseEigenpairs{};
 
+	// Galerkin restrictions, level by level (cheaper than P^T S P and reused by the subspace iteration).
+	const size_t numLevels = hierarchy.prolongation.size();
+	hierarchy.levelStiffness.resize(numLevels);
+	hierarchy.levelMass.resize(numLevels);
+	for (size_t k = 0; k < numLevels; ++k) {
+		const SparseMatrix& U = hierarchy.prolongation[k];
+		const SparseMatrix& Sfine = (k == 0) ? operators.stiffness : hierarchy.levelStiffness[k - 1];
+		const SparseMatrix& Mfine = (k == 0) ? operators.mass : hierarchy.levelMass[k - 1];
+		hierarchy.levelStiffness[k] = U.transpose() * Sfine * U;
+		hierarchy.levelMass[k] = U.transpose() * Mfine * U;
+	}
+
 	log(Verbosity::Summary, "[hsim] prolongation: ", hierarchy.basis.nonZeros(), " non-zeros (",
 	    static_cast<double>(hierarchy.basis.nonZeros()) / static_cast<double>(hierarchy.basis.rows()), " per vertex) in ",
 	    timer.seconds(), " s");
@@ -49,18 +61,16 @@ void computeProlongation(Hierarchy& hierarchy, const Eigen::MatrixXd& V, const A
 	}
 }
 
-void solveCoarseProblem(Hierarchy& hierarchy, const Operators& operators, const Options& options)
+void solveCoarseProblem(Hierarchy& hierarchy, const Options& options)
 {
 	if (!hierarchy.hasProlongation()) throw std::invalid_argument("solveCoarseProblem: the prolongation has not been computed");
 	options.validate();
 	const detail::Logger log(options);
 	const detail::Timer timer;
 
-	const SparseMatrix& P = hierarchy.basis;
-	const SparseMatrix Sc = P.transpose() * operators.stiffness * P;
-	const SparseMatrix Mc = P.transpose() * operators.mass * P;
-	const Eigen::MatrixXd S(Sc);
-	const Eigen::MatrixXd M(Mc);
+	// (P^T S P, P^T M P), computed level by level
+	const Eigen::MatrixXd S(hierarchy.levelStiffness.back());
+	const Eigen::MatrixXd M(hierarchy.levelMass.back());
 
 	// If the dense solver fails, retry with S + eps I for eps = 1e-15, 1e-14, ... (at most 9 retries).
 	hierarchy.coarse = solveDenseGeneralized(S, M, options.denseBackend);
@@ -97,7 +107,7 @@ Hierarchy buildHierarchy(const Eigen::MatrixXd& V, const Adjacency& adjacency, c
 	Hierarchy hierarchy;
 	computeSamples(hierarchy, V, adjacency, numModes, options);
 	computeProlongation(hierarchy, V, adjacency, operators, options);
-	solveCoarseProblem(hierarchy, operators, options);
+	solveCoarseProblem(hierarchy, options);
 	return hierarchy;
 }
 

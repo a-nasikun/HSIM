@@ -20,11 +20,16 @@ struct Hierarchy {
 	std::vector<double> supportRadii; ///< r_0, ..., r_{L-1}
 	std::vector<SparseMatrix> prolongation; ///< U_0, ..., U_{L-1}
 	SparseMatrix basis; ///< P = U_0 ... U_{L-1}
+	std::vector<SparseMatrix> levelStiffness; ///< S_k = U_k^T S_{k-1} U_k (S_{-1} = S): stiffness on the samples of level k
+	std::vector<SparseMatrix> levelMass; ///< M_k = U_k^T M_{k-1} U_k (M_{-1} = M): mass on the samples of level k
 	DenseEigenpairs coarse; ///< all eigenpairs of (P^T S P, P^T M P)
 
 	int numLevels() const { return static_cast<int>(levelSizes.size()); }
 	bool hasSamples() const { return samples.vertices.size() > 0; }
-	bool hasProlongation() const { return !prolongation.empty() && basis.size() > 0; }
+	bool hasProlongation() const
+	{
+		return !prolongation.empty() && basis.size() > 0 && levelStiffness.size() == prolongation.size();
+	}
 	bool hasCoarseSolution() const { return coarse.success; }
 };
 
@@ -32,14 +37,14 @@ struct Hierarchy {
 void computeSamples(Hierarchy& hierarchy, const Eigen::MatrixXd& V, const Adjacency& adjacency, int numModes,
                     const Options& options);
 
-/// Step 2: prolongation operators (requires step 1).
+/// Step 2: prolongation operators and the Galerkin restrictions of S and M to every level (requires step 1).
 void computeProlongation(Hierarchy& hierarchy, const Eigen::MatrixXd& V, const Adjacency& adjacency, const Operators& operators,
                          const Options& options);
 
 /// Step 3: eigenpairs of the problem restricted to the coarsest level (requires step 2). If the dense solver fails,
 /// it is retried with an increasingly regularised stiffness matrix.
 /// @throws std::runtime_error if all attempts fail.
-void solveCoarseProblem(Hierarchy& hierarchy, const Operators& operators, const Options& options);
+void solveCoarseProblem(Hierarchy& hierarchy, const Options& options);
 
 /// Vertex values of basis function `index` of level `level`, i.e. U_0 ... U_{level-1} U_level e_index.
 /// @throws std::out_of_range for invalid indices, std::invalid_argument if the prolongation is missing.

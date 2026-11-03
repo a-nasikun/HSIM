@@ -17,6 +17,7 @@ endif()
 option(HSIM_WITH_CUDA      "Solve the dense (Rayleigh-Ritz) eigenproblems on the GPU with cuSOLVER" OFF)
 option(HSIM_BUILD_EXAMPLES "Build the example applications (requires OpenGL/GLFW)"                  ${HSIM_TOPLEVEL_PROJECT})
 option(HSIM_BUILD_TESTS    "Build the test-suite"                                                   ${HSIM_TOPLEVEL_PROJECT})
+option(HSIM_BUILD_BENCHMARKS "Build the benchmark program"                                           OFF)
 option(HSIM_WARNINGS_AS_ERRORS "Treat compiler warnings in HSIM code as errors"                       OFF)
 
 if(HSIM_TOPLEVEL_PROJECT AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -36,6 +37,10 @@ add_subdirectory(HSIM)
 
 if(HSIM_BUILD_EXAMPLES)
 	add_subdirectory(Example/1_HSIM_GUI)
+endif()
+
+if(HSIM_BUILD_BENCHMARKS)
+	add_subdirectory(benchmarks)
 endif()
 
 if(HSIM_BUILD_TESTS)

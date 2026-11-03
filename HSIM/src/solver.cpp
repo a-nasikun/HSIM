@@ -66,7 +66,7 @@ void Solver::solveCoarseProblem()
 {
 	requireMesh("solveCoarseProblem");
 	const detail::Timer timer;
-	hsim::solveCoarseProblem(hierarchy_, operators_, options_);
+	hsim::solveCoarseProblem(hierarchy_, options_);
 	hierarchySeconds_ += timer.seconds();
 }
 

@@ -63,6 +63,15 @@ Adjacency::Adjacency(const Eigen::MatrixXi& F, Eigen::Index numVertices)
 		offsets_[v + 1] += offsets_[v];
 }
 
+std::vector<double> Adjacency::edgeLengths(const Eigen::MatrixXd& V) const
+{
+	std::vector<double> lengths(neighbors_.size());
+	for (Eigen::Index v = 0; v < numVertices(); ++v)
+		for (size_t e = offset(v); e < offset(v + 1); ++e)
+			lengths[e] = (V.row(neighbors_[e]) - V.row(v)).norm();
+	return lengths;
+}
+
 Operators assembleOperators(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F)
 {
 	validateMesh(V, F);
