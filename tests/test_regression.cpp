@@ -3,72 +3,73 @@
 
 #include "test_support.h"
 
-#include "LBEigenSolver.h"
-
-#include <igl/readOBJ.h>
-
-#include <memory>
+#include <hsim/hsim.h>
 
 namespace {
-
-struct RunResult {
-	Eigen::VectorXd eigenvalues;
-	Eigen::MatrixXd eigenvectors;
-	Eigen::SparseMatrix<double> S, M;
-	std::vector<int> levels;
-};
 
 void loadMesh(const std::string& mesh, Eigen::MatrixXd& V, Eigen::MatrixXi& F)
 {
 	if (mesh.rfind("ico", 0) == 0) hsim_test::icosphere(std::stoi(mesh.substr(3)), V, F);
-	else REQUIRE(igl::readOBJ(hsim_test::repoPath(mesh), V, F));
+	else hsim::readMesh(hsim_test::repoPath(mesh), V, F);
 }
 
-RunResult run(const hsim_test::Baseline& b)
+hsim::Options optionsFor(const hsim_test::Baseline& b)
+{
+	hsim::Options options;
+	options.tolerance = b.tol;
+	options.maxIterations = b.maxIter;
+	options.shiftParameter = b.shift;
+	return options;
+}
+
+struct Run {
+	hsim::Result result;
+	hsim::Operators operators;
+};
+
+Run run(const hsim_test::Baseline& b)
 {
 	Eigen::MatrixXd V;
 	Eigen::MatrixXi F;
 	loadMesh(b.mesh, V, F);
 	REQUIRE(V.rows() == b.numVertices);
 
-	auto solver = std::make_unique<HSIM::LBEigenSolver>();
-	RunResult r;
-	std::tie(r.eigenvalues, r.eigenvectors) = solver->eigs(V, F, b.numModes, b.tol, b.maxIter, b.shift);
-	r.S = solver->getStiffnessMatrix();
-	r.M = solver->getMassMatrix();
-	r.levels = solver->getSubspaceSize();
+	hsim::Solver solver(optionsFor(b));
+	solver.setMesh(V, F);
+	Run r;
+	r.result = solver.solve(b.numModes);
+	r.operators = solver.operators();
 	return r;
 }
 
 void checkAgainstBaseline(const std::string& name, double relTol)
 {
 	const hsim_test::Baseline b = hsim_test::readBaseline(name);
-	const RunResult r = run(b);
+	const Run r = run(b);
+	const hsim::Result& res = r.result;
 	const int n = b.numModes;
 
-	CHECK(r.levels == b.levels);
-	REQUIRE(r.eigenvalues.size() >= n);
-	REQUIRE(r.eigenvectors.cols() >= n);
+	CHECK(res.diagnostics.levelSizes == b.levels);
+	REQUIRE(res.eigenvalues.size() == n);
+	REQUIRE(res.eigenvectors.cols() == n);
+	REQUIRE(res.eigenvectors.rows() == b.numVertices);
 
 	// The first eigenvalue of a closed surface is zero (constant eigenfunction).
-	CHECK(std::abs(r.eigenvalues(0)) < 1e-10);
+	CHECK(std::abs(res.eigenvalues(0)) < 1e-10);
 	for (int i = 1; i < n; ++i) {
 		INFO("eigenvalue index " << i);
-		CHECK(r.eigenvalues(i) == doctest::Approx(b.eigenvalues[i]).epsilon(relTol));
+		CHECK(res.eigenvalues(i) == doctest::Approx(b.eigenvalues[static_cast<size_t>(i)]).epsilon(relTol));
 	}
 
-	// Residual ||S x - lambda M x||_M / ||S x||_M of every non-constant mode is below the requested tolerance.
+	// Every non-constant mode satisfies the requested tolerance.
+	const Eigen::VectorXd residual = hsim::relativeResiduals(res.eigenvectors, res.eigenvalues, r.operators.stiffness, r.operators.mass);
 	for (int i = 1; i < n; ++i) {
-		const Eigen::VectorXd x = r.eigenvectors.col(i);
-		const Eigen::VectorXd Sx = r.S * x;
-		const Eigen::VectorXd res = Sx - r.eigenvalues(i) * (r.M * x);
 		INFO("residual index " << i);
-		CHECK(std::sqrt(res.dot(r.M * res) / Sx.dot(r.M * Sx)) < b.tol);
+		CHECK(residual(i) < b.tol);
 	}
 
 	// Eigenvectors are M-orthonormal.
-	const Eigen::MatrixXd X = r.eigenvectors.leftCols(n);
-	const Eigen::MatrixXd G = X.transpose() * (r.M * X);
+	const Eigen::MatrixXd G = res.eigenvectors.transpose() * (r.operators.mass * res.eigenvectors);
 	CHECK((G - Eigen::MatrixXd::Identity(n, n)).cwiseAbs().maxCoeff() < 1e-8);
 }
 
@@ -97,13 +98,13 @@ TEST_CASE("regression: icosphere (2562 vertices), 25 modes")
 TEST_CASE("physics: icosphere spectrum approximates l(l+1)")
 {
 	const hsim_test::Baseline b = hsim_test::readBaseline("sphere_n25");
-	const RunResult r = run(b);
+	const Run r = run(b);
 	// l = 1, 2, 3, 4 occupy indices [1,4), [4,9), [9,16), [16,25)
 	int index = 1;
 	for (int l = 1; l <= 4; ++l) {
 		for (int m = 0; m < 2 * l + 1; ++m, ++index) {
 			INFO("l = " << l << ", index " << index);
-			CHECK(r.eigenvalues(index) == doctest::Approx(l * (l + 1.0)).epsilon(0.01));
+			CHECK(r.result.eigenvalues(index) == doctest::Approx(l * (l + 1.0)).epsilon(0.01));
 		}
 	}
 }

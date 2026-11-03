@@ -15,7 +15,6 @@ endif()
 # Options
 # #################################################################################################
 option(HSIM_WITH_CUDA      "Solve the dense (Rayleigh-Ritz) eigenproblems on the GPU with cuSOLVER" OFF)
-option(HSIM_VERBOSE        "Print the intermediate steps of the solver"                             OFF)
 option(HSIM_BUILD_EXAMPLES "Build the example applications (requires OpenGL/GLFW)"                  ${HSIM_TOPLEVEL_PROJECT})
 option(HSIM_BUILD_TESTS    "Build the test-suite"                                                   ${HSIM_TOPLEVEL_PROJECT})
 

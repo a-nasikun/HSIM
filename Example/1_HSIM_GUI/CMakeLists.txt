@@ -1,7 +1,8 @@
 # Interactive example: step-by-step hierarchy construction and visualization
 add_executable(HSIM_GUI
 	Main.cpp
-	HSIMwithGUI.h
+	HSIMMenu.cpp
+	HSIMMenu.h
 	Visualization.cpp
 	Visualization.h
 )

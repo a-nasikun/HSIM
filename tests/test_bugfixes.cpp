@@ -1,39 +1,25 @@
-// Tests for the defects fixed in the 2026 refactoring (see the commit history of Phase 2).
+// Tests for the defects fixed in the 2026 refactoring (Phase 2) and for input validation.
 #include <doctest/doctest.h>
 
 #include "test_support.h"
 
-#include "LBEigenSolver.h"
-
-#include <igl/readOBJ.h>
-
-TEST_CASE("a default-initialised solver gives the baseline result (members are initialised)")
-{
-	const hsim_test::Baseline b = hsim_test::readBaseline("dragon2000_n20");
-	Eigen::MatrixXd V;
-	Eigen::MatrixXi F;
-	REQUIRE(igl::readOBJ(hsim_test::repoPath(b.mesh), V, F));
-
-	HSIM::LBEigenSolver solver;	// default-initialised (on the stack), not value-initialised
-	CHECK_FALSE(solver.getClampBasis());
-	Eigen::VectorXd lambda;
-	Eigen::MatrixXd X;
-	std::tie(lambda, X) = solver.eigs(V, F, b.numModes, b.tol, b.maxIter, b.shift);
-	for (int i = 1; i < b.numModes; ++i)
-		CHECK(lambda(i) == doctest::Approx(b.eigenvalues[i]).epsilon(1e-7));
-}
+#include <hsim/hsim.h>
 
 TEST_CASE("the prolongation operator is a partition of unity")
 {
 	Eigen::MatrixXd V;
 	Eigen::MatrixXi F;
 	hsim_test::icosphere(4, V, F);
-	HSIM::LBEigenSolver solver;
-	solver.setup(V, F, 4);
-	solver.buildHierarchy(4);	// two levels
-	REQUIRE(solver.getLevel() == 2);
+	hsim::Solver solver;
+	solver.setMesh(V, F);
+	solver.buildHierarchy(4); // two levels
+	REQUIRE(solver.hierarchy().numLevels() == 2);
 
-	const Eigen::SparseMatrix<double> P = solver.getBasisMatrix();
+	for (const hsim::SparseMatrix& U : solver.hierarchy().prolongation) {
+		const Eigen::VectorXd rowSum = U * Eigen::VectorXd::Ones(U.cols());
+		CHECK((rowSum.array() - 1.0).abs().maxCoeff() < 1e-12);
+	}
+	const hsim::SparseMatrix& P = solver.hierarchy().basis;
 	const Eigen::VectorXd rowSum = P * Eigen::VectorXd::Ones(P.cols());
 	CHECK((rowSum.array() - 1.0).abs().maxCoeff() < 1e-12);
 }
@@ -44,13 +30,14 @@ TEST_CASE("few eigenpairs (numModes < 8) are computed correctly")
 	Eigen::MatrixXd V;
 	Eigen::MatrixXi F;
 	hsim_test::icosphere(4, V, F);
-	HSIM::LBEigenSolver solver;
-	Eigen::VectorXd lambda;
-	Eigen::MatrixXd X;
-	std::tie(lambda, X) = solver.eigs(V, F, 4, 1e-6, 30, 0.25);
-	REQUIRE(lambda.size() >= 4);
+	hsim::Options options;
+	options.tolerance = 1e-6;
+	options.maxIterations = 30;
+	options.shiftParameter = 0.25;
+	const hsim::Result result = hsim::eigs(V, F, 4, options);
+	REQUIRE(result.eigenvalues.size() == 4);
 	for (int i = 1; i < 4; ++i)
-		CHECK(lambda(i) == doctest::Approx(2.0).epsilon(1e-3));	// l = 1 on the unit sphere
+		CHECK(result.eigenvalues(i) == doctest::Approx(2.0).epsilon(1e-3)); // l = 1 on the unit sphere
 }
 
 TEST_CASE("invalid input is reported by exceptions")
@@ -60,41 +47,54 @@ TEST_CASE("invalid input is reported by exceptions")
 
 	SUBCASE("mesh too coarse for the number of modes")
 	{
-		hsim_test::icosphere(1, V, F);	// 42 vertices
-		HSIM::LBEigenSolver solver;
-		solver.setup(V, F, 20);
+		hsim_test::icosphere(1, V, F); // 42 vertices
+		hsim::Solver solver;
+		solver.setMesh(V, F);
 		CHECK_THROWS_AS(solver.buildHierarchy(20), std::invalid_argument);
 	}
 
-	hsim_test::icosphere(3, V, F);	// 642 vertices
-	HSIM::LBEigenSolver solver;
-	solver.setup(V, F, 5);
-	solver.buildHierarchy(5);
+	SUBCASE("invalid meshes")
+	{
+		hsim::Solver solver;
+		CHECK_THROWS_AS(solver.setMesh(Eigen::MatrixXd(), Eigen::MatrixXi()), std::invalid_argument);
+		hsim_test::icosphere(1, V, F);
+		Eigen::MatrixXi badF = F;
+		badF(0, 0) = static_cast<int>(V.rows());
+		CHECK_THROWS_AS(solver.setMesh(V, badF), std::invalid_argument);
+		CHECK_THROWS_AS(solver.setMesh(V.leftCols(2), F), std::invalid_argument);
+		CHECK_THROWS_AS(solver.solve(5), std::logic_error); // no mesh set
+	}
+
+	SUBCASE("invalid options")
+	{
+		hsim::Options options;
+		options.shiftParameter = 1.5;
+		CHECK_THROWS_AS(options.validate(), std::invalid_argument);
+		CHECK_THROWS_AS(hsim::Solver{ options }, std::invalid_argument);
+		options = hsim::Options{};
+		options.maxIterations = 0;
+		CHECK_THROWS_AS(options.validate(), std::invalid_argument);
+		options = hsim::Options{};
+		options.levelRatio = 1.0;
+		CHECK_THROWS_AS(options.validate(), std::invalid_argument);
+		if (!hsim::builtWithCuda()) {
+			options = hsim::Options{};
+			options.denseBackend = hsim::DenseEigenBackend::CuSolver;
+			CHECK_THROWS_AS(options.validate(), std::invalid_argument);
+		}
+	}
 
 	SUBCASE("more modes than the hierarchy was built for")
 	{
-		CHECK_THROWS_AS(solver.performSubspaceIterationMethod(HSIM::LBEigenSolver::SIMType::SIM_MultiLevel, 50, 5, 1e-2, true,
-			HSIM::LBEigenSolver::ShiftType::SHIFT_ZHAO), std::invalid_argument);
-	}
-
-	SUBCASE("shift parameter outside [0, 1)")
-	{
-		solver.zhaoShiftParam = 1.5;
-		CHECK_THROWS_AS(solver.performSubspaceIterationMethod(HSIM::LBEigenSolver::SIMType::SIM_MultiLevel, 5, 5, 1e-2, true,
-			HSIM::LBEigenSolver::ShiftType::SHIFT_ZHAO), std::invalid_argument);
-	}
-
-	SUBCASE("out-of-range eigenpair index")
-	{
-		solver.performSubspaceIterationMethod(HSIM::LBEigenSolver::SIMType::SIM_MultiLevel, 5, 5, 1e-2, true,
-			HSIM::LBEigenSolver::ShiftType::SHIFT_ZHAO);
-		CHECK_NOTHROW(solver.getEigenVectors(0));
-		CHECK_THROWS_AS(solver.getEigenVectors(-1), std::out_of_range);
-		CHECK_THROWS_AS(solver.getEigenVectors(10000), std::out_of_range);
-		CHECK_THROWS_AS(solver.getEigenValueSIM(10000), std::out_of_range);
-		CHECK_THROWS_AS(solver.getEigenValueReduced(-3), std::out_of_range);
-		// The returned vector is a copy (the former implementation returned a dangling reference).
-		const Eigen::VectorXd x = solver.getEigenVectors(1);
-		CHECK(x.isApprox(solver.getEigenVectors().col(1)));
+		hsim_test::icosphere(3, V, F); // 642 vertices
+		hsim::Solver solver;
+		solver.setMesh(V, F);
+		solver.buildHierarchy(5);
+		CHECK_THROWS_AS(hsim::hierarchicalSubspaceIteration(solver.operators(), solver.hierarchy(), 40, solver.options()),
+			std::invalid_argument);
+		// The Solver rebuilds the hierarchy instead.
+		const hsim::Result result = solver.solve(10);
+		CHECK(result.eigenvalues.size() == 10);
+		CHECK(solver.hierarchy().numModes == 10);
 	}
 }

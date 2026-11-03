@@ -29,7 +29,6 @@ We use **CMake** (version 3.20 or newer) and a C++17 compiler.
    | `HSIM_WITH_CUDA` | `OFF` | solve the dense eigenproblems with cuSOLVER (needs the CUDA toolkit) |
    | `HSIM_BUILD_EXAMPLES` | `ON` | build the GUI example `HSIM_GUI` (needs OpenGL; on Linux the X11 development packages) |
    | `HSIM_BUILD_TESTS` | `ON` | build the test-suite (`ctest --test-dir build`) |
-   | `HSIM_VERBOSE` | `OFF` | print the intermediate steps of the solver |
 
 3. **Run** the example: `./build/Example/1_HSIM_GUI/HSIM_GUI [mesh.obj]`
 

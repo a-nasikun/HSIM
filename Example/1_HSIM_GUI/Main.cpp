@@ -1,69 +1,47 @@
-#include "LBEigenSolver.h"
-#include "HSIMwithGUI.h"
-#include <igl/unproject_onto_mesh.h>
+// Interactive example of the HSIM library.
+// Usage: HSIM_GUI [mesh file]   (default: the kitten model shipped in Models/)
+#include "HSIMMenu.h"
 
-#include <memory>
+#include <igl/opengl/glfw/imgui/ImGuiPlugin.h>
 
+#include <exception>
+#include <iostream>
+#include <string>
 
-/* [MAIN FUNCTION THAT CALLS EVERYTHING ELSE] */
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-	string								meshFile; 
-	auto								solverOwner = std::make_unique<HSIM::LBEigenSolver>();
-	HSIM::LBEigenSolver*				eigenSolver = solverOwner.get();
+	const std::string meshFile = (argc > 1) ? argv[1] : HSIM_MODELS_DIR "/AIM366_Kitten/366_Kitten_Flip.obj";
 
-	/* GUI FUNCTIONALITY */	
-	igl::opengl::glfw::Viewer			viewer;			// Set up main viewer
-	igl::opengl::glfw::imgui::ImGuiPlugin plugin;		// ImGui plugin of the viewer
+	Eigen::MatrixXd V;
+	Eigen::MatrixXi F;
+	try {
+		hsim::readMesh(meshFile, V, F);
+		std::cout << "Loaded " << meshFile << ": " << V.rows() << " vertices, " << F.rows() << " faces" << std::endl;
+	}
+	catch (const std::exception& e) {
+		std::cerr << e.what() << std::endl;
+		return 1;
+	}
+
+	igl::opengl::glfw::Viewer viewer;
+	igl::opengl::glfw::imgui::ImGuiPlugin plugin;
 	viewer.plugins.push_back(&plugin);
-	igl::opengl::glfw::imgui::ImGuiMenu menu;			// Attach a menu widget
+	igl::opengl::glfw::imgui::ImGuiMenu menu;
 	plugin.widgets.push_back(&menu);
-	
-	meshFile = (argc > 1) ? argv[1] : HSIM_MODELS_DIR "/AIM366_Kitten/366_Kitten_Flip.obj";
-		
-	eigenSolver->readMesh(meshFile);
 
-			
-	/* Pembuatan menu GUI */
-	menu.callback_draw_viewer_window = [&]()
-	{
-		HSIMMenu(viewer, menu, eigenSolver);
-	};
-	/* END OF GUI FUNCTIONALITY */
+	GuiState state;
+	menu.callback_draw_viewer_window = [&]() { drawHSIMMenu(viewer, menu, state); };
 
-	/* User interaction via keyboard */
-	const auto &key_down = [&](igl::opengl::glfw::Viewer &viewer, unsigned char key, int mod)->bool
-	{
-		/* For selecting faces */
-		double xMouse;
-		double yMouse;
-		int fid;
-		Eigen::Vector3f bc;
-		int selectedFace;
-
-		switch (key)
-		{
-		case '0':
-			viewer.data().clear();			
-			viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
-			viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
-			break;		
-		default:
-			return false;
-		}
-		viewer.data().compute_normals();
-		//viewer.core.align_camera_center(V, F);
+	// Key '0' resets the colours.
+	viewer.callback_key_down = [&](igl::opengl::glfw::Viewer& v, unsigned char key, int) {
+		if (key != '0') return false;
+		showMesh(v, v.data().V, v.data().F);
 		return true;
 	};
 
-	viewer.callback_init			= [&](igl::opengl::glfw::Viewer &viewer){return false;};
-	viewer.data().set_mesh(eigenSolver->getV(), eigenSolver->getF());
-	viewer.callback_key_down		= key_down;
-
-	Eigen::Vector4f					bgCol(1.f, 1.f, 1.f, 1.f);
-	viewer.core().background_color = bgCol;
-	viewer.data().set_colors(Eigen::RowVector3d(0.93333333, 0.93333333, 0.9333333));
-	viewer.data().point_size		= 10.0f;
-	viewer.data().line_width		= 0.5f; 	
+	showMesh(viewer, V, F);
+	viewer.core().background_color = Eigen::Vector4f(1.f, 1.f, 1.f, 1.f);
+	viewer.data().point_size = 10.0f;
+	viewer.data().line_width = 0.5f;
 	return viewer.launch();
 }
