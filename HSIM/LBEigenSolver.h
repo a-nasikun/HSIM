@@ -5,6 +5,7 @@
 #include "Sampling.h"
 #include "EigenSolver.h"
 
+#include <stdexcept>
 #include <tuple>
 
 using namespace std;
@@ -13,6 +14,9 @@ namespace HSIM {
 	class LBEigenSolver
 	{
 	public:
+		LBEigenSolver() = default;
+		virtual ~LBEigenSolver() = default;
+
 		enum class EigenVectorType { EIGEN_REFERENCE, EIGEN_REDUCED, EIGEN_SIM };
 		enum class SIMType { SIM_MultiLevel, SIM_1level_WarmStart, SIM_1level_Random, SIM_1level_Bathe };
 		enum class EigenSolverType { EIG_SOLVER_MATLAB, EIG_SOLVER_CUDA, EIG_SOLVER_SPECTRA };
@@ -56,8 +60,6 @@ namespace HSIM {
 		void visualizeGeodesicDistanceMultLevel(igl::opengl::glfw::Viewer& viewer, int k) const;
 		void virtual visualizeBasis(igl::opengl::glfw::Viewer& viewer, int id, int k = 0, double scale = 1.0) const;
 		void virtual visualizeEigenvector(igl::opengl::glfw::Viewer& viewer, int id, const EigenVectorType& eigType, double scale = 1.0) const;
-		void visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer& viewer);
-		void visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer& viewer, int k);
 
 		/* Some setters and getters */
 		Eigen::MatrixXd getV() const;
@@ -75,13 +77,13 @@ namespace HSIM {
 		const vector<int>& getSubspaceSize() const;
 		
 		const Eigen::MatrixXd& getEigenVectorsReduced() const;
-		const Eigen::VectorXd& getEigenVectorsReduced(int id) const;
+		Eigen::VectorXd getEigenVectorsReduced(int id) const;		// throws std::out_of_range
 		const Eigen::VectorXd& getEigenValuesReduced() const;
-		const double getEigenValueReduced(int id) const;
+		double getEigenValueReduced(int id) const;					// throws std::out_of_range
 		const Eigen::MatrixXd& getEigenVectors() const;
-		const Eigen::VectorXd& getEigenVectors(int id) const;
+		Eigen::VectorXd getEigenVectors(int id) const;				// throws std::out_of_range
 		const Eigen::VectorXd& getEigenValues() const;
-		const double getEigenValueSIM(int id) const;
+		double getEigenValueSIM(int id) const;						// throws std::out_of_range
 
 	protected:
 		/* Mesh-related variables */
@@ -98,13 +100,13 @@ namespace HSIM {
 		Eigen::SparseMatrix<double>			SelMatrix;			// selector matrix for eigen computation
 		Eigen::VectorXi						Sample;				// the ID of vertices selected as samples 
 		Eigen::VectorXi						SampleMap;			// For a certain vertex ID (provided that it's a sample vertex) get its 'sample id' 								
-		int									sampleSize;			// sample of the finest level sample, i.e. level 0
+		int									sampleSize = 0;		// sample of the finest level sample, i.e. level 0
 		vector<set<int>>					AdM;				// adjacency matrix, vertex to neighboring vertices
 		vector<double>						maxNeighDist;		// geodesic distance for sampling, to control the sparsity
 
 		/* Subspace and spectral-related matrices, vectors, and variables */
 		Eigen::SparseMatrix<double>			Basis;				// Basis matrix (U[0]*U[1]*... *U[k])
-		bool								isClampedBasis;		// toogling if the basis is a clamped version
+		bool								isClampedBasis = false;	// toogling if the basis is a clamped version
 		Eigen::MatrixXd						EigVectsReduced;	// approximated eigenvectors
 		Eigen::MatrixXd						EigVectsReducedNonLifted;	// approximated eigenvectors, not Lifted
 		Eigen::VectorXd						EigValsReduced;		// approximated eigenvalues
@@ -117,7 +119,8 @@ namespace HSIM {
 		Eigen::VectorXi						itersPerLevel;		// Number of iterations per every level (in multi-level)
 
 		/* [MULTI-GRID STUFF]*/
-		int									level;				// the total number of hierarchy/levels on multigrid
+		int									level = 0;			// the total number of hierarchy/levels on multigrid
+		int									numModesHierarchy = 0;	// number of modes the hierarchy was built for
 		vector<int>							SubspaceSize;		// subspace/sample size on each level, from level 0 to level n-1
 		vector<Eigen::SparseMatrix<double>> U;					// basis matrix on each level
 		vector<Eigen::SparseMatrix<double>> Sbar, Mbar;			// reduced system matrices (stiffness + mass matrix) on each level
@@ -126,12 +129,12 @@ namespace HSIM {
 		Eigen::VectorXi						sampleLevel;		// to indicate if a vertex is picked as a sample; if yes, at which highest level k
 
 	private:
-		double			avgEdgeLength;						// average edge length (from the mesh)
-		double			surfaceArea;						// total surface area (from the mesh)
+		double			avgEdgeLength = 0.0;				// average edge length (from the mesh)
+		double			surfaceArea = 0.0;					// total surface area (from the mesh)
 
 		// TEst variable
 	public:
-		double zhaoShiftParam;
+		double zhaoShiftParam = 0.25;						// relative position of the shift in [0,1), see eigs()
 	};
 
 }

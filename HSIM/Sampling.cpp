@@ -92,9 +92,8 @@ namespace HSIM {
 						/* If there are more elements than required, randomly discard the rest */
 						if (boxSize > SamplePerBox) {
 							set<int> vertexToDel;
-							srand(time(NULL));
 							do {
-								std::uniform_int_distribution<long> distribution(0, boxSize);
+								std::uniform_int_distribution<int> distribution(0, boxSize - 1);	// valid list positions
 								int vSel = distribution(generator);
 								vertexToDel.insert(vertexToDel.end(), vSel);
 							} while (vertexToDel.size() <= (boxSize - SamplePerBox));
@@ -134,9 +133,8 @@ namespace HSIM {
 			if (v4[b_xId][b_yId][b_zId].size() < 1) continue;
 
 			/* Picking a random sample from a box */
-			srand(time(NULL));
 			int randV1 = rand() % v4[b_xId][b_yId][b_zId].size();
-			int boxSample;
+			int boxSample = v4[b_xId][b_yId][b_zId].front();
 			int locCounter = 0;
 			for (list<int>::iterator it = v4[b_xId][b_yId][b_zId].begin(); it != v4[b_xId][b_yId][b_zId].end(); ++it) {
 				if (randV1 == locCounter) boxSample = *it;
@@ -248,11 +246,7 @@ namespace HSIM {
 		// Initialize the value of D
 		D.setConstant(numeric_limits<double>::infinity());
 
-		/* Random number generator */
-		std::random_device rd;								// Will be used to obtain a seed for the random number engine
-		std::mt19937 gen(rd());								// Standard mersenne_twister_engine seeded with rd()
-		std::uniform_int_distribution<> dist(0, V.rows());	// From 0 to F.rows()-1
-		//Samples(0) = dist(gen);	
+		/* The first sample is vertex 0, which makes the sampling deterministic. */
 		Samples(0) = 0;
 
 		Eigen::VectorXi::Index maxIndex;

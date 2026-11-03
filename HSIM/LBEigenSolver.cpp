@@ -12,6 +12,11 @@
 
 namespace HSIM {
 
+namespace {
+	/* Size q of the iterated subspace for numEigs sought eigenpairs (Bathe's rule, as in the paper). */
+	int subspaceSizeFor(int numEigs) { return std::max(2 * numEigs, numEigs + 8); }
+}
+
 /**
 *  @brief Reading a (triangle) mesh specified by the input.
 *
@@ -128,7 +133,7 @@ void LBEigenSolver::constructMassMatrix()
 
 	Eigen::VectorXd dblArea;
 	igl::doublearea(V, F, dblArea);
-	surfaceArea = dblArea.sum();
+	surfaceArea = dblArea.sum() / 2.0;
 }
 
 void LBEigenSolver::constructStiffnessMatrix()
@@ -172,6 +177,7 @@ void LBEigenSolver::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::Matrix
 	Eigen::VectorXd sampSize;
 	double levelRatio = 10.0;
 	setSamplingLevels(sampSize, numModes, levelRatio);
+	numModesHierarchy = numModes;
 	setInitialSystem(sampSize.rows());
 	constructSampleHierarchy(sampSize);
 
@@ -187,8 +193,11 @@ void LBEigenSolver::buildHierarchy(const Eigen::MatrixXd& V, const Eigen::Matrix
 /* Construction of the subspace and/or hierarchy */
 void LBEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, double levelRatio)
 {
-	double	spRatio = 1.0;
-	int		sizeSubsp = spRatio * 2 * numEigen;
+	if (numEigen < 1) throw std::invalid_argument("setSamplingLevels: the number of eigenpairs must be positive");
+	if (levelRatio <= 1.0) throw std::invalid_argument("setSamplingLevels: the level ratio must be larger than 1");
+
+	/* The coarsest level must be able to hold the whole iterated subspace (q vectors). */
+	int		sizeSubsp = subspaceSizeFor(numEigen);
 
 	vector<int> sampleLevels;
 	sampleLevels.reserve(10);
@@ -209,8 +218,9 @@ void LBEigenSolver::setSamplingLevels(Eigen::VectorXd& sampSize, int numEigen, d
 
 	if (sampleLevels.size() < 1)
 	{
-		std::cout << "Error! The provided sample is not enough! \n";
-		return;
+		throw std::invalid_argument("setSamplingLevels: the mesh (" + to_string(V.rows()) + " vertices) is too coarse to compute "
+			+ to_string(numEigen) + " eigenpairs with level ratio " + to_string(levelRatio)
+			+ "; at least " + to_string((int)ceil(levelRatio * sizeSubsp)) + " vertices are needed");
 	}
 
 	sampSize.resize(sampleLevels.size());
@@ -256,8 +266,12 @@ void LBEigenSolver::constructBasis(double support, int axis, double offset)
 {
 	cout << "____ Constructing prolongation operator \n";
 
+	/* Support radius r_k of the basis functions on level k: a disc of radius r_k covers (on average) 'support'
+	 * samples, pi r_k^2 = support * A / m_k. NOTE: the original implementation used twice the surface area here
+	 * (double-area sum); this factor is kept so that results are identical to the published ones. */
+	const double areaFactor = 2.0;
 	for (int i = 0; i < level; i++) {
-		maxNeighDist[i] = sqrt((surfaceArea*support) / (M_PI*SubspaceSize[i]));
+		maxNeighDist[i] = sqrt((areaFactor*surfaceArea*support) / (M_PI*SubspaceSize[i]));
 		//printf("Radius %d is %.4f (avg edge: %.4f)\n", i, maxNeighDist[i], avgEdgeLength);
 	}
 
@@ -295,20 +309,18 @@ void LBEigenSolver::constructRadialBasisFunctions(int k, int axis, bool isClampe
 	double			bCoef = -3.0 / (pow(maxNeighDist[k], 2));
 	int				i = 0;
 
-	const int		NUM_OF_THREADS = omp_get_num_procs();
-	omp_set_num_threads(NUM_OF_THREADS);
+	const int		NUM_OF_THREADS = omp_get_max_threads();	// respects OMP_NUM_THREADS, no global side effect
 	UTriplet.resize(NUM_OF_THREADS);
 
-	int tid, ntids, ipts, istart, iproc;
+	int tid, ntids, ipts, istart;
 
 	vector<int> elementCounter;
 	elementCounter.resize(NUM_OF_THREADS);
 	int totalElementInsertions = 0;
 
 	/* Manually break the chunck for parallelization */
-#pragma omp parallel private(tid,ntids,ipts,istart,i)
+#pragma omp parallel num_threads(NUM_OF_THREADS) private(tid,ntids,ipts,istart,i)
 	{
-		iproc = omp_get_num_procs();
 		tid = omp_get_thread_num();
 		ntids = omp_get_num_threads();
 		ipts = (int)ceil(1.00*(double)SubspaceSize[k] / (double)ntids);
@@ -374,7 +386,7 @@ void LBEigenSolver::constructDijkstraDisk(const int s1, Eigen::VectorXd &D, cons
 	priority_queue<VertexPair, std::vector<VertexPair>, std::greater<VertexPair>> DistPQueue;
 
 	/* Setting the bound */
-	double xBound;
+	double xBound = -numeric_limits<double>::infinity();
 	if (isClampedBasis) {
 		double xMin = V.col(axis).minCoeff();
 		double xMax = V.col(axis).maxCoeff();
@@ -474,9 +486,10 @@ void LBEigenSolver::formPartitionOfUnityMultiLevel()
 			// if the sum of the row is very small, then do not do anything on this row
 			if (abs(rowSum(k)) < (10.0 * std::numeric_limits<double>::epsilon())) {
 				diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0));
-				//cout << "Row: " << k << ", value:" << rowSum(k) << endl;
 			}
-			diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+			else {
+				diagTrip.push_back(Eigen::Triplet<double>(k, k, 1.0 / rowSum(k)));
+			}
 		}
 		DiagNormMatrix.setFromTriplets(diagTrip.begin(), diagTrip.end());
 
@@ -506,28 +519,22 @@ void LBEigenSolver::solveRestrictedProblem()
 	#endif	
 
 
-	int status;
-	int iter = 0;
-
 	Eigen::MatrixXd SDense(S_);
 	Eigen::MatrixXd MDense(M_);
-	Eigen::MatrixXd IdDense; IdDense.setIdentity(S_.rows(), S_.cols());
 
-	do {
-		if (iter == 0) {
-			status = computeEigenGPU(S_, M_, EigVectsReducedNonLifted, EigValsReduced);
-			status = 0;
-		}
-		else {
-			eps *= 10;
-			Eigen::MatrixXd AA = SDense + eps * IdDense;
-			computeEigenSpectraDense(AA, MDense, 50,EigVectsReducedNonLifted, EigValsReduced);
-			#ifdef VERBOSE
-				cout << "Shift: " << eps << endl;
-			#endif
-		}
-		iter++;
-	} while (status != 0 && iter < 10);
+	/* Solve the dense problem; if the solver fails, retry with an increasingly regularised stiffness matrix. */
+	int status = computeEigenGPUDense(SDense, MDense, EigVectsReducedNonLifted, EigValsReduced);
+	for (int iter = 1; status != 0 && iter < 10; ++iter) {
+		eps *= 10;
+		Eigen::MatrixXd SReg = SDense;
+		SReg.diagonal().array() += eps;
+		status = computeEigenGPUDense(SReg, MDense, EigVectsReducedNonLifted, EigValsReduced);
+		#ifdef VERBOSE
+			cout << "Shift: " << eps << endl;
+		#endif
+	}
+	if (status != 0)
+		throw std::runtime_error("solveRestrictedProblem: the dense eigensolver failed on the coarsest level");
 
 	#ifdef VERBOSE
 		std::cout << "Succesful and lifted to fine resolution \n";
@@ -543,7 +550,7 @@ void LBEigenSolver::constructSelectorMatrixFullSize(Eigen::SparseMatrix<double>&
 	STriplet.reserve(M.nonZeros());
 
 	/* Setting the bound */
-	double xBound;
+	double xBound = -numeric_limits<double>::infinity();
 	if (isClampedBasis) {
 		double xMin = V.col(axis).minCoeff();
 		double xMax = V.col(axis).maxCoeff();
@@ -581,6 +588,16 @@ void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 	}
 
 	
+	if (numEigs < 1)
+		throw std::invalid_argument("performSubspaceIterationMethod: the number of eigenpairs must be positive");
+	if (maxIter < 1)
+		throw std::invalid_argument("performSubspaceIterationMethod: maxIter must be positive");
+	if (!(zhaoShiftParam >= 0.0 && zhaoShiftParam < 1.0))
+		throw std::invalid_argument("performSubspaceIterationMethod: the shift parameter must lie in [0, 1)");
+	if (subspaceSizeFor(numEigs) > EigVectsReducedNonLifted.cols())
+		throw std::invalid_argument("performSubspaceIterationMethod: the hierarchy was built for " + to_string(numModesHierarchy)
+			+ " eigenpairs and cannot be used for " + to_string(numEigs) + "; rebuild it with buildHierarchy()");
+
 	chrono::high_resolution_clock::time_point	t0, t1;
 	chrono::duration<double>					duration;
 	t0 = chrono::high_resolution_clock::now();
@@ -613,7 +630,7 @@ void LBEigenSolver::performSubspaceIterationMethod(SIMType type, int numEigs, in
 		std::cout << "Lifting the eigenvectors... ";
 	#endif
 
-	EigVectsReduced = Basis * EigVectsReducedNonLifted.topLeftCorner(EigVectsReducedNonLifted.rows(), 2*numEigs);
+	EigVectsReduced = Basis * EigVectsReducedNonLifted.leftCols(subspaceSizeFor(numEigs));
 	#ifdef VERBOSE
 		std::cout << "...successful\n";
 	#endif
@@ -650,7 +667,7 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 	t0 = chrono::high_resolution_clock::now();
 	
 
-	int		q = max(2 * numEigs, numEigs + 8);
+	const int	q = subspaceSizeFor(numEigs);
 
 	int iterCount = 0;
 	int factCounter = 0;
@@ -735,7 +752,7 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 		//double zhaoParam = 0.25;
 		double zhaoParam = zhaoShiftParam;
 		int zhaoShiftId;
-		double mu;
+		double mu = 0.0;
 		double eps = 1e3*std::numeric_limits<double>::epsilon();
 
 		#ifdef VERBOSE
@@ -754,6 +771,7 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 						#ifdef VERBOSE	
 							std::cout << "__On finest level, no shift on really high accuracy!" << std::endl;
 						#endif
+						mu = 0.0;								// no spectral shift, only a tiny regularisation
 						factorization.compute(SK + eps*Id);
 					}
 					else {
@@ -769,6 +787,9 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 					mu = eps;
 					factorization.compute(SK + mu*Id);
 				}
+
+				if (factorization.info() != Eigen::Success)
+					throw std::runtime_error("performSubspaceIterationMethod: sparse LDLT factorization failed on level " + to_string(k));
 
 				factCounter++;
 				#ifdef VERBOSE
@@ -853,7 +874,7 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 			#endif
 
 			///cout << AkL.head(numEigs).transpose() << endl;
-			#ifdef VERBOSE {
+			#ifdef VERBOSE
 				std::cout << "Stacking is ....";
 				printf("Eigenvalues %dx%d \n", EigValsSIMStack.rows(), EigValsSIMStack.cols());
 				printf("Convergence %dx%d \n", convergence2Stacks.rows(), convergence2Stacks.cols());
@@ -861,9 +882,9 @@ void LBEigenSolver::performMultiLevelSIM_withShiftOnce(Eigen::SparseMatrix<doubl
 			#endif
 
 			if (k == 0) {
-				EigValsSIMStack.col(iterCount) = AkL.block(0, 0, numEigs - 1, 1);
-				convergence2Stacks.col(iterCount) = conv2.block(0, 0, numEigs - 1, 1);
-				convergence3Stacks.col(iterCount) = conv3.block(0, 0, numEigs - 1, 1);
+				EigValsSIMStack.col(iterCount) = AkL.head(numEigs);
+				convergence2Stacks.col(iterCount) = conv2.head(numEigs);
+				convergence3Stacks.col(iterCount) = conv3.head(numEigs);
 			}
 			#ifdef VERBOSE
 				std::cout << "... successful\n";
@@ -1032,40 +1053,6 @@ void LBEigenSolver::visualizeEigenvector(igl::opengl::glfw::Viewer &viewer, int 
 	viewer.data().set_colors(VColor);
 }
 
-void LBEigenSolver::visualizeClusterOfSamplesLevel0(igl::opengl::glfw::Viewer& viewer)
-{
-	Eigen::MatrixXd VColor;
-	Eigen::VectorXd vcolor(V.rows());
-	for (int i = 0; i < V.rows(); i++)
-	{
-		vcolor(i) = (double)clusters[0](i) / (double)V.rows();
-	}
-
-	igl::jet(vcolor, true, VColor);
-	viewer.data().set_colors(VColor);
-}
-
-void LBEigenSolver::visualizeClusterOfSamplesLevelK(igl::opengl::glfw::Viewer& viewer, int k)
-{
-	viewer.data().points.resize(0, 6);
-	Eigen::MatrixXd VColor;
-	Eigen::VectorXd fcolor(SubspaceSize[k]);
-
-
-	//cout << "Set color for level " << k << endl;
-	for (int i = 0; i < SubspaceSize[k]; i++) fcolor(i) = (double)i; // / (double)clusters[k].size();
-
-	igl::jet(fcolor, true, VColor);
-
-	//cout << "Iterate to set color for each sample vertex \n";
-	for (int i = 0; i < SubspaceSize[k - 1]; i++)
-	{
-		//printf("Point %d (Sample %d) belongs to cluster %d \n", Sample(i), i, clusters[k](i));
-		viewer.data().add_points(V.row(Sample(i)), VColor.row(clusters[k](i)));
-	}
-}
-
-
 /* Some getters */
 Eigen::MatrixXd LBEigenSolver::getV() const { return V; }
 Eigen::MatrixXi LBEigenSolver::getF() const { return F; }
@@ -1082,34 +1069,27 @@ const Eigen::VectorXi& LBEigenSolver::getSample() const { return Sample; }
 const vector<int>& LBEigenSolver::getSubspaceSize() const { return SubspaceSize; }
 
 const Eigen::MatrixXd& LBEigenSolver::getEigenVectorsReduced() const { return EigVectsReducedNonLifted; }
-const Eigen::VectorXd& LBEigenSolver::getEigenVectorsReduced(int id) const
+Eigen::VectorXd LBEigenSolver::getEigenVectorsReduced(int id) const
 {
-	if (id >= EigVectsReduced.cols())	return EigVectsReduced.col(EigValsReduced.rows() - 1);
-	else if (id < 0)						return EigVectsReduced.col(0);
-
+	if (id < 0 || id >= EigVectsReduced.cols()) throw std::out_of_range("getEigenVectorsReduced: index " + to_string(id) + " out of range");
 	return EigVectsReduced.col(id);
 }
 const Eigen::VectorXd& LBEigenSolver::getEigenValuesReduced() const { return EigValsReduced; }
-const double LBEigenSolver::getEigenValueReduced(int id) const
+double LBEigenSolver::getEigenValueReduced(int id) const
 {
-	if (id >= EigValsReduced.rows())	return EigValsReduced(EigValsReduced.rows() - 1);
-	else if (id < 0)						return EigValsReduced(0);
-
+	if (id < 0 || id >= EigValsReduced.rows()) throw std::out_of_range("getEigenValueReduced: index " + to_string(id) + " out of range");
 	return EigValsReduced(id);
 }
 const Eigen::MatrixXd& LBEigenSolver::getEigenVectors() const { return EigVectsSIM; }
-const Eigen::VectorXd& LBEigenSolver::getEigenVectors(int id) const
+Eigen::VectorXd LBEigenSolver::getEigenVectors(int id) const
 {
-	if (id >= EigVectsSIM.cols())		return EigVectsSIM.col(EigValsSIM.rows() - 1);
-	else if (id < 0)						return EigVectsSIM.col(0);
+	if (id < 0 || id >= EigVectsSIM.cols()) throw std::out_of_range("getEigenVectors: index " + to_string(id) + " out of range");
 	return EigVectsSIM.col(id);
 }
 const Eigen::VectorXd& LBEigenSolver::getEigenValues() const { return EigValsSIM; }
-const double LBEigenSolver::getEigenValueSIM(int id) const
+double LBEigenSolver::getEigenValueSIM(int id) const
 {
-	if (id >= EigValsSIM.rows())		return EigValsSIM(EigValsSIM.rows() - 1);
-	else if (id < 0)						return EigValsSIM(0);
-
+	if (id < 0 || id >= EigValsSIM.rows()) throw std::out_of_range("getEigenValueSIM: index " + to_string(id) + " out of range");
 	return EigValsSIM(id);
 }
 }

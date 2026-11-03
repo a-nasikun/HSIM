@@ -2,12 +2,15 @@
 #include "HSIMwithGUI.h"
 #include <igl/unproject_onto_mesh.h>
 
+#include <memory>
+
 
 /* [MAIN FUNCTION THAT CALLS EVERYTHING ELSE] */
 int main(int argc, char *argv[])
 {
 	string								meshFile; 
-	HSIM::LBEigenSolver*					eigenSolver = new HSIM::LBEigenSolver();
+	auto								solverOwner = std::make_unique<HSIM::LBEigenSolver>();
+	HSIM::LBEigenSolver*				eigenSolver = solverOwner.get();
 
 	/* GUI FUNCTIONALITY */	
 	igl::opengl::glfw::Viewer			viewer;			// Set up main viewer

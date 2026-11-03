@@ -20,6 +20,8 @@
 #include "cusolverMg.h"
 #endif
 
+#include <stdexcept>
+#include <string>
 #include <tuple>
 
 
@@ -35,101 +37,100 @@
 //#include <Spectra/MatOp/SparseCholesky.h>
 
 namespace HSIM {
-	/* Computing Eigenstructure in GPU */
-	/* This code is mostly taken from CUDA's cuSOLVER's example codes */
+	/* Computing the eigenstructure of a sparse pencil (S_, M_) by converting it to dense matrices. */
 	int computeEigenGPU(Eigen::SparseMatrix<double>& S_, Eigen::SparseMatrix<double>& M_, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
 	{
-
 		Eigen::MatrixXd Snew(S_);
 		Eigen::MatrixXd Mnew(M_);
-
-		computeEigenGPUDense(Snew, Mnew, LDEigVec, LDEigVal);
-
-		return 0;
+		return computeEigenGPUDense(Snew, Mnew, LDEigVec, LDEigVal);
 	}
 
 #ifndef HSIM_WITH_CUDA
-	/* CPU fallback: dense generalized symmetric-definite eigenproblem S x = lambda M x (Eigen, lower triangle). */
+	/* CPU implementation: dense generalized symmetric-definite eigenproblem S x = lambda M x (Eigen, lower triangle).
+	 * Returns 0 on success, 1 if the solver failed or produced non-finite values. */
 	int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
 	{
 		Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> solver(S, M);
+		if (solver.info() != Eigen::Success) return 1;
 		LDEigVec = solver.eigenvectors();
 		LDEigVal = solver.eigenvalues();
-		return (LDEigVal(1) > 0) ? 0 : 1;
+		return LDEigVal.allFinite() ? 0 : 1;
 	}
 #else
+	namespace {
+		void checkCuda(cudaError_t err, const char* what)
+		{
+			if (err != cudaSuccess) throw std::runtime_error(std::string(what) + ": " + cudaGetErrorString(err));
+		}
+		void checkCusolver(cusolverStatus_t status, const char* what)
+		{
+			if (status != CUSOLVER_STATUS_SUCCESS)
+				throw std::runtime_error(std::string(what) + " failed (cuSOLVER status " + std::to_string(static_cast<int>(status)) + ")");
+		}
+
+		/* RAII wrapper of a device buffer */
+		template <typename T>
+		class DeviceBuffer {
+		public:
+			explicit DeviceBuffer(size_t n) { checkCuda(cudaMalloc(reinterpret_cast<void**>(&ptr_), sizeof(T) * n), "cudaMalloc"); }
+			~DeviceBuffer() { cudaFree(ptr_); }
+			DeviceBuffer(const DeviceBuffer&) = delete;
+			DeviceBuffer& operator=(const DeviceBuffer&) = delete;
+			T* get() const { return ptr_; }
+		private:
+			T* ptr_ = nullptr;
+		};
+
+		/* RAII wrapper of a cuSOLVER dense handle */
+		class CusolverDnHandle {
+		public:
+			CusolverDnHandle() { checkCusolver(cusolverDnCreate(&handle_), "cusolverDnCreate"); }
+			~CusolverDnHandle() { cusolverDnDestroy(handle_); }
+			CusolverDnHandle(const CusolverDnHandle&) = delete;
+			CusolverDnHandle& operator=(const CusolverDnHandle&) = delete;
+			cusolverDnHandle_t get() const { return handle_; }
+		private:
+			cusolverDnHandle_t handle_ = nullptr;
+		};
+	}
+
+	/* GPU implementation (cuSOLVER sygvd), adapted from the cuSOLVER example codes.
+	 * Returns 0 on success, 1 if the solver reported an error or produced non-finite values;
+	 * CUDA runtime errors are reported by exceptions. All device resources are released on every path. */
 	int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
 	{
-		cusolverDnHandle_t cusolverH = NULL;
-		cudaStream_t stream = NULL;
-
-		using data_type = double;
-
-		const int m = S.rows();
+		const int m = static_cast<int>(S.rows());
 		const int lda = m;
+		const size_t numEntries = static_cast<size_t>(lda) * static_cast<size_t>(m);
 
-		double* A = (double*)std::malloc(m * lda * sizeof(data_type));
-		double* B = (double*)std::malloc(m * lda * sizeof(data_type));
-		A = S.data();
-		B = M.data();
+		CusolverDnHandle handle;
+		DeviceBuffer<double> d_A(numEntries), d_B(numEntries), d_W(static_cast<size_t>(m));
+		DeviceBuffer<int> d_info(1);
 
-		std::vector<data_type> V(lda * m, 0); // eigenvectors
-		std::vector<data_type> W(m, 0);       // eigenvalues
+		checkCuda(cudaMemcpy(d_A.get(), S.data(), sizeof(double) * numEntries, cudaMemcpyHostToDevice), "cudaMemcpy (S)");
+		checkCuda(cudaMemcpy(d_B.get(), M.data(), sizeof(double) * numEntries, cudaMemcpyHostToDevice), "cudaMemcpy (M)");
 
-		data_type* d_A = nullptr;
-		data_type* d_B = nullptr;
-		data_type* d_W = nullptr;
-		data_type vl;
-		data_type vu;
+		const cusolverEigType_t itype = CUSOLVER_EIG_TYPE_1;      // A*x = (lambda)*B*x
+		const cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;  // compute eigenvalues and eigenvectors
+		const cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
 
-		int64_t h_meig = 0;
-
-		int* d_info = nullptr;
-		double* d_work = nullptr;
 		int lwork = 0;
+		checkCusolver(cusolverDnDsygvd_bufferSize(handle.get(), itype, jobz, uplo, m, d_A.get(), lda, d_B.get(), lda, d_W.get(), &lwork),
+			"cusolverDnDsygvd_bufferSize");
+		DeviceBuffer<double> d_work(static_cast<size_t>(lwork));
+
+		checkCusolver(cusolverDnDsygvd(handle.get(), itype, jobz, uplo, m, d_A.get(), lda, d_B.get(), lda, d_W.get(), d_work.get(), lwork, d_info.get()),
+			"cusolverDnDsygvd");
+
 		int info = 0;
+		LDEigVec.resize(m, m);
+		LDEigVal.resize(m);
+		checkCuda(cudaMemcpy(LDEigVec.data(), d_A.get(), sizeof(double) * numEntries, cudaMemcpyDeviceToHost), "cudaMemcpy (eigenvectors)");
+		checkCuda(cudaMemcpy(LDEigVal.data(), d_W.get(), sizeof(double) * m, cudaMemcpyDeviceToHost), "cudaMemcpy (eigenvalues)");
+		checkCuda(cudaMemcpy(&info, d_info.get(), sizeof(int), cudaMemcpyDeviceToHost), "cudaMemcpy (info)");
 
-		/* step 1: create cusolver handle, bind a stream */
-		cusolverDnCreate(&cusolverH);
-
-		cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
-		cusolverDnSetStream(cusolverH, stream);
-
-		cudaMalloc(reinterpret_cast<void**>(&d_A), sizeof(double) * lda * m);
-		cudaMalloc(reinterpret_cast<void**>(&d_B), sizeof(double) * lda * m);
-		cudaMalloc(reinterpret_cast<void**>(&d_W), sizeof(double) * W.size());
-		cudaMalloc(reinterpret_cast<void**>(&d_info), sizeof(int));
-
-		cudaMemcpyAsync(d_A, A, sizeof(double) * lda * m, cudaMemcpyHostToDevice, stream);
-		cudaMemcpyAsync(d_B, B, sizeof(double) * lda * m, cudaMemcpyHostToDevice, stream);
-
-		// step 3: query working space of sygvd
-		cusolverEigType_t itype = CUSOLVER_EIG_TYPE_1;     // A*x = (lambda)*B*x
-		cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR; // compute eigenvalues and eigenvectors.
-		cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
-		cusolverDnDsygvd_bufferSize(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, &lwork);
-		cudaMalloc(reinterpret_cast<void**>(&d_work), sizeof(double) * lwork);
-
-		// step 4: compute spectrum of (A,B)
-		cusolverDnDsygvd(cusolverH, itype, jobz, uplo, m, d_A, lda, d_B, lda, d_W, d_work, lwork, d_info);
-		cudaMemcpyAsync(V.data(), d_A, sizeof(double) * lda * m, cudaMemcpyDeviceToHost, stream);
-		cudaMemcpyAsync(W.data(), d_W, sizeof(double) * m, cudaMemcpyDeviceToHost, stream);
-		cudaMemcpyAsync(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost, stream);
-
-		cudaStreamSynchronize(stream);
-
-		// step 6: Copying back to EigenFormat (dense) for Eigenvalues and Eigenvectors
-		LDEigVec = Eigen::Map<Eigen::MatrixXd, 0, Eigen::OuterStride<>>(V.data(), m, lda, Eigen::OuterStride<>(m));
-		LDEigVal = Eigen::Map<Eigen::VectorXd>(W.data(), m);
-
-		if (LDEigVal(1) > 0)
-		{
-			return 0;
-		}
-		else {
-			return 1;
-		}
-
+		if (info != 0) return 1;
+		return LDEigVal.allFinite() ? 0 : 1;
 	}
 #endif // HSIM_WITH_CUDA
 
