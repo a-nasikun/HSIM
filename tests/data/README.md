@@ -39,3 +39,8 @@ residual <r_0> ... <r_{n-1}>      # r_i = ||S x_i - lambda_i M x_i||_M / ||S x_i
 ```
 
 `r_0` is meaningless (the constant mode has `S x_0 = 0`).
+
+## Agreement of the refactored code
+
+The tests (`tests/test_regression.cpp`) require a relative agreement of 10⁻¹⁰ for every eigenvalue. The refactored
+library (2.0, CPU backend, libigl 2.5 / Eigen 3.4) reproduces these baselines to 1·10⁻¹⁴ – 2·10⁻¹⁴, i.e. to round-off.

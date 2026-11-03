@@ -84,8 +84,9 @@ prints the time of every stage.
 * The algorithm is deterministic (sampling starts at vertex 0, no random numbers); all parameters are in `hsim::Options`
   and are written to the JSON record by `hsim_cli`.
 * `tests/` contains regression tests against eigenvalues recorded from the original 2022 implementation
-  (`tests/data/README.md` documents how they were produced), a physical check on the sphere (eigenvalues l(l+1) with
-  multiplicity 2l+1), and unit tests of the individual stages.
+  (reproduced to ~10⁻¹⁴; `tests/data/README.md` documents how they were produced), a physical check on the sphere
+  (eigenvalues l(l+1) with multiplicity 2l+1), a comparison with an independent sparse eigensolver (Spectra), unit tests
+  of the individual stages, and smoke tests of `hsim_cli`.
 * CI builds with GCC (warnings as errors), runs the tests in Release and with AddressSanitizer/UBSan, and checks
   formatting.
 

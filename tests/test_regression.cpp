@@ -80,22 +80,22 @@ void checkAgainstBaseline(const std::string& name, double relTol)
 
 TEST_CASE("regression: Chinese dragon (2000 vertices), one level, 20 modes")
 {
-	checkAgainstBaseline("dragon2000_n20", 1e-7);
+	checkAgainstBaseline("dragon2000_n20", 1e-10);
 }
 
 TEST_CASE("regression: Chinese dragon (5000 vertices), two levels, 20 modes")
 {
-	checkAgainstBaseline("dragon5000_n20", 1e-7);
+	checkAgainstBaseline("dragon5000_n20", 1e-10);
 }
 
 TEST_CASE("regression: Chinese dragon (5000 vertices), GUI defaults tol=1e-2, maxIter=5")
 {
-	checkAgainstBaseline("dragon5000_gui", 1e-7);
+	checkAgainstBaseline("dragon5000_gui", 1e-10);
 }
 
 TEST_CASE("regression: icosphere (2562 vertices), 25 modes")
 {
-	checkAgainstBaseline("sphere_n25", 1e-7);
+	checkAgainstBaseline("sphere_n25", 1e-10);
 }
 
 TEST_CASE("physics: icosphere spectrum approximates l(l+1)")

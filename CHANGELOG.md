@@ -2,8 +2,8 @@
 
 ## 2.0.0 — 2026 refactoring (branch `2026-refactor`)
 
-The numerical method is unchanged: the regression tests reproduce the eigenvalues of the original implementation
-(commit `127634f`) to a relative accuracy of 10⁻⁷ (see `tests/data/README.md`).
+The numerical method is unchanged: the eigenvalues of the original implementation (commit `127634f`) are reproduced to
+a relative difference of about 10⁻¹⁴ (round-off); the regression tests enforce 10⁻¹⁰ (see `tests/data/README.md`).
 
 ### Added
 * Public, modular C++17 API in `HSIM/include/hsim/` (`hsim::eigs`, `hsim::Solver`, `hsim::Options`, `hsim::Result`
@@ -11,7 +11,9 @@ The numerical method is unchanged: the regression tests reproduce the eigenvalue
 * CPU backend (Eigen) for the dense eigenproblems; CUDA (cuSOLVER) is optional (`HSIM_WITH_CUDA`) and selectable at
   run time (`Options::denseBackend`).
 * Command-line program `hsim_cli` that writes eigenvalues, residuals and a JSON record of the run.
-* Benchmark program, test-suite (regression, physics, unit tests), CI (GCC, sanitizers, formatting).
+* Benchmark program; test-suite with regression tests against the original code, a physical check (sphere spectrum),
+  comparison with an independent eigensolver (Spectra), unit tests of every module and smoke tests of `hsim_cli`;
+  CI (GCC with warnings as errors, AddressSanitizer/UBSan, formatting).
 * `CITATION.cff`, `CONTRIBUTING.md`, `.clang-format`, `.clang-tidy`, Doxygen configuration.
 
 ### Fixed
@@ -19,6 +21,8 @@ The numerical method is unchanged: the regression tests reproduce the eigenvalue
   out-of-bounds access in the convergence history and for fewer than 8 modes, uninitialised shift for tolerances
   below 10⁻⁹, dangling references returned by eigenvector getters, GPU memory leaks and unchecked CUDA errors,
   ineffective fallback for a failing coarse eigensolver, off-by-one random indices, global OpenMP side effects.
+* The CPU dense eigensolver now reports a failed Cholesky factorization of the mass matrix (Eigen's generalized solver
+  silently returns meaningless values in that case).
 
 ### Changed
 * `eigs`/`solve` return exactly `numModes` eigenpairs (previously q = max(2·numModes, numModes + 8)).

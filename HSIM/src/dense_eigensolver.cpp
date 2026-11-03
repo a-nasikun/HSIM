@@ -1,5 +1,6 @@
 #include "hsim/dense_eigensolver.h"
 
+#include <Eigen/Cholesky>
 #include <Eigen/Eigenvalues>
 
 #include <stdexcept>
@@ -14,6 +15,9 @@ DenseEigenpairs solveDenseCuSolver(const Eigen::MatrixXd& S, const Eigen::Matrix
 DenseEigenpairs solveDenseEigen(const Eigen::MatrixXd& S, const Eigen::MatrixXd& M)
 {
 	DenseEigenpairs result;
+	// Eigen's generalized solver does not report a failed Cholesky factorization of M (it returns meaningless values),
+	// hence the explicit check that M is positive definite (cuSOLVER reports this case through devInfo).
+	if (Eigen::LLT<Eigen::MatrixXd>(M).info() != Eigen::Success) return result;
 	const Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> solver(S, M); // lower triangles, Cholesky of M
 	if (solver.info() != Eigen::Success) return result;
 	result.values = solver.eigenvalues();

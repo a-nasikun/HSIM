@@ -19,6 +19,8 @@
 
 namespace hsim_test {
 
+inline constexpr double kPi = 3.14159265358979323846;
+
 /// Absolute path of a file given relative to the repository root.
 inline std::string repoPath(const std::string& relative)
 {
