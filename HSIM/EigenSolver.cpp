@@ -10,13 +10,15 @@
 
 //#include <Eigen/PardisoSupport>
 
-// For CUDA
+// For CUDA (optional: without HSIM_WITH_CUDA a CPU implementation based on Eigen is used)
+#ifdef HSIM_WITH_CUDA
 #include "cublas_v2.h"
 #include "cusolverDn.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
 #include "cusolverMg.h"
+#endif
 
 #include <tuple>
 
@@ -46,6 +48,16 @@ namespace HSIM {
 		return 0;
 	}
 
+#ifndef HSIM_WITH_CUDA
+	/* CPU fallback: dense generalized symmetric-definite eigenproblem S x = lambda M x (Eigen, lower triangle). */
+	int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
+	{
+		Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXd> solver(S, M);
+		LDEigVec = solver.eigenvectors();
+		LDEigVal = solver.eigenvalues();
+		return (LDEigVal(1) > 0) ? 0 : 1;
+	}
+#else
 	int computeEigenGPUDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, Eigen::MatrixXd& LDEigVec, Eigen::VectorXd& LDEigVal)
 	{
 		cusolverDnHandle_t cusolverH = NULL;
@@ -119,6 +131,7 @@ namespace HSIM {
 		}
 
 	}
+#endif // HSIM_WITH_CUDA
 
 	void computeEigenSpectraDense(Eigen::MatrixXd& S, Eigen::MatrixXd& M, const int& numEigs, Eigen::MatrixXd& EigVec, Eigen::VectorXd& EigVal)
 	{
